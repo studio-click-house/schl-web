@@ -1,0 +1,4 @@
+# Auto-detect text files and perform LF to CRLF conversion on checkout
+*.ts text eol=crlf
+*.js text eol=crlf
+*.json text eol=crlf
