@@ -1,9 +1,8 @@
 {
-  "eslint.workingDirectories": [
-    {
-      "mode": "auto",
-      "files.eol": "\r\n"
-    }
-  ]
+    "eslint.workingDirectories": [
+        {
+            "mode": "auto",
+            "files.eol": "\r\n"
+        }
+    ]
 }
-
