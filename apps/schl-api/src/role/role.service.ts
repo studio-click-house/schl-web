@@ -42,8 +42,8 @@ export class RoleService {
         pagination: {
             page: number;
             itemsPerPage: number;
-            isFiltered: boolean;
-            isPaginated: boolean;
+            filtered: boolean;
+            paginated: boolean;
         },
         userSession: UserSession,
     ) {
@@ -52,14 +52,14 @@ export class RoleService {
             userSession.permissions,
         );
 
-        const { page, itemsPerPage, isFiltered, isPaginated } = pagination;
+        const { page, itemsPerPage, filtered, paginated } = pagination;
         const { name } = filters;
 
         type SearchQuery = FilterQuery<Role>;
         const searchQuery: SearchQuery = {};
         const sortQuery: Record<string, 1 | -1> = { createdAt: -1 };
 
-        if (isFiltered && !name) {
+        if (filtered && !name) {
             throw new BadRequestException('No filter applied');
         }
 
@@ -71,7 +71,7 @@ export class RoleService {
 
         // Build count respecting super-admin visibility (non-super viewers should not see super-admin role)
         let count: number;
-        if (isPaginated) {
+        if (paginated) {
             const countFilter: FilterQuery<Role> = { ...searchQuery };
             if (!viewerIsSuper) {
                 countFilter.permissions = {
@@ -90,7 +90,7 @@ export class RoleService {
         }
 
         let roles: Role[];
-        if (isPaginated) {
+        if (paginated) {
             const findFilter: FilterQuery<Role> = { ...searchQuery };
             if (!viewerIsSuper) {
                 findFilter.permissions = {
@@ -125,6 +125,10 @@ export class RoleService {
             ...r,
             permissions: this.sanitizePermissions(r.permissions),
         }));
+
+        if (!paginated) {
+            return safeItems;
+        }
 
         return {
             pagination: {
@@ -312,7 +316,7 @@ export class RoleService {
 
         // Ensure no users are assigned to this role
         const assignedUsers = await this.userModel
-            .countDocuments({ role_id: roleId })
+            .countDocuments({ role: roleId })
             .exec();
         if (assignedUsers > 0) {
             throw new ConflictException(

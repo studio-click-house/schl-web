@@ -1,19 +1,21 @@
-import { Module, ValidationPipe } from '@nestjs/common';
+import { Module } from '@nestjs/common';
+
+import { ClientController } from './client.controller';
+
+import { ClientService } from './client.service';
+
+import { ValidationPipe } from '@nestjs/common';
 import { APP_PIPE } from '@nestjs/core';
 import { MongooseModule } from '@nestjs/mongoose';
-import { Role, RoleSchema } from 'src/models/role.schema';
-import { User, UserSchema } from 'src/models/user.schema';
-import { RoleController } from './role.controller';
-import { RoleService } from './role.service';
+import { Client, ClientSchema } from 'src/models/client.schema';
 
 @Module({
     imports: [
         MongooseModule.forFeature([
-            { name: User.name, schema: UserSchema },
-            { name: Role.name, schema: RoleSchema },
+            { name: Client.name, schema: ClientSchema },
         ]),
     ],
-    controllers: [RoleController],
+    controllers: [ClientController],
     providers: [
         {
             provide: APP_PIPE,
@@ -26,7 +28,8 @@ import { RoleService } from './role.service';
                 },
             }),
         },
-        RoleService,
+
+        ClientService,
     ],
 })
-export class RoleModule {}
+export class ClientModule {}

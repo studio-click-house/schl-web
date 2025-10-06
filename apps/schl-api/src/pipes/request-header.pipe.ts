@@ -12,7 +12,7 @@ export const RequestHeader = createParamDecorator(
         const headers = ctx.switchToHttp().getRequest().headers;
         const dto = plainToInstance(targetDto, headers, {
             excludeExtraneousValues: true,
-        }) as T;
+        });
         await validateOrReject(dto);
         return dto;
     },

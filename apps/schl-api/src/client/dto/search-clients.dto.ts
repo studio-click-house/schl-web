@@ -9,7 +9,7 @@ import {
 } from 'class-validator';
 import { toBoolean } from 'src/common/utils/transformers';
 
-export class SearchRolesQueryDto {
+export class SearchClientsQueryDto {
     @IsOptional()
     @Type(() => Number)
     @IsInt()
@@ -20,7 +20,7 @@ export class SearchRolesQueryDto {
     @Expose({ name: 'items-per-page' })
     @Type(() => Number)
     @IsInt()
-    @Min(30)
+    @Min(1)
     @Max(100)
     itemsPerPage: number = 30;
 
@@ -37,8 +37,28 @@ export class SearchRolesQueryDto {
     paginated: boolean = false;
 }
 
-export class SearchRolesBodyDto {
+export class SearchClientsBodyDto {
     @IsOptional()
     @IsString()
-    name?: string;
+    countryName?: string;
+
+    @IsOptional()
+    @IsString()
+    clientCode?: string;
+
+    @IsOptional()
+    @IsString()
+    contactPerson?: string;
+
+    @IsOptional()
+    @IsString()
+    marketerName?: string;
+
+    @IsOptional()
+    @IsString()
+    category?: string;
+
+    @IsOptional()
+    @IsString()
+    generalSearchString?: string;
 }

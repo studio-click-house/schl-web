@@ -9,6 +9,7 @@ import { JwtAuthGuard } from './common/auth/jwt-auth.guard';
 import { JwtStrategy } from './common/auth/jwt.strategy';
 import { RoleModule } from './role/role.module';
 import { UserModule } from './user/user.module';
+import { ClientModule } from './client/client.module';
 
 @Module({
     imports: [
@@ -24,6 +25,7 @@ import { UserModule } from './user/user.module';
         }),
         UserModule,
         RoleModule,
+        ClientModule,
     ],
     controllers: [AppController],
     providers: [

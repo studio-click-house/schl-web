@@ -29,12 +29,12 @@ export class AuthService {
                 name: username,
                 password: password,
             })
-            .populate('role_id', 'name permissions')
+            .populate('role', 'name permissions')
             .lean<PopulatedUser>()
             .exec();
 
         if (userData) {
-            const userPermissions = toPermissions(userData.role_id.permissions);
+            const userPermissions = toPermissions(userData.role.permissions);
 
             if (!hasPerm(`login:${clientType}`, userPermissions)) {
                 throw new UnauthorizedException(

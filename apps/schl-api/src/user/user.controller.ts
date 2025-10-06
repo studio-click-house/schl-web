@@ -8,13 +8,14 @@ import {
     Put,
     Query,
     Req,
+    Request,
 } from '@nestjs/common';
-import { Request } from 'express';
 import { Public } from 'src/common/auth/public.decorator';
 import { UserSession } from 'src/common/types/user-session.type';
 import { RequestHeader } from 'src/pipes/request-header.pipe';
 import { ChangePasswordBodyDto } from './dto/change-password.dto';
 import { CreateUserBodyDto } from './dto/create-user.dto';
+import { GetUserQueryDto } from './dto/get-user.dto';
 import { LoginBodyDto, LoginHeaderDto } from './dto/login.dto';
 import {
     SearchUsersBodyDto,
@@ -99,10 +100,10 @@ export class UserController {
         @Req() req: Request & { user: UserSession },
     ) {
         const pagination = {
-            page: query.page || 1,
-            itemsPerPage: query.itemsPerPage || 30,
-            isFiltered: query.filtered || false,
-            isPaginated: query.paginated || false,
+            page: query.page,
+            itemsPerPage: query.itemsPerPage,
+            filtered: query.filtered,
+            paginated: query.paginated,
         };
 
         return this.managementService.searchUsers(body, pagination, req.user);
@@ -111,8 +112,14 @@ export class UserController {
     @Get('get-user/:id')
     getUser(
         @Param('id') userId: string,
+        @Query() query: GetUserQueryDto,
         @Req() req: Request & { user: UserSession },
     ) {
-        return this.managementService.getUserById(userId, req.user);
+        const wantsExpanded = query.expanded;
+        return this.managementService.getUserById(
+            userId,
+            req.user,
+            wantsExpanded,
+        );
     }
 }

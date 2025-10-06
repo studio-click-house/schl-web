@@ -12,9 +12,12 @@ import { Model } from 'mongoose';
 import type { Permissions } from 'src/common/types/permission.type';
 import { PopulatedUser } from 'src/common/types/populated-user.type';
 import { UserSession } from 'src/common/types/user-session.type';
+import { buildOrRegex } from 'src/common/utils/filter-helpers';
 import { hasPerm, toPermissions } from 'src/common/utils/permission-check';
 import { Role } from 'src/models/role.schema';
 import { User } from 'src/models/user.schema';
+import { CreateUserBodyDto } from '../dto/create-user.dto';
+import { UserFactory } from '../factories/user.factory';
 
 @Injectable()
 export class ManagementService {
@@ -38,7 +41,7 @@ export class ManagementService {
         return toPermissions(stringPerms);
     }
 
-    async createUser(userData: User, userSession: UserSession) {
+    async createUser(userData: CreateUserBodyDto, userSession: UserSession) {
         if (!hasPerm('admin:create_user', userSession.permissions)) {
             throw new ForbiddenException(
                 'You do not have permission to create users',
@@ -46,11 +49,11 @@ export class ManagementService {
         }
 
         const role = await this.roleModel
-            .findById(userData.role_id)
+            .findById(userData.role)
             .select('permissions')
             .exec();
         if (!role) {
-            throw new ForbiddenException('Invalid role_id provided');
+            throw new ForbiddenException('Invalid role provided');
         }
 
         const editorPermsArr = userSession.permissions;
@@ -75,7 +78,8 @@ export class ManagementService {
         }
 
         try {
-            const createdUser = await new this.userModel(userData).save();
+            const payload = UserFactory.fromCreateDto(userData);
+            const createdUser = await new this.userModel(payload).save();
 
             if (!createdUser) {
                 throw new InternalServerErrorException('Failed to create user');
@@ -101,16 +105,14 @@ export class ManagementService {
         // Load target user with role perms
         const target = await this.userModel
             .findById(userId)
-            .populate('role_id', 'name permissions')
+            .populate('role', 'name permissions')
             .lean<PopulatedUser>()
             .exec();
 
         if (!target) {
             throw new NotFoundException('User not found');
         }
-        const targetPerms = this.sanitizePermissions(
-            target.role_id?.permissions,
-        );
+        const targetPerms = this.sanitizePermissions(target.role?.permissions);
 
         // Disallow deleting a super admin user unless deleter is super admin
         if (
@@ -135,7 +137,7 @@ export class ManagementService {
 
     async updateUser(
         userId: string,
-        userData: Partial<User>,
+        userData: Partial<CreateUserBodyDto>,
         userSession: UserSession,
     ) {
         if (!hasPerm('admin:edit_user', userSession.permissions)) {
@@ -147,7 +149,7 @@ export class ManagementService {
         // Fetch current user with role permissions
         const current = await this.userModel
             .findById(userId)
-            .populate('role_id', 'name permissions')
+            .populate('role', 'name permissions')
             .lean<PopulatedUser>()
             .exec();
 
@@ -156,7 +158,7 @@ export class ManagementService {
         }
 
         const currentPerms = this.sanitizePermissions(
-            current.role_id?.permissions,
+            current.role?.permissions,
         );
 
         // Disallow editing a super admin user unless editor is super admin
@@ -167,10 +169,10 @@ export class ManagementService {
             throw new ForbiddenException("You can't edit this user");
         }
 
-        // If role_id is changing, validate target role
-        if (userData.role_id) {
+        // If role is changing, validate target role
+        if (userData.role) {
             const targetRole = await this.roleModel
-                .findById(userData.role_id)
+                .findById(userData.role)
                 .select('permissions')
                 .exec();
 
@@ -202,8 +204,9 @@ export class ManagementService {
         }
 
         try {
+            const patch = UserFactory.fromUpdateDto(userData);
             const updatedUser = await this.userModel
-                .findByIdAndUpdate(userId, userData, { new: true })
+                .findByIdAndUpdate(userId, patch, { new: true })
                 .exec();
 
             if (!updatedUser) {
@@ -226,8 +229,8 @@ export class ManagementService {
         pagination: {
             page: number;
             itemsPerPage: number;
-            isFiltered: boolean;
-            isPaginated: boolean;
+            filtered: boolean;
+            paginated: boolean;
         },
         userSession: UserSession,
     ) {
@@ -239,11 +242,11 @@ export class ManagementService {
             viewerIsSuper ||
             hasPerm('admin:edit_user', userSession.permissions);
 
-        const { page, itemsPerPage, isFiltered, isPaginated } = pagination;
+        const { page, itemsPerPage, filtered, paginated } = pagination;
         const { generalSearchString, role } = filters;
 
         interface SearchQuery {
-            role_id?: any; // mongoose ObjectId or value convertible
+            role?: any; // mongoose ObjectId or value convertible
             $or?: { [key: string]: { $regex: string; $options: string } }[];
         }
 
@@ -252,14 +255,14 @@ export class ManagementService {
         const sortQuery: Record<string, 1 | -1> = {
             createdAt: -1,
         };
-        if (isFiltered && !generalSearchString && !role) {
+        if (filtered && !generalSearchString && !role) {
             throw new BadRequestException('No filter applied');
         }
         // Apply role filter if provided
         if (role) {
             // Accept both raw ObjectId string or role name; if it's not a 24-char hex, attempt match by role name via subquery
             if (/^[a-fA-F0-9]{24}$/.test(role)) {
-                searchQuery.role_id = role as any;
+                searchQuery.role = role as any;
             } else {
                 // Lookup role by name once
                 const matchedRole = await this.roleModel
@@ -268,7 +271,7 @@ export class ManagementService {
                     .lean()
                     .exec();
                 if (matchedRole) {
-                    searchQuery.role_id = matchedRole._id;
+                    searchQuery.role = matchedRole._id;
                 } else {
                     // If role name doesn't exist, return empty result quickly
                     return {
@@ -282,21 +285,21 @@ export class ManagementService {
         const skip = (page - 1) * itemsPerPage;
 
         if (generalSearchString) {
-            searchQuery['$or'] = [
-                { real_name: { $regex: generalSearchString, $options: 'i' } },
-                { name: { $regex: generalSearchString, $options: 'i' } },
-            ];
+            searchQuery.$or = buildOrRegex(generalSearchString, [
+                'real_name',
+                'name',
+            ]);
         }
 
         // Build aggregate-based count if we need to filter super-admin users
         let count: number;
-        if (isPaginated) {
+        if (paginated) {
             const countPipeline: any[] = [
                 { $match: searchQuery },
                 {
                     $lookup: {
                         from: 'roles',
-                        localField: 'role_id',
+                        localField: 'role',
                         foreignField: '_id',
                         as: 'role',
                     },
@@ -321,7 +324,7 @@ export class ManagementService {
         }
 
         let users: User[];
-        if (isPaginated) {
+        if (paginated) {
             const pipeline: any[] = [
                 { $match: searchQuery },
                 { $sort: sortQuery },
@@ -330,7 +333,7 @@ export class ManagementService {
                 {
                     $lookup: {
                         from: 'roles',
-                        localField: 'role_id',
+                        localField: 'role',
                         foreignField: '_id',
                         as: 'role',
                     },
@@ -350,13 +353,13 @@ export class ManagementService {
         } else {
             users = await this.userModel
                 .find(searchQuery)
-                .populate('role_id', 'name description permissions')
+                .populate('role', 'name description permissions')
                 .lean()
                 .exec();
             if (!viewerIsSuper) {
                 users = users.filter(
                     (u: any) =>
-                        !(u?.role_id?.permissions || []).includes(
+                        !(u?.role?.permissions || []).includes(
                             'settings:the_super_admin',
                         ),
                 );
@@ -380,6 +383,10 @@ export class ManagementService {
             return u;
         });
 
+        if (!paginated) {
+            return safeItems;
+        }
+
         return {
             pagination: {
                 count,
@@ -389,7 +396,11 @@ export class ManagementService {
         };
     }
 
-    async getUserById(userId: string, userSession: UserSession) {
+    async getUserById(
+        userId: string,
+        userSession: UserSession,
+        expanded: boolean = false,
+    ) {
         const viewerIsSuper = hasPerm(
             'settings:the_super_admin',
             userSession.permissions,
@@ -398,20 +409,27 @@ export class ManagementService {
             viewerIsSuper ||
             hasPerm('admin:edit_user', userSession.permissions);
 
-        const user = await this.userModel
-            .findById(userId)
-            .populate('role_id', 'name permissions')
-            .lean<PopulatedUser>()
-            .exec();
+        const query = this.userModel.findById(userId);
+        if (expanded) {
+            query.populate('role', 'name permissions');
+        }
+        const user = await query.lean<PopulatedUser>().exec();
 
         if (!user) {
             throw new NotFoundException('User not found');
         }
 
-        const targetPerms = this.sanitizePermissions(user.role_id?.permissions);
-        const targetIsSuper = hasPerm('settings:the_super_admin', targetPerms);
-        if (targetIsSuper && !viewerIsSuper) {
-            throw new ForbiddenException('You cannot view this user');
+        if (expanded) {
+            const targetPerms = this.sanitizePermissions(
+                user.role?.permissions,
+            );
+            const targetIsSuper = hasPerm(
+                'settings:the_super_admin',
+                targetPerms,
+            );
+            if (targetIsSuper && !viewerIsSuper) {
+                throw new ForbiddenException('You cannot view this user');
+            }
         }
 
         // Mask password if not allowed

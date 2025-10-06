@@ -7,6 +7,7 @@ import {
     Max,
     Min,
 } from 'class-validator';
+import { toBoolean } from 'src/common/utils/transformers';
 
 export class SearchUsersQueryDto {
     @IsOptional()
@@ -24,12 +25,14 @@ export class SearchUsersQueryDto {
     itemsPerPage: number = 30;
 
     @IsOptional()
-    @Transform(({ value }) => value === 'true' || value === true)
+    @Type(() => String)
+    @Transform(({ value }) => toBoolean(value, false))
     @IsBoolean()
     filtered: boolean = false;
 
     @IsOptional()
-    @Transform(({ value }) => value === 'true' || value === true)
+    @Type(() => String)
+    @Transform(({ value }) => toBoolean(value, false))
     @IsBoolean()
     paginated: boolean = false;
 }
