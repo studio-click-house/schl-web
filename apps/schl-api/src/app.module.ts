@@ -11,6 +11,7 @@ import { ClientModule } from './modules/client/client.module';
 import { RoleModule } from './modules/role/role.module';
 import { UserModule } from './modules/user/user.module';
 import { ScheduleModule } from './modules/schedule/schedule.module';
+import { EmployeeModule } from './modules/employee/employee.module';
 
 @Module({
     imports: [
@@ -28,6 +29,7 @@ import { ScheduleModule } from './modules/schedule/schedule.module';
         RoleModule,
         ClientModule,
         ScheduleModule,
+        EmployeeModule,
     ],
     controllers: [AppController],
     providers: [
