@@ -1,4 +1,4 @@
-import { Expose, Transform, Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
     IsBoolean,
     IsInt,
@@ -17,7 +17,6 @@ export class SearchRolesQueryDto {
     page: number = 1;
 
     @IsOptional()
-    @Expose({ name: 'items-per-page' })
     @Type(() => Number)
     @IsInt()
     @Min(30)

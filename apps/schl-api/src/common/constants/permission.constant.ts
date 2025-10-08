@@ -1,4 +1,4 @@
-export const permissions = [
+export const USER_PERMISSIONS = [
     { value: 'login:portal', label: 'Login at portal' },
     { value: 'login:crm', label: 'Login at crm' },
 

@@ -1,15 +1,24 @@
 import { Transform, Type } from 'class-transformer';
 import {
     IsBoolean,
+    IsIn,
     IsInt,
     IsOptional,
     IsString,
     Max,
     Min,
 } from 'class-validator';
+import {
+    EMPLOYEE_BLOOD_GROUPS,
+    EMPLOYEE_SERVICE_TIME,
+    EMPLOYEE_STATUSES,
+    type EmployeeBloodGroup,
+    type EmployeeServiceTime,
+    type EmployeeStatus,
+} from 'src/common/constants/employee.constant';
 import { toBoolean } from 'src/common/utils/transformers';
 
-export class SearchUsersQueryDto {
+export class SearchEmployeesQueryDto {
     @IsOptional()
     @Type(() => Number)
     @IsInt()
@@ -19,7 +28,7 @@ export class SearchUsersQueryDto {
     @IsOptional()
     @Type(() => Number)
     @IsInt()
-    @Min(30)
+    @Min(1)
     @Max(100)
     itemsPerPage: number = 30;
 
@@ -36,12 +45,29 @@ export class SearchUsersQueryDto {
     paginated: boolean = false;
 }
 
-export class SearchUsersBodyDto {
+export class SearchEmployeesBodyDto {
     @IsOptional()
     @IsString()
-    generalSearchString?: string;
+    @IsIn(EMPLOYEE_BLOOD_GROUPS)
+    bloodGroup?: EmployeeBloodGroup;
+
+    @IsOptional()
+    @IsIn(['Junior', 'Mid', 'Senior'])
+    designation?: string;
+
+    @IsOptional()
+    @IsIn(EMPLOYEE_STATUSES)
+    status?: EmployeeStatus;
+
+    @IsOptional()
+    @IsIn(['HR', 'Engineering', 'Sales'])
+    department?: string;
+
+    @IsOptional()
+    @IsIn(EMPLOYEE_SERVICE_TIME)
+    serviceTime?: EmployeeServiceTime;
 
     @IsOptional()
     @IsString()
-    role?: string;
+    generalSearchString?: string;
 }

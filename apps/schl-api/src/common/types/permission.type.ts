@@ -1,2 +1,2 @@
-import { permissions } from 'src/common/constants/permission.constant';
-export type Permissions = (typeof permissions)[number]['value'];
+import { USER_PERMISSIONS } from 'src/common/constants/permission.constant';
+export type Permissions = (typeof USER_PERMISSIONS)[number]['value'];

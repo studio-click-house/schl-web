@@ -1,5 +1,4 @@
-import { Module, ValidationPipe } from '@nestjs/common';
-import { APP_PIPE } from '@nestjs/core';
+import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Role, RoleSchema } from 'src/models/role.schema';
 import { User, UserSchema } from 'src/models/user.schema';
@@ -15,20 +14,6 @@ import { UserController } from './user.controller';
         ]),
     ],
     controllers: [UserController],
-    providers: [
-        {
-            provide: APP_PIPE,
-            useValue: new ValidationPipe({
-                whitelist: true,
-                forbidNonWhitelisted: true,
-                transform: true,
-                transformOptions: {
-                    enableImplicitConversion: true,
-                },
-            }),
-        },
-        AuthService,
-        ManagementService,
-    ],
+    providers: [AuthService, ManagementService],
 })
 export class UserModule {}

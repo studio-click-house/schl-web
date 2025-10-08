@@ -1,8 +1,10 @@
-import { permissions } from '../constants/permission.constant';
+import { USER_PERMISSIONS } from '../constants/permission.constant';
 import type { Permissions } from '../types/permission.type';
 
 // Pre-compute a Set of valid permission string values for O(1) membership checks
-const VALID_PERMISSION_VALUES = new Set<string>(permissions.map(p => p.value));
+const VALID_PERMISSION_VALUES = new Set<string>(
+    USER_PERMISSIONS.map(p => p.value),
+);
 
 /**
  * Check whether a user has a specific permission.

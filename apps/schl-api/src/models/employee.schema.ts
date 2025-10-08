@@ -1,5 +1,13 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
+import type {
+    EmployeeBloodGroup,
+    EmployeeStatus,
+} from '../common/constants/employee.constant';
+import {
+    EMPLOYEE_BLOOD_GROUPS,
+    EMPLOYEE_STATUSES,
+} from '../common/constants/employee.constant';
 
 export type EmployeeDocument = HydratedDocument<Employee>;
 
@@ -26,7 +34,11 @@ class ProvidentFundHistory {
 
 @Schema({ timestamps: true })
 export class Employee {
-    @Prop({ required: [true, 'Employee ID is required'] })
+    @Prop({
+        required: [true, 'Employee ID is required'],
+        unique: true,
+        index: true,
+    })
     e_id: string;
 
     @Prop({ required: [true, 'Real name is required'] })
@@ -49,9 +61,9 @@ export class Employee {
 
     @Prop({
         default: '',
-        enum: ['a+', 'a-', 'b+', 'b-', 'o+', 'o-', 'ab+', 'ab-'],
+        enum: EMPLOYEE_BLOOD_GROUPS,
     })
-    blood_group?: string;
+    blood_group?: EmployeeBloodGroup;
 
     @Prop({ required: [true, 'Designation is required'] })
     designation: string;
@@ -70,29 +82,14 @@ export class Employee {
 
     @Prop({
         required: [true, 'Status is required'],
-        enum: [
-            'active',
-            'inactive',
-            'terminated',
-            'on-leave',
-            'resigned',
-            'retired',
-            'fired',
-        ],
+        enum: EMPLOYEE_STATUSES,
     })
-    status:
-        | 'active'
-        | 'inactive'
-        | 'terminated'
-        | 'on-leave'
-        | 'resigned'
-        | 'retired'
-        | 'fired';
+    status: EmployeeStatus;
 
     @Prop({ default: 0 })
     provident_fund?: number; // percentage
 
-    @Prop({ default: null })
+    @Prop({ type: String, default: null })
     pf_start_date?: string | null; // provident fund start date
 
     @Prop({ type: [ProvidentFundHistory], default: [] })
@@ -108,9 +105,9 @@ export class Employee {
     division?: string;
 
     /*
-    if the employee is a marketer, company usually provides a name for him/her (e.g. "John from Sales")
+    if the employee is a marketer, company usually provides a name for him/her (e.g. "John" instead of "Jabbar")
     */
-    @Prop({ default: null })
+    @Prop({ type: String, default: null })
     company_provided_name?: string | null;
 
     @Prop({ default: '' })

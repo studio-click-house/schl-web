@@ -1,5 +1,4 @@
-import { Module, ValidationPipe } from '@nestjs/common';
-import { APP_PIPE } from '@nestjs/core';
+import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Schedule, ScheduleSchema } from 'src/models/schedule.schema';
 import { ScheduleController } from './schedule.controller';
@@ -12,19 +11,6 @@ import { ScheduleService } from './schedule.service';
         ]),
     ],
     controllers: [ScheduleController],
-    providers: [
-        {
-            provide: APP_PIPE,
-            useValue: new ValidationPipe({
-                whitelist: true,
-                forbidNonWhitelisted: true,
-                transform: true,
-                transformOptions: {
-                    enableImplicitConversion: true,
-                },
-            }),
-        },
-        ScheduleService,
-    ],
+    providers: [ScheduleService],
 })
 export class ScheduleModule {}
