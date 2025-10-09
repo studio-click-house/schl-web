@@ -46,27 +46,6 @@ export class AuthService {
         throw new UnauthorizedException('Invalid username or password');
     }
 
-    async changePassword(
-        username: string,
-        old_password: string,
-        new_password: string,
-    ) {
-        const userData = await this.userModel
-            .findOne({
-                name: username,
-                password: old_password,
-            })
-            .exec();
-        if (!userData) {
-            throw new UnauthorizedException('Invalid username or password');
-        }
-
-        userData.password = new_password;
-        await userData.save();
-
-        return 'Password changed successfully';
-    }
-
     async verifyUser(
         username: string,
         password: string,

@@ -24,13 +24,13 @@ import {
 } from './dto/search-users.dto';
 import { VerifyUserBodyDto } from './dto/verify-user.dto';
 import { AuthService } from './services/auth.service';
-import { ManagementService } from './services/management.service';
+import { UserService } from './services/user.service';
 
 @Controller('user')
 export class UserController {
     constructor(
         private readonly authService: AuthService,
-        private readonly managementService: ManagementService,
+        private readonly userService: UserService,
     ) {}
 
     @Public()
@@ -46,10 +46,13 @@ export class UserController {
         );
     }
 
-    @Post('change-password')
-    changePassword(@Body() body: ChangePasswordBodyDto) {
-        return this.authService.changePassword(
-            body.username,
+    @Post('change-password/:id')
+    changePassword(
+        @Param() { id }: IdParamDto,
+        @Body() body: ChangePasswordBodyDto,
+    ) {
+        return this.userService.changePassword(
+            id,
             body.old_password,
             body.new_password,
         );
@@ -74,7 +77,7 @@ export class UserController {
         @Body() body: CreateUserBodyDto,
         @Req() req: Request & { user: UserSession },
     ) {
-        return this.managementService.createUser(body, req.user);
+        return this.userService.createUser(body, req.user);
     }
 
     @Put('update-user/:id')
@@ -83,7 +86,7 @@ export class UserController {
         @Body() userData: Partial<CreateUserBodyDto>,
         @Req() req: Request & { user: UserSession },
     ) {
-        return this.managementService.updateUser(id, userData, req.user);
+        return this.userService.updateUser(id, userData, req.user);
     }
 
     @Delete('delete-user/:id')
@@ -91,7 +94,7 @@ export class UserController {
         @Param() { id }: IdParamDto,
         @Req() req: Request & { user: UserSession },
     ) {
-        return this.managementService.deleteUser(id, req.user);
+        return this.userService.deleteUser(id, req.user);
     }
 
     @Post('search-users')
@@ -107,7 +110,7 @@ export class UserController {
             paginated: query.paginated,
         };
 
-        return this.managementService.searchUsers(body, pagination, req.user);
+        return this.userService.searchUsers(body, pagination, req.user);
     }
 
     @Get('get-user/:id')
@@ -117,6 +120,6 @@ export class UserController {
         @Req() req: Request & { user: UserSession },
     ) {
         const wantsExpanded = query.expanded;
-        return this.managementService.getUserById(id, req.user, wantsExpanded);
+        return this.userService.getUserById(id, req.user, wantsExpanded);
     }
 }

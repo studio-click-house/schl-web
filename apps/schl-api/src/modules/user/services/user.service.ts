@@ -6,7 +6,6 @@ import {
     InternalServerErrorException,
     NotFoundException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import type { Permissions } from 'src/common/types/permission.type';
@@ -20,11 +19,10 @@ import { CreateUserBodyDto } from '../dto/create-user.dto';
 import { UserFactory } from '../factories/user.factory';
 
 @Injectable()
-export class ManagementService {
+export class UserService {
     constructor(
         @InjectModel(User.name) private userModel: Model<User>,
         @InjectModel(Role.name) private roleModel: Model<Role>,
-        private readonly config: ConfigService,
     ) {}
 
     /**
@@ -438,5 +436,26 @@ export class ManagementService {
         }
 
         return user;
+    }
+
+    async changePassword(
+        userId: string,
+        old_password: string,
+        new_password: string,
+    ) {
+        const userData = await this.userModel
+            .findOne({
+                _id: userId,
+                password: old_password,
+            })
+            .exec();
+        if (!userData) {
+            throw new BadRequestException('Old password could not be verified');
+        }
+
+        userData.password = new_password;
+        await userData.save();
+
+        return 'Password changed successfully';
     }
 }
