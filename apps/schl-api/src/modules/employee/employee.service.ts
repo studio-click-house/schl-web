@@ -61,6 +61,14 @@ export class EmployeeService {
             }
             return created;
         } catch (err: any) {
+            if (
+                err instanceof BadRequestException ||
+                err instanceof ForbiddenException ||
+                err instanceof ConflictException ||
+                err instanceof NotFoundException ||
+                err instanceof InternalServerErrorException
+            )
+                throw err;
             if (err?.code === 11000) {
                 // Handle race condition duplicate
                 throw new ConflictException(
@@ -164,6 +172,14 @@ export class EmployeeService {
             const saved = await existing.save();
             return saved;
         } catch (err: any) {
+            if (
+                err instanceof BadRequestException ||
+                err instanceof ForbiddenException ||
+                err instanceof ConflictException ||
+                err instanceof NotFoundException ||
+                err instanceof InternalServerErrorException
+            )
+                throw err;
             if (err?.code === 11000) {
                 throw new ConflictException(
                     'Employee with the provided ID already exists',
@@ -317,30 +333,59 @@ export class EmployeeService {
         ];
 
         // Count always executed (kept simple; could skip when !paginated if size not needed)
-        const count = await this.employeeModel.countDocuments(
-            searchQuery as Record<string, unknown>,
-        );
+        let count = 0;
+        try {
+            count = await this.employeeModel.countDocuments(
+                searchQuery as Record<string, unknown>,
+            );
+        } catch (e) {
+            if (
+                e instanceof BadRequestException ||
+                e instanceof ForbiddenException ||
+                e instanceof ConflictException ||
+                e instanceof NotFoundException ||
+                e instanceof InternalServerErrorException
+            )
+                throw e;
+            throw new InternalServerErrorException(
+                'Unable to retrieve employees',
+            );
+        }
 
         if (paginated) {
             pipeline.push({ $skip: skip }, { $limit: itemsPerPage });
         }
 
-        const items: Employee[] = await this.employeeModel
-            .aggregate(pipeline)
-            .exec();
-        if (!items) {
+        try {
+            const items: Employee[] = await this.employeeModel
+                .aggregate(pipeline)
+                .exec();
+            if (!items) {
+                throw new InternalServerErrorException(
+                    'Unable to retrieve employees',
+                );
+            }
+            if (!paginated) return items;
+            return {
+                pagination: {
+                    count,
+                    pageCount: Math.ceil(count / itemsPerPage),
+                },
+                items,
+            };
+        } catch (e) {
+            if (
+                e instanceof BadRequestException ||
+                e instanceof ForbiddenException ||
+                e instanceof ConflictException ||
+                e instanceof NotFoundException ||
+                e instanceof InternalServerErrorException
+            )
+                throw e;
             throw new InternalServerErrorException(
                 'Unable to retrieve employees',
             );
         }
-        if (!paginated) return items;
-        return {
-            pagination: {
-                count,
-                pageCount: Math.ceil(count / itemsPerPage),
-            },
-            items,
-        };
     }
 
     async getEmployeeByDbId(employeeId: string, userSession: UserSession) {
@@ -360,7 +405,15 @@ export class EmployeeService {
                 throw new BadRequestException('Employee not found');
             }
             return found;
-        } catch {
+        } catch (e) {
+            if (
+                e instanceof BadRequestException ||
+                e instanceof ForbiddenException ||
+                e instanceof ConflictException ||
+                e instanceof NotFoundException ||
+                e instanceof InternalServerErrorException
+            )
+                throw e;
             throw new InternalServerErrorException(
                 'Unable to retrieve employee',
             );
@@ -385,7 +438,15 @@ export class EmployeeService {
                 throw new BadRequestException('Employee not found');
             }
             return found;
-        } catch {
+        } catch (e) {
+            if (
+                e instanceof BadRequestException ||
+                e instanceof ForbiddenException ||
+                e instanceof ConflictException ||
+                e instanceof NotFoundException ||
+                e instanceof InternalServerErrorException
+            )
+                throw e;
             throw new InternalServerErrorException(
                 'Unable to retrieve employee',
             );

@@ -4,6 +4,7 @@ import {
     ForbiddenException,
     Injectable,
     InternalServerErrorException,
+    NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -85,9 +86,22 @@ export class ClientService {
         }
 
         const skip = (page - 1) * itemsPerPage;
-        const count = await this.clientModel.countDocuments(
-            searchQuery as Record<string, unknown>,
-        );
+        let count = 0;
+        try {
+            count = await this.clientModel.countDocuments(
+                searchQuery as Record<string, unknown>,
+            );
+        } catch (e) {
+            if (
+                e instanceof BadRequestException ||
+                e instanceof ForbiddenException ||
+                e instanceof ConflictException ||
+                e instanceof NotFoundException ||
+                e instanceof InternalServerErrorException
+            )
+                throw e;
+            throw new InternalServerErrorException('Unable to count clients');
+        }
 
         // Safer numeric extraction of <clientNumber> for sorting:
         // 1. Split on '_' to isolate the numeric prefix regardless of its length (e.g. 1234_XXXX, 7_ABC).
@@ -120,25 +134,39 @@ export class ClientService {
 
         basePipeline.push({ $unset: 'clientNumber' });
 
-        const items: Client[] = await this.clientModel
-            .aggregate(basePipeline)
-            .exec();
+        try {
+            const items: Client[] = await this.clientModel
+                .aggregate(basePipeline)
+                .exec();
 
-        if (!items) {
-            throw new BadRequestException('Unable to retrieve clients');
+            if (!items) {
+                throw new BadRequestException('Unable to retrieve clients');
+            }
+
+            if (!paginated) {
+                return items;
+            }
+
+            return {
+                pagination: {
+                    count,
+                    pageCount: Math.ceil(count / itemsPerPage),
+                },
+                items,
+            };
+        } catch (e) {
+            if (
+                e instanceof BadRequestException ||
+                e instanceof ForbiddenException ||
+                e instanceof ConflictException ||
+                e instanceof NotFoundException ||
+                e instanceof InternalServerErrorException
+            )
+                throw e;
+            throw new InternalServerErrorException(
+                'Unable to retrieve clients',
+            );
         }
-
-        if (!paginated) {
-            return items;
-        }
-
-        return {
-            pagination: {
-                count,
-                pageCount: Math.ceil(count / itemsPerPage),
-            },
-            items,
-        };
     }
 
     async createClient(
@@ -167,13 +195,22 @@ export class ClientService {
             }
             return created;
         } catch (err: any) {
+            // Re-throw known HTTP exceptions to preserve their messages
+            if (
+                err instanceof BadRequestException ||
+                err instanceof ForbiddenException ||
+                err instanceof ConflictException ||
+                err instanceof NotFoundException ||
+                err instanceof InternalServerErrorException
+            )
+                throw err;
             // Duplicate key race condition fallback
             if (err?.code === 11000) {
-                throw new BadRequestException(
+                throw new ConflictException(
                     'Client with the same code already exists',
                 );
             }
-            throw new BadRequestException('Unable to create client');
+            throw new InternalServerErrorException('Unable to create client');
         }
     }
 
@@ -207,12 +244,20 @@ export class ClientService {
             }
             return updated;
         } catch (err: any) {
+            if (
+                err instanceof BadRequestException ||
+                err instanceof ForbiddenException ||
+                err instanceof ConflictException ||
+                err instanceof NotFoundException ||
+                err instanceof InternalServerErrorException
+            )
+                throw err;
             if (err?.code === 11000) {
                 throw new ConflictException(
                     'Client with the same code already exists',
                 );
             }
-            throw new BadRequestException('Unable to update client');
+            throw new InternalServerErrorException('Unable to update client');
         }
     }
 
@@ -230,7 +275,15 @@ export class ClientService {
                 throw new BadRequestException('Client not found');
             }
             return { message: 'Deleted the client successfully' };
-        } catch {
+        } catch (e) {
+            if (
+                e instanceof BadRequestException ||
+                e instanceof ForbiddenException ||
+                e instanceof ConflictException ||
+                e instanceof NotFoundException ||
+                e instanceof InternalServerErrorException
+            )
+                throw e;
             throw new InternalServerErrorException('Unable to delete client');
         }
     }
@@ -248,7 +301,15 @@ export class ClientService {
                 throw new BadRequestException('Client not found');
             }
             return found;
-        } catch {
+        } catch (e) {
+            if (
+                e instanceof BadRequestException ||
+                e instanceof ForbiddenException ||
+                e instanceof ConflictException ||
+                e instanceof NotFoundException ||
+                e instanceof InternalServerErrorException
+            )
+                throw e;
             throw new InternalServerErrorException('Unable to retrieve client');
         }
     }
@@ -268,7 +329,15 @@ export class ClientService {
                 throw new BadRequestException('Client not found');
             }
             return found;
-        } catch {
+        } catch (e) {
+            if (
+                e instanceof BadRequestException ||
+                e instanceof ForbiddenException ||
+                e instanceof ConflictException ||
+                e instanceof NotFoundException ||
+                e instanceof InternalServerErrorException
+            )
+                throw e;
             throw new InternalServerErrorException('Unable to retrieve client');
         }
     }

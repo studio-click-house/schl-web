@@ -18,6 +18,15 @@
 				"$tsc"
 			],
 			"group": "build"
+		},
+		{
+			"label": "Build NestJS API",
+			"type": "shell",
+			"command": "pnpm build",
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
 		}
 	]
 }

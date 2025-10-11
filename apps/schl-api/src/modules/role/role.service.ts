@@ -61,47 +61,75 @@ export class RoleService {
 
         // Build count respecting super-admin visibility (non-super viewers should not see super-admin role)
         let count: number;
-        if (paginated) {
-            const countFilter: FilterQuery<Role> = { ...searchQuery };
-            if (!viewerIsSuper) {
-                countFilter.permissions = {
-                    $not: { $in: ['settings:the_super_admin'] },
-                };
+        try {
+            if (paginated) {
+                const countFilter: FilterQuery<Role> = { ...searchQuery };
+                if (!viewerIsSuper) {
+                    countFilter.permissions = {
+                        $not: { $in: ['settings:the_super_admin'] },
+                    };
+                }
+                count = await this.roleModel.countDocuments(countFilter).exec();
+            } else {
+                const baseFilter: FilterQuery<Role> = { ...searchQuery };
+                if (!viewerIsSuper) {
+                    baseFilter.permissions = {
+                        $not: { $in: ['settings:the_super_admin'] },
+                    };
+                }
+                count = await this.roleModel.countDocuments(baseFilter).exec();
             }
-            count = await this.roleModel.countDocuments(countFilter).exec();
-        } else {
-            const baseFilter: FilterQuery<Role> = { ...searchQuery };
-            if (!viewerIsSuper) {
-                baseFilter.permissions = {
-                    $not: { $in: ['settings:the_super_admin'] },
-                };
-            }
-            count = await this.roleModel.countDocuments(baseFilter).exec();
+        } catch (e) {
+            if (
+                e instanceof BadRequestException ||
+                e instanceof ForbiddenException ||
+                e instanceof ConflictException ||
+                e instanceof NotFoundException ||
+                e instanceof InternalServerErrorException
+            )
+                throw e;
+            throw new InternalServerErrorException(
+                'Unable to retrieve roles at this time',
+            );
         }
 
         let roles: Role[];
-        if (paginated) {
-            const findFilter: FilterQuery<Role> = { ...searchQuery };
-            if (!viewerIsSuper) {
-                findFilter.permissions = {
-                    $not: { $in: ['settings:the_super_admin'] },
-                };
+        try {
+            if (paginated) {
+                const findFilter: FilterQuery<Role> = { ...searchQuery };
+                if (!viewerIsSuper) {
+                    findFilter.permissions = {
+                        $not: { $in: ['settings:the_super_admin'] },
+                    };
+                }
+                roles = await this.roleModel
+                    .find(findFilter)
+                    .sort(sortQuery)
+                    .skip(skip)
+                    .limit(itemsPerPage)
+                    .lean()
+                    .exec();
+            } else {
+                const baseFilter: FilterQuery<Role> = { ...searchQuery };
+                if (!viewerIsSuper) {
+                    baseFilter.permissions = {
+                        $not: { $in: ['settings:the_super_admin'] },
+                    };
+                }
+                roles = await this.roleModel.find(baseFilter).lean().exec();
             }
-            roles = await this.roleModel
-                .find(findFilter)
-                .sort(sortQuery)
-                .skip(skip)
-                .limit(itemsPerPage)
-                .lean()
-                .exec();
-        } else {
-            const baseFilter: FilterQuery<Role> = { ...searchQuery };
-            if (!viewerIsSuper) {
-                baseFilter.permissions = {
-                    $not: { $in: ['settings:the_super_admin'] },
-                };
-            }
-            roles = await this.roleModel.find(baseFilter).lean().exec();
+        } catch (e) {
+            if (
+                e instanceof BadRequestException ||
+                e instanceof ForbiddenException ||
+                e instanceof ConflictException ||
+                e instanceof NotFoundException ||
+                e instanceof InternalServerErrorException
+            )
+                throw e;
+            throw new InternalServerErrorException(
+                'Unable to retrieve roles at this time',
+            );
         }
 
         const pageCount: number = Math.ceil(count / itemsPerPage);
@@ -160,6 +188,14 @@ export class RoleService {
                 permissions: requestedPermissions,
             };
         } catch (err: any) {
+            if (
+                err instanceof BadRequestException ||
+                err instanceof ForbiddenException ||
+                err instanceof ConflictException ||
+                err instanceof NotFoundException ||
+                err instanceof InternalServerErrorException
+            )
+                throw err;
             if (err?.code === 11000) {
                 throw new ConflictException(
                     'Role with this name already exists',
@@ -241,6 +277,14 @@ export class RoleService {
             await existing.save();
             return existing;
         } catch (err: any) {
+            if (
+                err instanceof BadRequestException ||
+                err instanceof ForbiddenException ||
+                err instanceof ConflictException ||
+                err instanceof NotFoundException ||
+                err instanceof InternalServerErrorException
+            )
+                throw err;
             if (err?.code === 11000) {
                 throw new ConflictException(
                     'Role with this name already exists',
@@ -313,7 +357,15 @@ export class RoleService {
         try {
             await existing.deleteOne();
             return 'Role deleted successfully';
-        } catch {
+        } catch (e) {
+            if (
+                e instanceof BadRequestException ||
+                e instanceof ForbiddenException ||
+                e instanceof ConflictException ||
+                e instanceof NotFoundException ||
+                e instanceof InternalServerErrorException
+            )
+                throw e;
             throw new InternalServerErrorException(
                 'Unable to delete role at this time',
             );

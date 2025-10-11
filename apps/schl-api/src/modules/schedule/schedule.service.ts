@@ -134,38 +134,51 @@ export class ScheduleService {
             searchQuery as Record<string, unknown>,
         );
 
-        let items: Schedule[];
-        if (paginated) {
-            const pipeline: any[] = [
-                { $match: searchQuery },
-                { $sort: { receive_date: -1 } },
-                { $skip: skip },
-                { $limit: itemsPerPage },
-            ];
-            items = await this.scheduleModel.aggregate(pipeline).exec();
-        } else {
-            items = await this.scheduleModel
-                .find(searchQuery as Record<string, unknown>)
-                .sort({ receive_date: 1 })
-                .lean()
-                .exec();
-        }
+        try {
+            let items: Schedule[];
+            if (paginated) {
+                const pipeline: any[] = [
+                    { $match: searchQuery },
+                    { $sort: { receive_date: -1 } },
+                    { $skip: skip },
+                    { $limit: itemsPerPage },
+                ];
+                items = await this.scheduleModel.aggregate(pipeline).exec();
+            } else {
+                items = await this.scheduleModel
+                    .find(searchQuery as Record<string, unknown>)
+                    .sort({ receive_date: 1 })
+                    .lean()
+                    .exec();
+            }
 
-        if (!items) {
-            throw new BadRequestException('Unable to retrieve schedules');
-        }
+            if (!items) {
+                throw new BadRequestException('Unable to retrieve schedules');
+            }
 
-        if (!paginated) {
-            return items;
-        }
+            if (!paginated) {
+                return items;
+            }
 
-        return {
-            pagination: {
-                count,
-                pageCount: Math.ceil(count / itemsPerPage),
-            },
-            items,
-        };
+            return {
+                pagination: {
+                    count,
+                    pageCount: Math.ceil(count / itemsPerPage),
+                },
+                items,
+            };
+        } catch (e) {
+            if (
+                e instanceof BadRequestException ||
+                e instanceof ForbiddenException ||
+                e instanceof NotFoundException ||
+                e instanceof InternalServerErrorException
+            )
+                throw e;
+            throw new InternalServerErrorException(
+                'Unable to retrieve schedules',
+            );
+        }
     }
 
     async createSchedule(
@@ -198,12 +211,23 @@ export class ScheduleService {
             );
         }
 
-        const created = await this.scheduleModel.create(payload);
+        try {
+            const created = await this.scheduleModel.create(payload);
 
-        if (!created) {
-            throw new BadRequestException('Unable to create schedule');
+            if (!created) {
+                throw new BadRequestException('Unable to create schedule');
+            }
+            return created;
+        } catch (e) {
+            if (
+                e instanceof BadRequestException ||
+                e instanceof ForbiddenException ||
+                e instanceof NotFoundException ||
+                e instanceof InternalServerErrorException
+            )
+                throw e;
+            throw new InternalServerErrorException('Unable to create schedule');
         }
-        return created;
     }
 
     async deleteSchedule(scheduleId: string, userSession: UserSession) {
@@ -218,8 +242,19 @@ export class ScheduleService {
             throw new BadRequestException('Schedule not found');
         }
 
-        await existing.deleteOne();
-        return { message: 'Deleted the schedule successfully' };
+        try {
+            await existing.deleteOne();
+            return { message: 'Deleted the schedule successfully' };
+        } catch (e) {
+            if (
+                e instanceof BadRequestException ||
+                e instanceof ForbiddenException ||
+                e instanceof NotFoundException ||
+                e instanceof InternalServerErrorException
+            )
+                throw e;
+            throw new InternalServerErrorException('Unable to delete schedule');
+        }
     }
 
     async updateSchedule(
@@ -270,13 +305,26 @@ export class ScheduleService {
             }
         }
 
-        const updated = await this.scheduleModel
-            .findByIdAndUpdate(scheduleId, patch, { new: true })
-            .lean()
-            .exec();
-        if (!updated) {
+        try {
+            const updated = await this.scheduleModel
+                .findByIdAndUpdate(scheduleId, patch, { new: true })
+                .lean()
+                .exec();
+            if (!updated) {
+                throw new InternalServerErrorException(
+                    'Unable to update schedule',
+                );
+            }
+            return updated;
+        } catch (e) {
+            if (
+                e instanceof BadRequestException ||
+                e instanceof ForbiddenException ||
+                e instanceof NotFoundException ||
+                e instanceof InternalServerErrorException
+            )
+                throw e;
             throw new InternalServerErrorException('Unable to update schedule');
         }
-        return updated;
     }
 }

@@ -1,7 +1,8 @@
 import {
+    BadRequestException,
     ForbiddenException,
     Injectable,
-    UnauthorizedException,
+    InternalServerErrorException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
@@ -24,26 +25,37 @@ export class AuthService {
         password: string,
         clientType: 'portal' | 'crm',
     ) {
-        const userData = await this.userModel
-            .findOne({
-                name: username,
-                password: password,
-            })
-            .populate('role', 'name permissions')
-            .lean<PopulatedUser>()
-            .exec();
+        try {
+            const userData = await this.userModel
+                .findOne({
+                    name: username,
+                    password: password,
+                })
+                .populate('role', 'name permissions')
+                .lean<PopulatedUser>()
+                .exec();
 
-        if (userData) {
-            const userPermissions = toPermissions(userData.role.permissions);
-
-            if (!hasPerm(`login:${clientType}`, userPermissions)) {
-                throw new UnauthorizedException(
-                    `You do not have permission to login to ${clientType}`,
+            if (userData) {
+                const userPermissions = toPermissions(
+                    userData.role.permissions,
                 );
+
+                if (!hasPerm(`login:${clientType}`, userPermissions)) {
+                    throw new ForbiddenException(
+                        `You do not have permission to login to ${clientType}`,
+                    );
+                }
+                return userData;
             }
-            return userData;
+            throw new BadRequestException('Invalid username or password');
+        } catch (e) {
+            if (
+                e instanceof BadRequestException ||
+                e instanceof ForbiddenException
+            )
+                throw e;
+            throw new InternalServerErrorException('Unable to login');
         }
-        throw new UnauthorizedException('Invalid username or password');
     }
 
     async verifyUser(
@@ -52,31 +64,40 @@ export class AuthService {
         userSession: UserSession,
         redirectPath: string = '/',
     ) {
-        const userData = await this.userModel
-            .findOne({
-                name: username,
-                password: password,
-            })
-            .exec();
+        try {
+            const userData = await this.userModel
+                .findOne({
+                    name: username,
+                    password: password,
+                })
+                .exec();
 
-        if (!userData) {
-            throw new UnauthorizedException('Invalid username or password');
-        }
+            if (!userData) {
+                throw new BadRequestException('Invalid username or password');
+            }
 
-        if (userData._id.toString() === userSession.db_id) {
-            const token = jwt.sign(
-                {
-                    userId: userData._id,
-                    exp: Math.floor(Date.now() / 1000) + 10,
-                },
-                this.config.get<string>('AUTH_SECRET')!,
-            );
+            if (userData._id.toString() === userSession.db_id) {
+                const token = jwt.sign(
+                    {
+                        userId: userData._id,
+                        exp: Math.floor(Date.now() / 1000) + 10,
+                    },
+                    this.config.get<string>('AUTH_SECRET')!,
+                );
 
-            return { token, redirect_path: redirectPath };
-        } else {
-            throw new ForbiddenException(
-                'You are not authorized to verify this user',
-            );
+                return { token, redirect_path: redirectPath };
+            } else {
+                throw new ForbiddenException(
+                    'You are not authorized to verify this user',
+                );
+            }
+        } catch (e) {
+            if (
+                e instanceof BadRequestException ||
+                e instanceof ForbiddenException
+            )
+                throw e;
+            throw new InternalServerErrorException('Unable to verify user');
         }
     }
 }

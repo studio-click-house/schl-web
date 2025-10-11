@@ -84,6 +84,14 @@ export class UserService {
             }
             return createdUser;
         } catch (err: any) {
+            if (
+                err instanceof BadRequestException ||
+                err instanceof ForbiddenException ||
+                err instanceof ConflictException ||
+                err instanceof NotFoundException ||
+                err instanceof InternalServerErrorException
+            )
+                throw err;
             if (err?.code === 11000) {
                 throw new ConflictException(
                     'User with this name already exists',
@@ -213,7 +221,15 @@ export class UserService {
 
             return updatedUser;
         } catch (error: any) {
-            if (error.code === 11000) {
+            if (
+                error instanceof BadRequestException ||
+                error instanceof ForbiddenException ||
+                error instanceof ConflictException ||
+                error instanceof NotFoundException ||
+                error instanceof InternalServerErrorException
+            )
+                throw error;
+            if (error?.code === 11000) {
                 throw new ConflictException(
                     'User with this name already exists',
                 );
@@ -291,77 +307,101 @@ export class UserService {
 
         // Build aggregate-based count if we need to filter super-admin users
         let count: number;
-        if (paginated) {
-            const countPipeline: any[] = [
-                { $match: searchQuery },
-                {
-                    $lookup: {
-                        from: 'roles',
-                        localField: 'role',
-                        foreignField: '_id',
-                        as: 'role',
-                    },
-                },
-                { $unwind: '$role' },
-            ];
-            if (!viewerIsSuper) {
-                countPipeline.push({
-                    $match: {
-                        'role.permissions': {
-                            $not: { $in: ['settings:the_super_admin'] },
+        try {
+            if (paginated) {
+                const countPipeline: any[] = [
+                    { $match: searchQuery },
+                    {
+                        $lookup: {
+                            from: 'roles',
+                            localField: 'role',
+                            foreignField: '_id',
+                            as: 'role',
                         },
                     },
-                });
+                    { $unwind: '$role' },
+                ];
+                if (!viewerIsSuper) {
+                    countPipeline.push({
+                        $match: {
+                            'role.permissions': {
+                                $not: { $in: ['settings:the_super_admin'] },
+                            },
+                        },
+                    });
+                }
+                countPipeline.push({ $count: 'count' });
+                const counted = await this.userModel.aggregate(countPipeline);
+                count = counted[0]?.count || 0;
+            } else {
+                // Fallback count
+                count = await this.userModel.countDocuments(searchQuery).exec();
             }
-            countPipeline.push({ $count: 'count' });
-            const counted = await this.userModel.aggregate(countPipeline);
-            count = counted[0]?.count || 0;
-        } else {
-            // Fallback count
-            count = await this.userModel.countDocuments(searchQuery).exec();
+        } catch (e) {
+            if (
+                e instanceof BadRequestException ||
+                e instanceof ForbiddenException ||
+                e instanceof ConflictException ||
+                e instanceof NotFoundException ||
+                e instanceof InternalServerErrorException
+            )
+                throw e;
+            throw new InternalServerErrorException('Unable to retrieve users');
         }
 
         let users: User[];
-        if (paginated) {
-            const pipeline: any[] = [
-                { $match: searchQuery },
-                { $sort: sortQuery },
-                { $skip: skip },
-                { $limit: itemsPerPage },
-                {
-                    $lookup: {
-                        from: 'roles',
-                        localField: 'role',
-                        foreignField: '_id',
-                        as: 'role',
-                    },
-                },
-                { $unwind: '$role' },
-            ];
-            if (!viewerIsSuper) {
-                pipeline.push({
-                    $match: {
-                        'role.permissions': {
-                            $not: { $in: ['settings:the_super_admin'] },
+        try {
+            if (paginated) {
+                const pipeline: any[] = [
+                    { $match: searchQuery },
+                    { $sort: sortQuery },
+                    { $skip: skip },
+                    { $limit: itemsPerPage },
+                    {
+                        $lookup: {
+                            from: 'roles',
+                            localField: 'role',
+                            foreignField: '_id',
+                            as: 'role',
                         },
                     },
-                });
+                    { $unwind: '$role' },
+                ];
+                if (!viewerIsSuper) {
+                    pipeline.push({
+                        $match: {
+                            'role.permissions': {
+                                $not: { $in: ['settings:the_super_admin'] },
+                            },
+                        },
+                    });
+                }
+                users = await this.userModel.aggregate(pipeline);
+            } else {
+                users = await this.userModel
+                    .find(searchQuery)
+                    .populate('role', 'name description permissions')
+                    .lean()
+                    .exec();
+                if (!viewerIsSuper) {
+                    users = users.filter(
+                        (u: any) =>
+                            !(u?.role?.permissions || []).includes(
+                                'settings:the_super_admin',
+                            ),
+                    );
+                }
             }
-            users = await this.userModel.aggregate(pipeline);
-        } else {
-            users = await this.userModel
-                .find(searchQuery)
-                .populate('role', 'name description permissions')
-                .lean()
-                .exec();
-            if (!viewerIsSuper) {
-                users = users.filter(
-                    (u: any) =>
-                        !(u?.role?.permissions || []).includes(
-                            'settings:the_super_admin',
-                        ),
-                );
-            }
+        } catch (e) {
+            if (
+                e instanceof BadRequestException ||
+                e instanceof ForbiddenException ||
+                e instanceof ConflictException ||
+                e instanceof NotFoundException ||
+                e instanceof InternalServerErrorException
+            )
+                throw e;
+            throw new InternalServerErrorException('Unable to retrieve users');
         }
 
         const pageCount: number = Math.ceil(count / itemsPerPage);
