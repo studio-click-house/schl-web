@@ -89,4 +89,38 @@ export class ReportFactory {
         if (Object.keys($addToSet).length) update.$addToSet = $addToSet;
         return update;
     }
+
+    static fromLeadToReportDoc(
+        lead: Report,
+        today: string,
+        updatedBy: string,
+    ): Partial<Report> & Record<string, any> {
+        return {
+            calling_date: today,
+            followup_date: lead.followup_date || '',
+            country: lead.country,
+            website: lead.website,
+            category: lead.category,
+            company_name: lead.company_name,
+            contact_person: lead.contact_person,
+            designation: lead.designation,
+            contact_number: lead.contact_number || '',
+            email_address: lead.email_address || '',
+            calling_status: lead.calling_status || '',
+            calling_date_history: [today],
+            linkedin: lead.linkedin || '',
+            marketer_id: lead.marketer_id,
+            marketer_name: lead.marketer_name,
+            is_prospected: lead.is_prospected || false,
+            prospect_status: lead.prospect_status || '',
+            is_lead: false,
+            lead_withdrawn: true,
+            followup_done: lead.followup_done || false,
+            client_status: lead.client_status || 'none',
+            lead_origin: lead.lead_origin || null,
+            test_given_date_history: lead.test_given_date_history || [],
+            onboard_date: '',
+            updated_by: updatedBy,
+        };
+    }
 }

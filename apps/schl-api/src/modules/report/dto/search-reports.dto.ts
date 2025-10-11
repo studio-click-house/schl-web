@@ -1,6 +1,7 @@
 import { Transform, Type } from 'class-transformer';
 import {
     IsBoolean,
+    IsEnum,
     IsInt,
     IsOptional,
     IsString,
@@ -104,4 +105,20 @@ export class SearchReportsBodyDto {
     @IsOptional()
     @IsString()
     generalSearchString?: string;
+
+    // marketer specific filters
+    @IsOptional()
+    @IsString()
+    leadOrigin?: string; // 'generated' or other (non-generated)
+
+    @IsOptional()
+    @IsString()
+    @IsEnum(['all', 'others', 'mine'])
+    show?: string; // 'all' | 'others' | 'mine'
+
+    @IsOptional()
+    @Type(() => String)
+    @Transform(({ value }) => toBoolean(value, undefined))
+    @IsBoolean()
+    freshLead?: boolean; // when true, lead_withdrawn = false
 }

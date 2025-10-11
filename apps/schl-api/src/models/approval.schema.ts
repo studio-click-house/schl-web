@@ -33,6 +33,7 @@ export class Approval {
             return this.action !== 'create';
         },
         default: null,
+        type: mongoose.Schema.Types.ObjectId,
     })
     object_id?: mongoose.Types.ObjectId | null;
 
@@ -46,6 +47,7 @@ export class Approval {
             return this.action === 'update';
         },
         default: {},
+        type: Object,
     })
     changes?: Record<string, any>;
 
@@ -59,6 +61,7 @@ export class Approval {
             return this.action !== 'create';
         },
         default: null,
+        type: Object,
     })
     prev_data?: Record<string, any> | null;
 
@@ -72,6 +75,7 @@ export class Approval {
             return this.action === 'create';
         },
         default: null,
+        type: Object,
     })
     new_data?: Record<string, any> | null;
 
@@ -91,7 +95,7 @@ export class Approval {
     @Prop({ ref: 'User', required: true })
     req_by: mongoose.Types.ObjectId;
 
-    @Prop({ ref: 'User', default: null })
+    @Prop({ ref: 'User', default: null, type: mongoose.Schema.Types.ObjectId })
     rev_by?: mongoose.Types.ObjectId | null;
 
     @Prop({ type: Date })

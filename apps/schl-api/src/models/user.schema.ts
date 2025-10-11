@@ -24,7 +24,11 @@ export class User {
     @Prop({ required: [true, 'Password is required'] })
     password: string;
 
-    @Prop({ required: [true, 'Role has not been assigned'], ref: 'Role' })
+    @Prop({
+        required: [true, 'Role has not been assigned'],
+        ref: 'Role',
+        type: mongoose.Schema.Types.ObjectId,
+    })
     role: mongoose.Types.ObjectId;
 
     @Prop({ default: '' })

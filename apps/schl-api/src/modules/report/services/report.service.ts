@@ -4,6 +4,7 @@ import {
     ForbiddenException,
     Injectable,
     InternalServerErrorException,
+    NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import moment from 'moment-timezone';
@@ -17,16 +18,17 @@ import {
     createRegexQuery,
 } from 'src/common/utils/filter-helpers';
 import { hasPerm } from 'src/common/utils/permission-check';
+import { Approval } from 'src/models/approval.schema';
 import { Client } from 'src/models/client.schema';
 import { Report } from 'src/models/report.schema';
 import { User } from 'src/models/user.schema';
-import { ConvertToClientBodyDto } from '../../dto/convert-to-client.dto';
-import { CreateReportBodyDto } from '../../dto/create-report.dto';
+import { ConvertToClientBodyDto } from '../dto/convert-to-client.dto';
+import { CreateReportBodyDto } from '../dto/create-report.dto';
 import {
     SearchReportsBodyDto,
     SearchReportsQueryDto,
-} from '../../dto/search-reports.dto';
-import { ReportFactory } from '../../factories/report.factory';
+} from '../dto/search-reports.dto';
+import { ReportFactory } from '../factories/report.factory';
 
 @Injectable()
 export class ReportService {
@@ -35,9 +37,11 @@ export class ReportService {
         @InjectModel(User.name) private readonly userModel: Model<User>,
         @InjectModel(Client.name)
         private readonly clientModel: Model<Client>,
+        @InjectModel(Approval.name)
+        private readonly approvalModel: Model<Approval>,
     ) {}
 
-    async callReportsTrend(userSession: UserSession) {
+    async callReportsTrend(userSession: UserSession, marketerName?: string) {
         try {
             if (!hasPerm('crm:view_crm_stats', userSession.permissions)) {
                 throw new ForbiddenException(
@@ -59,14 +63,15 @@ export class ReportService {
                 count: number;
             }
 
+            const match: Record<string, any> = {
+                is_lead: false,
+                createdAt: { $gte: startDate, $lte: endDate },
+            };
+            if (marketerName) match.marketer_name = marketerName;
+
             const reports = (await this.reportModel
                 .aggregate([
-                    {
-                        $match: {
-                            is_lead: false,
-                            createdAt: { $gte: startDate, $lte: endDate },
-                        },
-                    },
+                    { $match: match },
                     {
                         $group: {
                             _id: {
@@ -108,14 +113,22 @@ export class ReportService {
             }
 
             return sorted;
-        } catch {
+        } catch (e) {
+            if (
+                e instanceof BadRequestException ||
+                e instanceof ForbiddenException ||
+                e instanceof ConflictException ||
+                e instanceof NotFoundException ||
+                e instanceof InternalServerErrorException
+            )
+                throw e;
             throw new InternalServerErrorException(
                 'Unable to retrieve reports count',
             );
         }
     }
 
-    async clientsOnboardTrend(userSession: UserSession) {
+    async clientsOnboardTrend(userSession: UserSession, marketerName?: string) {
         try {
             if (!hasPerm('crm:view_crm_stats', userSession.permissions)) {
                 throw new ForbiddenException(
@@ -141,18 +154,19 @@ export class ReportService {
                 buckets[key] = 0;
             }
 
+            const onboardMatch: Record<string, any> = {
+                is_lead: false,
+                client_status: 'approved',
+                onboard_date: {
+                    $gte: startWindow,
+                    $lte: endWindow,
+                },
+            };
+            if (marketerName) onboardMatch.marketer_name = marketerName;
+
             const rows = await this.reportModel
                 .aggregate([
-                    {
-                        $match: {
-                            is_lead: false,
-                            client_status: 'approved',
-                            onboard_date: {
-                                $gte: startWindow,
-                                $lte: endWindow,
-                            },
-                        },
-                    },
+                    { $match: onboardMatch },
                     // onboard_date is a string; convert to Date for month/year grouping
                     {
                         $addFields: {
@@ -196,14 +210,22 @@ export class ReportService {
             );
             for (const k of keys) out[k] = buckets[k];
             return out;
-        } catch {
+        } catch (e) {
+            if (
+                e instanceof BadRequestException ||
+                e instanceof ForbiddenException ||
+                e instanceof ConflictException ||
+                e instanceof NotFoundException ||
+                e instanceof InternalServerErrorException
+            )
+                throw e;
             throw new InternalServerErrorException(
                 'Unable to retrieve clients onboard count',
             );
         }
     }
 
-    async testOrdersTrend(userSession: UserSession) {
+    async testOrdersTrend(userSession: UserSession, marketerName?: string) {
         try {
             if (!hasPerm('crm:view_crm_stats', userSession.permissions)) {
                 throw new ForbiddenException(
@@ -228,9 +250,12 @@ export class ReportService {
                 result[key] = 0;
             }
 
+            const testMatch: Record<string, any> = { is_lead: false };
+            if (marketerName) testMatch.marketer_name = marketerName;
+
             const rows = await this.reportModel
                 .aggregate([
-                    { $match: { is_lead: false } },
+                    { $match: testMatch },
                     { $unwind: '$test_given_date_history' },
                     // Convert string to Date then match by window
                     {
@@ -283,7 +308,15 @@ export class ReportService {
             );
             for (const k of keys) sorted[k] = result[k];
             return sorted;
-        } catch {
+        } catch (e) {
+            if (
+                e instanceof BadRequestException ||
+                e instanceof ForbiddenException ||
+                e instanceof ConflictException ||
+                e instanceof NotFoundException ||
+                e instanceof InternalServerErrorException
+            )
+                throw e;
             throw new InternalServerErrorException(
                 'Unable to retrieve test orders trend',
             );
@@ -294,6 +327,7 @@ export class ReportService {
         userSession: UserSession,
         fromDate: string,
         toDate: string,
+        onlyMarketerName?: string,
     ) {
         try {
             if (!hasPerm('crm:view_crm_stats', userSession.permissions)) {
@@ -328,17 +362,26 @@ export class ReportService {
                 onboardRange.$lte = toDate;
             }
 
-            // Get marketer names from users (provided_name not null)
-            const marketerNamesRaw = (await this.userModel
-                .distinct('provided_name', { provided_name: { $ne: null } })
-                .exec()) as (string | null | undefined)[];
-            const marketerNames = marketerNamesRaw
-                .filter((n): n is string => typeof n === 'string')
-                .map(n => n.trim())
-                .filter(n => n.length > 0);
+            // Get marketer names from users (provided_name not null) unless filtering for one
+            let marketerNames: string[];
+            if (onlyMarketerName) {
+                const single = (onlyMarketerName || '').trim();
+                marketerNames = single ? [single] : [];
+            } else {
+                const marketerNamesRaw = (await this.userModel
+                    .distinct('provided_name', { provided_name: { $ne: null } })
+                    .exec()) as (string | null | undefined)[];
+                marketerNames = marketerNamesRaw
+                    .filter((n): n is string => typeof n === 'string')
+                    .map(n => n.trim())
+                    .filter(n => n.length > 0);
+            }
+
             // Build aggregation pipelines for each metric and run in a single aggregate via $facet
+            const callsMatch: Record<string, any> = { is_lead: false };
+            if (onlyMarketerName) callsMatch.marketer_name = onlyMarketerName;
             const callsPipeline: any[] = [
-                { $match: { is_lead: false } },
+                { $match: callsMatch },
                 { $unwind: '$calling_date_history' },
             ];
             if (hasFrom || hasTo) {
@@ -350,8 +393,10 @@ export class ReportService {
                 $group: { _id: '$marketer_name', count: { $sum: 1 } },
             });
 
+            const testsMatch: Record<string, any> = { is_lead: false };
+            if (onlyMarketerName) testsMatch.marketer_name = onlyMarketerName;
             const testsPipeline: any[] = [
-                { $match: { is_lead: false } },
+                { $match: testsMatch },
                 { $unwind: '$test_given_date_history' },
             ];
             if (hasFrom || hasTo) {
@@ -363,7 +408,9 @@ export class ReportService {
                 $group: { _id: '$marketer_name', count: { $sum: 1 } },
             });
 
-            const leadsPipeline: any[] = [{ $match: { is_lead: true } }];
+            const leadsMatch: Record<string, any> = { is_lead: true };
+            if (onlyMarketerName) leadsMatch.marketer_name = onlyMarketerName;
+            const leadsPipeline: any[] = [{ $match: leadsMatch }];
             if (hasFrom || hasTo) {
                 leadsPipeline.push({
                     $match: {
@@ -375,9 +422,13 @@ export class ReportService {
                 $group: { _id: '$marketer_name', count: { $sum: 1 } },
             });
 
-            const prospectsPipeline: any[] = [
-                { $match: { is_lead: false, is_prospected: true } },
-            ];
+            const prospectsMatch: Record<string, any> = {
+                is_lead: false,
+                is_prospected: true,
+            };
+            if (onlyMarketerName)
+                prospectsMatch.marketer_name = onlyMarketerName;
+            const prospectsPipeline: any[] = [{ $match: prospectsMatch }];
             if (hasFrom || hasTo) {
                 prospectsPipeline.push({
                     $match: {
@@ -389,9 +440,12 @@ export class ReportService {
                 $group: { _id: '$marketer_name', count: { $sum: 1 } },
             });
 
-            const clientsPipeline: any[] = [
-                { $match: { is_lead: false, client_status: 'approved' } },
-            ];
+            const clientsMatch: Record<string, any> = {
+                is_lead: false,
+                client_status: 'approved',
+            };
+            if (onlyMarketerName) clientsMatch.marketer_name = onlyMarketerName;
+            const clientsPipeline: any[] = [{ $match: clientsMatch }];
             if (hasFrom || hasTo) {
                 clientsPipeline.push({
                     $match: { onboard_date: onboardRange },
@@ -454,189 +508,17 @@ export class ReportService {
             }
 
             return data;
-        } catch {
+        } catch (e) {
+            if (
+                e instanceof BadRequestException ||
+                e instanceof ForbiddenException ||
+                e instanceof ConflictException ||
+                e instanceof NotFoundException ||
+                e instanceof InternalServerErrorException
+            )
+                throw e;
             throw new InternalServerErrorException(
                 'Unable to retrieve report statuses',
-            );
-        }
-    }
-
-    async reportStatusesByName(
-        userSession: UserSession,
-        marketerName: string,
-        fromDate?: string,
-        toDate?: string,
-    ) {
-        try {
-            if (!hasPerm('crm:view_crm_stats', userSession.permissions)) {
-                throw new ForbiddenException(
-                    'You do not have permission to view CRM stats',
-                );
-            }
-
-            const hasFrom = !!fromDate;
-            const hasTo = !!toDate;
-            const mFrom = hasFrom
-                ? moment(fromDate, 'YYYY-MM-DD', true)
-                : moment('0000-01-01', 'YYYY-MM-DD', true);
-            const mTo = hasTo
-                ? moment(toDate, 'YYYY-MM-DD', true)
-                : moment('9999-12-31', 'YYYY-MM-DD', true);
-
-            if (!mFrom.isValid() || !mTo.isValid()) {
-                throw new BadRequestException('Invalid date input');
-            }
-
-            const callingRange: { $gte?: string; $lte?: string } = {};
-            const onboardRange: { $gte?: string; $lte?: string } = {};
-            if (hasFrom) {
-                callingRange.$gte = fromDate!;
-                onboardRange.$gte = fromDate!;
-            }
-            if (hasTo) {
-                callingRange.$lte = toDate!;
-                onboardRange.$lte = toDate!;
-            }
-
-            // Total calls: unwind calling_date_history and count in range
-            const callsPipeline: any[] = [
-                { $match: { is_lead: false, marketer_name: marketerName } },
-                { $unwind: '$calling_date_history' },
-            ];
-            if (hasFrom || hasTo) {
-                callsPipeline.push({
-                    $match: { calling_date_history: callingRange },
-                });
-            }
-            callsPipeline.push({ $count: 'count' });
-
-            // Total tests: unwind test_given_date_history
-            const testsPipeline: any[] = [
-                { $match: { is_lead: false, marketer_name: marketerName } },
-                { $unwind: '$test_given_date_history' },
-            ];
-            if (hasFrom || hasTo) {
-                testsPipeline.push({
-                    $match: { test_given_date_history: callingRange },
-                });
-            }
-            testsPipeline.push({ $count: 'count' });
-
-            // Leads
-            const leadsPipeline: any[] = [
-                { $match: { is_lead: true, marketer_name: marketerName } },
-            ];
-            if (hasFrom || hasTo) {
-                leadsPipeline.push({
-                    $match: {
-                        calling_date_history: { $elemMatch: callingRange },
-                    },
-                });
-            }
-            leadsPipeline.push({ $count: 'count' });
-
-            // Prospects
-            const prospectsPipeline: any[] = [
-                {
-                    $match: {
-                        is_lead: false,
-                        is_prospected: true,
-                        marketer_name: marketerName,
-                    },
-                },
-            ];
-            if (hasFrom || hasTo) {
-                prospectsPipeline.push({
-                    $match: {
-                        calling_date_history: { $elemMatch: callingRange },
-                    },
-                });
-            }
-            prospectsPipeline.push({ $count: 'count' });
-
-            // Clients
-            const clientsPipeline: any[] = [
-                {
-                    $match: {
-                        is_lead: false,
-                        client_status: 'approved',
-                        marketer_name: marketerName,
-                    },
-                },
-            ];
-            if (hasFrom || hasTo) {
-                clientsPipeline.push({
-                    $match: { onboard_date: onboardRange },
-                });
-            }
-            clientsPipeline.push({ $count: 'count' });
-
-            const [facet] = (await this.reportModel
-                .aggregate([
-                    {
-                        $facet: {
-                            calls: callsPipeline,
-                            tests: testsPipeline,
-                            leads: leadsPipeline,
-                            prospects: prospectsPipeline,
-                            clients: clientsPipeline,
-                        },
-                    },
-                    {
-                        $project: {
-                            totalCalls: {
-                                $ifNull: [
-                                    { $arrayElemAt: ['$calls.count', 0] },
-                                    0,
-                                ],
-                            },
-                            totalTests: {
-                                $ifNull: [
-                                    { $arrayElemAt: ['$tests.count', 0] },
-                                    0,
-                                ],
-                            },
-                            totalLeads: {
-                                $ifNull: [
-                                    { $arrayElemAt: ['$leads.count', 0] },
-                                    0,
-                                ],
-                            },
-                            totalProspects: {
-                                $ifNull: [
-                                    { $arrayElemAt: ['$prospects.count', 0] },
-                                    0,
-                                ],
-                            },
-                            totalClients: {
-                                $ifNull: [
-                                    { $arrayElemAt: ['$clients.count', 0] },
-                                    0,
-                                ],
-                            },
-                        },
-                    },
-                ])
-                .exec()) as Array<{
-                totalCalls: number;
-                totalTests: number;
-                totalLeads: number;
-                totalProspects: number;
-                totalClients: number;
-            }>;
-
-            return (
-                facet || {
-                    totalCalls: 0,
-                    totalTests: 0,
-                    totalLeads: 0,
-                    totalProspects: 0,
-                    totalClients: 0,
-                }
-            );
-        } catch {
-            throw new InternalServerErrorException(
-                'Unable to retrieve report statuses by name',
             );
         }
     }
@@ -669,6 +551,9 @@ export class ReportService {
             staleClient,
             prospectStatus,
             generalSearchString,
+            leadOrigin,
+            show,
+            freshLead,
         } = filters;
 
         interface QueryShape {
@@ -685,6 +570,9 @@ export class ReportService {
             calling_date_history?: Record<string, any>;
             test_given_date_history?: Record<string, any>;
             prospect_status?: ReturnType<typeof createRegexQuery>;
+            lead_origin?: string | { $ne: string };
+            lead_withdrawn?: boolean;
+            onboard_date?: Record<string, any>;
             $or?: Record<string, ReturnType<typeof createRegexQuery>>[];
         }
 
@@ -710,11 +598,16 @@ export class ReportService {
         query.is_lead = onlyLead || false;
         addIfDefined(query, 'followup_done', followupDone);
 
-        // Client status
+        // Client status: regular clients are approved; non-regular are none|pending
         if (regularClient) {
-            query.client_status = 'pending';
+            query.client_status = 'approved';
         } else if (regularClient === false) {
             query.client_status = { $in: ['none', 'pending'] };
+        }
+
+        // Fresh lead: not withdrawn
+        if (freshLead) {
+            query.lead_withdrawn = false;
         }
 
         // Stale client: no calls in the last 2 months
@@ -728,17 +621,25 @@ export class ReportService {
             };
         }
 
-        // Date range on calling_date_history
+        // Date range: use onboard_date for regular clients, calling_date_history otherwise
         if (fromDate || toDate) {
-            query.calling_date_history = query.calling_date_history || {};
-            query.calling_date_history.$elemMatch = {
-                ...(fromDate && { $gte: fromDate }),
-                ...(toDate && { $lte: toDate }),
-            };
+            if (regularClient) {
+                query.onboard_date = {
+                    ...(fromDate && { $gte: fromDate }),
+                    ...(toDate && { $lte: toDate }),
+                };
+            } else {
+                query.calling_date_history = query.calling_date_history || {};
+                query.calling_date_history.$elemMatch = {
+                    ...(fromDate && { $gte: fromDate }),
+                    ...(toDate && { $lte: toDate }),
+                };
+            }
         }
 
         if (!fromDate && !toDate && !staleClient) {
             delete query.calling_date_history;
+            delete query.onboard_date;
         }
 
         // If test filter true, convert calling_date_history condition to test_given_date_history
@@ -788,6 +689,47 @@ export class ReportService {
             onlyLead !== true
         ) {
             throw new BadRequestException('No filter applied');
+        }
+
+        // Additional marketer scoping: show 'mine' or 'others'
+        if (show) {
+            const userDoc = await this.userModel
+                .findById(userSession.db_id)
+                .lean();
+            const marketerNameFromSession = userDoc?.provided_name;
+            switch (show) {
+                case 'all':
+                    break;
+                case 'others':
+                    if (marketerNameFromSession) {
+                        query.marketer_name = {
+                            $not: createRegexQuery(marketerNameFromSession, {
+                                exact: false,
+                                flexible: true,
+                            })!,
+                        };
+                    }
+                    break;
+                case 'mine':
+                    addIfDefined(
+                        query,
+                        'marketer_name',
+                        createRegexQuery(marketerNameFromSession || '', {
+                            exact: false,
+                            flexible: true,
+                        }),
+                    );
+                    break;
+            }
+        }
+
+        // Lead origin scoping: only for lead records endpoints
+        if (leadOrigin) {
+            if (leadOrigin === 'generated') {
+                query.lead_origin = 'generated';
+            } else {
+                query.lead_origin = { $ne: 'generated' };
+            }
         }
 
         // General search
@@ -917,6 +859,7 @@ export class ReportService {
             if (
                 e instanceof BadRequestException ||
                 e instanceof ForbiddenException ||
+                e instanceof ConflictException ||
                 e instanceof InternalServerErrorException
             )
                 throw e;
@@ -950,6 +893,7 @@ export class ReportService {
             if (
                 e instanceof BadRequestException ||
                 e instanceof ForbiddenException ||
+                e instanceof ConflictException ||
                 e instanceof InternalServerErrorException
             )
                 throw e;
@@ -1012,7 +956,7 @@ export class ReportService {
 
             await session.commitTransaction();
             // Extract plain client object for response
-            const createdClientDoc = created[0] as any;
+            const createdClientDoc = created[0];
             const client: Client =
                 typeof createdClientDoc?.toObject === 'function'
                     ? createdClientDoc.toObject()
@@ -1031,6 +975,7 @@ export class ReportService {
             if (
                 e instanceof BadRequestException ||
                 e instanceof ForbiddenException ||
+                e instanceof ConflictException ||
                 e instanceof InternalServerErrorException
             )
                 throw e;
@@ -1061,6 +1006,7 @@ export class ReportService {
             if (
                 e instanceof BadRequestException ||
                 e instanceof ForbiddenException ||
+                e instanceof ConflictException ||
                 e instanceof InternalServerErrorException
             )
                 throw e;
@@ -1098,6 +1044,7 @@ export class ReportService {
             if (
                 e instanceof BadRequestException ||
                 e instanceof ForbiddenException ||
+                e instanceof ConflictException ||
                 e instanceof InternalServerErrorException
             )
                 throw e;
@@ -1130,11 +1077,348 @@ export class ReportService {
             if (
                 e instanceof BadRequestException ||
                 e instanceof ForbiddenException ||
+                e instanceof ConflictException ||
                 e instanceof InternalServerErrorException
             )
                 throw e;
             throw new InternalServerErrorException(
                 'Unable to fetch follow-up count',
+            );
+        }
+    }
+
+    async recallCount(userSession: UserSession, marketerName: string) {
+        if (!hasPerm('crm:view_reports', userSession.permissions)) {
+            throw new ForbiddenException(
+                'You do not have permission to view reports',
+            );
+        }
+
+        try {
+            const today = getTodayDate();
+
+            // Directly approved recalls for today
+            const recallCount1 = await this.reportModel.countDocuments({
+                marketer_name: marketerName,
+                is_lead: false,
+                calling_date_history: today,
+                $expr: {
+                    $and: [
+                        { $gt: [{ $size: '$calling_date_history' }, 1] },
+                        {
+                            $ne: [
+                                { $arrayElemAt: ['$calling_date_history', 0] },
+                                today,
+                            ],
+                        },
+                    ],
+                },
+            });
+
+            // Pending approvals that have calling_date_history change ending today
+            const pendingApprovals = await this.approvalModel
+                .find({
+                    target_model: 'Report',
+                    action: 'update',
+                    status: 'pending',
+                    changes: { $exists: true },
+                })
+                .lean()
+                .exec();
+
+            // Filter pending approvals to only those that updated the 'calling_date_history' today.
+            // Criteria:
+            // - The approval has a change with field === 'calling_date_history'.
+            // - The change's newValue is an array with at least two entries (a history).
+            // - The first date in the history is NOT today, and the last date IS today.
+            //   This implies the history was updated to include today as the latest entry.
+            const validApprovals = (pendingApprovals || []).filter(appr => {
+                const changes = appr.changes as
+                    | Array<{ field: string; newValue: any }>
+                    | undefined;
+                if (!changes?.length) return false;
+
+                const change = changes.find(
+                    c => c.field === 'calling_date_history',
+                );
+                if (!change || !Array.isArray(change.newValue)) return false;
+
+                const history = change.newValue as string[];
+                const len = history.length;
+                if (len < 2) return false;
+
+                const first = history[0];
+                const last = history[len - 1];
+                return first !== today && last === today;
+            });
+
+            const reportIds = validApprovals.reduce<string[]>((acc, a) => {
+                if (a.object_id) acc.push(String(a.object_id));
+                return acc;
+            }, []);
+
+            const recallCount2 = await this.reportModel.countDocuments({
+                _id: { $in: reportIds },
+                marketer_name: marketerName,
+                is_lead: false,
+            });
+
+            return recallCount1 + recallCount2;
+        } catch (e) {
+            if (
+                e instanceof BadRequestException ||
+                e instanceof ForbiddenException ||
+                e instanceof ConflictException ||
+                e instanceof NotFoundException ||
+                e instanceof InternalServerErrorException
+            )
+                throw e;
+            throw new InternalServerErrorException(
+                'Unable to fetch recall count',
+            );
+        }
+    }
+
+    async withdrawLead(
+        reportId: string,
+        userSession: UserSession,
+        marketerRealName: string,
+    ) {
+        // Permission: withdrawing a lead modifies reports
+        if (!hasPerm('crm:create_report', userSession.permissions)) {
+            throw new ForbiddenException(
+                'You do not have permission to withdraw lead',
+            );
+        }
+
+        try {
+            // Step 1: mark the source report as a withdrawn lead
+            const leadData = (await this.reportModel
+                .findByIdAndUpdate(
+                    reportId,
+                    {
+                        updated_by: marketerRealName,
+                        is_lead: true,
+                        lead_withdrawn: true,
+                    },
+                    { new: true },
+                )
+                .lean()
+                .exec()) as Report | null;
+
+            const isEmpty = (str?: string | null) => !str || str.trim() === '';
+
+            if (!leadData) {
+                throw new InternalServerErrorException(
+                    'Unable to change the lead status',
+                );
+            }
+
+            // Step 2: create a new report using the lead data
+            const today = getTodayDate();
+
+            if (leadData.lead_origin !== 'generated') {
+                const reportData = await this.reportModel
+                    .findOneAndUpdate(
+                        {
+                            marketer_name: leadData.lead_origin,
+                            company_name: leadData.company_name,
+                            is_lead: false,
+                            lead_withdrawn: true,
+                        },
+                        ReportFactory.fromLeadToReportDoc(
+                            leadData,
+                            today,
+                            marketerRealName,
+                        ),
+                        { upsert: true, new: true },
+                    )
+                    .exec();
+
+                if (reportData) return reportData;
+                throw new InternalServerErrorException(
+                    'Unable to create a new report using the lead data. Please create one manually',
+                );
+            } else {
+                // lead_origin === 'generated' branch
+                if (
+                    isEmpty(leadData.contact_person) ||
+                    isEmpty(leadData.company_name) ||
+                    isEmpty(leadData.category) ||
+                    isEmpty(leadData.website) ||
+                    isEmpty(leadData.designation) ||
+                    isEmpty(leadData.country) ||
+                    isEmpty(leadData.marketer_name) ||
+                    isEmpty(leadData.marketer_id)
+                ) {
+                    throw new BadRequestException('Lead data is missing');
+                }
+
+                const created = await this.reportModel.create(
+                    ReportFactory.fromLeadToReportDoc(
+                        leadData,
+                        today,
+                        marketerRealName,
+                    ),
+                );
+
+                if (!created) {
+                    throw new InternalServerErrorException(
+                        'Unable to create a new report using the lead data. Please create one manually',
+                    );
+                }
+                return created;
+            }
+        } catch (e) {
+            if (
+                e instanceof BadRequestException ||
+                e instanceof ForbiddenException ||
+                e instanceof ConflictException ||
+                e instanceof InternalServerErrorException
+            )
+                throw e;
+            throw new InternalServerErrorException('Unable to withdraw lead');
+        }
+    }
+
+    async doneFollowup(
+        reportId: string,
+        userSession: UserSession,
+        marketerCompanyName: string,
+    ) {
+        // Permission: marking followup done modifies reports
+        if (!hasPerm('crm:create_report', userSession.permissions)) {
+            throw new ForbiddenException(
+                'You do not have permission to mark follow-up done',
+            );
+        }
+
+        try {
+            const report = await this.reportModel
+                .findById(reportId)
+                .lean()
+                .exec();
+            if (!report) {
+                throw new NotFoundException('Report not found');
+            }
+
+            // Check if the report belongs to the marketer
+            if (report.marketer_id !== userSession.db_id) {
+                throw new ForbiddenException(
+                    'You do not have permission to modify this report',
+                );
+            }
+
+            if (report.followup_date === '' || !report.followup_date) {
+                throw new BadRequestException('Follow-up date is not set');
+            }
+
+            // Mark the follow-up as done
+            report.followup_done = true;
+            report.updated_by = marketerCompanyName;
+            await this.reportModel.findByIdAndUpdate(reportId, report).exec();
+
+            return { message: 'Follow-up marked as done' };
+        } catch (e) {
+            if (
+                e instanceof BadRequestException ||
+                e instanceof ForbiddenException ||
+                e instanceof ConflictException ||
+                e instanceof InternalServerErrorException ||
+                e instanceof NotFoundException
+            )
+                throw e;
+            throw new InternalServerErrorException(
+                'Unable to mark follow-up as done',
+            );
+        }
+    }
+
+    async getReport(reportId: string, userSession: UserSession) {
+        if (!hasPerm('crm:view_reports', userSession.permissions)) {
+            throw new ForbiddenException(
+                'You do not have permission to view reports',
+            );
+        }
+
+        try {
+            const report = await this.reportModel
+                .findById(reportId)
+                .lean()
+                .exec();
+            if (!report) {
+                throw new NotFoundException('Report not found');
+            }
+
+            // Check if the report belongs to the marketer
+            // if (report.marketer_id !== userSession.db_id) {
+            //     throw new ForbiddenException(
+            //         'You do not have permission to modify this report',
+            //     );
+            // }
+
+            return report;
+        } catch (e) {
+            if (
+                e instanceof BadRequestException ||
+                e instanceof ForbiddenException ||
+                e instanceof ConflictException ||
+                e instanceof InternalServerErrorException ||
+                e instanceof NotFoundException
+            )
+                throw e;
+            throw new InternalServerErrorException(
+                'Unable to retrieve the report',
+            );
+        }
+    }
+
+    async removeClientFromReport(
+        reportId: string,
+        userSession: UserSession,
+        marketerCompanyName: string,
+    ) {
+        // Permission: who can remove a client from a report
+        if (!hasPerm('crm:create_report', userSession.permissions)) {
+            throw new ForbiddenException(
+                'You do not have permission to remove client from report',
+            );
+        }
+
+        try {
+            const report = await this.reportModel
+                .findById(reportId)
+                .lean()
+                .exec();
+            if (!report) {
+                throw new NotFoundException('Report not found');
+            }
+
+            // Check if the report belongs to the marketer
+            if (report.marketer_id !== userSession.db_id) {
+                throw new ForbiddenException(
+                    'You do not have permission to modify this report',
+                );
+            }
+
+            // Remove the client from the report
+            report.client_status = 'none';
+            // report.onboard_date = ''; // keep onboard date intact for record/graph purposes
+            report.updated_by = marketerCompanyName;
+            await this.reportModel.findByIdAndUpdate(reportId, report).exec();
+
+            return { message: 'Client removed from report' };
+        } catch (e) {
+            if (
+                e instanceof BadRequestException ||
+                e instanceof ForbiddenException ||
+                e instanceof ConflictException ||
+                e instanceof InternalServerErrorException ||
+                e instanceof NotFoundException
+            )
+                throw e;
+            throw new InternalServerErrorException(
+                'Unable to remove client from report',
             );
         }
     }
