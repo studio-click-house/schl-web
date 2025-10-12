@@ -11,7 +11,13 @@ export class Invoice {
     @Prop({ required: [true, 'Created by is required'] })
     created_by: string;
 
-    @Prop({ required: [true, 'Time period is required'] })
+    @Prop({
+        required: [true, 'Time period is required'],
+        type: {
+            fromDate: { type: String, required: true },
+            toDate: { type: String, required: true },
+        },
+    })
     time_period: { fromDate: string; toDate: string };
 
     @Prop({ default: 0 })

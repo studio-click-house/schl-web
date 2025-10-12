@@ -7,9 +7,22 @@ import { UserSession } from '../types/user-session.type';
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
     constructor(private readonly config: ConfigService) {
+        const secret =
+            config.get<string>('AUTH_SECRET') ||
+            config.get<string>('JWT_SECRET') ||
+            process.env.AUTH_SECRET ||
+            process.env.JWT_SECRET;
+
+        if (!secret) {
+            // Provide a clearer error than passport-jwt's generic message
+            throw new Error(
+                'JWT secret is not configured. Please set AUTH_SECRET or JWT_SECRET in your environment (.env).',
+            );
+        }
+
         super({
             jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-            secretOrKey: config.get<string>('AUTH_SECRET'),
+            secretOrKey: secret,
         });
     }
 
