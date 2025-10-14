@@ -21,7 +21,7 @@ export class Notice {
     @Prop({ required: [true, 'Description is required'] })
     description: string;
 
-    @Prop({ default: null })
+    @Prop({ default: null, type: String })
     file_name?: string | null;
 
     @Prop({ type: Date })

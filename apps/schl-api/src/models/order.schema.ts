@@ -14,7 +14,7 @@ export class Order {
     @Prop({ default: '' })
     folder?: string;
 
-    @Prop({ default: null })
+    @Prop({ default: null, type: Number })
     rate?: number | null;
 
     @Prop({ default: 0 })
