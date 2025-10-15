@@ -22,7 +22,7 @@ export class ClientController {
     constructor(private readonly clientService: ClientService) {}
 
     @Post('search-clients')
-    async searchClients(
+    searchClients(
         @Query() query: SearchClientsQueryDto,
         @Body() body: SearchClientsBodyDto,
     ) {

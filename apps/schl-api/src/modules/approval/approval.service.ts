@@ -7,9 +7,11 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import mongoose, { Model } from 'mongoose';
+import mongoose, { FilterQuery, Model, PipelineStage } from 'mongoose';
 import { PopulatedUser } from 'src/common/types/populated-user.type';
 import { UserSession } from 'src/common/types/user-session.type';
+import { applyDateRange } from 'src/common/utils/date-helpers';
+import { createRegexQuery } from 'src/common/utils/filter-helpers';
 import {
     hasPerm,
     sanitizePermissions,
@@ -23,6 +25,10 @@ import { Role } from 'src/models/role.schema';
 import { Schedule } from 'src/models/schedule.schema';
 import { User } from 'src/models/user.schema';
 import { CreateApprovalBodyDto } from './dto/create-approval.dto';
+import {
+    SearchApprovalsBodyDto,
+    SearchApprovalsQueryDto,
+} from './dto/search-approvals.dto';
 import { ApprovalFactory } from './factories/approval.factory';
 
 @Injectable()
@@ -45,6 +51,214 @@ export class ApprovalService {
         @InjectModel(Employee.name)
         private readonly employeeModel: Model<Employee>,
     ) {}
+
+    async searchApprovals(
+        filters: SearchApprovalsBodyDto,
+        pagination: SearchApprovalsQueryDto,
+        userSession: UserSession,
+    ) {
+        if (!hasPerm('admin:view_page', userSession.permissions)) {
+            throw new ForbiddenException(
+                "You don't have permission to view approvals",
+            );
+        }
+
+        const { page, itemsPerPage, filtered, paginated } = pagination;
+        const {
+            reqBy,
+            reqType,
+            approvedCheck,
+            rejectedCheck,
+            waitingCheck,
+            fromDate,
+            toDate,
+        } = filters;
+
+        interface QueryShape extends Record<string, any> {
+            createdAt?: { $gte?: Date; $lte?: Date };
+            $or?: FilterQuery<Approval>[];
+            target_model?: Approval['target_model'];
+            action?: Approval['action'];
+            req_by?: mongoose.Types.ObjectId | null;
+        }
+
+        const query: QueryShape = {};
+
+        applyDateRange(query, 'createdAt', fromDate, toDate);
+
+        const statusConditions: FilterQuery<Approval>[] = [];
+        if (approvedCheck) statusConditions.push({ status: 'approved' });
+        if (rejectedCheck) statusConditions.push({ status: 'rejected' });
+        if (waitingCheck) statusConditions.push({ status: 'pending' });
+        if (statusConditions.length > 0) {
+            query.$or = statusConditions;
+        }
+
+        if (reqType) {
+            const [modelRaw, actionRaw] = reqType.trim().split(/\s+/);
+            const allowedModels: Approval['target_model'][] = [
+                'User',
+                'Report',
+                'Employee',
+                'Order',
+                'Client',
+                'Schedule',
+            ];
+            const matchingModel = allowedModels.find(
+                model => model === modelRaw,
+            );
+            if (matchingModel) {
+                query.target_model = matchingModel;
+            }
+
+            const normalizedAction = actionRaw?.toLowerCase();
+            const allowedActions: Approval['action'][] = [
+                'create',
+                'update',
+                'delete',
+            ];
+            const matchingAction = allowedActions.find(
+                action => action === normalizedAction,
+            );
+            if (matchingAction) {
+                query.action = matchingAction;
+            }
+        }
+
+        if (reqBy) {
+            const nameQuery = createRegexQuery(reqBy);
+            if (!nameQuery) {
+                query.req_by = null;
+            } else {
+                const userDoc = await this.userModel
+                    .findOne({ real_name: nameQuery })
+                    .select('_id')
+                    .lean();
+                if (userDoc?._id) {
+                    query.req_by = userDoc._id;
+                } else {
+                    query.req_by = null;
+                }
+            }
+        }
+
+        const searchQuery: FilterQuery<Approval> = { ...query };
+
+        if (filtered && Object.keys(searchQuery).length === 0) {
+            throw new BadRequestException('No filter applied');
+        }
+
+        const skip = Math.max(page - 1, 0) * itemsPerPage;
+
+        try {
+            const count = await this.approvalModel.countDocuments(searchQuery);
+            let approvals: Approval[];
+
+            if (paginated) {
+                const sortQuery: Record<string, 1 | -1> = {
+                    sortPriority: 1,
+                    createdAt: -1,
+                };
+
+                const pipeline: PipelineStage[] = [
+                    { $match: searchQuery },
+                    {
+                        $lookup: {
+                            from: 'users',
+                            let: { reqById: '$req_by' },
+                            pipeline: [
+                                {
+                                    $match: {
+                                        $expr: { $eq: ['$_id', '$$reqById'] },
+                                    },
+                                },
+                                { $project: { _id: 0, real_name: 1 } },
+                            ],
+                            as: 'req_by',
+                        },
+                    },
+                    {
+                        $unwind: {
+                            path: '$req_by',
+                            preserveNullAndEmptyArrays: true,
+                        },
+                    },
+                    {
+                        $lookup: {
+                            from: 'users',
+                            let: { revById: '$rev_by' },
+                            pipeline: [
+                                {
+                                    $match: {
+                                        $expr: { $eq: ['$_id', '$$revById'] },
+                                    },
+                                },
+                                { $project: { _id: 0, real_name: 1 } },
+                            ],
+                            as: 'rev_by',
+                        },
+                    },
+                    {
+                        $unwind: {
+                            path: '$rev_by',
+                            preserveNullAndEmptyArrays: true,
+                        },
+                    },
+                    {
+                        $addFields: {
+                            sortPriority: {
+                                $cond: {
+                                    if: { $eq: ['$status', 'pending'] },
+                                    then: 0,
+                                    else: 1,
+                                },
+                            },
+                        },
+                    },
+                    { $sort: sortQuery },
+                    { $skip: skip },
+                    { $limit: itemsPerPage },
+                    { $project: { sortPriority: 0 } },
+                ];
+
+                approvals = await this.approvalModel.aggregate(pipeline).exec();
+
+                if (!approvals) {
+                    throw new InternalServerErrorException(
+                        'Failed to retrieve approvals',
+                    );
+                }
+
+                return {
+                    pagination: {
+                        count,
+                        pageCount: Math.ceil(count / itemsPerPage),
+                    },
+                    items: approvals,
+                };
+            }
+            approvals = await this.approvalModel
+                .find(searchQuery)
+                .populate('req_by', 'real_name -_id')
+                .populate('rev_by', 'real_name -_id')
+                .sort({ createdAt: -1 })
+                .lean()
+                .exec();
+
+            if (!approvals) {
+                throw new InternalServerErrorException(
+                    'Failed to retrieve approvals',
+                );
+            }
+
+            return approvals;
+        } catch (e) {
+            if (e instanceof HttpException) throw e;
+            throw new InternalServerErrorException(
+                'Unable to search approvals',
+            );
+        }
+    }
 
     async createApproval(
         approvalData: CreateApprovalBodyDto,

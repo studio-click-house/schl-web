@@ -75,21 +75,18 @@ async function getFtpConnection(): Promise<FtpConnection> {
  */
 async function releaseFtpConnection(ftp: FtpConnection): Promise<void> {
     try {
-        // Check the connection status (method assumed to be available on PromiseFtp)
-        const connectionStatus = ftp.getConnectionStatus(); // Replace with actual PromiseFtp status-check method if different.
-
-        if (
-            connectionStatus === 'connected' &&
-            connectionPool.length < MAX_CONNECTIONS
-        ) {
-            connectionPool.push(ftp);
-        } else {
-            await ftp.end();
-        }
-
+        // If there are queued requests, hand off the connection immediately
         if (connectionQueue.length > 0) {
             const { resolve } = connectionQueue.shift() as QueueItem;
             resolve(ftp);
+            return;
+        }
+
+        // Otherwise, return to pool if capacity allows, else close
+        if (connectionPool.length < MAX_CONNECTIONS) {
+            connectionPool.push(ftp);
+        } else {
+            await ftp.end();
         }
     } catch (error) {
         console.error('Error while releasing connection:', error);

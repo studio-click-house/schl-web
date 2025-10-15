@@ -27,6 +27,30 @@
 				"$tsc"
 			],
 			"group": "build"
+		},
+		{
+			"label": "Typecheck (tsc - no emit)",
+			"type": "shell",
+			"command": "npx tsc -p tsconfig.json --noEmit",
+			"problemMatcher": [
+				"$tsc"
+			]
+		},
+		{
+			"label": "ESLint fix",
+			"type": "shell",
+			"command": "npm run lint",
+			"problemMatcher": [
+				"$eslint-stylish"
+			]
+		},
+		{
+			"label": "ESLint run",
+			"type": "shell",
+			"command": "npm run lint --silent",
+			"problemMatcher": [
+				"$eslint-stylish"
+			]
 		}
 	]
 }

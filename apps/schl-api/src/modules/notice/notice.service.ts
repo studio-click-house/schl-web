@@ -10,6 +10,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { UserSession } from 'src/common/types/user-session.type';
+import { applyDateRange } from 'src/common/utils/date-helpers';
 import {
     addIfDefined,
     createRegexQuery,
@@ -121,16 +122,7 @@ export class NoticeService {
         const query: QueryShape = {};
 
         // Date range over createdAt
-        if (fromDate || toDate) {
-            const range: { $gte?: Date; $lte?: Date } = {};
-            if (fromDate) range.$gte = new Date(`${fromDate}T00:00:00.000Z`);
-            if (toDate) range.$lte = new Date(`${toDate}T23:59:59.999Z`);
-            query.createdAt = range;
-        }
-
-        if (!fromDate && !toDate) {
-            delete (query as any).createdAt;
-        }
+        applyDateRange(query, 'createdAt', fromDate, toDate);
 
         // Regex fields: channel (exact), notice_no (exact), title (fuzzy)
         addIfDefined(
