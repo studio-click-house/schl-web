@@ -5,6 +5,7 @@ import {
     Get,
     Param,
     Post,
+    Put,
     Query,
     Req,
 } from '@nestjs/common';
@@ -68,5 +69,22 @@ export class OrderController {
         @Req() req: Request & { user: UserSession },
     ) {
         return this.orderService.finishOrder(id, req.user);
+    }
+
+    @Post('redo-order/:id')
+    redoOrder(
+        @Param() { id }: IdParamDto,
+        @Req() req: Request & { user: UserSession },
+    ) {
+        return this.orderService.redoOrder(id, req.user);
+    }
+
+    @Put('update-order/:id')
+    updateOrder(
+        @Param() { id }: IdParamDto,
+        @Body() body: Partial<CreateOrderBodyDto>,
+        @Req() req: Request & { user: UserSession },
+    ) {
+        return this.orderService.updateOrder(id, body, req.user);
     }
 }

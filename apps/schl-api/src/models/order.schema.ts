@@ -1,5 +1,13 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
+import {
+    ORDER_PRIORITIES,
+    ORDER_STATUSES,
+    ORDER_TYPES,
+    type OrderPriority,
+    type OrderStatus,
+    type OrderType,
+} from 'src/common/constants/order.constant';
 
 export type OrderDocument = HydratedDocument<Order>;
 
@@ -47,20 +55,20 @@ export class Order {
     @Prop({ default: '' })
     comment?: string;
 
-    @Prop({ default: 'general', enum: ['general', 'test'] })
-    type?: 'general' | 'test';
+    @Prop({ default: 'general', enum: ORDER_TYPES })
+    type?: OrderType;
 
     @Prop({
         default: 'running',
-        enum: ['running', 'uploaded', 'paused', 'client-hold', 'finished'],
+        enum: ORDER_STATUSES,
     })
-    status?: 'running' | 'uploaded' | 'paused' | 'client-hold' | 'finished';
+    status?: OrderStatus;
 
     @Prop({ default: '' })
     folder_path?: string;
 
-    @Prop({ default: 'medium', enum: ['low', 'medium', 'high'] })
-    priority?: 'low' | 'medium' | 'high';
+    @Prop({ default: 'medium', enum: ORDER_PRIORITIES })
+    priority?: OrderPriority;
 
     @Prop({ type: String, default: null })
     updated_by?: string | null;

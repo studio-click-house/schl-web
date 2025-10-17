@@ -312,7 +312,7 @@ export class OrderService {
     }
 
     async finishOrder(orderId: string, userSession: UserSession) {
-        if (!hasPerm('task:running_tasks', userSession.permissions)) {
+        if (!hasPerm('browse:edit_task', userSession.permissions)) {
             throw new ForbiddenException(
                 "You don't have permission to finish orders",
             );
@@ -334,6 +334,75 @@ export class OrderService {
             throw new InternalServerErrorException(
                 'Unable to change status of the order',
             );
+        }
+    }
+
+    async redoOrder(orderId: string, userSession: UserSession) {
+        if (!hasPerm('browse:edit_task', userSession.permissions)) {
+            throw new ForbiddenException(
+                "You don't have permission to redo orders",
+            );
+        }
+
+        const existing = await this.orderModel.findById(orderId).exec();
+        if (!existing) {
+            throw new BadRequestException('Order not found');
+        }
+
+        try {
+            existing.status = 'correction';
+            await existing.save();
+            return {
+                message: 'Changed the status of the order successfully',
+            };
+        } catch (e) {
+            if (e instanceof HttpException) throw e;
+            throw new InternalServerErrorException(
+                'Unable to change status of the order',
+            );
+        }
+    }
+
+    async updateOrder(
+        orderId: string,
+        orderData: Partial<CreateOrderBodyDto>,
+        userSession: UserSession,
+    ) {
+        if (!hasPerm('browse:edit_task', userSession.permissions)) {
+            throw new ForbiddenException(
+                "You don't have permission to update orders",
+            );
+        }
+
+        const existing = await this.orderModel.findById(orderId).exec();
+        if (!existing) {
+            throw new BadRequestException('Order not found');
+        }
+
+        const updateDoc = OrderFactory.fromUpdateDto(
+            orderData,
+            userSession.db_id,
+        );
+        const keys = Object.keys(updateDoc).filter(k => k !== 'updated_by');
+        if (keys.length === 0) {
+            throw new BadRequestException('No update fields provided');
+        }
+
+        try {
+            const updated = await this.orderModel.findByIdAndUpdate(
+                orderId,
+                updateDoc,
+                { new: true },
+            );
+            if (!updated) {
+                throw new InternalServerErrorException(
+                    'Failed to update order',
+                );
+            }
+            return updated;
+        } catch (e) {
+            if (e instanceof HttpException) throw e;
+            throw new InternalServerErrorException('Unable to update order');
         }
     }
 }

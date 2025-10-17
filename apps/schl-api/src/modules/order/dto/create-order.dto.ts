@@ -9,6 +9,14 @@ import {
     Max,
     Min,
 } from 'class-validator';
+import {
+    ORDER_PRIORITIES,
+    ORDER_STATUSES,
+    ORDER_TYPES,
+    type OrderPriority,
+    type OrderStatus,
+    type OrderType,
+} from 'src/common/constants/order.constant';
 
 const toLower = ({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.toLowerCase() : value;
@@ -84,13 +92,13 @@ export class CreateOrderBodyDto {
 
     @IsOptional()
     @Transform(toLower)
-    @IsEnum(['general', 'test'])
-    type?: 'general' | 'test';
+    @IsEnum(ORDER_TYPES)
+    type?: OrderType;
 
     @IsOptional()
     @Transform(toLower)
-    @IsEnum(['running', 'uploaded', 'paused', 'client-hold', 'finished'])
-    status?: 'running' | 'uploaded' | 'paused' | 'client-hold' | 'finished';
+    @IsEnum(ORDER_STATUSES)
+    status?: OrderStatus;
 
     @IsOptional()
     @IsString()
@@ -98,6 +106,6 @@ export class CreateOrderBodyDto {
 
     @IsOptional()
     @Transform(toLower)
-    @IsEnum(['low', 'medium', 'high'])
-    priority?: 'low' | 'medium' | 'high';
+    @IsEnum(ORDER_PRIORITIES)
+    priority?: OrderPriority;
 }
