@@ -5,9 +5,10 @@ import Linkify from '@/components/Linkify';
 import NoData, { Type } from '@/components/NoData';
 import Pagination from '@/components/Pagination';
 import { usePaginationManager } from '@/hooks/usePaginationManager';
-import { fetchApi, hasAnyPerm, hasPerm } from '@/lib/utils';
+import { fetchApi } from '@/lib/utils';
 import { ReportDocument } from '@repo/schemas/report.schema';
 import type { PopulatedByEmployeeUser } from '@repo/schemas/types/populated-user.type';
+import { hasAnyPerm, hasPerm } from '@repo/schemas/utils/permission-check';
 
 import { formatDate } from '@/utility/date';
 import { ChevronLeft, ChevronRight } from 'lucide-react';

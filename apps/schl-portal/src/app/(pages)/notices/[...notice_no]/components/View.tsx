@@ -1,7 +1,8 @@
 'use client';
 
-import { constructFileName, fetchApi, hasAnyPerm, hasPerm } from '@/lib/utils';
+import { constructFileName, fetchApi } from '@/lib/utils';
 import { formatDate } from '@/utility/date';
+import { hasAnyPerm } from '@repo/schemas/utils/permission-check';
 import moment from 'moment-timezone';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'nextjs-toploader/app';

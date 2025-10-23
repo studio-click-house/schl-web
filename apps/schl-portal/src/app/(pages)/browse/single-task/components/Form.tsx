@@ -1,11 +1,12 @@
 'use client';
 
-import { fetchApi, hasPerm } from '@/lib/utils';
+import { fetchApi } from '@/lib/utils';
 import {
     setClassNameAndIsDisabled,
     setMenuPortalTarget,
 } from '@/utility/selectHelpers';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { hasPerm } from '@repo/schemas/utils/permission-check';
 import { useSession } from 'next-auth/react';
 import { useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';

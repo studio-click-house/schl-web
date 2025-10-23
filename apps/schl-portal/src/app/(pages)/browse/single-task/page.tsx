@@ -1,6 +1,7 @@
 import { auth } from '@/auth';
 import Linkify from '@/components/Linkify';
-import { fetchApi, hasPerm, verifyCookie } from '@/lib/utils';
+import { fetchApi, verifyCookie } from '@/lib/utils';
+import { hasPerm } from '@repo/schemas/utils/permission-check';
 import { useSession } from 'next-auth/react';
 import { cookies } from 'next/headers';
 import Link from 'next/link';

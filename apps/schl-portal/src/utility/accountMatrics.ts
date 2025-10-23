@@ -10,8 +10,8 @@ export interface SalaryStructureType {
 const getMonthsTillNow = (dateString?: string): number => {
     if (!dateString) return 0;
     const dateParts = dateString.split('-');
-    const givenYear = parseInt(dateParts[0]);
-    const givenMonth = parseInt(dateParts[1]) - 1;
+    const givenYear = parseInt(dateParts[0]!);
+    const givenMonth = parseInt(dateParts[1]!) - 1;
 
     const currentDate = new Date();
     const currentYear = currentDate.getFullYear();
@@ -63,7 +63,7 @@ const getPFMoneyAmount = (
         }
 
         const prevDate =
-            employeeData.pf_history[employeeData.pf_history.length - 1].date;
+            employeeData.pf_history[employeeData.pf_history.length - 1]!.date;
 
         const newAmount = Math.round(
             baseSalary *

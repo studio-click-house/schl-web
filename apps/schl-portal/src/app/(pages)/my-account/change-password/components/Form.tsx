@@ -14,7 +14,6 @@ import Select from 'react-select';
 import { ChangePasswordInputsType, validationSchema } from '../schema';
 
 import { generatePassword } from '@/lib/utils';
-import { EmployeeDataType } from '@/models/Employees';
 import { KeySquare } from 'lucide-react';
 import { toast } from 'sonner';
 

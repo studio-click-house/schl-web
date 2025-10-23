@@ -2,8 +2,9 @@
 
 import Badge from '@/components/Badge';
 import ExtendableTd from '@/components/ExtendableTd';
-import { fetchApi, hasAnyPerm, hasPerm } from '@/lib/utils';
+import { fetchApi } from '@/lib/utils';
 import { EmployeeDocument } from '@repo/schemas/employee.schema';
+import { hasAnyPerm, hasPerm } from '@repo/schemas/utils/permission-check';
 
 import NoData, { Type } from '@/components/NoData';
 import Pagination from '@/components/Pagination';

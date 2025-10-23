@@ -1,7 +1,8 @@
 'use client';
-import { constructFileName, fetchApi, hasPerm } from '@/lib/utils';
+import { constructFileName, fetchApi } from '@/lib/utils';
 import { setMenuPortalTarget } from '@/utility/selectHelpers';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { hasPerm } from '@repo/schemas/utils/permission-check';
 import { CheckCircle, CloudUpload, Loader2 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -67,7 +68,7 @@ const Form: React.FC = () => {
             // prefer production when available, otherwise pick the first allowed
             const defaultVal =
                 allowedChannelOptions.find(o => o.value === 'production')
-                    ?.value || allowedChannelOptions[0].value;
+                    ?.value || allowedChannelOptions[0]!.value;
             setValue('channel', defaultVal);
         }
     }, [allowedChannelOptions, setValue, watch]);

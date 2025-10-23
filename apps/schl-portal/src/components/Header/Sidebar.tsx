@@ -1,7 +1,8 @@
 'use client';
 
-import type { PermissionValue } from '@/app/(pages)/admin/roles/create-role/components/Form';
-import { cn, hasAnyPerm, hasPerm } from '@/lib/utils';
+import { cn } from '@/lib/utils';
+import type { Permissions } from '@repo/schemas/types/permission.type';
+import { hasAnyPerm, hasPerm } from '@repo/schemas/utils/permission-check';
 import {
     Building,
     Building2,
@@ -46,12 +47,10 @@ const Sidebar: React.FC<PropsType> = props => {
 
     const { data: session } = useSession();
 
-    const userPermissions = (session?.user.permissions ||
-        []) as PermissionValue[];
+    const userPermissions = (session?.user.permissions || []) as Permissions[];
     // Permission helpers
-    const has = (perm: PermissionValue) => hasPerm(perm, userPermissions);
-    const hasAny = (perms: PermissionValue[]) =>
-        hasAnyPerm(perms, userPermissions);
+    const has = (perm: Permissions) => hasPerm(perm, userPermissions);
+    const hasAny = (perms: Permissions[]) => hasAnyPerm(perms, userPermissions);
 
     let pathname = usePathname();
 

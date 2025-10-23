@@ -6,9 +6,10 @@ import {
     InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import moment from 'moment-timezone';
-import { Model } from 'mongoose';
+import { Client } from '@repo/schemas/client.schema';
 import { COUNTRY_LIST } from '@repo/schemas/constants/client-common-countries';
+import { Invoice } from '@repo/schemas/invoice.schema';
+import { Order } from '@repo/schemas/order.schema';
 import { UserSession } from '@repo/schemas/types/user-session.type';
 import {
     applyDateRange,
@@ -21,9 +22,8 @@ import {
     createRegexQuery,
 } from '@repo/schemas/utils/filter-helpers';
 import { hasAnyPerm, hasPerm } from '@repo/schemas/utils/permission-check';
-import { Client } from '@repo/schemas/client.schema';
-import { Invoice } from '@repo/schemas/invoice.schema';
-import { Order } from '@repo/schemas/order.schema';
+import moment from 'moment-timezone';
+import { Model } from 'mongoose';
 import { SearchUsersQueryDto } from '../user/dto/search-users.dto';
 import { CreateOrderBodyDto } from './dto/create-order.dto';
 import { OrdersByCountryQueryDto } from './dto/orders-by-country.dto';
@@ -697,7 +697,7 @@ export class OrderService {
             const end = new Date(to);
             const current = new Date(from);
             while (current <= end) {
-                dateRange.push(current.toISOString().split('T')[0]);
+                dateRange.push(current.toISOString().substring(0, 10));
                 current.setDate(current.getDate() + 1);
             }
         }
@@ -770,7 +770,7 @@ export class OrderService {
             const end = new Date(to);
             const current = new Date(from);
             while (current <= end) {
-                dateRange.push(current.toISOString().split('T')[0]);
+                dateRange.push(current.toISOString().substring(0, 10));
                 current.setDate(current.getDate() + 1);
             }
         }

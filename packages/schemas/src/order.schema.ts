@@ -20,64 +20,64 @@ export class Order {
     client_name: string;
 
     @Prop({ default: '' })
-    folder?: string;
+    folder: string;
 
     @Prop({ default: null, type: Number })
-    rate?: number | null;
+    rate: number | null;
 
     @Prop({ default: 0 })
-    quantity?: number;
+    quantity: number;
 
     @Prop({ required: [true, 'Download date is required'] })
     download_date: string;
 
     @Prop({ default: '' })
-    delivery_date?: string;
+    delivery_date: string;
 
     @Prop({ default: '' })
-    delivery_bd_time?: string;
+    delivery_bd_time: string;
 
     @Prop({ required: [true, 'Task is required'] })
     task: string;
 
     @Prop({ default: 0 })
-    et?: number;
+    et: number;
 
     @Prop({ default: 0 })
-    production?: number;
+    production: number;
 
     @Prop({ default: 0 })
-    qc1?: number;
+    qc1: number;
 
     @Prop({ default: 0 })
-    qc2?: number;
+    qc2: number;
 
     @Prop({ default: '' })
-    comment?: string;
+    comment: string;
 
     @Prop({ default: 'general', enum: ORDER_TYPES })
-    type?: OrderType;
+    type: OrderType;
 
     @Prop({
         default: 'running',
         enum: ORDER_STATUSES,
     })
-    status?: OrderStatus;
+    status: OrderStatus;
 
     @Prop({ default: '' })
-    folder_path?: string;
+    folder_path: string;
 
     @Prop({ default: 'medium', enum: ORDER_PRIORITIES })
-    priority?: OrderPriority;
+    priority: OrderPriority;
 
     @Prop({ type: String, default: null })
-    updated_by?: string | null;
+    updated_by: string | null;
 
     @Prop({ type: Date })
-    readonly createdAt?: Date;
+    readonly createdAt: Date;
 
     @Prop({ type: Date })
-    readonly updatedAt?: Date;
+    readonly updatedAt: Date;
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);

@@ -2,7 +2,7 @@
 
 import { currencyOptions } from '@/app/(pages)/admin/clients/create-client/components/Form';
 import {
-    OrderDocument,
+    ClientDataType,
     validationSchema,
 } from '@/app/(pages)/admin/clients/schema';
 import { cn } from '@/lib/utils';
@@ -24,8 +24,8 @@ const baseZIndex = 50; // 52
 
 interface PropsType {
     loading: boolean;
-    clientData: Partial<OrderDocument>;
-    submitHandler: (editedClientData: Partial<OrderDocument>) => Promise<void>;
+    clientData: Partial<ClientDataType>;
+    submitHandler: (editedClientData: Partial<ClientDataType>) => Promise<void>;
 }
 
 const EditButton: React.FC<PropsType> = props => {
@@ -53,7 +53,7 @@ const EditButton: React.FC<PropsType> = props => {
         setValue,
         reset,
         formState: { errors },
-    } = useForm<Partial<OrderDocument>>({
+    } = useForm<Partial<ClientDataType>>({
         resolver: zodResolver(validationSchema),
         defaultValues: {
             ...props.clientData,
@@ -65,7 +65,7 @@ const EditButton: React.FC<PropsType> = props => {
         initFlowbite();
     }, []);
 
-    const onSubmit = async (data: Partial<OrderDocument>) => {
+    const onSubmit = async (data: Partial<ClientDataType>) => {
         await props.submitHandler(data);
     };
 

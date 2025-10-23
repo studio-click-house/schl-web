@@ -14,17 +14,17 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import Select from 'react-select';
 import { currencyOptions } from '../create-client/components/Form';
-import { OrderDocument, validationSchema } from '../schema';
+import { ClientDataType, validationSchema } from '../schema';
 
 const baseZIndex = 50; // 52
 
 interface PropsType {
     loading: boolean;
-    clientData: OrderDocument;
+    clientData: ClientDataType;
     marketerNames: string[];
     submitHandler: (
-        editedClientData: OrderDocument,
-        previousClientData: OrderDocument,
+        editedClientData: ClientDataType,
+        previousClientData: ClientDataType,
     ) => Promise<void>;
 }
 
@@ -57,7 +57,7 @@ const EditButton: React.FC<PropsType> = props => {
         setValue,
         reset,
         formState: { errors },
-    } = useForm<OrderDocument>({
+    } = useForm<ClientDataType>({
         resolver: zodResolver(validationSchema),
         defaultValues: {
             ...props.clientData,
@@ -68,7 +68,7 @@ const EditButton: React.FC<PropsType> = props => {
         initFlowbite();
     }, []);
 
-    const onSubmit = async (data: OrderDocument) => {
+    const onSubmit = async (data: ClientDataType) => {
         await props.submitHandler(data, props.clientData);
     };
 

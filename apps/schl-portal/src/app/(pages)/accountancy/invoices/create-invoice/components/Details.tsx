@@ -5,8 +5,8 @@ import generateInvoice, {
     InvoiceDataType,
 } from '@/lib/invoice';
 import { cn, fetchApi } from '@/lib/utils';
-import { OrderDataType } from '@/models/Orders';
 import { getTodayDate } from '@/utility/date';
+import { ClientDocument } from '@repo/schemas/client.schema';
 import { OrderDocument } from '@repo/schemas/order.schema';
 import 'flowbite';
 import { initFlowbite } from 'flowbite';
@@ -40,12 +40,12 @@ interface DetailsProps {
 
 const Details: React.FC<DetailsProps> = props => {
     const [isOpen, setIsOpen] = useState<boolean>(false);
-    const [clientDetails, setClientDetails] = useState<OrderDocument | null>(
+    const [clientDetails, setClientDetails] = useState<ClientDocument | null>(
         null,
     );
     const { data: session } = useSession();
 
-    const [orders, setOrders] = useState<OrderDataType[]>([]);
+    const [orders, setOrders] = useState<OrderDocument[]>([]);
 
     const [loading, setLoading] = useState<boolean>(false);
     const [invoiceCreating, setInvoiceCreating] = useState<boolean>(false);
@@ -83,15 +83,16 @@ const Details: React.FC<DetailsProps> = props => {
         }
     };
 
-    const prepareBillData = (orders: OrderDataType[]): BillDataType[] => {
+    const prepareBillData = (orders: OrderDocument[]): BillDataType[] => {
         const billData = orders.map((order, index) => {
             return {
                 date: moment(order.createdAt).format('YYYY-MM-DD'),
-                job_name: order.folder,
-                quantity: order.quantity,
+                job_name:
+                    order.folder ?? 'Folder path is not provided for this task',
+                quantity: order.quantity ?? 0,
                 unit_price: order.rate ?? 0,
                 total: function () {
-                    return this.quantity * this.unit_price;
+                    return (this.quantity ?? 0) * this.unit_price;
                 },
             };
         });
@@ -317,7 +318,7 @@ const Details: React.FC<DetailsProps> = props => {
             let response = await fetchApi(url, options);
 
             if (response.ok) {
-                setOrders(response.data.items as OrderDataType[]);
+                setOrders(response.data.items as OrderDocument[]);
             } else {
                 toast.error(response.data as string);
             }
@@ -348,7 +349,7 @@ const Details: React.FC<DetailsProps> = props => {
             let response = await fetchApi(url, options);
 
             if (response.ok) {
-                setClientDetails(response.data as OrderDocument);
+                setClientDetails(response.data as ClientDocument);
             } else {
                 toast.error(response.data as string);
             }

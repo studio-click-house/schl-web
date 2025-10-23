@@ -22,7 +22,7 @@ export class Approval {
         required: [true, 'Action is required'],
         enum: ['create', 'update', 'delete'],
     })
-    action?: 'create' | 'update' | 'delete';
+    action: 'create' | 'update' | 'delete';
 
     /*
         The id of the document that is being updated or deleted. Not required for create requests
@@ -36,7 +36,7 @@ export class Approval {
         default: null,
         type: mongoose.Schema.Types.ObjectId,
     })
-    object_id?: mongoose.Types.ObjectId | null;
+    object_id: mongoose.Types.ObjectId | null;
 
     /*
         The changes made to the document.
@@ -69,7 +69,7 @@ export class Approval {
         ],
         default: [],
     })
-    changes?: Change[];
+    changes: Change[];
 
     /*
         The new data of a document to be created.
@@ -83,26 +83,33 @@ export class Approval {
         default: null,
         type: Object,
     })
-    new_data?: Record<string, any> | null;
+    new_data: Record<string, any> | null;
 
     /*
         The data of the document that was deleted.
         Not applicable for create and update requests
         It holds the entire document as it was before deletion
     */
-    deleted_data?: Record<string, any> | null;
+    @Prop({
+        required: function () {
+            return this.action === 'delete';
+        },
+        default: null,
+        type: Object,
+    })
+    deleted_data: Record<string, any> | null;
 
     @Prop({
         enum: ['pending', 'approved', 'rejected'],
         default: 'pending',
     })
-    status?: 'pending' | 'approved' | 'rejected';
+    status: 'pending' | 'approved' | 'rejected';
 
     @Prop({ ref: 'User', required: true })
     req_by: mongoose.Types.ObjectId;
 
     @Prop({ ref: 'User', default: null, type: mongoose.Schema.Types.ObjectId })
-    rev_by?: mongoose.Types.ObjectId | null;
+    rev_by: mongoose.Types.ObjectId | null;
 
     @Prop({ type: Date })
     readonly createdAt?: Date;

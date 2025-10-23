@@ -1,9 +1,9 @@
 import Badge from '@/components/Badge';
 import ClickToCopy from '@/components/CopyText';
 import ExtendableTd from '@/components/ExtendableTd';
-import { hasPerm } from '@/lib/utils';
 import { formatDate, formatTime } from '@/utility/date';
 import { OrderDocument } from '@repo/schemas/order.schema';
+import { hasPerm } from '@repo/schemas/utils/permission-check';
 import moment from 'moment-timezone';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';

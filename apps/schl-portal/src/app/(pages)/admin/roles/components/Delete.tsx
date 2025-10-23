@@ -1,14 +1,14 @@
 'use client';
 
 import { cn } from '@/lib/utils';
-import { RoleDataType } from '@/models/Roles';
+import { RoleDocument } from '@repo/schemas/role.schema';
 import { Trash2, X } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import React, { useState } from 'react';
 
 interface PropsType {
-    roleData: RoleDataType;
-    submitHandler: (roleData: RoleDataType) => Promise<void>;
+    roleData: RoleDocument;
+    submitHandler: (roleData: RoleDocument) => Promise<void>;
 }
 const DeleteButton: React.FC<PropsType> = props => {
     const [isOpen, setIsOpen] = useState<boolean>(false);

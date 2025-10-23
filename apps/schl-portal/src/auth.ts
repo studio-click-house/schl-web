@@ -1,6 +1,6 @@
+import type { Permissions } from '@repo/schemas/types/permission.type';
 import NextAuth from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { PermissionValue } from './app/(pages)/admin/roles/create-role/components/Form';
 import { authConfig } from './auth.config';
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL as string;
@@ -8,7 +8,7 @@ const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL as string;
 export interface UserSessionType {
     db_id: string;
     db_role_id: string;
-    permissions: PermissionValue[];
+    permissions: Permissions[];
     real_name: string;
     e_id: string;
 }
@@ -39,12 +39,7 @@ async function getUser(
     }
 }
 
-export const {
-    auth,
-    signIn,
-    signOut,
-    handlers: { GET, POST },
-} = NextAuth({
+const nextAuth = NextAuth({
     ...authConfig,
     providers: [
         CredentialsProvider({
@@ -63,3 +58,12 @@ export const {
         }),
     ],
 });
+
+// @ts-ignore
+export const auth = nextAuth.auth;
+// @ts-ignore
+export const signIn = nextAuth.signIn;
+// @ts-ignore
+export const signOut = nextAuth.signOut;
+// @ts-ignore
+export const { GET, POST } = nextAuth.handlers;

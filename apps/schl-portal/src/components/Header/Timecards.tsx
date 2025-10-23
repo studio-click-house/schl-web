@@ -21,11 +21,11 @@ const Timecards: React.FC<propsType> = props => {
                         >
                             <p className="font-light text-lg text-white bg-primary py-0.5 rounded-tl-lg">
                                 {timezone
-                                    .split('/')[1]
-                                    .replace('_', ' ')
-                                    .replace('Paris', 'CET')
-                                    .replace('Riyadh', 'GULF')
-                                    .replace('Canberra', 'Australia')}
+                                    ?.split('/')[1]
+                                    ?.replace('_', ' ')
+                                    ?.replace('Paris', 'CET')
+                                    ?.replace('Riyadh', 'GULF')
+                                    ?.replace('Canberra', 'Australia')}
                             </p>
                             <Moment
                                 className="bg-white text-lg font-medium"

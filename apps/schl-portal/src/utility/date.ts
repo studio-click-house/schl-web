@@ -6,12 +6,12 @@ export const getTodayDate_DD_MM_YYYY = () => {
     return moment().format('DD-MM-YYYY');
 };
 
-export const formatTime = (time24: string) => {
+export const formatTime = (time24?: string) => {
     if (!time24) return '';
     return moment(time24, 'HH:mm').format('hh:mm A');
 };
 
-export const formatDate = (dateString: string | Date) => {
+export const formatDate = (dateString?: string | Date) => {
     if (!dateString) return '';
 
     return moment(dateString).format("Do MMM. 'YY");
@@ -107,7 +107,7 @@ export function getMonthRange(monthAndYear: string): {
     end: string;
 } {
     const [monthName, year] = monthAndYear.split(' ');
-    const monthNumber = moment().month(monthName).format('MM');
+    const monthNumber = moment().month(monthName!).format('MM');
     const startDate = moment
         .tz(`${year}-${monthNumber}-01`, 'Asia/Dhaka')
         .startOf('month')

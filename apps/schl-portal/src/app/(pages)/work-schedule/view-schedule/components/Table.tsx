@@ -3,8 +3,10 @@
 import Badge from '@/components/Badge';
 import NoData, { Type } from '@/components/NoData';
 import Pagination from '@/components/Pagination';
-import { cn, fetchApi, hasPerm } from '@/lib/utils';
-import { ScheduleDataType } from '@/models/Schedule';
+import { cn, fetchApi } from '@/lib/utils';
+import { ScheduleDocument } from '@repo/schemas/schedule.schema';
+import { hasPerm } from '@repo/schemas/utils/permission-check';
+
 import { OrderDocument } from '@repo/schemas/order.schema';
 import { CirclePlus } from 'lucide-react';
 import { useSession } from 'next-auth/react';
@@ -29,7 +31,7 @@ type SchedulesState = {
         count: number;
         pageCount: number;
     };
-    items: ScheduleDataType[];
+    items: ScheduleDocument[];
 };
 
 const Table: React.FC<{ clientsData: OrderDocument[] }> = props => {
@@ -155,7 +157,7 @@ const Table: React.FC<{ clientsData: OrderDocument[] }> = props => {
         [filters],
     );
 
-    const deleteSchedule = async (scheduleData: ScheduleDataType) => {
+    const deleteSchedule = async (scheduleData: ScheduleDocument) => {
         try {
             let url: string =
                 process.env.NEXT_PUBLIC_BASE_URL +

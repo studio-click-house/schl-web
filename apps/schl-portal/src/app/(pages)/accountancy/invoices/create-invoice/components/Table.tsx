@@ -12,7 +12,6 @@ import {
 import NoData, { Type } from '@/components/NoData';
 import Pagination from '@/components/Pagination';
 import { usePaginationManager } from '@/hooks/usePaginationManager';
-import { OrderDataType } from '@/models/Orders';
 import { formatDate, formatTime } from '@/utility/date';
 import {
     ChevronLeft,
@@ -33,14 +32,16 @@ type OrdersState = {
         count: number;
         pageCount: number;
     };
-    items: OrderDataType[];
+    items: OrderDocument[];
 };
 
 function getMonthRange(monthYear: string): { from: string; to: string } {
     if (!monthYear) return { from: '', to: '' };
 
     const [monthName, year] = monthYear.split('-');
-    const monthNumber = moment().month(monthName).format('MM');
+    const monthNumber = moment()
+        .month(monthName as string)
+        .format('MM');
 
     const startDate = moment
         .tz(`${year}-${monthNumber}-01`, 'Asia/Dhaka')
@@ -72,7 +73,7 @@ const Table: React.FC<{ clientsData: OrderDocument[] }> = props => {
 
     const searchParams = useSearchParams();
     const c_code =
-        searchParams.get('c-code') || props.clientsData?.[0].client_code;
+        searchParams.get('c-code') || props.clientsData?.[0]?.client_code;
     const month = searchParams.get('month') || moment().format('MMMM-YYYY');
     const { from, to } = getMonthRange(month);
 

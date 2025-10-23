@@ -1,14 +1,14 @@
 'use client';
 import { fetchApi } from '@/lib/utils';
-import { EmployeeDataType } from '@/models/Employees';
 import { formatDate } from '@/utility/date';
+import { EmployeeDocument } from '@repo/schemas/employee.schema';
 import moment from 'moment-timezone';
 import { useSession } from 'next-auth/react';
 import React, { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 const DailyStatusTable = () => {
-    const [marketers, setMarketers] = useState<EmployeeDataType[]>([]);
+    const [marketers, setMarketers] = useState<EmployeeDocument[]>([]);
 
     const [loading, setLoading] = useState<boolean>(true);
     const { data: session } = useSession();
@@ -30,7 +30,7 @@ const DailyStatusTable = () => {
             let response = await fetchApi(url, options);
 
             if (response.ok) {
-                setMarketers(response.data as EmployeeDataType[]);
+                setMarketers(response.data as EmployeeDocument[]);
             } else {
                 toast.error(response.data as string);
             }

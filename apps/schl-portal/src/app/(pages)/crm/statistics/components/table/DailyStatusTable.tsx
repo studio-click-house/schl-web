@@ -64,11 +64,11 @@ const DailyStatusTable = () => {
                                                 <td
                                                     className={`${
                                                         callsTarget -
-                                                            reportsStatus[key]
+                                                            reportsStatus[key]!
                                                                 .totalCalls <=
                                                             0 &&
                                                         leadsTarget -
-                                                            reportsStatus[key]
+                                                            reportsStatus[key]!
                                                                 .totalLeads <=
                                                             0
                                                             ? 'bg-green-800'
@@ -79,7 +79,7 @@ const DailyStatusTable = () => {
                                                 </td>
                                                 <td
                                                     className={
-                                                        reportsStatus[key]
+                                                        reportsStatus[key]!
                                                             .totalCalls <
                                                         callsTarget
                                                             ? 'text-destructive'
@@ -87,17 +87,17 @@ const DailyStatusTable = () => {
                                                     }
                                                 >
                                                     {
-                                                        reportsStatus[key]
+                                                        reportsStatus[key]!
                                                             .totalCalls
                                                     }
-                                                    {reportsStatus[key]
+                                                    {reportsStatus[key]!
                                                         .totalCalls <
                                                         callsTarget &&
-                                                        ` (${callsTarget - reportsStatus[key].totalCalls})`}
+                                                        ` (${callsTarget - reportsStatus[key]!.totalCalls})`}
                                                 </td>
                                                 <td
                                                     className={
-                                                        reportsStatus[key]
+                                                        reportsStatus[key]!
                                                             .totalLeads <
                                                         leadsTarget
                                                             ? 'text-destructive'
@@ -105,29 +105,29 @@ const DailyStatusTable = () => {
                                                     }
                                                 >
                                                     {
-                                                        reportsStatus[key]
+                                                        reportsStatus[key]!
                                                             .totalLeads
                                                     }
-                                                    {reportsStatus[key]
+                                                    {reportsStatus[key]!
                                                         .totalLeads <
                                                         leadsTarget &&
-                                                        ` (${leadsTarget - reportsStatus[key].totalLeads})`}
+                                                        ` (${leadsTarget - reportsStatus[key]!.totalLeads})`}
                                                 </td>
                                                 <td>
                                                     {
-                                                        reportsStatus[key]
+                                                        reportsStatus[key]!
                                                             .totalTests
                                                     }
                                                 </td>
                                                 <td>
                                                     {
-                                                        reportsStatus[key]
+                                                        reportsStatus[key]!
                                                             .totalProspects
                                                     }
                                                 </td>
                                                 <td>
                                                     {
-                                                        reportsStatus[key]
+                                                        reportsStatus[key]!
                                                             .totalClients
                                                     }
                                                 </td>

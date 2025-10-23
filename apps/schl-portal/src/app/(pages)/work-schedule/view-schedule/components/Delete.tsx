@@ -1,12 +1,12 @@
 'use client';
 
-import { ScheduleDataType } from '@/models/Schedule';
+import { ScheduleDocument } from '@repo/schemas/schedule.schema';
 import { Trash2, X } from 'lucide-react';
 import React, { useState } from 'react';
 
 interface PropsType {
-    scheduleData: ScheduleDataType;
-    submitHandler: (orderData: ScheduleDataType) => Promise<void>;
+    scheduleData: ScheduleDocument;
+    submitHandler: (orderData: ScheduleDocument) => Promise<void>;
 }
 const DeleteButton: React.FC<PropsType> = props => {
     const [isOpen, setIsOpen] = useState<boolean>(false);

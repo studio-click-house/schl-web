@@ -1,13 +1,13 @@
 'use client';
 
-import { ReportDataType } from '@/models/Reports';
+import { ReportDocument } from '@repo/schemas/report.schema';
 import { Trash2, X } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import React, { useRef, useState } from 'react';
 
 interface PropsType {
-    reportData: ReportDataType;
-    submitHandler: (reportData: ReportDataType) => Promise<void>;
+    reportData: ReportDocument;
+    submitHandler: (reportData: ReportDocument) => Promise<void>;
 }
 const DeleteButton: React.FC<PropsType> = props => {
     const [isOpen, setIsOpen] = useState<boolean>(false);

@@ -5,13 +5,13 @@ const hexToRgba = (hex: string, opacity: number): string => {
 
     // If the hex code is in shorthand (3 digits), convert it to 6 digits
     if (hex.length === 4) {
-        r = parseInt(hex[1] + hex[1], 16);
-        g = parseInt(hex[2] + hex[2], 16);
-        b = parseInt(hex[3] + hex[3], 16);
+        r = parseInt(hex[1]! + hex[1]!, 16);
+        g = parseInt(hex[2]! + hex[2]!, 16);
+        b = parseInt(hex[3]! + hex[3]!, 16);
     } else if (hex.length === 7) {
-        r = parseInt(hex[1] + hex[2], 16);
-        g = parseInt(hex[3] + hex[4], 16);
-        b = parseInt(hex[5] + hex[6], 16);
+        r = parseInt(hex[1]! + hex[2]!, 16);
+        g = parseInt(hex[3]! + hex[4]!, 16);
+        b = parseInt(hex[5]! + hex[6]!, 16);
     }
 
     return `rgba(${r}, ${g}, ${b}, ${opacity})`;
@@ -30,7 +30,7 @@ const transparentize = (color: string, opacity: number = 0.7): string => {
 };
 
 // Function to get year from the month name
-const getYear = (monthName: string) => parseInt(monthName.split('_')[1]);
+const getYear = (monthName: string) => parseInt(monthName.split('_')[1]!);
 
 // Function to generate background colors and border colors based on year
 const generateBackgroundColors = (

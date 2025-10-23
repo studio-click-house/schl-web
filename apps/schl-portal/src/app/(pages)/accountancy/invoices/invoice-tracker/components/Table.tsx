@@ -214,7 +214,7 @@ const Table = () => {
                                             const month = Object.keys(data)[0];
                                             return (
                                                 <th key={index}>
-                                                    {month.split(' ')[0]}
+                                                    {month?.split(' ')[0]}
                                                 </th>
                                             ); // <-- to display only month
                                             // return <td key={month}>{month}</td>; // <-- to display month and year
@@ -229,14 +229,18 @@ const Table = () => {
                                             {data.client_code}
                                         </td>
                                         {data.orders.map((ordersData, i) => {
-                                            const month =
-                                                Object.keys(ordersData)[0];
-                                            const orderCount =
-                                                ordersData[month].count;
-                                            const fileCount =
-                                                ordersData[month].totalFiles;
-                                            const isInvoiced =
-                                                ordersData[month].invoiced;
+                                            const month = Object.keys(
+                                                ordersData,
+                                            )[0] as string;
+                                            const orderCount = (
+                                                ordersData as any
+                                            )[month].count;
+                                            const fileCount = (
+                                                ordersData as any
+                                            )[month].totalFiles;
+                                            const isInvoiced = (
+                                                ordersData as any
+                                            )[month].invoiced;
                                             return (
                                                 <td
                                                     className={

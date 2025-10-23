@@ -1,7 +1,9 @@
+import baseConfig from '@repo/tailwind-config/config';
 import flowbite from 'flowbite-react/tailwind';
 import type { Config } from 'tailwindcss';
 
-const config = {
+const config: Config = {
+    ...baseConfig,
     darkMode: ['class'],
     content: [
         './src/pages/**/*.{js,ts,jsx,tsx,mdx}',

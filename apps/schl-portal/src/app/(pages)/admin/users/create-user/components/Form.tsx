@@ -1,11 +1,11 @@
 'use client';
 
-import { fetchApi, hasPerm } from '@/lib/utils';
 import {
     setClassNameAndIsDisabled,
     setMenuPortalTarget,
 } from '@/utility/selectHelpers';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { hasPerm } from '@repo/schemas/utils/permission-check';
 import moment from 'moment-timezone';
 import { useSession } from 'next-auth/react';
 import { useCallback, useEffect, useState } from 'react';
@@ -13,17 +13,17 @@ import { Controller, useForm } from 'react-hook-form';
 import Select from 'react-select';
 import { ZodPopulatedUserDataType, populatedUserSchema } from '../../schema';
 
-import { PermissionValue } from '@/app/(pages)/admin/roles/create-role/components/Form';
 import { generatePassword } from '@/lib/utils';
-import { EmployeeDataType } from '@/models/Employees';
-import { RoleDataType } from '@/models/Roles';
+import { EmployeeDocument } from '@repo/schemas/employee.schema';
+import { RoleDocument } from '@repo/schemas/role.schema';
+import { Permissions } from '@repo/schemas/types/permission.type';
 import { KeySquare } from 'lucide-react';
 import mongoose from 'mongoose';
 import { useMemo } from 'react';
 import { toast } from 'sonner';
 interface PropsType {
-    employeesData: EmployeeDataType[];
-    rolesData: RoleDataType[];
+    employeesData: EmployeeDocument[];
+    rolesData: RoleDocument[];
 }
 
 const Form: React.FC<PropsType> = props => {
@@ -45,9 +45,9 @@ const Form: React.FC<PropsType> = props => {
         // allowed to assign any role. However, roles that include the super-admin
         // permission must still be blocked unless the assigner also has that permission.
         const canAssignAnyRole =
-            hasPerm('admin:create_user' as PermissionValue, userPermissions) ||
+            hasPerm('admin:create_user' as Permissions, userPermissions) ||
             hasPerm(
-                'admin:create_user_approval' as PermissionValue,
+                'admin:create_user_approval' as Permissions,
                 userPermissions,
             );
 
@@ -57,9 +57,9 @@ const Form: React.FC<PropsType> = props => {
             // Always block roles that grant the super-admin permission unless the
             // current user also has that permission.
             if (
-                perms.includes('settings:the_super_admin' as PermissionValue) &&
+                perms.includes('settings:the_super_admin' as Permissions) &&
                 !hasPerm(
-                    'settings:the_super_admin' as PermissionValue,
+                    'settings:the_super_admin' as Permissions,
                     userPermissions,
                 )
             ) {
@@ -71,9 +71,7 @@ const Form: React.FC<PropsType> = props => {
             }
 
             // Otherwise ensure editor can only assign roles whose permissions are subset of their own
-            return perms.every(p =>
-                hasPerm(p as PermissionValue, userPermissions),
-            );
+            return perms.every(p => hasPerm(p as Permissions, userPermissions));
         });
     }, [props.rolesData, userPermissions]);
 
@@ -96,12 +94,12 @@ const Form: React.FC<PropsType> = props => {
             username: '',
             password: '',
             comment: '',
-            role_id: {
+            role: {
                 _id: '',
                 name: '',
                 permissions: [],
             },
-            employee_id: {
+            employee: {
                 _id: '',
                 e_id: '',
                 company_provided_name: '',
@@ -123,10 +121,10 @@ const Form: React.FC<PropsType> = props => {
             );
 
             if (employee) {
-                setValue('employee_id.real_name', employee.real_name || '');
-                setValue('employee_id._id', employee._id.toString() || '');
+                setValue('employee.real_name', employee.real_name || '');
+                setValue('employee._id', employee._id.toString() || '');
                 setValue(
-                    'employee_id.company_provided_name',
+                    'employee.company_provided_name',
                     employee.company_provided_name || '',
                 );
             } else {
@@ -157,9 +155,9 @@ const Form: React.FC<PropsType> = props => {
                 username: parsed.data.username,
                 password: parsed.data.password,
                 employee_id: new mongoose.Types.ObjectId(
-                    parsed.data.employee_id._id,
+                    parsed.data.employee._id,
                 ),
-                role_id: new mongoose.Types.ObjectId(parsed.data.role_id._id),
+                role_id: new mongoose.Types.ObjectId(parsed.data.role._id),
                 comment: parsed.data.comment,
             };
 
@@ -259,12 +257,12 @@ const Form: React.FC<PropsType> = props => {
                     <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
                         <span className="uppercase">Real Name*</span>
                         <span className="text-red-700 text-wrap block text-xs">
-                            {errors.employee_id?.real_name &&
-                                errors.employee_id.real_name.message}
+                            {errors.employee?.real_name &&
+                                errors.employee.real_name.message}
                         </span>
                     </label>
                     <input
-                        {...register('employee_id.real_name')}
+                        {...register('employee.real_name')}
                         className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
                         placeholder="Enter employee real name"
                         disabled={true}
@@ -301,16 +299,13 @@ const Form: React.FC<PropsType> = props => {
                         />
                         <button
                             onClick={() => {
+                                const realName =
+                                    watch('employee.real_name') || '';
+                                const parts = realName.split(' ');
                                 setValue(
                                     'password',
                                     generatePassword(
-                                        watch('employee_id.real_name').split(
-                                            ' ',
-                                        )[
-                                            watch(
-                                                'employee_id.real_name',
-                                            ).split(' ').length - 1
-                                        ],
+                                        parts[parts.length - 1] || '',
                                         watch('username'),
                                     ),
                                 );
@@ -326,12 +321,12 @@ const Form: React.FC<PropsType> = props => {
                     <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
                         <span className="uppercase">Role*</span>
                         <span className="text-red-700 text-wrap block text-xs">
-                            {errors.role_id && errors.role_id?.message}
+                            {errors.role && errors.role?.message}
                         </span>
                     </label>
 
                     <Controller
-                        name="role_id"
+                        name="role"
                         control={control}
                         render={({ field }) => {
                             return (
@@ -354,7 +349,7 @@ const Form: React.FC<PropsType> = props => {
                                             option ? option.value : '',
                                         );
                                         setValue(
-                                            'role_id.permissions',
+                                            'role.permissions',
                                             props.rolesData.find(
                                                 role =>
                                                     role._id === option?.value,
@@ -367,18 +362,18 @@ const Form: React.FC<PropsType> = props => {
                     />
                 </div>
 
-                {watch('role_id.permissions')?.includes('login:crm') && (
+                {watch('role.permissions')?.includes('login:crm') && (
                     <div>
                         <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
                             <span className="uppercase">Provided Name*</span>
                             <span className="text-red-700 text-wrap block text-xs">
-                                {errors.employee_id?.company_provided_name &&
-                                    errors.employee_id.company_provided_name
+                                {errors.employee?.company_provided_name &&
+                                    errors.employee.company_provided_name
                                         .message}
                             </span>
                         </label>
                         <input
-                            {...register('employee_id.company_provided_name')}
+                            {...register('employee.company_provided_name')}
                             className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
                             placeholder="Enter employee provided name"
                             disabled={true}

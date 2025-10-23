@@ -1,10 +1,10 @@
 'use client';
 
-import { OrderData } from '@/app/api/order/handlers/getOrdersQP';
 import BarChart from '@/components/Charts/Bar.chart';
 import moment from 'moment-timezone';
 import React, { useEffect, useState } from 'react';
 import { FiltersContext } from '../FiltersContext';
+import type { OrderData } from '../types/graph-data.type';
 
 interface StatusDataGraphProps {
     isLoading: boolean;

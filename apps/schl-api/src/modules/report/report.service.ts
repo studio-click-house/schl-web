@@ -8,10 +8,12 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import moment from 'moment-timezone';
-import { Model } from 'mongoose';
+import { Approval } from '@repo/schemas/approval.schema';
+import { Client } from '@repo/schemas/client.schema';
+import { Report } from '@repo/schemas/report.schema';
 import { PopulatedByEmployeeUser } from '@repo/schemas/types/populated-user.type';
 import { UserSession } from '@repo/schemas/types/user-session.type';
+import { User } from '@repo/schemas/user.schema';
 import { getTodayDate } from '@repo/schemas/utils/date-helpers';
 import {
     addBooleanField,
@@ -20,10 +22,8 @@ import {
     createRegexQuery,
 } from '@repo/schemas/utils/filter-helpers';
 import { hasPerm } from '@repo/schemas/utils/permission-check';
-import { Approval } from '@repo/schemas/approval.schema';
-import { Client } from '@repo/schemas/client.schema';
-import { Report } from '@repo/schemas/report.schema';
-import { User } from '@repo/schemas/user.schema';
+import moment from 'moment-timezone';
+import { Model } from 'mongoose';
 import { ConvertToClientBodyDto } from './dto/convert-to-client.dto';
 import { CreateReportBodyDto } from './dto/create-report.dto';
 import {
@@ -111,7 +111,7 @@ export class ReportService {
                 moment(a, 'MMMM_YYYY').diff(moment(b, 'MMMM_YYYY')),
             );
             for (const k of keys) {
-                sorted[k] = result[k];
+                sorted[k] = result[k]!;
             }
 
             return sorted;
@@ -203,7 +203,7 @@ export class ReportService {
             const keys = Object.keys(buckets).sort((a, b) =>
                 moment(a, 'MMMM_YYYY').diff(moment(b, 'MMMM_YYYY')),
             );
-            for (const k of keys) out[k] = buckets[k];
+            for (const k of keys) out[k] = buckets[k]!;
             return out;
         } catch (e) {
             if (e instanceof HttpException) throw e;
@@ -294,7 +294,7 @@ export class ReportService {
             const keys = Object.keys(result).sort((a, b) =>
                 moment(a, 'MMMM_YYYY').diff(moment(b, 'MMMM_YYYY')),
             );
-            for (const k of keys) sorted[k] = result[k];
+            for (const k of keys) sorted[k] = result[k]!;
             return sorted;
         } catch (e) {
             if (e instanceof HttpException) throw e;
@@ -462,11 +462,11 @@ export class ReportService {
                 for (const it of arr) m.set((it._id || '').trim(), it.count);
                 return m;
             };
-            const callsMap = toMap(stats.calls || []);
-            const testsMap = toMap(stats.tests || []);
-            const leadsMap = toMap(stats.leads || []);
-            const prospectsMap = toMap(stats.prospects || []);
-            const clientsMap = toMap(stats.clients || []);
+            const callsMap = toMap(stats?.calls || []);
+            const testsMap = toMap(stats?.tests || []);
+            const leadsMap = toMap(stats?.leads || []);
+            const prospectsMap = toMap(stats?.prospects || []);
+            const clientsMap = toMap(stats?.clients || []);
 
             const data: Record<
                 string,
@@ -933,7 +933,7 @@ export class ReportService {
             const client: Client =
                 typeof createdClientDoc?.toObject === 'function'
                     ? createdClientDoc.toObject()
-                    : createdClientDoc;
+                    : (createdClientDoc as Client);
             await session.endSession();
             return { message: 'Added the client successfully', client };
         } catch (e) {

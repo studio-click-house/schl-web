@@ -7,10 +7,11 @@ import {
 import NoData, { Type } from '@/components/NoData';
 import Pagination from '@/components/Pagination';
 import { usePaginationManager } from '@/hooks/usePaginationManager';
-import { fetchApi, hasAnyPerm, hasPerm } from '@/lib/utils';
+import { fetchApi } from '@/lib/utils';
 import { formatDate } from '@/utility/date';
 import { ReportDocument } from '@repo/schemas/report.schema';
 import { PopulatedByEmployeeUser } from '@repo/schemas/types/populated-user.type';
+import { hasAnyPerm, hasPerm } from '@repo/schemas/utils/permission-check';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'nextjs-toploader/app';

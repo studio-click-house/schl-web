@@ -7,14 +7,14 @@ import {
     setMenuPortalTarget,
 } from '@/utility/selectHelpers';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { USER_PERMISSIONS } from '@repo/schemas/constants/permission.constant';
+import { Permissions } from '@repo/schemas/types/permission.type';
 import { SquarePen, X } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import Select from 'react-select';
 import { toast } from 'sonner';
-import { permissionOptions } from '../../../../../permissions';
-import { PermissionValue } from '../create-role/components/Form';
 import { RoleDataType, validationSchema } from '../schema';
 
 const baseZIndex = 50;
@@ -52,7 +52,7 @@ const EditRoleButton: React.FC<PropsType> = ({
     const canEdit = canEditBase;
 
     const filteredPermissionGroups = useMemo(() => {
-        const groups = permissionOptions.map(group => ({
+        const groups = USER_PERMISSIONS.map(group => ({
             label: group.label,
             options: group.options.map(opt => ({
                 value: opt.value,

@@ -55,11 +55,11 @@ export class Client {
     category?: string; // client category, e.g. "Photographer", "Agency" etc.
 
     /*
-    Last invoice number for the client, used to continue the invoice number sequence for the next invoice.
-    Explicit type is required because a union (number | null) is otherwise ambiguous to @nestjs/mongoose.
+    Last invoice number for the client (XX1234), used to continue the invoice number sequence for the next invoice.
+    Explicit type is required because a union (string | null) is otherwise ambiguous to @nestjs/mongoose.
     */
-    @Prop({ type: Number, default: null })
-    last_invoice_number?: number | null;
+    @Prop({ type: String, default: null })
+    last_invoice_number?: string | null;
 
     // User id / username who last updated the client (nullable)
     @Prop({ type: String, default: null })

@@ -1,8 +1,9 @@
 'use client';
 
 import ExtendableTd from '@/components/ExtendableTd';
-import { cn, fetchApi, getObjectChanges, hasPerm } from '@/lib/utils';
+import { cn, fetchApi, getObjectChanges } from '@/lib/utils';
 import { UserDocument } from '@repo/schemas/user.schema';
+import { hasPerm } from '@repo/schemas/utils/permission-check';
 
 import {
     validationSchema,

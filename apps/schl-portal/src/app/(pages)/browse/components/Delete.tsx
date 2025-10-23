@@ -1,13 +1,13 @@
 'use client';
 
-import { OrderDataType } from '@/models/Orders';
+import { OrderDocument } from '@repo/schemas/order.schema';
 import { Trash2, X } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import React, { useState } from 'react';
 
 interface PropsType {
-    orderData: OrderDataType;
-    submitHandler: (orderData: OrderDataType) => Promise<void>;
+    orderData: OrderDocument;
+    submitHandler: (orderData: OrderDocument) => Promise<void>;
 }
 const DeleteButton: React.FC<PropsType> = props => {
     const [isOpen, setIsOpen] = useState<boolean>(false);

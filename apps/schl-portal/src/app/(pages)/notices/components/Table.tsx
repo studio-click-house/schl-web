@@ -4,14 +4,9 @@ import Badge from '@/components/Badge';
 import NoData, { Type } from '@/components/NoData';
 import Pagination from '@/components/Pagination';
 import { usePaginationManager } from '@/hooks/usePaginationManager';
-import {
-    cn,
-    constructFileName,
-    fetchApi,
-    hasAnyPerm,
-    hasPerm,
-} from '@/lib/utils';
+import { cn, constructFileName, fetchApi } from '@/lib/utils';
 import { formatDate } from '@/utility/date';
+import { hasAnyPerm, hasPerm } from '@repo/schemas/utils/permission-check';
 import {
     ChevronLeft,
     ChevronRight,

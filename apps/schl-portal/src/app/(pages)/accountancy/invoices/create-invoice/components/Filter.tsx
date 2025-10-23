@@ -67,7 +67,7 @@ const FilterButton: React.FC<PropsType> = props => {
     const handleResetFilters = () => {
         setFilters({
             folder: '',
-            clientCode: props.clientsData?.[0].client_code || '',
+            clientCode: props.clientsData?.[0]?.client_code || '',
             task: '',
             status: '',
             fromDate: '',

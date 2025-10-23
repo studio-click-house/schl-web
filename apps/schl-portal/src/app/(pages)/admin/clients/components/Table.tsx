@@ -1,7 +1,8 @@
 'use client';
 
 import ExtendableTd from '@/components/ExtendableTd';
-import { cn, fetchApi, hasPerm } from '@/lib/utils';
+import { cn, fetchApi } from '@/lib/utils';
+import { hasPerm } from '@repo/schemas/utils/permission-check';
 
 import NoData, { Type } from '@/components/NoData';
 import Pagination from '@/components/Pagination';

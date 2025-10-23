@@ -1,7 +1,7 @@
 'use client';
 
 import { auth } from '@/auth';
-import { hasPerm } from '@/lib/utils';
+import { hasPerm } from '@repo/schemas/utils/permission-check';
 import 'flowbite';
 import { initFlowbite } from 'flowbite';
 import { ArrowDown } from 'lucide-react';

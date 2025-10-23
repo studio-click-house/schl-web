@@ -2,12 +2,12 @@
 
 import HiddenText from '@/components/HiddenText';
 import { cn } from '@/lib/utils';
-import { EmployeeDataType } from '@/models/Employees';
 import {
     calculateSalaryComponents,
     getPFMoneyAmount,
     SalaryStructureType,
 } from '@/utility/accountMatrics';
+import { EmployeeDocument } from '@repo/schemas/employee.schema';
 import { Clock4, Coins, Mail } from 'lucide-react';
 import moment from 'moment-timezone';
 import Image from 'next/image';
@@ -16,7 +16,7 @@ import React, { useEffect, useState } from 'react';
 
 interface ProfilePropsTypes {
     avatarURI: string;
-    employeeInfo: EmployeeDataType;
+    employeeInfo: EmployeeDocument;
 }
 
 const Profile: React.FC<ProfilePropsTypes> = props => {
@@ -124,7 +124,7 @@ const Profile: React.FC<ProfilePropsTypes> = props => {
                     <p
                         className={cn(
                             `text-lg font-semibold`,
-                            employeeInfo.status === 'Active'
+                            employeeInfo.status === 'active'
                                 ? 'text-green-500'
                                 : 'text-red-500',
                         )}

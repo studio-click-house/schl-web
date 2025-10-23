@@ -368,29 +368,35 @@ export default async function generateInvoice(
             const midCenter = MID_CENTER;
             cell(
                 `A${rowIdx}:B${rowIdx}`,
-                data.date,
+                data!.date,
                 CALIBRI(),
                 midCenter,
                 thinBorder,
             );
             cell(
                 `C${rowIdx}:D${rowIdx}`,
-                data.job_name,
+                data!.job_name,
                 CALIBRI(),
                 { vertical: 'middle', horizontal: 'left', wrapText: true },
                 thinBorder,
             );
-            cell(`E${rowIdx}`, data.quantity, CALIBRI(), midCenter, thinBorder);
+            cell(
+                `E${rowIdx}`,
+                data!.quantity,
+                CALIBRI(),
+                midCenter,
+                thinBorder,
+            );
             cell(
                 `F${rowIdx}`,
-                data.unit_price,
+                data!.unit_price,
                 CALIBRI(),
                 midCenter,
                 thinBorder,
             );
             cell(
                 `G${rowIdx}:H${rowIdx}`,
-                { formula: `E${rowIdx}*F${rowIdx}`, result: data.total() },
+                { formula: `E${rowIdx}*F${rowIdx}`, result: data!.total() },
                 CALIBRI(),
                 midCenter,
                 thinBorder,
@@ -399,8 +405,8 @@ export default async function generateInvoice(
             const mFmt = `${'"' + currencySymbol + '"'}#,##0.00;[Red]\\-${'"' + currencySymbol + '"'}#,##0.00`;
             for (const col of ['F', 'G', 'H'])
                 sheet.getCell(`${col}${rowIdx}`).numFmt = mFmt;
-            totalFiles += data.quantity;
-            subtotal += data.total();
+            totalFiles += data!.quantity;
+            subtotal += data!.total();
             afterBillTableRowNumber++;
         }
 
@@ -630,17 +636,17 @@ export default async function generateInvoice(
             const row = sheet.getRow(r);
             const h = row.height ? row.height : DEFAULT_ROW_HEIGHT_POINTS;
             if (
-                pageHeights[currentPageIndex] + h >
+                pageHeights[currentPageIndex]! + h >
                 PRINTABLE_HEIGHT_POINTS + EPS
             ) {
                 // Start new page
                 pageHeights.push(h);
                 currentPageIndex++;
             } else {
-                pageHeights[currentPageIndex] += h;
+                pageHeights[currentPageIndex]! += h;
             }
         }
-        const currentPageUsedHeight = pageHeights[currentPageIndex];
+        const currentPageUsedHeight = pageHeights[currentPageIndex]!;
         const remainingHeightOnCurrentPage =
             PRINTABLE_HEIGHT_POINTS - currentPageUsedHeight;
 
@@ -753,19 +759,19 @@ export default async function generateInvoice(
             for (let i = 0; i < bankSpans.length; i++) {
                 const span = bankSpans[i];
                 // Unified alignment: if either side needs multiple rows, merge BOTH sides across the full span.
-                const mergeBoth = span.rows > 1;
+                const mergeBoth = span!.rows > 1;
                 mergeBoth
-                    ? setRows(span.start, span.end, h20)
-                    : (sheet.getRow(span.start).height = h22);
+                    ? setRows(span!.start, span!.end, h20)
+                    : (sheet.getRow(span!.start).height = h22);
 
                 const left = leftPairs[i];
                 const right = rightPairs[i];
                 const leftRange = mergeBoth
-                    ? `A${span.start}:D${span.end}`
-                    : `A${span.start}:D${span.start}`;
+                    ? `A${span!.start}:D${span!.end}`
+                    : `A${span!.start}:D${span!.start}`;
                 const rightRange = mergeBoth
-                    ? `E${span.start}:H${span.end}`
-                    : `E${span.start}:H${span.start}`;
+                    ? `E${span!.start}:H${span!.end}`
+                    : `E${span!.start}:H${span!.start}`;
 
                 await cell(
                     leftRange,
@@ -801,7 +807,7 @@ export default async function generateInvoice(
 
         // closing solid fill (split into two merged halves to keep center vertical border visible)
         const afterBankTableRow = bankSpans.length
-            ? bankSpans[bankSpans.length - 1].end + 1
+            ? bankSpans[bankSpans.length - 1]!.end + 1
             : bankDataFirstRow;
         await cell(
             `A${afterBankTableRow}:H${afterBankTableRow}`,

@@ -1,5 +1,5 @@
 'use client';
-import { cn, generatePassword, hasPerm } from '@/lib/utils';
+import { cn, generatePassword } from '@/lib/utils';
 import {
     setCalculatedZIndex,
     setClassNameAndIsDisabled,
@@ -10,6 +10,7 @@ import { EmployeeDocument } from '@repo/schemas/employee.schema';
 import { RoleDocument } from '@repo/schemas/role.schema';
 import { Permissions } from '@repo/schemas/types/permission.type';
 import { FullyPopulatedUser } from '@repo/schemas/types/populated-user.type';
+import { hasPerm } from '@repo/schemas/utils/permission-check';
 import 'flowbite';
 import { initFlowbite } from 'flowbite';
 import { KeySquare, SquarePen, X } from 'lucide-react';
@@ -297,16 +298,15 @@ const EditButton: React.FC<PropsType> = props => {
                                     />
                                     <button
                                         onClick={() => {
+                                            const realName =
+                                                watch('employee.real_name') ||
+                                                '';
+                                            const parts = realName.split(' ');
                                             setValue(
                                                 'password',
                                                 generatePassword(
-                                                    watch(
-                                                        'employee.real_name',
-                                                    ).split(' ')[
-                                                        watch(
-                                                            'employee.real_name',
-                                                        ).split(' ').length - 1
-                                                    ],
+                                                    parts[parts.length - 1] ||
+                                                        '',
                                                     watch('username'),
                                                 ),
                                             );

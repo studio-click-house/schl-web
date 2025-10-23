@@ -1,6 +1,5 @@
 'use client';
 
-import { OrderData } from '@/app/api/order/handlers/getOrdersQP';
 import { fetchApi } from '@/lib/utils';
 import { getDateRange } from '@/utility/date';
 import moment from 'moment-timezone';
@@ -9,19 +8,11 @@ import { useRouter } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { FiltersContext } from '../FiltersContext';
+import type { CountryData, OrderData } from '../types/graph-data.type';
 import CountryDataHeatMap from './CountryDataTable';
 import FilterButton from './Filter';
 import FlowDataGraph from './FlowDataGraph';
 import StatusDataGraph from './StatusDataGraph';
-
-export type CountryData = Record<
-    string,
-    Array<{
-        date: string;
-        orderQuantity: number;
-        fileQuantity: number;
-    }>
->;
 
 const Graphs = () => {
     const { data: session } = useSession();

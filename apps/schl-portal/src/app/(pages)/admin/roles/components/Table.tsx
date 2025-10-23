@@ -2,10 +2,11 @@
 
 import ExtendableTd from '@/components/ExtendableTd';
 import Pagination from '@/components/Pagination';
-import { cn, fetchApi, hasAnyPerm, hasPerm } from '@/lib/utils';
+import { cn, fetchApi } from '@/lib/utils';
 import { RoleDocument } from '@repo/schemas/role.schema';
 import type { Permissions } from '@repo/schemas/types/permission.type';
 import { UserDocument } from '@repo/schemas/user.schema';
+import { hasAnyPerm, hasPerm } from '@repo/schemas/utils/permission-check';
 import { CirclePlus } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'nextjs-toploader/app';

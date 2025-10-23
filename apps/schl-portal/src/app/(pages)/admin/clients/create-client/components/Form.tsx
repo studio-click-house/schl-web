@@ -7,7 +7,7 @@ import { useSession } from 'next-auth/react';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import Select from 'react-select';
-import { OrderDocument, validationSchema } from '../../schema';
+import { ClientDataType, validationSchema } from '../../schema';
 
 import { toast } from 'sonner';
 
@@ -43,7 +43,7 @@ const Form: React.FC<PropsType> = props => {
         setValue,
         reset,
         formState: { errors },
-    } = useForm<OrderDocument>({
+    } = useForm<ClientDataType>({
         resolver: zodResolver(validationSchema),
         defaultValues: {
             client_code: '',
@@ -63,7 +63,7 @@ const Form: React.FC<PropsType> = props => {
         },
     });
 
-    async function createClient(clientData: OrderDocument) {
+    async function createClient(clientData: ClientDataType) {
         try {
             setLoading(true);
             const parsed = validationSchema.safeParse(clientData);
@@ -105,7 +105,7 @@ const Form: React.FC<PropsType> = props => {
         }
     }
 
-    const onSubmit = async (data: OrderDocument) => {
+    const onSubmit = async (data: ClientDataType) => {
         await createClient(data);
     };
 

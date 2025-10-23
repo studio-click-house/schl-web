@@ -89,7 +89,7 @@ export function generatePassword(
         specialChars[Math.floor(Math.random() * specialChars.length)];
 
     // Create the password
-    const password = `${finalBaseString.charAt(0).toUpperCase()}${finalBaseString.slice(1)}${randomChar}${digits}`;
+    const password = `${finalBaseString!.charAt(0).toUpperCase()}${finalBaseString!.slice(1)}${randomChar}${digits}`;
 
     return password;
 }
@@ -201,7 +201,7 @@ export const incrementInvoiceNumber = (invoiceNumber: string): string => {
     }
 
     const prefix = match[1]; // Extract the non-numeric prefix (e.g., 'XO')
-    const numericPart = match[2]; // Extract the numeric part (e.g., '0028')
+    const numericPart = match[2]!; // Extract the numeric part (e.g., '0028')
 
     // Increment the numeric part
     const incrementedNumber = (parseInt(numericPart, 10) + 1).toString();

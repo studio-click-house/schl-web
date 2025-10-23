@@ -65,5 +65,5 @@ export class CreateClientBodyDto {
     category?: string;
 
     @IsOptional()
-    last_invoice_number?: number | null;
+    last_invoice_number?: string | null;
 }

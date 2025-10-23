@@ -1,7 +1,7 @@
 import Header from '@/components/Header';
 import { fetchApi } from '@/lib/utils';
-import { EmployeeDataType } from '@/models/Employees';
-import { RoleDataType } from '@/models/Roles';
+import { EmployeeDocument } from '@repo/schemas/employee.schema';
+import { RoleDocument } from '@repo/schemas/role.schema';
 import React from 'react';
 import Table from './components/Table';
 
@@ -10,7 +10,7 @@ type EmployeesResponseState = {
         count: number;
         pageCount: number;
     };
-    items: EmployeeDataType[];
+    items: EmployeeDocument[];
 };
 
 type RolesResponseState = {
@@ -18,7 +18,7 @@ type RolesResponseState = {
         count: number;
         pageCount: number;
     };
-    items: RoleDataType[];
+    items: RoleDocument[];
 };
 
 export const getAllEmployees = async () => {

@@ -1,6 +1,6 @@
 import { auth } from '@/auth';
 import { delay, fetchApi, generateAvatar, verifyCookie } from '@/lib/utils';
-import { EmployeeDataType } from '@/models/Employees';
+import { EmployeeDocument } from '@repo/schemas/employee.schema';
 
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
@@ -24,7 +24,7 @@ const getEmployeeInfo = async () => {
 
         const response = await fetchApi(url, options);
         if (response.ok) {
-            return response.data as EmployeeDataType;
+            return response.data as EmployeeDocument;
         } else {
             console.error(response.data);
             return null;

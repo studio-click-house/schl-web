@@ -250,7 +250,7 @@ export async function addHeader(
         }
     }
 
-    const targetCell = sheet.getCell(cell.split(':')[0]); // anchor cell
+    const targetCell = sheet.getCell(cell.split(':')[0]!); // anchor cell
 
     if (font) targetCell.font = font;
     if (alignment) targetCell.alignment = alignment;

@@ -4,10 +4,10 @@ import Badge from '@/components/Badge';
 import ClickToCopy from '@/components/CopyText';
 import NoData, { Type } from '@/components/NoData';
 import Pagination from '@/components/Pagination';
-import { cn, fetchApi, hasAnyPerm, hasPerm } from '@/lib/utils';
-import { OrderDataType } from '@/models/Orders';
+import { cn, fetchApi } from '@/lib/utils';
 import { formatDate, formatTime } from '@/utility/date';
 import { OrderDocument } from '@repo/schemas/order.schema';
+import { hasAnyPerm, hasPerm } from '@repo/schemas/utils/permission-check';
 import {
     BookCheck,
     ChevronLeft,
@@ -35,7 +35,7 @@ type OrdersState = {
         count: number;
         pageCount: number;
     };
-    items: OrderDataType[];
+    items: OrderDocument[];
 };
 
 const Table: React.FC<{ clientsData: OrderDocument[] }> = props => {
@@ -160,7 +160,7 @@ const Table: React.FC<{ clientsData: OrderDocument[] }> = props => {
         [filters],
     );
 
-    const deleteOrder = async (orderData: OrderDataType) => {
+    const deleteOrder = async (orderData: OrderDocument) => {
         try {
             let url: string =
                 process.env.NEXT_PUBLIC_BASE_URL +
@@ -193,7 +193,7 @@ const Table: React.FC<{ clientsData: OrderDocument[] }> = props => {
         return;
     };
 
-    const finishOrder = async (orderData: OrderDataType) => {
+    const finishOrder = async (orderData: OrderDocument) => {
         try {
             let url: string =
                 process.env.NEXT_PUBLIC_BASE_URL +
@@ -240,7 +240,7 @@ const Table: React.FC<{ clientsData: OrderDocument[] }> = props => {
         return;
     };
 
-    const redoOrder = async (orderData: OrderDataType) => {
+    const redoOrder = async (orderData: OrderDocument) => {
         try {
             let url: string =
                 process.env.NEXT_PUBLIC_BASE_URL +

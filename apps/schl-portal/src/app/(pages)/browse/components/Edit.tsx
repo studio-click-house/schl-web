@@ -1,6 +1,6 @@
 'use client';
 
-import { cn, hasPerm } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import {
     setCalculatedZIndex,
     setClassNameAndIsDisabled,
@@ -8,6 +8,7 @@ import {
 } from '@/utility/selectHelpers';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { OrderDocument } from '@repo/schemas/order.schema';
+import { hasPerm } from '@repo/schemas/utils/permission-check';
 import 'flowbite';
 import { initFlowbite } from 'flowbite';
 import { SquarePen, X } from 'lucide-react';

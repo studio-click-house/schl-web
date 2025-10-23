@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import React from 'react';
 import { FiltersContext } from '../FiltersContext';
-import { CountryData } from './Graphs';
+import type { CountryData } from '../types/graph-data.type';
 
 interface CountryDataTableProps {
     isLoading: boolean;
@@ -22,7 +22,7 @@ const CountryDataTable: React.FC<CountryDataTableProps> = props => {
     // Calculate totals for each column (total per date)
     const dateTotals = dates?.map(date => {
         return countries.reduce((total, country) => {
-            const countryData = flowData[country].find(
+            const countryData = flowData[country]!.find(
                 item => item.date === date,
             );
             return (
@@ -36,7 +36,7 @@ const CountryDataTable: React.FC<CountryDataTableProps> = props => {
 
     // Calculate totals for each row (total per country)
     const countryTotals = countries.map(country => {
-        return flowData[country].reduce((total, data) => {
+        return flowData[country]!.reduce((total, data) => {
             return (
                 total +
                 (flowType === 'files' ? data.fileQuantity : data.orderQuantity)
@@ -81,7 +81,7 @@ const CountryDataTable: React.FC<CountryDataTableProps> = props => {
                                         {country}
                                     </td>
                                     {dates?.map((date, idx) => {
-                                        const data = flowData[country].find(
+                                        const data = flowData[country]!.find(
                                             item => item.date === date,
                                         );
                                         const value =
