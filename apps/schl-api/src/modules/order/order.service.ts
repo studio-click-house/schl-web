@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Client } from '@repo/schemas/client.schema';
-import { COUNTRY_LIST } from '@repo/schemas/constants/client-common-countries';
+import { CLIENT_COMMON_COUNTRY } from '@repo/schemas/constants/client.constant';
 import { Invoice } from '@repo/schemas/invoice.schema';
 import { Order } from '@repo/schemas/order.schema';
 import { UserSession } from '@repo/schemas/types/user-session.type';
@@ -588,7 +588,7 @@ export class OrderService {
 
         // Build client filter for the country
         const countryFilter =
-            country === 'Others' ? { $nin: COUNTRY_LIST } : country;
+            country === 'Others' ? { $nin: CLIENT_COMMON_COUNTRY } : country;
         const clients = await this.clientModel
             .find({ country: countryFilter }, { client_code: 1, country: 1 })
             .lean()
@@ -661,10 +661,13 @@ export class OrderService {
 
         // Pre-seed countries including Others
         const ordersDetails: Record<string, any[]> = {
-            ...COUNTRY_LIST.reduce((acc: Record<string, any[]>, c: string) => {
-                acc[c] = [];
-                return acc;
-            }, {}),
+            ...CLIENT_COMMON_COUNTRY.reduce(
+                (acc: Record<string, any[]>, c: string) => {
+                    acc[c] = [];
+                    return acc;
+                },
+                {},
+            ),
             Others: [],
         };
 

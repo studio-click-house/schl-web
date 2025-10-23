@@ -6,8 +6,10 @@ import {
     IsString,
 } from 'class-validator';
 
-const CURRENCIES = ['$', '€', '£', 'A$', 'C$', 'NOK', 'DKK', 'SEK'] as const;
-type Currency = (typeof CURRENCIES)[number];
+import {
+    CLIENT_CURRENCY,
+    type ClientCurrency,
+} from '@repo/schemas/constants/client.constant';
 
 export class CreateClientBodyDto {
     @IsString()
@@ -49,8 +51,8 @@ export class CreateClientBodyDto {
     @IsString()
     prices?: string;
 
-    @IsIn(CURRENCIES)
-    currency: Currency;
+    @IsIn(CLIENT_CURRENCY as readonly ClientCurrency[])
+    currency: ClientCurrency;
 
     @IsOptional()
     @IsString()

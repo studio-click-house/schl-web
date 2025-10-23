@@ -5,7 +5,18 @@
         "dist"
     ],
     "exports": {
-        "./*": "./dist/*.js"
+        "./package.json": "./package.json",
+        "./*": {
+            "types": "./dist/*.d.ts",
+            "default": "./dist/*.js"
+        }
+    },
+    "typesVersions": {
+        "*": {
+            "*": [
+                "dist/*"
+            ]
+        }
     },
     "license": "MIT",
     "scripts": {
