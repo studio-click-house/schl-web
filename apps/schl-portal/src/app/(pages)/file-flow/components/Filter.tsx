@@ -14,8 +14,6 @@ interface PropsType {
     loading: boolean;
 }
 
-import Select from 'react-select';
-
 const FilterButton: React.FC<PropsType> = props => {
     const [isOpen, setIsOpen] = useState<boolean>(false);
 

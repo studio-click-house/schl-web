@@ -55,20 +55,21 @@ const Table = () => {
             try {
                 setLoading(true);
 
-                let url: string =
-                    process.env.NEXT_PUBLIC_BASE_URL +
-                    '/api/order?action=get-orders-by-month';
-                let options: {} = {
-                    method: 'POST',
-                    headers: {
-                        items_per_page: itemPerPage,
-                        page: page,
-                        'Content-Type': 'application/json',
+                const response = await fetchApi(
+                    {
+                        path: '/v1/order/orders-by-month',
+                        query: {
+                            itemsPerPage: itemPerPage,
+                            page,
+                        },
                     },
-                    body: JSON.stringify({}),
-                };
-
-                let response = await fetchApi(url, options);
+                    {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                    },
+                );
 
                 if (response.ok) {
                     setTrackerData(response.data as TrackerDataState);
@@ -94,22 +95,21 @@ const Table = () => {
             try {
                 setLoading(true);
 
-                let url: string =
-                    process.env.NEXT_PUBLIC_BASE_URL +
-                    '/api/order?action=get-orders-by-month';
-                let options: {} = {
-                    method: 'POST',
-                    headers: {
-                        items_per_page: itemPerPage,
-                        page: page,
-                        'Content-Type': 'application/json',
+                const response = await fetchApi(
+                    {
+                        path: `/v1/order/orders-by-month/${filters.clientCode}`,
+                        query: {
+                            itemsPerPage: itemPerPage,
+                            page,
+                        },
                     },
-                    body: JSON.stringify({
-                        ...filters,
-                    }),
-                };
-
-                let response = await fetchApi(url, options);
+                    {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                    },
+                );
 
                 if (response.ok) {
                     setTrackerData(response.data as TrackerDataState);

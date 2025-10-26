@@ -29,7 +29,7 @@ const getAllClients = async () => {
             },
         );
         if (response.ok) {
-            let data: ClientsResponseState =
+            const data: ClientsResponseState =
                 response.data as ClientsResponseState;
             return data.items;
         } else {
@@ -42,7 +42,7 @@ const getAllClients = async () => {
 };
 
 const BrowsePage = async () => {
-    let clients = await getAllClients();
+    const clients = await getAllClients();
 
     return (
         <>

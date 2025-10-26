@@ -69,7 +69,7 @@ export const calculateTimeDifference = (
 // used to generate graph data for date range
 export function getDatesInRange(fromTime: string, toTime: string): string[] {
     const dates: string[] = [];
-    let currentDate = moment(fromTime);
+    const currentDate = moment(fromTime);
     const endDate = moment(toTime).endOf('day');
 
     while (currentDate.isSameOrBefore(endDate)) {

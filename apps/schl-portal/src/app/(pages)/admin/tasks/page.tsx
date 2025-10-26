@@ -1,6 +1,5 @@
 import { fetchApi } from '@/lib/utils';
 import { OrderDocument } from '@repo/schemas/order.schema';
-import moment from 'moment-timezone';
 import React, { Suspense } from 'react';
 import InputForm from './components/Form';
 
@@ -32,7 +31,7 @@ const getAllClients = async () => {
             },
         );
         if (response.ok) {
-            let data: ClientsResponseState =
+            const data: ClientsResponseState =
                 response.data as ClientsResponseState;
             clients = data.items;
         } else {

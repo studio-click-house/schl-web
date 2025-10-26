@@ -5,7 +5,6 @@ import Pagination from '@/components/Pagination';
 import { cn, fetchApi } from '@/lib/utils';
 import { RoleDocument } from '@repo/schemas/role.schema';
 import type { Permissions } from '@repo/schemas/types/permission.type';
-import { UserDocument } from '@repo/schemas/user.schema';
 import { hasAnyPerm, hasPerm } from '@repo/schemas/utils/permission-check';
 import { CirclePlus } from 'lucide-react';
 import { useSession } from 'next-auth/react';
@@ -60,22 +59,24 @@ const Table: React.FC = props => {
         try {
             // setLoading(true);
 
-            let url: string =
-                process.env.NEXT_PUBLIC_BASE_URL +
-                '/api/role?action=get-all-roles';
-            let options: {} = {
-                method: 'POST',
-                headers: {
-                    filtered: false,
-                    paginated: true,
-                    items_per_page: itemPerPage,
-                    page: page,
-                    'Content-Type': 'application/json',
+            const response = await fetchApi(
+                {
+                    path: '/v1/role/search-roles',
+                    query: {
+                        paginated: true,
+                        filtered: false,
+                        itemsPerPage: itemPerPage,
+                        page,
+                    },
                 },
-                body: JSON.stringify({}),
-            };
-
-            let response = await fetchApi(url, options);
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({}),
+                },
+            );
 
             if (response.ok) {
                 setRules(response.data as RolesState);
@@ -94,24 +95,26 @@ const Table: React.FC = props => {
         try {
             // setLoading(true);
 
-            let url: string =
-                process.env.NEXT_PUBLIC_BASE_URL +
-                '/api/role?action=get-all-roles';
-            let options: {} = {
-                method: 'POST',
-                headers: {
-                    filtered: true,
-                    paginated: true,
-                    items_per_page: itemPerPage,
-                    page: !isFiltered ? 1 : page,
-                    'Content-Type': 'application/json',
+            const response = await fetchApi(
+                {
+                    path: '/v1/role/search-roles',
+                    query: {
+                        paginated: true,
+                        filtered: true,
+                        itemsPerPage: itemPerPage,
+                        page: !isFiltered ? 1 : page,
+                    },
                 },
-                body: JSON.stringify({
-                    ...filters,
-                }),
-            };
-
-            let response = await fetchApi(url, options);
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        ...filters,
+                    }),
+                },
+            );
 
             if (response.ok) {
                 setRules(response.data as RolesState);
@@ -135,20 +138,15 @@ const Table: React.FC = props => {
                 return;
             }
 
-            let url: string =
-                process.env.NEXT_PUBLIC_BASE_URL +
-                '/api/role?action=delete-role';
-            let options: {} = {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
+            const response = await fetchApi(
+                { path: `/v1/role/delete-role/${roleData._id}` },
+                {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
                 },
-                body: JSON.stringify({
-                    _id: roleData._id,
-                }),
-            };
-
-            let response = await fetchApi(url, options);
+            );
 
             if (response.ok) {
                 toast.success('Deleted the role successfully');
@@ -208,17 +206,16 @@ const Table: React.FC = props => {
 
             setLoading(true);
 
-            let url: string =
-                process.env.NEXT_PUBLIC_BASE_URL + '/api/role?action=edit-role';
-            let options: {} = {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
+            const response = await fetchApi(
+                { path: `/v1/role/update-role/${parsed.data._id}` },
+                {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(parsed.data),
                 },
-                body: JSON.stringify(parsed.data),
-            };
-
-            const response = await fetchApi(url, options);
+            );
 
             if (response.ok) {
                 toast.success('Updated the role data');

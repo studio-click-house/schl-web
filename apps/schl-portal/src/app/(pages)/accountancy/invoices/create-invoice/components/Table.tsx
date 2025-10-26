@@ -5,24 +5,14 @@ import ExtendableTd from '@/components/ExtendableTd';
 import { fetchApi } from '@/lib/utils';
 import { OrderDocument } from '@repo/schemas/order.schema';
 
-import {
-    validationSchema,
-    OrderDataType as zod_OrderDataType,
-} from '@/app/(pages)/browse/schema';
 import NoData, { Type } from '@/components/NoData';
 import Pagination from '@/components/Pagination';
 import { usePaginationManager } from '@/hooks/usePaginationManager';
 import { formatDate, formatTime } from '@/utility/date';
-import {
-    ChevronLeft,
-    ChevronRight,
-    CirclePlus,
-    ClipboardCopy,
-} from 'lucide-react';
+
 import moment from 'moment-timezone';
-import { useSession } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import Details from './Details';
 import FilterButton from './Filter';

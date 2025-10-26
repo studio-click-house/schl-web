@@ -3,8 +3,7 @@ import { FullyPopulatedUser } from '@repo/schemas/types/populated-user.type';
 import NextAuth from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { authConfig } from './auth.config';
-
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL as string;
+import { fetchApi } from './lib/utils';
 
 export interface UserSessionType {
     db_id: string;
@@ -19,8 +18,11 @@ async function getUser(
     password: string,
 ): Promise<UserSessionType | null> {
     try {
-        const res = await fetch(
-            process.env.NEXT_PUBLIC_API_URL + '/user/login?clientType=portal',
+        const res = await fetchApi(
+            {
+                path: '/user/login',
+                query: { clientType: 'portal' },
+            },
             {
                 method: 'POST',
                 body: JSON.stringify({ username, password }),
@@ -32,9 +34,9 @@ async function getUser(
 
         console.log('login response status', res.status, res);
 
-        if (res.status !== 201) return null;
+        if (!res.ok) return null;
 
-        const data = (await res.json()) as FullyPopulatedUser;
+        const data = (await res.data) as FullyPopulatedUser;
         console.log('login response data', data);
         return {
             db_id: data._id.toString(),
@@ -69,11 +71,7 @@ const nextAuth = NextAuth({
     ],
 });
 
-// @ts-ignore
 export const auth = nextAuth.auth;
-// @ts-ignore
 export const signIn = nextAuth.signIn;
-// @ts-ignore
 export const signOut = nextAuth.signOut;
-// @ts-ignore
 export const { GET, POST } = nextAuth.handlers;

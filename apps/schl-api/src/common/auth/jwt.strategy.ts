@@ -8,15 +8,12 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 export class JwtStrategy extends PassportStrategy(Strategy) {
     constructor(private readonly config: ConfigService) {
         const secret =
-            config.get<string>('AUTH_SECRET') ||
-            config.get<string>('JWT_SECRET') ||
-            process.env.AUTH_SECRET ||
-            process.env.JWT_SECRET;
+            config.get<string>('AUTH_SECRET') || process.env.AUTH_SECRET;
 
         if (!secret) {
             // Provide a clearer error than passport-jwt's generic message
             throw new Error(
-                'JWT secret is not configured. Please set AUTH_SECRET or JWT_SECRET in your environment (.env).',
+                'JWT secret is not configured. Please set AUTH_SECRET in your environment (.env).',
             );
         }
 

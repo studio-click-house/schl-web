@@ -1,7 +1,6 @@
 'use client';
 
 import { CopyMinus, X } from 'lucide-react';
-import { useSession } from 'next-auth/react';
 import React, { useState } from 'react';
 
 interface PropsType {

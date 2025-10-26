@@ -1,5 +1,5 @@
 'use client';
-import { constructFileName, fetchApi } from '@/lib/utils';
+import { fetchApi } from '@/lib/utils';
 import { setMenuPortalTarget } from '@/utility/selectHelpers';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { hasPerm } from '@repo/schemas/utils/permission-check';
@@ -73,11 +73,14 @@ const Form: React.FC = () => {
         }
     }, [allowedChannelOptions, setValue, watch]);
 
-    let constructFileName = (file: File, notice_no: string) => {
-        let file_name = file.name;
-        let file_ext = file_name.split('.').pop();
-        let file_name_without_ext = file_name.split('.').slice(0, -1).join('.');
-        let new_file_name = `${file_name_without_ext}_${notice_no}.${file_ext}`;
+    const constructFileName = (file: File, notice_no: string) => {
+        const file_name = file.name;
+        const file_ext = file_name.split('.').pop();
+        const file_name_without_ext = file_name
+            .split('.')
+            .slice(0, -1)
+            .join('.');
+        const new_file_name = `${file_name_without_ext}_${notice_no}.${file_ext}`;
         return new_file_name;
     };
 

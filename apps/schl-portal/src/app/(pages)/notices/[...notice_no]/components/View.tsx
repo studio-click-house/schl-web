@@ -3,6 +3,7 @@
 import { constructFileName, fetchApi } from '@/lib/utils';
 import { formatDate } from '@/utility/date';
 import { hasAnyPerm } from '@repo/schemas/utils/permission-check';
+import DOMPurify from 'dompurify';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'nextjs-toploader/app';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -248,7 +249,7 @@ const ViewNotice: React.FC<ViewNoticeProps> = props => {
                         </p>
                     </div>
 
-                    {parse(notice.description, options)}
+                    {parse(DOMPurify.sanitize(notice.description), options)}
 
                     {notice.file_name && (
                         <div className="file-download text-lg font-semibold font-sans">

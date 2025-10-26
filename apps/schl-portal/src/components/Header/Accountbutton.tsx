@@ -10,7 +10,7 @@ interface PropsType {
 }
 
 const AccountButton: React.FC<PropsType> = props => {
-    let pathname = usePathname();
+    const pathname = usePathname();
     const router = useRouter();
 
     return (

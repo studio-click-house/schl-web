@@ -19,7 +19,7 @@ interface PropsType {
 const Nav: React.FC<PropsType> = props => {
     const { data: session } = useSession();
 
-    let pathname = usePathname();
+    const pathname = usePathname();
 
     const userPermissions = (session?.user.permissions || []) as Permissions[];
 
@@ -37,7 +37,7 @@ const Nav: React.FC<PropsType> = props => {
         }
     }, []);
 
-    let { msg = 'Welcome, ' + session?.user.real_name + '!' } = props;
+    const { msg = 'Welcome, ' + session?.user.real_name + '!' } = props;
 
     return (
         <div

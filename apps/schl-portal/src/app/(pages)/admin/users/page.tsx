@@ -1,4 +1,3 @@
-import Header from '@/components/Header';
 import { fetchApi } from '@/lib/utils';
 import { EmployeeDocument } from '@repo/schemas/employee.schema';
 import { RoleDocument } from '@repo/schemas/role.schema';
@@ -39,7 +38,7 @@ export const getAllEmployees = async () => {
             },
         );
         if (response.ok) {
-            let data: EmployeesResponseState =
+            const data: EmployeesResponseState =
                 response.data as EmployeesResponseState;
             return data.items;
         } else {
@@ -69,7 +68,8 @@ export const getAllRoles = async () => {
             },
         );
         if (response.ok) {
-            let data: RolesResponseState = response.data as RolesResponseState;
+            const data: RolesResponseState =
+                response.data as RolesResponseState;
             return data.items;
         } else {
             console.error('Unable to fetch roles');
@@ -81,8 +81,8 @@ export const getAllRoles = async () => {
 };
 
 const BrowsePage = async () => {
-    let employees = await getAllEmployees();
-    let roles = await getAllRoles();
+    const employees = await getAllEmployees();
+    const roles = await getAllRoles();
 
     return (
         <>

@@ -1,6 +1,5 @@
 import type { Permissions } from '@repo/schemas/types/permission.type';
-import NextAuth, { DefaultSession, DefaultUser } from 'next-auth';
-import { JWT } from 'next-auth/jwt';
+import { DefaultSession } from 'next-auth';
 import { UserSessionType } from './auth';
 
 // Extend the default User type

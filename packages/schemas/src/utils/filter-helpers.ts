@@ -48,10 +48,13 @@ export const createRegexQuery = (
 };
 
 /** Add key/value if value is not nullish / empty / false. */
-export const addIfDefined = <T extends Record<string, any>, K extends keyof T>(
+export const addIfDefined = <
+    T extends Record<string, unknown>,
+    K extends keyof T,
+>(
     target: T,
     key: K,
-    value: any,
+    value: unknown,
 ) => {
     if (
         value !== undefined &&
@@ -59,7 +62,7 @@ export const addIfDefined = <T extends Record<string, any>, K extends keyof T>(
         value !== '' &&
         value !== false
     ) {
-        target[key] = value;
+        target[key] = value as T[K];
     }
 };
 
@@ -83,7 +86,9 @@ export const buildOrRegex = (
  *
  * Note: MongoDB does not support lookbehinds, so we only ensure the token is not preceded by a letter.
  */
-export const addPlusSeparatedContainsAllField = <T extends Record<string, any>>(
+export const addPlusSeparatedContainsAllField = <
+    T extends Record<string, unknown>,
+>(
     query: T,
     key: keyof T,
     value?: string,
@@ -99,19 +104,22 @@ export const addPlusSeparatedContainsAllField = <T extends Record<string, any>>(
         return `(?=.*(?:^|\\s*\\+\\s*)${escaped}(?:\\s*\\+\\s*|$))`;
     });
     const pattern = `^${lookaheads.join('')}.*$`;
-    (query as any)[key] = { $regex: pattern, $options: 'i' };
+    (query as Record<string, unknown>)[key as string] = {
+        $regex: pattern,
+        $options: 'i',
+    };
 };
 
 /**
  * Convenience to add a boolean field only if true.
  */
 export const addBooleanField = <
-    T extends Record<string, any>,
+    T extends Record<string, unknown>,
     K extends keyof T,
 >(
     query: T,
     key: K,
     value?: boolean,
 ) => {
-    if (value === true) query[key] = value as any;
+    if (value === true) query[key] = value as T[K];
 };

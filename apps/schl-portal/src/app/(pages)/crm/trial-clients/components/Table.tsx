@@ -10,17 +10,8 @@ import { formatDate } from '@/utility/date';
 import { EmployeeDocument } from '@repo/schemas/employee.schema';
 import { ReportDocument } from '@repo/schemas/report.schema';
 import { hasAnyPerm, hasPerm } from '@repo/schemas/utils/permission-check';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import moment from 'moment-timezone';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'nextjs-toploader/app';
-import React, {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-} from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import DeleteButton from './Delete';
 import FilterButton from './Filter';

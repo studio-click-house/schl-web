@@ -8,20 +8,11 @@ import NoData, { Type } from '@/components/NoData';
 import Pagination from '@/components/Pagination';
 import { usePaginationManager } from '@/hooks/usePaginationManager';
 import { fetchApi } from '@/lib/utils';
-import { formatDate } from '@/utility/date';
 import type { EmployeeDocument } from '@repo/schemas/employee.schema';
 import { ReportDocument } from '@repo/schemas/report.schema';
-import { hasAnyPerm, hasPerm } from '@repo/schemas/utils/permission-check';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { hasPerm } from '@repo/schemas/utils/permission-check';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'nextjs-toploader/app';
-import React, {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-} from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import DuplicateButton from './Duplicate';
 import FilterButton from './Filter';

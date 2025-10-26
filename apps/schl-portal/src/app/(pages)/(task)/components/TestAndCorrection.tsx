@@ -32,17 +32,15 @@ function TestAndCorrection() {
         try {
             setLoading(true);
 
-            let url: string =
-                process.env.NEXT_PUBLIC_BASE_URL +
-                '/api/order?action=get-redo-orders';
-            let options: {} = {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
+            const response = await fetchApi(
+                { path: '/v1/order/rework-orders' },
+                {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
                 },
-            };
-
-            let response = await fetchApi(url, options);
+            );
 
             if (response.ok) {
                 setOrders(response.data as OrderDocument[]);

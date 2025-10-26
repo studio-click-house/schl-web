@@ -1,10 +1,7 @@
 'use client';
 
 import { fetchApi } from '@/lib/utils';
-import {
-    setClassNameAndIsDisabled,
-    setMenuPortalTarget,
-} from '@/utility/selectHelpers';
+import { setMenuPortalTarget } from '@/utility/selectHelpers';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { hasPerm } from '@repo/schemas/utils/permission-check';
 import { useSession } from 'next-auth/react';
@@ -63,24 +60,21 @@ const Form: React.FC<PropsType> = props => {
             if (!confirm('Are you sure you want to delete this order?')) return;
             setLoading(prevData => ({ ...prevData, deleteOrder: true }));
 
-            let url: string =
-                process.env.NEXT_PUBLIC_BASE_URL +
-                '/api/approval?action=new-request';
-            let options: {} = {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
+            const response = await fetchApi(
+                { path: '/v1/approval/new-request' },
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        target_model: 'Order',
+                        action: 'delete',
+                        object_id: orderData._id,
+                        deleted_data: orderData,
+                    }),
                 },
-                body: JSON.stringify({
-                    target_model: 'Order',
-                    action: 'delete',
-                    object_id: orderData._id,
-                    deleted_data: orderData,
-                    req_by: session?.user.db_id,
-                }),
-            };
-
-            let response = await fetchApi(url, options);
+            );
 
             if (response.ok) {
                 toast.success('Request sent for approval');
@@ -109,26 +103,21 @@ const Form: React.FC<PropsType> = props => {
                 return;
             }
 
-            let url: string =
-                process.env.NEXT_PUBLIC_BASE_URL +
-                '/api/order?action=finish-order';
-            let options: {} = {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
+            const response = await fetchApi(
+                { path: `/v1/order/finish-order/${orderData._id}` },
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
                 },
-                body: JSON.stringify({
-                    order_id: orderData._id,
-                }),
-            };
+            );
 
             if (
                 orderData.production >= orderData.quantity &&
                 orderData.qc1 >= orderData.quantity &&
                 orderData.qc2 >= orderData.quantity
             ) {
-                const response = await fetchApi(url, options);
-
                 if (response.ok) {
                     toast.success('Changed the status to FINISHED');
                     router.refresh();
@@ -159,20 +148,15 @@ const Form: React.FC<PropsType> = props => {
         try {
             setLoading(prevData => ({ ...prevData, redoOrder: true }));
 
-            let url: string =
-                process.env.NEXT_PUBLIC_BASE_URL +
-                '/api/order?action=redo-order';
-            let options: {} = {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
+            const response = await fetchApi(
+                { path: `/v1/order/redo-order/${orderData._id}` },
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
                 },
-                body: JSON.stringify({
-                    order_id: orderData._id,
-                }),
-            };
-
-            const response = await fetchApi(url, options);
+            );
 
             if (response.ok) {
                 toast.success('Changed the status to CORRECTION');
@@ -199,19 +183,16 @@ const Form: React.FC<PropsType> = props => {
                 return;
             }
 
-            let url: string =
-                process.env.NEXT_PUBLIC_BASE_URL +
-                '/api/order?action=edit-order';
-            let options: {} = {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    updated_by: session?.user.real_name,
+            const response = await fetchApi(
+                { path: `/v1/order/update-order/${parsed.data._id}` },
+                {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(parsed.data),
                 },
-                body: JSON.stringify(parsed.data),
-            };
-
-            const response = await fetchApi(url, options);
+            );
 
             if (response.ok) {
                 toast.success('Updated the order data');

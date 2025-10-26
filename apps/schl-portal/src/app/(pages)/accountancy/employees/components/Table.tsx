@@ -1,8 +1,7 @@
 'use client';
 
 import ExtendableTd from '@/components/ExtendableTd';
-import { cn, fetchApi, getObjectChanges } from '@/lib/utils';
-import { UserDocument } from '@repo/schemas/user.schema';
+import { cn, fetchApi } from '@/lib/utils';
 import { hasPerm } from '@repo/schemas/utils/permission-check';
 
 import {
@@ -14,17 +13,11 @@ import HiddenText from '@/components/HiddenText';
 import NoData, { Type } from '@/components/NoData';
 import { formatDate } from '@/utility/date';
 import { EmployeeDocument } from '@repo/schemas/employee.schema';
-import { ChevronLeft, ChevronRight, CirclePlus } from 'lucide-react';
+import { CirclePlus } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { useRouter } from 'nextjs-toploader/app';
-import React, {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-} from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import DeleteButton from './Delete';
 import EditButton from './Edit';
@@ -70,7 +63,7 @@ const Table = () => {
     });
 
     const getTotalPayOut = (employees: EmployeeDocument[]) => {
-        let totalPayOut = {
+        const totalPayOut = {
             salary_gross: 0,
             bonus_eid_ul_fitr: 0,
             bonus_eid_ul_adha: 0,

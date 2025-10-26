@@ -1,4 +1,3 @@
-import Header from '@/components/Header';
 import { fetchApi } from '@/lib/utils';
 import { OrderDocument } from '@repo/schemas/order.schema';
 import React from 'react';
@@ -32,7 +31,7 @@ const getAllClients = async () => {
             },
         );
         if (response.ok) {
-            let data: ClientsResponseState =
+            const data: ClientsResponseState =
                 response.data as ClientsResponseState;
             clients = data.items;
         } else {

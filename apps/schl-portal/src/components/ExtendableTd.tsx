@@ -1,4 +1,4 @@
-import React, { ReactElement, ReactNode, useState } from 'react';
+import React, { ReactElement, useState } from 'react';
 
 const replaceNewlineWithBr = (text: string) => {
     const lines: string[] = text.split('\n');

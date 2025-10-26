@@ -1,12 +1,11 @@
 'use client';
 
-import { cn } from '@/lib/utils';
 import {
     setCalculatedZIndex,
     setClassNameAndIsDisabled,
     setMenuPortalTarget,
 } from '@/utility/selectHelpers';
-import { Beaker, Filter, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import React, { useRef, useState } from 'react';
 import Select from 'react-select';
 

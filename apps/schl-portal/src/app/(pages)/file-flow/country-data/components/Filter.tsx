@@ -1,6 +1,5 @@
 'use client';
 
-import { bloodGroupOptions } from '@/app/(pages)/admin/employees/components/Form';
 import { cn } from '@/lib/utils';
 import { getTodayDate } from '@/utility/date';
 import {

@@ -16,7 +16,6 @@ import { useSession } from 'next-auth/react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import Select from 'react-select';
-import { toast } from 'sonner';
 import { NoticeDataType, validationSchema } from '../../admin/notices/schema';
 
 const baseZIndex = 50; // 52

@@ -92,18 +92,16 @@ const Form: React.FC = props => {
 
             setLoading(true);
 
-            let url: string =
-                process.env.NEXT_PUBLIC_BASE_URL +
-                '/api/role?action=create-role';
-            let options: {} = {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
+            const response = await fetchApi(
+                { path: '/v1/role/create-role' },
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(parsed.data),
                 },
-                body: JSON.stringify(parsed.data),
-            };
-
-            const response = await fetchApi(url, options);
+            );
 
             if (response.ok) {
                 toast.success('Created new role successfully');

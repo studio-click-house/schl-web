@@ -1,12 +1,7 @@
-import Badge from '@/components/Badge';
-import ClickToCopy from '@/components/CopyText';
-import ExtendableTd from '@/components/ExtendableTd';
 import { fetchApi } from '@/lib/utils';
-import { formatDate, formatTime } from '@/utility/date';
 import type { OrderDocument } from '@repo/schemas/order.schema';
 import 'flowbite';
 import { initFlowbite } from 'flowbite';
-import Link from 'next/link';
 import React, { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import OrderRenderer from './OrderRenderer';
@@ -24,14 +19,13 @@ function WaitingForQC() {
     async function getAllOrders() {
         try {
             setLoading(true);
-            const url =
-                process.env.NEXT_PUBLIC_BASE_URL +
-                '/api/order?action=get-qc-orders';
-            const options = {
-                method: 'GET',
-                headers: { 'Content-Type': 'application/json' },
-            };
-            const response = await fetchApi(url, options);
+            const response = await fetchApi(
+                { path: '/v1/order/qc-orders' },
+                {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' },
+                },
+            );
 
             console.log(response.data);
             if (response.ok) {

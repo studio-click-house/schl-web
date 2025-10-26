@@ -9,17 +9,10 @@ import Pagination from '@/components/Pagination';
 import { usePaginationManager } from '@/hooks/usePaginationManager';
 import { ClientDocument } from '@repo/schemas/client.schema';
 import type { EmployeeDocument } from '@repo/schemas/employee.schema';
-import { OrderDocument } from '@repo/schemas/order.schema';
-import { ChevronLeft, ChevronRight, CirclePlus } from 'lucide-react';
+import { CirclePlus } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'nextjs-toploader/app';
-import React, {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-} from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import {
     validationSchema,

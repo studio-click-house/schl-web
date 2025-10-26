@@ -1,8 +1,7 @@
 import { auth } from '@/auth';
 import { verifyCookie } from '@/lib/utils';
-import { useSession } from 'next-auth/react';
 import { cookies } from 'next/headers';
-import { permanentRedirect, useSearchParams } from 'next/navigation';
+import { permanentRedirect } from 'next/navigation';
 import React from 'react';
 import InputForm from './components/Form';
 

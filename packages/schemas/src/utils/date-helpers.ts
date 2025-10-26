@@ -15,7 +15,7 @@ export const getDateRange = (daysAgo: number): { from: string; to: string } => {
 /**
  * Build a MongoDB date range filter for a date field using ISO date strings (YYYY-MM-DD).
  */
-export const applyDateRange = <T extends Record<string, any>>(
+export const applyDateRange = <T extends Record<string, unknown>>(
     query: T,
     field: keyof T,
     fromDate?: string,
@@ -25,7 +25,7 @@ export const applyDateRange = <T extends Record<string, any>>(
     const range: { $gte?: Date; $lte?: Date } = {};
     if (fromDate) range.$gte = new Date(`${fromDate}T00:00:00.000Z`);
     if (toDate) range.$lte = new Date(`${toDate}T23:59:59.999Z`);
-    (query as any)[field] = range;
+    (query as Record<string, unknown>)[field as string] = range;
 };
 
 /**

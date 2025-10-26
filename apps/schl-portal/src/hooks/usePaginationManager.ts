@@ -12,7 +12,7 @@ export interface PaginationOpts {
 export function usePaginationManager({
     page,
     itemPerPage,
-    pageCount,
+    // pageCount,
     setPage,
     triggerFetch,
 }: PaginationOpts) {
@@ -21,7 +21,7 @@ export function usePaginationManager({
     // track previous values
     const prevPageRef = useRef(page);
     const prevIPPRef = useRef(itemPerPage);
-    const prevPageCountRef = useRef(pageCount);
+    // const prevPageCountRef = useRef(pageCount);
 
     // flags to suppress duplicate fetches
     const ippChangedRef = useRef(false);
