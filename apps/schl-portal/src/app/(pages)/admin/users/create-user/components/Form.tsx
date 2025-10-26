@@ -1,12 +1,8 @@
 'use client';
 
-import {
-    setClassNameAndIsDisabled,
-    setMenuPortalTarget,
-} from '@/utility/selectHelpers';
+import { setMenuPortalTarget } from '@/utility/selectHelpers';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { hasPerm } from '@repo/schemas/utils/permission-check';
-import moment from 'moment-timezone';
 import { useSession } from 'next-auth/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -28,7 +24,7 @@ const Form: React.FC<PropsType> = props => {
     const [loading, setLoading] = useState(false);
     const { data: session } = useSession();
 
-    let employeeIdOptions = (props.employeesData || []).map(employee => ({
+    const employeeIdOptions = (props.employeesData || []).map(employee => ({
         value: employee.e_id,
         label: employee.e_id,
     }));
@@ -73,7 +69,7 @@ const Form: React.FC<PropsType> = props => {
         });
     }, [props.rolesData, userPermissions]);
 
-    let roleOptions = allowedRoles.map(role => ({
+    const roleOptions = allowedRoles.map(role => ({
         value: role._id,
         label: role.name,
     }));

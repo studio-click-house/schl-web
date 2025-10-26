@@ -1,10 +1,8 @@
 'use client';
 
-import { auth } from '@/auth';
 import { hasPerm } from '@repo/schemas/utils/permission-check';
 import 'flowbite';
 import { initFlowbite } from 'flowbite';
-import { ArrowDown } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import React, { useEffect, useMemo } from 'react';
 import RunningTasksTable from './RunningTasks';

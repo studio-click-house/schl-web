@@ -178,7 +178,7 @@ const Details: React.FC<DetailsProps> = props => {
 
             const fileName = `invoice_studioclickhouse_${customer.invoiceNumber}.xlsx`;
 
-            let toastId = toast.loading('Generating invoice...');
+            const toastId = toast.loading('Generating invoice...');
 
             const invoice = await generateInvoice(
                 invoiceData,
@@ -237,7 +237,7 @@ const Details: React.FC<DetailsProps> = props => {
                 invoiceNumber: customer.invoiceNumber,
             };
 
-            let database_response = await fetchApi(
+            const database_response = await fetchApi(
                 { path: '/v1/invoice/create-invoice' },
                 {
                     method: 'POST',
@@ -268,7 +268,7 @@ const Details: React.FC<DetailsProps> = props => {
                 new File([invoice], fileName, { type: invoice.type }),
             );
 
-            let ftp_response = await fetchApi(
+            const ftp_response = await fetchApi(
                 { path: '/v1/ftp/upload', query: { folderName: 'invoice' } },
                 {
                     method: 'POST',

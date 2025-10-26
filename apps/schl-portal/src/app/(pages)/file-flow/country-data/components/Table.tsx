@@ -1,24 +1,15 @@
 'use client';
 
-import ExtendableTd from '@/components/ExtendableTd';
-import { cn, fetchApi } from '@/lib/utils';
-import { UserDocument } from '@repo/schemas/user.schema';
-
-import {
-    EmployeeDataType,
-    validationSchema,
-} from '@/app/(pages)/admin/employees/schema';
+import { fetchApi } from '@/lib/utils';
 
 import Badge from '@/components/Badge';
-import HiddenText from '@/components/HiddenText';
 import NoData, { Type } from '@/components/NoData';
 import { formatDate, formatTime, getTodayDate } from '@/utility/date';
 import { OrderDocument } from '@repo/schemas/order.schema';
-import { ChevronLeft, ChevronRight, CirclePlus, Undo2 } from 'lucide-react';
+import { Undo2 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
-import Link from 'next/link';
 import { useRouter } from 'nextjs-toploader/app';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import FilterButton from './Filter';
 

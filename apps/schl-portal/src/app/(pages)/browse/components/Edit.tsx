@@ -13,7 +13,7 @@ import 'flowbite';
 import { initFlowbite } from 'flowbite';
 import { SquarePen, X } from 'lucide-react';
 import { useSession } from 'next-auth/react';
-import React, { use, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import Select from 'react-select';
 import { toast } from 'sonner';
@@ -87,12 +87,12 @@ const EditButton: React.FC<PropsType> = props => {
     const clientNames = props.clientsData?.map(client => client.client_name);
     const clientCodes = props.clientsData?.map(client => client.client_code);
 
-    let clientNameOptions = (clientNames || []).map(clientName => ({
+    const clientNameOptions = (clientNames || []).map(clientName => ({
         value: clientName,
         label: clientName,
     }));
 
-    let clientCodeOptions = (clientCodes || []).map(clientCode => ({
+    const clientCodeOptions = (clientCodes || []).map(clientCode => ({
         value: clientCode,
         label: clientCode,
     }));

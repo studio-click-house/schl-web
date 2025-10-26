@@ -3,12 +3,10 @@
 import { cn } from '@/lib/utils';
 import {
     setCalculatedZIndex,
-    setClassNameAndIsDisabled,
     setMenuPortalTarget,
 } from '@/utility/selectHelpers';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { USER_PERMISSIONS } from '@repo/schemas/constants/permission.constant';
-import { Permissions } from '@repo/schemas/types/permission.type';
 import { SquarePen, X } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';

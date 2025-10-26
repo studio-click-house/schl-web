@@ -1,6 +1,4 @@
 import { auth } from '@/auth';
-import Header from '@/components/Header';
-import Link from 'next/link';
 import React from 'react';
 import Cards from './components/card/Cards';
 import Graphs from './components/graph/Graphs';

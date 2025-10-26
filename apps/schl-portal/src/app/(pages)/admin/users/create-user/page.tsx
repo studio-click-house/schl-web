@@ -3,8 +3,8 @@ import { getAllEmployees, getAllRoles } from '../page';
 import InputForm from './components/Form';
 
 const CreateUserPage = async () => {
-    let employees = await getAllEmployees();
-    let roles = await getAllRoles();
+    const employees = await getAllEmployees();
+    const roles = await getAllRoles();
     return (
         <>
             <div className="px-4 mt-8 mb-4 flex flex-col justify-center md:w-[70vw] mx-auto">

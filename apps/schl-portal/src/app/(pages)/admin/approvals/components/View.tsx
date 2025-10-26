@@ -1,7 +1,7 @@
 'use client';
 
 import Badge from '@/components/Badge';
-import { Change, cn } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { formatDate, formatTime, formatTimestamp } from '@/utility/date';
 import { initFlowbite } from 'flowbite';
 import { AlertCircle, Eye, InfoIcon, Minus, Plus, X } from 'lucide-react';

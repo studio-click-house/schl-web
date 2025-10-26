@@ -10,6 +10,7 @@ import TextAlign from '@tiptap/extension-text-align';
 import Underline from '@tiptap/extension-underline';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+import DOMPurify from 'dompurify';
 import TextEditorMenuBar from './TextEditorMenuBar';
 
 type TextEditorProps = {
@@ -104,7 +105,8 @@ export default function RichTextEditor({
         ],
         content: initialContent,
         onUpdate: ({ editor }) => {
-            onChange(editor.getHTML());
+            const sanitized = DOMPurify.sanitize(editor.getHTML());
+            onChange(sanitized);
         },
         editorProps: {
             attributes: {

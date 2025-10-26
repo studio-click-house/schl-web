@@ -29,8 +29,8 @@ export class Report {
             validator: function (v: string) {
                 return /^(http|https):\/\/[^ "]+$/.test(v);
             },
-            message: (props: any) =>
-                `${(props.value as string).trim()} is not a valid website link!`,
+            message: (props: { value: string }) =>
+                `${props.value.trim()} is not a valid website link!`,
         },
     })
     website: string;

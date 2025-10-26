@@ -8,15 +8,10 @@ import Pagination from '@/components/Pagination';
 import { usePaginationManager } from '@/hooks/usePaginationManager';
 import { formatDate, formatTime, formatTimestamp } from '@/utility/date';
 import { ApprovalDocument } from '@repo/schemas/approval.schema';
-import {
-    ChevronLeft,
-    ChevronRight,
-    CircleCheckBig,
-    CircleX,
-} from 'lucide-react';
+import { CircleCheckBig, CircleX } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'nextjs-toploader/app';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import FilterButton from './Filter';
 import ViewButton from './View';
@@ -76,22 +71,24 @@ const Table: React.FC = props => {
             try {
                 // setLoading(true);
 
-                let url: string =
-                    process.env.NEXT_PUBLIC_BASE_URL +
-                    '/api/approval?action=get-all-approvals';
-                let options: {} = {
-                    method: 'POST',
-                    headers: {
-                        filtered: false,
-                        paginated: true,
-                        items_per_page: itemPerPage,
-                        page: page,
-                        'Content-Type': 'application/json',
+                const response = await fetchApi(
+                    {
+                        path: '/v1/approval/search-approvals',
+                        query: {
+                            paginated: true,
+                            filtered: false,
+                            itemsPerPage: itemPerPage,
+                            page,
+                        },
                     },
-                    body: JSON.stringify({}),
-                };
-
-                let response = await fetchApi(url, options);
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({}),
+                    },
+                );
 
                 if (response.ok) {
                     console.log('response', response.data);
@@ -119,24 +116,26 @@ const Table: React.FC = props => {
             try {
                 // setLoading(true);
 
-                let url: string =
-                    process.env.NEXT_PUBLIC_BASE_URL +
-                    '/api/approval?action=get-all-approvals';
-                let options: {} = {
-                    method: 'POST',
-                    headers: {
-                        filtered: true,
-                        paginated: true,
-                        items_per_page: itemPerPage,
-                        page: page,
-                        'Content-Type': 'application/json',
+                const response = await fetchApi(
+                    {
+                        path: '/v1/approval/search-approvals',
+                        query: {
+                            paginated: true,
+                            filtered: true,
+                            itemsPerPage: itemPerPage,
+                            page,
+                        },
                     },
-                    body: JSON.stringify({
-                        ...filters,
-                    }),
-                };
-
-                let response = await fetchApi(url, options);
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            ...filters,
+                        }),
+                    },
+                );
 
                 if (response.ok) {
                     setApprovals(response.data as ApprovalsState);
@@ -165,23 +164,20 @@ const Table: React.FC = props => {
         res: 'approve' | 'reject',
     ) => {
         try {
-            let toastId = toast.loading('Sending request for approval...');
-            let url: string =
-                process.env.NEXT_PUBLIC_BASE_URL +
-                '/api/approval?action=single-response';
-            let options: {} = {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
+            const toastId = toast.loading('Sending request for approval...');
+            const response = await fetchApi(
+                { path: '/v1/approval/single-response' },
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        response: res,
+                        objectId: req_id,
+                    }),
                 },
-                body: JSON.stringify({
-                    response: res,
-                    rev_by: session?.user?.db_id,
-                    _id: req_id,
-                }),
-            };
-
-            let response = await fetchApi(url, options);
+            );
 
             if (response.ok) {
                 console.log('response', response.data);
@@ -201,23 +197,20 @@ const Table: React.FC = props => {
 
     const multipleApproval = async (res: 'approve' | 'reject') => {
         try {
-            let toastId = toast.loading('Sending request for approval...');
-            let url: string =
-                process.env.NEXT_PUBLIC_BASE_URL +
-                '/api/approval?action=multiple-response';
-            let options: {} = {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
+            const toastId = toast.loading('Sending request for approval...');
+            const response = await fetchApi(
+                { path: '/v1/approval/bulk-response' },
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        response: res,
+                        objectIds: approvalIds,
+                    }),
                 },
-                body: JSON.stringify({
-                    response: res,
-                    rev_by: session?.user?.db_id,
-                    _ids: approvalIds,
-                }),
-            };
-
-            let response = await fetchApi(url, options);
+            );
 
             if (response.ok) {
                 toast.success(
@@ -343,7 +336,7 @@ const Table: React.FC = props => {
                             </span>
                             <button
                                 onClick={() => {
-                                    let confirmation = confirm(
+                                    const confirmation = confirm(
                                         'Are you sure you want to approve selected requests?',
                                     );
                                     if (confirmation) {
@@ -356,7 +349,7 @@ const Table: React.FC = props => {
                             </button>
                             <button
                                 onClick={() => {
-                                    let confirmation = confirm(
+                                    const confirmation = confirm(
                                         'Are you sure you want to reject selected requests?',
                                     );
                                     if (confirmation) {

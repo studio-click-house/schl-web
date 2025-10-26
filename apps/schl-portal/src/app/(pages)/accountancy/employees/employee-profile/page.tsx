@@ -1,8 +1,7 @@
 import { auth } from '@/auth';
-import { delay, fetchApi, generateAvatar, verifyCookie } from '@/lib/utils';
+import { fetchApi, generateAvatar } from '@/lib/utils';
 import { EmployeeDocument } from '@repo/schemas/employee.schema';
 
-import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import React from 'react';
 import Profile from './components/Profile';

@@ -1,6 +1,6 @@
 import { signOut } from '@/auth';
 
-let LogoutAction = async () => {
+const LogoutAction = async () => {
     'use server';
     await signOut({
         redirect: true,

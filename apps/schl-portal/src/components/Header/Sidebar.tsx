@@ -35,7 +35,7 @@ import {
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import Drawer from '../Drawer';
 
 interface PropsType {
@@ -52,7 +52,7 @@ const Sidebar: React.FC<PropsType> = props => {
     const has = (perm: Permissions) => hasPerm(perm, userPermissions);
     const hasAny = (perms: Permissions[]) => hasAnyPerm(perms, userPermissions);
 
-    let pathname = usePathname();
+    const pathname = usePathname();
 
     const router = useRouter();
 

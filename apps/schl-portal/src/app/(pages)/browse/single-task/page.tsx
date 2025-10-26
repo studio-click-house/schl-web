@@ -1,30 +1,24 @@
 import { auth } from '@/auth';
-import Linkify from '@/components/Linkify';
-import { fetchApi, verifyCookie } from '@/lib/utils';
+import { fetchApi } from '@/lib/utils';
 import { hasPerm } from '@repo/schemas/utils/permission-check';
-import { useSession } from 'next-auth/react';
-import { cookies } from 'next/headers';
 import Link from 'next/link';
-import { redirect, useSearchParams } from 'next/navigation';
+import { redirect } from 'next/navigation';
 import React, { Suspense } from 'react';
 import { OrderDataType } from '../schema';
 import InputForm from './components/Form';
 
 const getOrderData = async (orderId: string) => {
     try {
-        let url: string =
-            process.env.NEXT_PUBLIC_BASE_URL +
-            '/api/order?action=get-order-by-id';
-        let options: {} = {
-            method: 'GET',
-            headers: {
-                id: orderId,
-                'Content-Type': 'application/json',
+        const response = await fetchApi(
+            { path: `/v1/order/${orderId}` },
+            {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                cache: 'no-store',
             },
-            cache: 'no-store',
-        };
-
-        const response = await fetchApi(url, options);
+        );
         if (response.ok) {
             return response.data as OrderDataType;
         } else {

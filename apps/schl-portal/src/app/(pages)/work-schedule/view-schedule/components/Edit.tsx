@@ -45,12 +45,12 @@ const EditButton: React.FC<PropsType> = props => {
     const clientNames = props.clientsData.map(client => client.client_name);
     const clientCodes = props.clientsData.map(client => client.client_code);
 
-    let clientNameOptions = (clientNames || []).map(clientName => ({
+    const clientNameOptions = (clientNames || []).map(clientName => ({
         value: clientName,
         label: clientName,
     }));
 
-    let clientCodeOptions = (clientCodes || []).map(clientCode => ({
+    const clientCodeOptions = (clientCodes || []).map(clientCode => ({
         value: clientCode,
         label: clientCode,
     }));

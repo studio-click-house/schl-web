@@ -83,7 +83,7 @@ export class Approval {
         default: null,
         type: Object,
     })
-    new_data: Record<string, any> | null;
+    new_data: Record<string, unknown> | null;
 
     /*
         The data of the document that was deleted.
@@ -97,7 +97,7 @@ export class Approval {
         default: null,
         type: Object,
     })
-    deleted_data: Record<string, any> | null;
+    deleted_data: Record<string, unknown> | null;
 
     @Prop({
         enum: ['pending', 'approved', 'rejected'],

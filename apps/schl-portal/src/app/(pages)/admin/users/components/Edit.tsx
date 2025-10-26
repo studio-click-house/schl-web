@@ -9,14 +9,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { EmployeeDocument } from '@repo/schemas/employee.schema';
 import { RoleDocument } from '@repo/schemas/role.schema';
 import { Permissions } from '@repo/schemas/types/permission.type';
-import { FullyPopulatedUser } from '@repo/schemas/types/populated-user.type';
 import { hasPerm } from '@repo/schemas/utils/permission-check';
 import 'flowbite';
-import { initFlowbite } from 'flowbite';
 import { KeySquare, SquarePen, X } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import React, {
-    use,
     useCallback,
     useEffect,
     useMemo,
@@ -52,7 +49,7 @@ const EditButton: React.FC<PropsType> = props => {
         [session?.user.permissions],
     );
 
-    let employeeIdOptions = (props.employeesData || []).map(employee => ({
+    const employeeIdOptions = (props.employeesData || []).map(employee => ({
         value: employee.e_id,
         label: employee.e_id,
     }));
@@ -74,7 +71,7 @@ const EditButton: React.FC<PropsType> = props => {
         });
     }, [props.rolesData, editorPerms]);
 
-    let roleOptions = allowedRoles.map(role => ({
+    const roleOptions = allowedRoles.map(role => ({
         value: role._id,
         label: role.name,
     }));

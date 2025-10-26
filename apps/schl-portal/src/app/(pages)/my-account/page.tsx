@@ -1,5 +1,5 @@
 import { auth } from '@/auth';
-import { delay, fetchApi, generateAvatar, verifyCookie } from '@/lib/utils';
+import { fetchApi, generateAvatar, verifyCookie } from '@/lib/utils';
 import { EmployeeDocument } from '@repo/schemas/employee.schema';
 
 import { cookies } from 'next/headers';

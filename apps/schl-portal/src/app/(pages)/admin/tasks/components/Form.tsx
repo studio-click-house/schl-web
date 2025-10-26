@@ -29,12 +29,12 @@ const Form: React.FC<PropsType> = props => {
     const clientNames = props.clientsData.map(client => client.client_name);
     const clientCodes = props.clientsData.map(client => client.client_code);
 
-    let clientNameOptions = (clientNames || []).map(clientName => ({
+    const clientNameOptions = (clientNames || []).map(clientName => ({
         value: clientName,
         label: clientName,
     }));
 
-    let clientCodeOptions = (clientCodes || []).map(clientCode => ({
+    const clientCodeOptions = (clientCodes || []).map(clientCode => ({
         value: clientCode,
         label: clientCode,
     }));
@@ -83,19 +83,16 @@ const Form: React.FC<PropsType> = props => {
                 return;
             }
 
-            let url: string =
-                process.env.NEXT_PUBLIC_BASE_URL +
-                '/api/order?action=create-order';
-            let options: {} = {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    updated_by: session?.user.real_name,
+            const response = await fetchApi(
+                { path: '/v1/order/create' },
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(parsed.data),
                 },
-                body: JSON.stringify(parsed.data),
-            };
-
-            const response = await fetchApi(url, options);
+            );
 
             if (response.ok) {
                 toast.success('Created new order successfully');

@@ -2,7 +2,7 @@
 
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'nextjs-toploader/app';
-import React, { ChangeEvent, FormEvent, useEffect, useState } from 'react';
+import React, { ChangeEvent, FormEvent, useState } from 'react';
 import { toast } from 'sonner';
 
 const Form: React.FC = () => {
@@ -12,7 +12,7 @@ const Form: React.FC = () => {
     });
     const [loading, setLoading] = useState<boolean>(false);
     const router = useRouter();
-    let handleSignInSubmit = async (
+    const handleSignInSubmit = async (
         e: FormEvent<HTMLFormElement>,
     ): Promise<void> => {
         e.preventDefault();
@@ -49,7 +49,7 @@ const Form: React.FC = () => {
         }
     };
 
-    let handleOnChange = (e: ChangeEvent<HTMLInputElement>): void => {
+    const handleOnChange = (e: ChangeEvent<HTMLInputElement>): void => {
         setCreds({ ...creds, [e.target.name]: e.target.value });
     };
 

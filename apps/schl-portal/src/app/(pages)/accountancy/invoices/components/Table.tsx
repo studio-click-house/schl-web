@@ -1,9 +1,7 @@
 'use client';
 
 import Badge from '@/components/Badge';
-import ExtendableTd from '@/components/ExtendableTd';
 import { fetchApi } from '@/lib/utils';
-import { EmployeeDocument } from '@repo/schemas/employee.schema';
 import { hasPerm } from '@repo/schemas/utils/permission-check';
 
 import NoData, { Type } from '@/components/NoData';
@@ -11,24 +9,12 @@ import Pagination from '@/components/Pagination';
 import { usePaginationManager } from '@/hooks/usePaginationManager';
 import { cn } from '@/lib/utils';
 import { formatDate } from '@/utility/date';
-import { has } from 'lodash';
-import {
-    ChevronLeft,
-    ChevronRight,
-    CirclePlus,
-    CloudDownload,
-} from 'lucide-react';
+import { CirclePlus, CloudDownload } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'nextjs-toploader/app';
-import React, {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-} from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { InvoiceDataType, validationSchema } from '../schema';
+import { InvoiceDataType } from '../schema';
 import DeleteButton from './Delete';
 import FilterButton from './Filter';
 
@@ -77,16 +63,17 @@ const Table: React.FC = props => {
             try {
                 // setLoading(true);
 
-                let url: string =
-                    process.env.NEXT_PUBLIC_BASE_URL +
-                    '/api/invoice?action=get-all-invoices';
-                let options: {} = {
+                const url = new URL(
+                    `${process.env.NEXT_PUBLIC_BASE_URL}/v1/invoice/search-invoices`,
+                );
+                url.searchParams.set('paginated', 'true');
+                url.searchParams.set('page', String(page));
+                url.searchParams.set('itemsPerPage', String(itemPerPage));
+                url.searchParams.set('filtered', 'false');
+
+                const options: RequestInit = {
                     method: 'POST',
                     headers: {
-                        filtered: false,
-                        paginated: true,
-                        items_per_page: itemPerPage,
-                        page: page,
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
@@ -96,7 +83,7 @@ const Table: React.FC = props => {
                     }),
                 };
 
-                let response = await fetchApi(url, options);
+                const response = await fetchApi(url.toString(), options);
 
                 if (response.ok) {
                     setInvoices(response.data as InvoicesState);
@@ -104,7 +91,7 @@ const Table: React.FC = props => {
                         (response.data as InvoicesState).pagination.pageCount,
                     );
                 } else {
-                    toast.error(response.data as string);
+                    toast.error(response.data.message as string);
                 }
             } catch (error) {
                 console.error(error);
@@ -121,16 +108,17 @@ const Table: React.FC = props => {
             try {
                 // setLoading(true);
 
-                let url: string =
-                    process.env.NEXT_PUBLIC_BASE_URL +
-                    '/api/invoice?action=get-all-invoices';
-                let options: {} = {
+                const url = new URL(
+                    `${process.env.NEXT_PUBLIC_BASE_URL}/v1/invoice/search-invoices`,
+                );
+                url.searchParams.set('paginated', 'true');
+                url.searchParams.set('page', String(page));
+                url.searchParams.set('itemsPerPage', String(itemPerPage));
+                url.searchParams.set('filtered', 'true');
+
+                const options: RequestInit = {
                     method: 'POST',
                     headers: {
-                        filtered: true,
-                        paginated: true,
-                        items_per_page: itemPerPage,
-                        page: page,
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
@@ -138,7 +126,7 @@ const Table: React.FC = props => {
                     }),
                 };
 
-                let response = await fetchApi(url, options);
+                const response = await fetchApi(url.toString(), options);
 
                 if (response.ok) {
                     setInvoices(response.data as InvoicesState);
@@ -147,7 +135,7 @@ const Table: React.FC = props => {
                         (response.data as InvoicesState).pagination.pageCount,
                     );
                 } else {
-                    toast.error(response.data as string);
+                    toast.error(response.data.message as string);
                 }
             } catch (error) {
                 console.error(error);
@@ -162,49 +150,46 @@ const Table: React.FC = props => {
 
     async function deleteInvoice(invoiceNumber: string) {
         try {
-            let url: string =
-                process.env.NEXT_PUBLIC_BASE_URL +
-                '/api/invoice?action=delete-invoice';
-            let options: {} = {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    invoice_number: invoiceNumber,
-                }),
+            const url = new URL(
+                `${process.env.NEXT_PUBLIC_BASE_URL}/v1/invoice/delete-invoice`,
+            );
+            url.searchParams.set('invoiceNumber', invoiceNumber);
+
+            const options: RequestInit = {
+                method: 'DELETE',
             };
 
-            let response = await fetchApi(url, options);
+            const response = await fetchApi(url.toString(), options);
 
             if (response.ok) {
                 const ftpDeleteConfirmation = confirm(
                     'Delete from the FTP server too?',
                 );
                 if (ftpDeleteConfirmation) {
-                    let ftp_url: string =
-                        process.env.NEXT_PUBLIC_BASE_URL +
-                        '/api/ftp?action=delete-file';
-                    let ftp_options: {} = {
-                        method: 'GET',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            folder_name: 'invoice',
-                            file_name:
-                                'invoice_studioclickhouse_' +
-                                invoiceNumber +
-                                '.xlsx',
-                        },
+                    const ftpUrl = new URL(
+                        `${process.env.NEXT_PUBLIC_BASE_URL}/v1/ftp/delete`,
+                    );
+                    ftpUrl.searchParams.set('folderName', 'invoice');
+                    ftpUrl.searchParams.set(
+                        'fileName',
+                        `invoice_studioclickhouse_${invoiceNumber}.xlsx`,
+                    );
+
+                    const ftpOptions: RequestInit = {
+                        method: 'DELETE',
                     };
 
-                    let ftp_response = await fetchApi(ftp_url, ftp_options);
+                    const ftp_response = await fetchApi(
+                        ftpUrl.toString(),
+                        ftpOptions,
+                    );
                     if (ftp_response.ok) {
                         toast.success('Deleted the invoice from FTP server');
                     } else {
-                        toast.error(ftp_response.data as string);
+                        toast.error(ftp_response.data.message as string);
                     }
                 } else {
-                    toast.success(response.data as string);
+                    toast.success(response.data.message as string);
                 }
                 await fetchInvoices();
             } else {
@@ -220,22 +205,20 @@ const Table: React.FC = props => {
     async function downloadFile(invoiceNumber: string) {
         const toastId = toast.loading('Triggering the download...');
         try {
-            const fileName =
-                'invoice_studioclickhouse_' + invoiceNumber + '.xlsx';
+            const fileName = `invoice_studioclickhouse_${invoiceNumber}.xlsx`;
 
-            let url: string =
-                process.env.NEXT_PUBLIC_BASE_URL +
-                '/api/ftp?action=download-file';
-            let options: {} = {
+            const url = new URL(
+                `${process.env.NEXT_PUBLIC_BASE_URL}/v1/ftp/download`,
+            );
+            url.searchParams.set('folderName', 'invoice');
+            url.searchParams.set('fileName', fileName);
+
+            const options: RequestInit = {
                 method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    folder_name: 'invoice',
-                    file_name: fileName,
-                },
             };
 
-            let response = await fetch(url, options);
+            // We use native fetch here to handle the blob response
+            const response = await fetch(url.toString(), options);
 
             if (response.ok) {
                 const blob = await response.blob();
@@ -245,20 +228,25 @@ const Table: React.FC = props => {
                 a.download = fileName;
                 document.body.appendChild(a);
                 a.click();
+                a.remove();
                 window.URL.revokeObjectURL(url);
                 toast.success('Download triggered successfully', {
                     id: toastId,
                 });
             } else {
-                toast.error('Error downloading the invoice');
-                toast.error('Unable to trigger the download', {
-                    id: toastId,
-                });
+                const errorData = await response.json();
+                toast.error(
+                    errorData.message || 'Error downloading the invoice',
+                    {
+                        id: toastId,
+                    },
+                );
             }
         } catch (error) {
             console.error(error);
-            toast.dismiss(toastId);
-            toast.error('An error occurred while initializing the download');
+            toast.error('An error occurred while initializing the download', {
+                id: toastId,
+            });
         }
     }
 

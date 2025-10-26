@@ -7,22 +7,10 @@ import { usePaginationManager } from '@/hooks/usePaginationManager';
 import { cn, constructFileName, fetchApi } from '@/lib/utils';
 import { formatDate } from '@/utility/date';
 import { hasAnyPerm, hasPerm } from '@repo/schemas/utils/permission-check';
-import {
-    ChevronLeft,
-    ChevronRight,
-    CirclePlus,
-    SquareArrowOutUpRight,
-} from 'lucide-react';
-import moment from 'moment-timezone';
+import { CirclePlus, SquareArrowOutUpRight } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'nextjs-toploader/app';
-import React, {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-} from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { NoticeDataType, validationSchema } from '../../admin/notices/schema';
 import DeleteButton from './Delete';

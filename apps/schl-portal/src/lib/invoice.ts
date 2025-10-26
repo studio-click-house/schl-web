@@ -250,7 +250,7 @@ export default async function generateInvoice(
             MID_CENTER,
         );
 
-        let contactTableHeadingRow = 7;
+        const contactTableHeadingRow = 7;
 
         /**/
         // CONTACT TABLE
@@ -278,7 +278,7 @@ export default async function generateInvoice(
             0,
         );
 
-        let afterContactTableRowNumber =
+        const afterContactTableRowNumber =
             contactTableHeadingRow +
             1 +
             (contactTableLoopEndIndex <= 3
@@ -580,7 +580,7 @@ export default async function generateInvoice(
         // If user explicitly sets samePageBankGapRows, we honor that value only (no fallback).
         // Otherwise we try gap=2, then gap=1. If neither fits, we move the bank section to a new page (gap=0).
         // NEW_PAGE_GAP_ROWS always 0 because heading should start at the top of the new page.
-        const NEW_PAGE_GAP_ROWS = 0;
+        // const NEW_PAGE_GAP_ROWS = 0;
 
         // Build bank pairs to know spans & exact height before rendering
         const LABEL_TO_KEY: Record<string, string> = {
@@ -629,7 +629,7 @@ export default async function generateInvoice(
         const grandTotalRow = afterBillTableRowNumber + 4;
 
         // Simulate pagination up to the grandTotalRow to know how much height is used on the CURRENT page (not cumulative total)
-        let pageHeights: number[] = [0];
+        const pageHeights: number[] = [0];
         let currentPageIndex = 0;
         const EPS = 0.5; // small epsilon to avoid floating rounding pushing rows prematurely
         for (let r = 1; r <= grandTotalRow; r++) {

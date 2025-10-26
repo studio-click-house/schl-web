@@ -1,4 +1,3 @@
-import Badge from '@/components/Badge';
 import ClickToCopy from '@/components/CopyText';
 import ExtendableTd from '@/components/ExtendableTd';
 import { formatDate, formatTime } from '@/utility/date';

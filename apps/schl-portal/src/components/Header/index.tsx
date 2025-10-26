@@ -1,4 +1,3 @@
-import { auth } from '@/auth';
 // import { SessionProvider } from 'next-auth/react';
 import React from 'react';
 import Nav from './Nav';

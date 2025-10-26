@@ -1,12 +1,11 @@
 'use client';
 
-import { cn } from '@/lib/utils';
 import {
     setCalculatedZIndex,
     setClassNameAndIsDisabled,
     setMenuPortalTarget,
 } from '@/utility/selectHelpers';
-import { Filter, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import React, { useRef, useState } from 'react';
 
 const baseZIndex = 50; // 52
@@ -27,7 +26,7 @@ interface PropsType {
     loading: boolean;
 }
 
-import { taskOptions, typeOptions } from '@/app/(pages)/browse/components/Edit';
+import { taskOptions } from '@/app/(pages)/browse/components/Edit';
 import Select from 'react-select';
 
 const FilterButton: React.FC<PropsType> = props => {

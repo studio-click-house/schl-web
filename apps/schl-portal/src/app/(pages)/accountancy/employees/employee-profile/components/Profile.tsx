@@ -11,7 +11,6 @@ import { EmployeeDocument } from '@repo/schemas/employee.schema';
 import { Clock4, Coins, Mail } from 'lucide-react';
 import moment from 'moment-timezone';
 import Image from 'next/image';
-import Link from 'next/link';
 import React, { useEffect, useState } from 'react';
 
 interface ProfilePropsTypes {

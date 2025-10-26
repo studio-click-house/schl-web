@@ -1,4 +1,4 @@
-import { permanentRedirect, useSearchParams } from 'next/navigation';
+import { permanentRedirect } from 'next/navigation';
 import React from 'react';
 import Table from './components/Table';
 

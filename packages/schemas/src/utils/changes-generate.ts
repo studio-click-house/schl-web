@@ -1,15 +1,17 @@
+type ChangeValue = unknown;
+
 export type Change =
-    | { field: string; oldValue: any; newValue: any } // Non-array case
+    | { field: string; oldValue: ChangeValue; newValue: ChangeValue } // Non-array case
     | {
           field: string;
-          oldValue: any[];
-          newValue: any[];
-          arrayChanges: { added: any[]; removed: any[] };
+          oldValue: ChangeValue[];
+          newValue: ChangeValue[];
+          arrayChanges: { added: ChangeValue[]; removed: ChangeValue[] };
       }; // Array case
 
 export function getObjectChanges(
-    oldObj: Record<string, any>,
-    newObj: Record<string, any>,
+    oldObj: Record<string, ChangeValue>,
+    newObj: Record<string, ChangeValue>,
 ): Change[] {
     const changes: Change[] = [];
     Object.keys(oldObj).forEach(key => {
