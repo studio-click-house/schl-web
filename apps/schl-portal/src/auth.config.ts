@@ -45,9 +45,9 @@ export const authConfig: NextAuthConfig = {
 
                 try {
                     token.accessToken = signAccessToken({
-                        db_id: user.db_id,
-                        db_role_id: user.db_role_id,
-                        permissions: user.permissions,
+                        db_id: user.db_id as string,
+                        db_role_id: user.db_role_id as string,
+                        permissions: (user.permissions as Permissions[]) || [],
                     });
                     token.accessTokenExpires =
                         Date.now() + ACCESS_TOKEN_TTL_SECONDS * 1000;

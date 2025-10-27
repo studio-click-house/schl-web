@@ -86,9 +86,9 @@ const Table: React.FC<{ clientsData: OrderDocument[] }> = props => {
                             'Content-Type': 'application/json',
                         },
                         body: JSON.stringify({
-                            staleClient: true,
-                            regularClient: false,
-                            test: false,
+                            // staleClient: true,
+                            // regularClient: false,
+                            // test: false,
                         }),
                     },
                 );

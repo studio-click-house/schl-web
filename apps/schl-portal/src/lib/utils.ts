@@ -72,9 +72,13 @@ export const fetchApi = async (
 ): Promise<{ data: any; ok: boolean; status: number; headers: Headers }> => {
     try {
         const url = buildUrl(target);
-        const authSession = await import('next-auth/react').then(m =>
-            m.getSession(),
-        );
+        const isClient = typeof window !== 'undefined';
+        let authSession = null;
+        if (isClient) {
+            authSession = await import('next-auth/react').then(m =>
+                m.getSession(),
+            );
+        }
 
         const mergedHeaders = new Headers(options.headers);
 

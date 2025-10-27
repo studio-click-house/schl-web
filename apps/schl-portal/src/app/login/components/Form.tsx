@@ -22,10 +22,9 @@ const Form: React.FC = () => {
 
         try {
             const result = await signIn('credentials', {
-                redirect: true,
+                redirect: false,
                 username: creds.username,
                 password: creds.password,
-                callbackUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/`,
             });
 
             if (result?.error) {
@@ -35,13 +34,21 @@ const Form: React.FC = () => {
                         id: 'invalid-creds',
                     });
                 } else {
-                    toast.error('An error occurred', { id: 'error' });
+                    toast.error(`Authentication failed: ${result.error}`, {
+                        id: 'error',
+                    });
                 }
             } else if (result?.ok) {
                 router.push('/');
                 setLoading(false);
+            } else {
+                setLoading(false);
+                toast.error('An unexpected error occurred', {
+                    id: 'unexpected-error',
+                });
             }
         } catch (error) {
+            setLoading(false);
             toast.error('An unexpected error occurred', {
                 id: 'unexpected-error',
             });

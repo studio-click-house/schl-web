@@ -20,8 +20,10 @@ async function getUser(
     try {
         const res = await fetchApi(
             {
-                path: '/user/login',
-                query: { clientType: 'portal' },
+                path: '/v1/user/login',
+                query: {
+                    clientType: 'portal',
+                },
             },
             {
                 method: 'POST',
@@ -32,7 +34,9 @@ async function getUser(
             },
         );
 
-        console.log('login response status', res.status, res);
+        console.log('login request', { username, password });
+
+        console.log('login response status', res);
 
         if (!res.ok) return null;
 
