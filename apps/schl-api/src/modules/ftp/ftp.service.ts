@@ -5,13 +5,35 @@ import {
     InternalServerErrorException,
     NotFoundException,
 } from '@nestjs/common';
-import { getFtpConnection, releaseFtpConnection } from 'src/common/lib/ftp';
+import { ConfigService } from '@nestjs/config';
+import {
+    getFtpConnection,
+    PromiseFtp,
+    releaseFtpConnection,
+} from '@repo/schemas/lib/ftp';
+
+interface FtpConfig extends PromiseFtp.Options {
+    host: string;
+    user: string;
+    password: string;
+    port: number;
+}
+
 @Injectable()
 export class FtpService {
-    constructor() {}
+    private readonly ftpConfig: FtpConfig;
+
+    constructor(private readonly configService: ConfigService) {
+        this.ftpConfig = {
+            host: this.configService.get<string>('FTP_HOST') || 'localhost',
+            user: this.configService.get<string>('FTP_USER') || 'anonymous',
+            password: this.configService.get<string>('FTP_PASSWORD') || 'guest',
+            port: this.configService.get<number>('FTP_PORT') || 21,
+        };
+    }
 
     async deleteFile(fileName: string, folderName: string) {
-        const ftpConnection = await getFtpConnection();
+        const ftpConnection = await getFtpConnection(this.ftpConfig);
         try {
             if (!ftpConnection) {
                 throw new InternalServerErrorException(
@@ -31,7 +53,7 @@ export class FtpService {
     }
 
     async downloadFile(fileName: string, folderName: string) {
-        const ftpConnection = await getFtpConnection();
+        const ftpConnection = await getFtpConnection(this.ftpConfig);
         try {
             if (!ftpConnection) {
                 throw new InternalServerErrorException(
@@ -84,7 +106,7 @@ export class FtpService {
         // Examples of allowed: data.csv, image_1.png, report-final.pdf
         const sanitizedFile = rawFile.replace(/[^a-zA-Z0-9._-]/g, '_');
 
-        const ftpConnection = await getFtpConnection();
+        const ftpConnection = await getFtpConnection(this.ftpConfig);
         try {
             if (!ftpConnection) {
                 throw new InternalServerErrorException(

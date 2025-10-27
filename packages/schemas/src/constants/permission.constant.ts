@@ -68,7 +68,35 @@ export const USER_PERMISSIONS = [
                 value: 'crm:delete_report_approval',
                 label: 'Delete report (approval)',
             },
+            {
+                value: 'crm:edit_report',
+                label: 'Edit report',
+            },
+            {
+                value: 'crm:view_reports',
+                label: 'View reports',
+            },
             { value: 'crm:send_client_request', label: 'Send client request' },
+            {
+                value: 'crm:create_leads',
+                label: 'Create leads',
+            },
+            {
+                value: 'crm:view_leads',
+                label: 'View leads',
+            },
+            {
+                value: 'crm:transfer_leads',
+                label: 'Transfer leads',
+            },
+            {
+                value: 'crm:delete_leads_approval',
+                label: 'Delete leads (approval)',
+            },
+            {
+                value: 'crm:verify_email',
+                label: 'Verify email',
+            },
             // portals
             { value: 'crm:view_reports', label: 'View reports' },
             { value: 'crm:view_crm_stats', label: 'View crm stats' },

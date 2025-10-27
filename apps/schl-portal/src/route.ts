@@ -1,10 +1,12 @@
 // Central definition of application routes and the permissions required to view / access them.
 // Sourced from the logic found in `components/Header/Nav.tsx` (kept in sync manually).
 
+import { Permissions } from '@repo/schemas/types/permission.type';
+
 export interface AuthorizedRoute {
     href: string; // URL path (no trailing slash unless root)
     label: string; // Human readable label
-    permissions: string[]; // Permissions ANY of which allow access (logical OR)
+    permissions: Permissions[]; // Permissions ANY of which allow access (logical OR)
     children?: AuthorizedRoute[]; // Nested routes (dropdown items / sub-menus)
     notes?: string; // Optional notes / rationale
 }

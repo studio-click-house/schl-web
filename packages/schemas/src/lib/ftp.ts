@@ -26,7 +26,13 @@ let isConnecting = false;
  *
  * @returns {Promise<FtpConnection>} A Promise that resolves with an FTP connection.
  */
-async function getFtpConnection(): Promise<FtpConnection> {
+async function getFtpConnection({
+    host,
+    user,
+    password,
+    port = 21,
+    ...options
+}: PromiseFtp.Options): Promise<FtpConnection> {
     if (connectionPool.length > 0) {
         return connectionPool.pop() as FtpConnection;
     }
@@ -42,9 +48,11 @@ async function getFtpConnection(): Promise<FtpConnection> {
     try {
         isConnecting = true;
         await ftp.connect({
-            host: process.env.FTP_HOST as string,
-            user: process.env.FTP_USERNAME as string,
-            password: process.env.FTP_PASSWORD as string,
+            host,
+            user,
+            password,
+            port,
+            ...options,
         });
         isConnecting = false;
 
@@ -99,4 +107,4 @@ async function releaseFtpConnection(ftp: FtpConnection): Promise<void> {
     }
 }
 
-export { getFtpConnection, releaseFtpConnection };
+export { getFtpConnection, PromiseFtp, releaseFtpConnection };

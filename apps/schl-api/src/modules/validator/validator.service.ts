@@ -4,11 +4,19 @@ import {
     Injectable,
     InternalServerErrorException,
 } from '@nestjs/common';
-import { zeroBounce } from 'src/common/lib/zero-bounce';
+import { ConfigService } from '@nestjs/config';
+import {
+    init as initZeroBounce,
+    zeroBounce,
+} from '@repo/schemas/lib/zero-bounce/index';
 
 @Injectable()
 export class ValidatorService {
-    constructor() {}
+    constructor(private readonly configService: ConfigService) {
+        initZeroBounce(
+            this.configService.get<string>('ZERO_BOUNCE_API_KEY') || '',
+        );
+    }
 
     async validateSingleEmail(email: string) {
         try {
