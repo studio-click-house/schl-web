@@ -1,7 +1,8 @@
-import { Type } from 'class-transformer';
+import { toBoolean } from '@repo/schemas/utils/transformers';
+import { Transform, Type } from 'class-transformer';
 import {
     IsBoolean,
-    IsNumber,
+    IsInt,
     IsOptional,
     IsString,
     Max,
@@ -9,24 +10,30 @@ import {
 } from 'class-validator';
 
 export class SearchNoticesQueryDto {
+    @IsOptional()
     @Type(() => Number)
-    @IsNumber()
+    @IsInt()
     @Min(1)
     page: number = 1;
 
+    @IsOptional()
     @Type(() => Number)
-    @IsNumber()
+    @IsInt()
     @Min(1)
-    @Max(200)
+    @Max(100)
     itemsPerPage: number = 30;
 
-    @Type(() => Boolean)
+    @IsOptional()
+    @Type(() => String)
+    @Transform(({ value }) => toBoolean(value, false))
     @IsBoolean()
     filtered: boolean = false;
 
-    @Type(() => Boolean)
+    @IsOptional()
+    @Type(() => String)
+    @Transform(({ value }) => toBoolean(value, false))
     @IsBoolean()
-    paginated: boolean = true;
+    paginated: boolean = false;
 }
 
 export class SearchNoticesBodyDto {

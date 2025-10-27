@@ -4,11 +4,13 @@ import {
     statusOptions,
     taskOptions,
     typeOptions,
-} from '@/app/(pages)/browse/components/Edit';
+} from '@repo/schemas/constants/order.constant';
+
 import { OrderDataType, validationSchema } from '@/app/(pages)/browse/schema';
 import { fetchApi } from '@/lib/utils';
 import { setMenuPortalTarget } from '@/utility/selectHelpers';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { ClientDocument } from '@repo/schemas/client.schema';
 import { OrderDocument } from '@repo/schemas/order.schema';
 import moment from 'moment-timezone';
 import { useSession } from 'next-auth/react';
@@ -19,7 +21,7 @@ import Select from 'react-select';
 import { toast } from 'sonner';
 
 interface PropsType {
-    clientsData: OrderDocument[];
+    clientsData: ClientDocument[];
 }
 
 const Form: React.FC<PropsType> = props => {

@@ -4,22 +4,6 @@ import { RoleDocument } from '@repo/schemas/role.schema';
 import React from 'react';
 import Table from './components/Table';
 
-type EmployeesResponseState = {
-    pagination: {
-        count: number;
-        pageCount: number;
-    };
-    items: EmployeeDocument[];
-};
-
-type RolesResponseState = {
-    pagination: {
-        count: number;
-        pageCount: number;
-    };
-    items: RoleDocument[];
-};
-
 export const getAllEmployees = async () => {
     try {
         const response = await fetchApi(
@@ -38,9 +22,8 @@ export const getAllEmployees = async () => {
             },
         );
         if (response.ok) {
-            const data: EmployeesResponseState =
-                response.data as EmployeesResponseState;
-            return data.items;
+            const data = response.data as EmployeeDocument[];
+            return data;
         } else {
             console.error('Unable to fetch employees');
         }
@@ -68,9 +51,8 @@ export const getAllRoles = async () => {
             },
         );
         if (response.ok) {
-            const data: RolesResponseState =
-                response.data as RolesResponseState;
-            return data.items;
+            const data = response.data as RoleDocument[];
+            return data;
         } else {
             console.error('Unable to fetch roles');
         }

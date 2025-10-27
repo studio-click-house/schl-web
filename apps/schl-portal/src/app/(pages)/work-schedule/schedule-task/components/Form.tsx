@@ -1,5 +1,4 @@
 'use client';
-import { taskOptions } from '@/app/(pages)/browse/components/Edit';
 import {
     ScheduleDataType,
     validationSchema,
@@ -7,6 +6,8 @@ import {
 import { fetchApi } from '@/lib/utils';
 import { setMenuPortalTarget } from '@/utility/selectHelpers';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { ClientDocument } from '@repo/schemas/client.schema';
+import { taskOptions } from '@repo/schemas/constants/order.constant';
 import { OrderDocument } from '@repo/schemas/order.schema';
 import { useSession } from 'next-auth/react';
 import { useState } from 'react';
@@ -16,15 +17,15 @@ import Select from 'react-select';
 import { toast } from 'sonner';
 
 interface PropsType {
-    clientsData: OrderDocument[];
+    clientsData: ClientDocument[];
 }
 
 const Form: React.FC<PropsType> = props => {
     const [loading, setLoading] = useState(false);
     const { data: session } = useSession();
 
-    const clientNames = props.clientsData.map(client => client.client_name);
-    const clientCodes = props.clientsData.map(client => client.client_code);
+    const clientNames = props.clientsData?.map(client => client.client_name);
+    const clientCodes = props.clientsData?.map(client => client.client_code);
 
     const clientNameOptions = (clientNames || []).map(clientName => ({
         value: clientName,
@@ -282,10 +283,11 @@ const Form: React.FC<PropsType> = props => {
                                 menuPlacement="auto"
                                 menuPosition="fixed" // Prevent clipping by parent containers
                                 value={
-                                    taskOptions.filter(option =>
-                                        field.value
-                                            ?.split('+')
-                                            .includes(option.value),
+                                    taskOptions.filter(
+                                        (option: { value: string }) =>
+                                            field.value
+                                                ?.split('+')
+                                                .includes(option.value),
                                     ) || null
                                 }
                                 onChange={selectedOptions =>

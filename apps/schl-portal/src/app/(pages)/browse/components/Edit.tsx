@@ -7,6 +7,13 @@ import {
     setMenuPortalTarget,
 } from '@/utility/selectHelpers';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { ClientDocument } from '@repo/schemas/client.schema';
+import {
+    priorityOptions,
+    statusOptions,
+    taskOptions,
+    typeOptions,
+} from '@repo/schemas/constants/order.constant';
 import { OrderDocument } from '@repo/schemas/order.schema';
 import { hasPerm } from '@repo/schemas/utils/permission-check';
 import 'flowbite';
@@ -22,7 +29,7 @@ import { OrderDataType, validationSchema } from '../schema';
 const baseZIndex = 50; // 52
 
 interface PropsType {
-    clientsData: OrderDocument[];
+    clientsData: ClientDocument[];
     loading: boolean;
     orderData: OrderDataType;
     submitHandler: (
@@ -30,54 +37,6 @@ interface PropsType {
         previousOrderData: OrderDataType,
     ) => Promise<void>;
 }
-
-export const statusOptions = [
-    { value: 'Running', label: 'Running' },
-    { value: 'Uploaded', label: 'Uploaded' },
-    { value: 'Paused', label: 'Paused' },
-    { value: 'Client hold', label: 'Client hold' },
-    { value: 'Finished', label: 'Finished' },
-];
-export const taskOptions = [
-    { value: 'Ghost Mannequine', label: 'Ghost Mannequine' },
-    { value: 'Banner', label: 'Banner' },
-    { value: 'Background erase', label: 'Background erase' },
-    { value: 'Color correction', label: 'Color correction' },
-    { value: 'Illustrator work', label: 'Illustrator work' },
-    { value: 'Retouch', label: 'Retouch' },
-    { value: 'Shadow', label: 'Shadow' },
-    { value: 'Neck shot', label: 'Neck shot' },
-    { value: 'SPM', label: 'SPM' },
-    { value: 'CP', label: 'CP' },
-    { value: 'Neck', label: 'Neck' },
-    { value: 'Multipath', label: 'Multipath' },
-    { value: 'Pattern change', label: 'Pattern change' },
-    { value: 'Color change', label: 'Color change' },
-    { value: '3D Neck shot', label: '3D Neck shot' },
-    { value: 'Liquify retouch', label: 'Liquify retouch' },
-    { value: 'Trade retouch', label: 'Trade retouch' },
-    { value: 'Language change', label: 'Language change' },
-    { value: 'Simple retouch', label: 'Simple retouch' },
-    { value: 'High-end retouch', label: 'High-end retouch' },
-    { value: 'Liquify', label: 'Liquify' },
-    { value: 'Shadow original', label: 'Shadow original' },
-    { value: 'Symmetry liquify', label: 'Symmetry liquify' },
-    { value: 'Video Retouch', label: 'Video Retouch' },
-    { value: 'Resize', label: 'Resize' },
-    { value: 'Masking', label: 'Masking' },
-    { value: 'Dusting', label: 'Dusting' },
-    { value: 'Cropping', label: 'Cropping' },
-];
-
-export const typeOptions = [
-    { value: 'General', label: 'General' },
-    { value: 'Test', label: 'Test' },
-];
-export const priorityOptions = [
-    { value: 'High', label: 'High priority' },
-    { value: 'Medium', label: 'Medium priority' },
-    { value: 'Low', label: 'Low priority' },
-];
 
 const EditButton: React.FC<PropsType> = props => {
     const [isOpen, setIsOpen] = useState<boolean>(false);
@@ -760,3 +719,5 @@ const EditButton: React.FC<PropsType> = props => {
 };
 
 export default EditButton;
+
+export { priorityOptions, statusOptions, taskOptions, typeOptions };

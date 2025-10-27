@@ -1,15 +1,8 @@
 import { fetchApi } from '@/lib/utils';
+import { ClientDocument } from '@repo/schemas/client.schema';
 import { OrderDocument } from '@repo/schemas/order.schema';
 import React from 'react';
 import Table from './components/Table';
-
-type ClientsResponseState = {
-    pagination: {
-        count: number;
-        pageCount: number;
-    };
-    items: OrderDocument[];
-};
 
 const getAllClients = async () => {
     try {
@@ -29,9 +22,8 @@ const getAllClients = async () => {
             },
         );
         if (response.ok) {
-            const data: ClientsResponseState =
-                response.data as ClientsResponseState;
-            return data.items;
+            const data = response.data as ClientDocument[];
+            return data;
         } else {
             console.error('Unable to fetch clients');
         }

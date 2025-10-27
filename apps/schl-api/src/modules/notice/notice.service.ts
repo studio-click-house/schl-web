@@ -8,7 +8,7 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Notice } from '@repo/schemas/notice.schema';
 import { UserSession } from '@repo/schemas/types/user-session.type';
 import { applyDateRange } from '@repo/schemas/utils/date-helpers';
 import {
@@ -16,7 +16,7 @@ import {
     createRegexQuery,
 } from '@repo/schemas/utils/filter-helpers';
 import { hasPerm } from '@repo/schemas/utils/permission-check';
-import { Notice } from '@repo/schemas/notice.schema';
+import { Model } from 'mongoose';
 import { CreateNoticeBodyDto } from './dto/create-notice.dto';
 import {
     SearchNoticesBodyDto,
@@ -149,6 +149,7 @@ export class NoticeService {
             !fromDate &&
             !toDate
         ) {
+            console.log('No filters applied', filtered, searchQuery);
             throw new BadRequestException('No filter applied');
         }
 

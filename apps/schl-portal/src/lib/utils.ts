@@ -1,3 +1,4 @@
+import { auth } from '@/auth';
 import { ClassValue, clsx } from 'clsx';
 import jwt from 'jsonwebtoken';
 import moment from 'moment-timezone';
@@ -78,6 +79,8 @@ export const fetchApi = async (
             authSession = await import('next-auth/react').then(m =>
                 m.getSession(),
             );
+        } else {
+            authSession = await auth();
         }
 
         const mergedHeaders = new Headers(options.headers);

@@ -10,6 +10,7 @@ import Pagination from '@/components/Pagination';
 import { usePaginationManager } from '@/hooks/usePaginationManager';
 import { formatDate, formatTime } from '@/utility/date';
 
+import { ClientDocument } from '@repo/schemas/client.schema';
 import moment from 'moment-timezone';
 import { useSearchParams } from 'next/navigation';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -45,7 +46,7 @@ function getMonthRange(monthYear: string): { from: string; to: string } {
     return { from: startDate, to: endDate };
 }
 
-const Table: React.FC<{ clientsData: OrderDocument[] }> = props => {
+const Table: React.FC<{ clientsData: ClientDocument[] }> = props => {
     const [orders, setOrders] = useState<OrdersState>({
         pagination: {
             count: 0,

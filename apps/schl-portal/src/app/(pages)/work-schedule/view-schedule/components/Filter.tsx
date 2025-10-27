@@ -26,7 +26,7 @@ interface PropsType {
     loading: boolean;
 }
 
-import { taskOptions } from '@/app/(pages)/browse/components/Edit';
+import { taskOptions } from '@repo/schemas/constants/order.constant';
 import Select from 'react-select';
 
 const FilterButton: React.FC<PropsType> = props => {

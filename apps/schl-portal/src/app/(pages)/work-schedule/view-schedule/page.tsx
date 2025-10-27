@@ -3,14 +3,6 @@ import { OrderDocument } from '@repo/schemas/order.schema';
 import React from 'react';
 import Table from './components/Table';
 
-type ClientsResponseState = {
-    pagination: {
-        count: number;
-        pageCount: number;
-    };
-    items: OrderDocument[];
-};
-
 let clients: OrderDocument[];
 
 const getAllClients = async () => {
@@ -30,10 +22,12 @@ const getAllClients = async () => {
                 cache: 'no-store',
             },
         );
+
+        // console.log('response', response);
+
         if (response.ok) {
-            const data: ClientsResponseState =
-                response.data as ClientsResponseState;
-            clients = data.items;
+            const data = response.data as OrderDocument[];
+            clients = data;
         } else {
             console.error('Unable to fetch clients');
         }
@@ -45,6 +39,7 @@ const getAllClients = async () => {
 
 const BrowsePage = async () => {
     await getAllClients();
+    console.log('clients', clients);
     return (
         <>
             <div className="px-4 mt-8 mb-4">

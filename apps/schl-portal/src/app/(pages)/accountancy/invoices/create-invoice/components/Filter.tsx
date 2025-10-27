@@ -1,15 +1,16 @@
 'use client';
 
-import {
-    statusOptions,
-    taskOptions,
-} from '@/app/(pages)/browse/components/Edit';
 import { cn } from '@/lib/utils';
 import {
     setCalculatedZIndex,
     setClassNameAndIsDisabled,
     setMenuPortalTarget,
 } from '@/utility/selectHelpers';
+import { ClientDocument } from '@repo/schemas/client.schema';
+import {
+    statusOptions,
+    taskOptions,
+} from '@repo/schemas/constants/order.constant';
 import { OrderDocument } from '@repo/schemas/order.schema';
 import { Filter, X } from 'lucide-react';
 import React, { useRef, useState } from 'react';
@@ -29,7 +30,7 @@ interface PropsType {
     };
     setFilters: React.Dispatch<React.SetStateAction<any>>;
     loading: boolean;
-    clientsData?: OrderDocument[];
+    clientsData?: ClientDocument[];
 }
 
 import Select from 'react-select';

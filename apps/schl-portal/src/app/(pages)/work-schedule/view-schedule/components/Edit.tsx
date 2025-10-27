@@ -1,6 +1,5 @@
 'use client';
 
-import { taskOptions } from '@/app/(pages)/browse/components/Edit';
 import { cn } from '@/lib/utils';
 import {
     setCalculatedZIndex,
@@ -8,6 +7,7 @@ import {
     setMenuPortalTarget,
 } from '@/utility/selectHelpers';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { taskOptions } from '@repo/schemas/constants/order.constant';
 import { OrderDocument } from '@repo/schemas/order.schema';
 import { hasPerm } from '@repo/schemas/utils/permission-check';
 import 'flowbite';
@@ -42,8 +42,8 @@ const EditButton: React.FC<PropsType> = props => {
         [session?.user.permissions],
     );
 
-    const clientNames = props.clientsData.map(client => client.client_name);
-    const clientCodes = props.clientsData.map(client => client.client_code);
+    const clientNames = props.clientsData?.map(client => client.client_name);
+    const clientCodes = props.clientsData?.map(client => client.client_code);
 
     const clientNameOptions = (clientNames || []).map(clientName => ({
         value: clientName,
@@ -359,12 +359,21 @@ const EditButton: React.FC<PropsType> = props => {
                                                         .includes(option.value),
                                                 ) || null
                                             }
-                                            onChange={selectedOptions =>
+                                            onChange={(
+                                                selectedOptions:
+                                                    | readonly {
+                                                          value: string;
+                                                          label: string;
+                                                      }[]
+                                                    | null,
+                                            ) =>
                                                 field.onChange(
                                                     selectedOptions
                                                         ?.map(
-                                                            option =>
-                                                                option.value,
+                                                            (option: {
+                                                                value: string;
+                                                                label: string;
+                                                            }) => option.value,
                                                         )
                                                         .join('+') || '',
                                                 )

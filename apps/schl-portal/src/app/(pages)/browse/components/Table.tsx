@@ -22,6 +22,7 @@ import EditButton from './Edit';
 import FilterButton from './Filter';
 
 import { usePaginationManager } from '@/hooks/usePaginationManager';
+import { ClientDocument } from '@repo/schemas/client.schema';
 
 type OrdersState = {
     pagination: {
@@ -31,7 +32,7 @@ type OrdersState = {
     items: OrderDocument[];
 };
 
-const Table: React.FC<{ clientsData: OrderDocument[] }> = props => {
+const Table: React.FC<{ clientsData: ClientDocument[] }> = props => {
     const [orders, setOrders] = useState<OrdersState>({
         pagination: {
             count: 0,
