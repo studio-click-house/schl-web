@@ -1,16 +1,16 @@
-import { ReportDataType } from '@/models/Reports';
+import { ReportDocument } from '@repo/schemas/report.schema';
 import { useSession } from 'next-auth/react';
 import React, { useEffect, useRef, useState } from 'react';
 
 interface PropsType {
-  leadData: ReportDataType;
+  leadData: ReportDocument;
   isLoading: boolean;
   marketerNames: string[];
   submitHandler: (
-    previousLeadData: ReportDataType,
-    editedLeadData: Partial<ReportDataType>,
+    previousLeadData: ReportDocument,
+    editedLeadData: Partial<ReportDocument>,
     setEditedData: React.Dispatch<
-      React.SetStateAction<Partial<ReportDataType>>
+      React.SetStateAction<Partial<ReportDocument>>
     >,
   ) => Promise<void>;
 }
@@ -21,7 +21,7 @@ const EditButton: React.FC<PropsType> = (props) => {
   const [editedBy, setEditedBy] = useState<string>('');
   const popupRef = useRef<HTMLElement>(null);
 
-  const [editedData, setEditedData] = useState<Partial<ReportDataType>>({
+  const [editedData, setEditedData] = useState<Partial<ReportDocument>>({
     ...props.leadData,
     updated_by: session?.user.real_name || '',
   });

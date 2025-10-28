@@ -123,13 +123,13 @@ declare module '@zerobounce/zero-bounce-sdk' {
         address: string;
         status: string;
         sub_status: string;
-        free_email: boolean;
+        free_email: string;
         did_you_mean: string | null;
         account?: string | null;
         domain: string;
-        domain_age_days?: number | null;
+        domain_age_days?: string | null;
         smtp_provider?: string | null;
-        mx_found: boolean;
+        mx_found: string;
         mx_record?: string | null;
         firstname?: string | null;
         lastname?: string | null;

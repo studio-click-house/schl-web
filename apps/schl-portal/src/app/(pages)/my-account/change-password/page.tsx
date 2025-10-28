@@ -1,7 +1,7 @@
 import React, { Suspense } from 'react';
 import InputForm from './components/Form';
 
-const CreateClientPage = async () => {
+const ChangePasswordPage = async () => {
     return (
         <>
             <div className="px-4 mt-8 mb-4 flex flex-col justify-center md:w-[70vw] mx-auto">
@@ -16,4 +16,4 @@ const CreateClientPage = async () => {
     );
 };
 
-export default CreateClientPage;
+export default ChangePasswordPage;

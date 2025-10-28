@@ -12,7 +12,7 @@ import {
 } from '@repo/schemas/lib/zero-bounce/index';
 import { BulkEmailParamDto } from './dto/bulk-email.dto';
 import { SingleEmailParamDto } from './dto/single-email.dto';
-import { ValidatorService } from './validator.service';
+import { EmailValidationResult, ValidatorService } from './validator.service';
 
 @Controller('validator')
 export class ValidatorController {
@@ -42,12 +42,16 @@ export class ValidatorController {
     }
 
     @Get('single-email/:email')
-    validateSingleEmail(@Param() { email }: SingleEmailParamDto) {
+    validateSingleEmail(
+        @Param() { email }: SingleEmailParamDto,
+    ): Promise<EmailValidationResult> {
         return this.validatorService.validateSingleEmail(email);
     }
 
     @Get('bulk-email/:emails')
-    validateBulkEmail(@Param() { emails }: BulkEmailParamDto) {
+    validateBulkEmail(
+        @Param() { emails }: BulkEmailParamDto,
+    ): Promise<EmailValidationResult[]> {
         return this.validatorService.validateBulkEmail(emails);
     }
 }

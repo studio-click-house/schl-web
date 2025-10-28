@@ -22,7 +22,7 @@
     "scripts": {
         "build": "tsc",
         "check-types": "tsc --noEmit",
-        "lint": "eslint src --max-warnings 0"
+        "lint": "eslint src"
     },
     "dependencies": {
         "@nestjs/mongoose": "^11.0.3",

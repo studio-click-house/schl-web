@@ -15,7 +15,7 @@ export class Report {
     calling_date: string;
 
     @Prop({ default: '' })
-    followup_date?: string;
+    followup_date: string;
 
     @Prop({ required: [true, 'Country name is required'] })
     country: string;
@@ -45,55 +45,55 @@ export class Report {
     contact_person: string;
 
     @Prop({ default: '' })
-    contact_number?: string;
+    contact_number: string;
 
     @Prop({ default: '' })
-    email_address?: string;
+    email_address: string;
 
     @Prop({ default: '' })
-    calling_status?: string;
+    calling_status: string;
 
     @Prop({ default: '' })
-    linkedin?: string;
+    linkedin: string;
 
     @Prop({ type: [String], default: [] })
-    calling_date_history?: string[];
+    calling_date_history: string[];
 
     @Prop({ type: String, default: null })
-    updated_by?: string | null;
+    updated_by: string | null;
 
     @Prop({ default: false })
-    followup_done?: boolean;
+    followup_done: boolean;
 
     @Prop({ default: false })
-    is_prospected?: boolean;
+    is_prospected: boolean;
 
     @Prop({ default: '' })
-    prospect_status?: string;
+    prospect_status: string;
 
     @Prop({ default: false })
-    is_lead?: boolean;
+    is_lead: boolean;
 
     @Prop({ enum: ['none', 'pending', 'approved'], default: 'none' })
-    client_status?: 'none' | 'pending' | 'approved';
+    client_status: 'none' | 'pending' | 'approved';
 
     @Prop({ default: false })
-    lead_withdrawn?: boolean;
+    lead_withdrawn: boolean;
 
     @Prop({ type: [String], default: [] })
-    test_given_date_history?: string[];
+    test_given_date_history: string[];
 
     @Prop({ default: '' })
-    onboard_date?: string;
+    onboard_date: string;
 
     @Prop({ default: null, type: String })
-    lead_origin?: string | null; // null for non-lead reports, string ("generated" | <marketer name>) for lead reports
+    lead_origin: string | null; // null for non-lead reports, string ("generated" | <marketer name>) for lead reports
 
     @Prop({ type: Date })
-    readonly createdAt?: Date;
+    readonly createdAt: Date;
 
     @Prop({ type: Date })
-    readonly updatedAt?: Date;
+    readonly updatedAt: Date;
 }
 
 export const ReportSchema = SchemaFactory.createForClass(Report);
