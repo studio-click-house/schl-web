@@ -8,20 +8,20 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
+import { Approval } from '@repo/common/models/approval.schema';
+import { Client } from '@repo/common/models/client.schema';
+import { Report } from '@repo/common/models/report.schema';
+import { User } from '@repo/common/models/user.schema';
+import { PopulatedByEmployeeUser } from '@repo/common/types/populated-user.type';
 import { UserSession } from '@repo/common/types/user-session.type';
-import { Approval } from '@repo/schemas/approval.schema';
-import { Client } from '@repo/schemas/client.schema';
-import { Report } from '@repo/schemas/report.schema';
-import { PopulatedByEmployeeUser } from '@repo/schemas/types/populated-user.type';
-import { User } from '@repo/schemas/user.schema';
-import { getTodayDate } from '@repo/schemas/utils/date-helpers';
+import { getTodayDate } from '@repo/common/utils/date-helpers';
 import {
     addBooleanField,
     addIfDefined,
     buildOrRegex,
     createRegexQuery,
-} from '@repo/schemas/utils/filter-helpers';
-import { hasPerm } from '@repo/schemas/utils/permission-check';
+} from '@repo/common/utils/filter-helpers';
+import { hasPerm } from '@repo/common/utils/permission-check';
 import moment from 'moment-timezone';
 import { FilterQuery, Model } from 'mongoose';
 import { ConvertToClientBodyDto } from './dto/convert-to-client.dto';

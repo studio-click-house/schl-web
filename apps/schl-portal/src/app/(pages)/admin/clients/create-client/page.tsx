@@ -1,5 +1,5 @@
-import { fetchApi } from '@/lib/utils';
-import { EmployeeDocument } from '@repo/schemas/employee.schema';
+import { EmployeeDocument } from '@repo/common/models/employee.schema';
+import { fetchApi } from '@repo/common/utils/general-utils';
 import React, { Suspense } from 'react';
 import InputForm from './components/Form';
 

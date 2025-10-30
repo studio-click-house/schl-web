@@ -1,7 +1,7 @@
 'use client';
 
 import LineChart from '@/components/Charts/Line.chart';
-import { transparentize } from '@/utility/chart';
+import { transparentize } from '@repo/common/utils/chart-helpers';
 import React, { useEffect, useState } from 'react';
 
 interface ReportsCountGraphProps {

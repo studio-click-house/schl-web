@@ -1,6 +1,6 @@
 'use client';
 
-import { OrderDocument } from '@repo/schemas/models/order.schema';
+import { OrderDocument } from '@repo/common/models/order.schema';
 import { Trash2, X } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import React, { useState } from 'react';

@@ -8,14 +8,14 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
+import { Notice } from '@repo/common/models/notice.schema';
 import { UserSession } from '@repo/common/types/user-session.type';
-import { Notice } from '@repo/schemas/notice.schema';
-import { applyDateRange } from '@repo/schemas/utils/date-helpers';
+import { applyDateRange } from '@repo/common/utils/date-helpers';
 import {
     addIfDefined,
     createRegexQuery,
-} from '@repo/schemas/utils/filter-helpers';
-import { hasPerm } from '@repo/schemas/utils/permission-check';
+} from '@repo/common/utils/filter-helpers';
+import { hasPerm } from '@repo/common/utils/permission-check';
 import { Model } from 'mongoose';
 import { CreateNoticeBodyDto } from './dto/create-notice.dto';
 import {

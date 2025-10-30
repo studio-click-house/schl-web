@@ -1,8 +1,8 @@
 'use client';
 
 import ExtendableTd from '@/components/ExtendableTd';
-import { cn, fetchApi } from '@/lib/utils';
-import { hasPerm } from '@repo/schemas/utils/permission-check';
+import { cn, fetchApi } from '@repo/common/utils/general-utils';
+import { hasPerm } from '@repo/common/utils/permission-check';
 
 import {
     validationSchema,
@@ -11,8 +11,8 @@ import {
 import Badge from '@/components/Badge';
 import HiddenText from '@/components/HiddenText';
 import NoData, { Type } from '@/components/NoData';
-import { formatDate } from '@/utility/date';
-import { EmployeeDocument } from '@repo/schemas/employee.schema';
+import { EmployeeDocument } from '@repo/common/models/employee.schema';
+import { formatDate } from '@repo/common/utils/date-helpers';
 import { CirclePlus } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';

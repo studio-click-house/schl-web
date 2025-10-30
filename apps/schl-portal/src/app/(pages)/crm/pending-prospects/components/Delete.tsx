@@ -1,6 +1,6 @@
 'use client';
 
-import { ReportDocument } from '@repo/schemas/models/report.schema';
+import { ReportDocument } from '@repo/common/models/report.schema';
 import { Trash2, X } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import React, { useState } from 'react';

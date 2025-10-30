@@ -1,8 +1,8 @@
 'use client';
 
-import { constructFileName, fetchApi } from '@/lib/utils';
-import { formatDate } from '@/utility/date';
-import { hasAnyPerm } from '@repo/schemas/utils/permission-check';
+import { formatDate } from '@repo/common/utils/date-helpers';
+import { constructFileName, fetchApi } from '@repo/common/utils/general-utils';
+import { hasAnyPerm } from '@repo/common/utils/permission-check';
 import DOMPurify from 'dompurify';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'nextjs-toploader/app';

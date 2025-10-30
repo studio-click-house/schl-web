@@ -3,7 +3,7 @@
 import NoData, { Type } from '@/components/NoData';
 import Pagination from '@/components/Pagination';
 import { usePaginationManager } from '@/hooks/usePaginationManager';
-import { fetchApi } from '@/lib/utils';
+import { fetchApi } from '@repo/common/utils/general-utils';
 import { useEffect } from 'react';
 
 import Link from 'next/link';

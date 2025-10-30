@@ -1,5 +1,5 @@
+import { Change } from '@repo/common/utils/changes-generate';
 import { IsArray, IsIn, IsObject, IsOptional, IsString } from 'class-validator';
-import { Change } from '@repo/schemas/utils/changes-generate';
 
 export class CreateApprovalBodyDto {
     @IsIn(['User', 'Report', 'Employee', 'Order', 'Client', 'Schedule'])

@@ -7,22 +7,22 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
+import { Approval } from '@repo/common/models/approval.schema';
+import { Client } from '@repo/common/models/client.schema';
+import { Employee } from '@repo/common/models/employee.schema';
+import { Order } from '@repo/common/models/order.schema';
+import { Report } from '@repo/common/models/report.schema';
+import { Role } from '@repo/common/models/role.schema';
+import { Schedule } from '@repo/common/models/schedule.schema';
+import { User } from '@repo/common/models/user.schema';
+import { PopulatedByRoleUser } from '@repo/common/types/populated-user.type';
 import { UserSession } from '@repo/common/types/user-session.type';
-import { Approval } from '@repo/schemas/approval.schema';
-import { Client } from '@repo/schemas/client.schema';
-import { Employee } from '@repo/schemas/employee.schema';
-import { Order } from '@repo/schemas/order.schema';
-import { Report } from '@repo/schemas/report.schema';
-import { Role } from '@repo/schemas/role.schema';
-import { Schedule } from '@repo/schemas/schedule.schema';
-import { PopulatedByRoleUser } from '@repo/schemas/types/populated-user.type';
-import { User } from '@repo/schemas/user.schema';
-import { applyDateRange } from '@repo/schemas/utils/date-helpers';
-import { createRegexQuery } from '@repo/schemas/utils/filter-helpers';
+import { applyDateRange } from '@repo/common/utils/date-helpers';
+import { createRegexQuery } from '@repo/common/utils/filter-helpers';
 import {
     hasPerm,
     sanitizePermissions,
-} from '@repo/schemas/utils/permission-check';
+} from '@repo/common/utils/permission-check';
 import mongoose, { FilterQuery, Model, PipelineStage } from 'mongoose';
 import { CreateApprovalBodyDto } from './dto/create-approval.dto';
 import {

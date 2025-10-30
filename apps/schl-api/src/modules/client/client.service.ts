@@ -8,14 +8,14 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
+import { Client } from '@repo/common/models/client.schema';
 import { UserSession } from '@repo/common/types/user-session.type';
-import { Client } from '@repo/schemas/client.schema';
 import {
     addIfDefined,
     buildOrRegex,
     createRegexQuery,
-} from '@repo/schemas/utils/filter-helpers';
-import { hasPerm } from '@repo/schemas/utils/permission-check';
+} from '@repo/common/utils/filter-helpers';
+import { hasPerm } from '@repo/common/utils/permission-check';
 import { FilterQuery, Model } from 'mongoose';
 import { CreateClientBodyDto } from './dto/create-client.dto';
 import { SearchClientsBodyDto } from './dto/search-clients.dto';

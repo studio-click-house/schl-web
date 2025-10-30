@@ -1,4 +1,4 @@
-import { cn } from '@/lib/utils';
+import { cn } from '@repo/common/utils/general-utils';
 import React, { ReactElement } from 'react';
 
 function Badge({

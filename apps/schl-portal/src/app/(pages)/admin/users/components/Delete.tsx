@@ -1,6 +1,6 @@
 'use client';
 
-import { FullyPopulatedUser } from '@repo/schemas/types/populated-user.type';
+import { FullyPopulatedUser } from '@repo/common/types/populated-user.type';
 import { Trash2, X } from 'lucide-react';
 import React, { useState } from 'react';
 

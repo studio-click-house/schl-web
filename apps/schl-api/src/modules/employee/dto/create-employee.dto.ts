@@ -3,7 +3,7 @@ import {
     type EmployeeStatus,
     EMPLOYEE_BLOOD_GROUPS,
     EMPLOYEE_STATUSES,
-} from '@repo/schemas/constants/employee.constant';
+} from '@repo/common/constants/employee.constant';
 import {
     IsEmail,
     IsIn,

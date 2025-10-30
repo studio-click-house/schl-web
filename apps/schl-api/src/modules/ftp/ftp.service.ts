@@ -10,7 +10,7 @@ import {
     getFtpConnection,
     PromiseFtp,
     releaseFtpConnection,
-} from '@repo/schemas/lib/ftp';
+} from '@repo/common/lib/ftp';
 
 interface FtpConfig extends PromiseFtp.Options {
     host: string;

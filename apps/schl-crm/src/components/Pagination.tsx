@@ -1,4 +1,4 @@
-import cn from '@/utility/cn';
+import { cn, getInlinePages } from '@repo/common/utils/general-utils';
 import {
     ChevronsDown,
     ChevronsLeft,
@@ -6,7 +6,6 @@ import {
     ChevronsUp,
 } from 'lucide-react'; // or your icon library
 import React, { useEffect, useRef, useState } from 'react';
-import { getInlinePages } from '../lib/utils';
 
 type PaginationProps = {
     page: number;

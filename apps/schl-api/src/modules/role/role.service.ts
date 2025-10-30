@@ -9,14 +9,14 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
+import { Role } from '@repo/common/models/role.schema';
+import { User } from '@repo/common/models/user.schema';
+import type { Permissions } from '@repo/common/types/permission.type';
 import { UserSession } from '@repo/common/types/user-session.type';
-import { Role } from '@repo/schemas/role.schema';
-import type { Permissions } from '@repo/schemas/types/permission.type';
-import { User } from '@repo/schemas/user.schema';
 import {
     hasPerm,
     sanitizePermissions,
-} from '@repo/schemas/utils/permission-check';
+} from '@repo/common/utils/permission-check';
 import { FilterQuery, Model } from 'mongoose';
 import { CreateRoleBodyDto } from './dto/create-role.dto';
 

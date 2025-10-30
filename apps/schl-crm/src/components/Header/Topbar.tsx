@@ -1,6 +1,6 @@
 import { auth } from '@/auth';
-import type { Permissions } from '@repo/schemas/types/permission.type';
-import { hasPerm } from '@repo/schemas/utils/permission-check';
+import type { Permissions } from '@repo/common/types/permission.type';
+import { hasPerm } from '@repo/common/utils/permission-check';
 import Image from 'next/image';
 import Link from 'next/link';
 import React from 'react';

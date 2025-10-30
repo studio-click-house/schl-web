@@ -8,15 +8,15 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
+import { Schedule } from '@repo/common/models/schedule.schema';
 import { UserSession } from '@repo/common/types/user-session.type';
-import { Schedule } from '@repo/schemas/schedule.schema';
 import {
     addIfDefined,
     addPlusSeparatedContainsAllField,
     buildOrRegex,
     createRegexQuery,
-} from '@repo/schemas/utils/filter-helpers';
-import { hasPerm } from '@repo/schemas/utils/permission-check';
+} from '@repo/common/utils/filter-helpers';
+import { hasPerm } from '@repo/common/utils/permission-check';
 import { FilterQuery, Model } from 'mongoose';
 import { CreateScheduleBodyDto } from './dto/create-schedule.dto';
 import { SearchSchedulesBodyDto } from './dto/search-schedules.dto';

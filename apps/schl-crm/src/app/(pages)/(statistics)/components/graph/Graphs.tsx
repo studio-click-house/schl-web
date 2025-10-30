@@ -1,7 +1,6 @@
 'use client';
 
-import { fetchApi } from '@/lib/utils';
-import fetchData from '@/utility/fetch';
+import { fetchApi } from '@repo/common/utils/general-utils';
 import { useSession } from 'next-auth/react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';

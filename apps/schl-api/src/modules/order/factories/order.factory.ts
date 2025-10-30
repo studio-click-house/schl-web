@@ -1,4 +1,4 @@
-import { Order } from '@repo/schemas/order.schema';
+import { Order } from '@repo/common/models/order.schema';
 import { CreateOrderBodyDto } from '../dto/create-order.dto';
 
 export class OrderFactory {

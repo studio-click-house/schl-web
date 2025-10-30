@@ -1,4 +1,4 @@
-import { copy } from '@/lib/utils';
+import { copy } from '@repo/common/utils/general-utils';
 import React from 'react';
 
 function ClickToCopy({

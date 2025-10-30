@@ -1,5 +1,5 @@
-import { fetchApi } from '@/lib/utils';
-import { OrderDocument } from '@repo/schemas/models/order.schema';
+import { OrderDocument } from '@repo/common/models/order.schema';
+import { fetchApi } from '@repo/common/utils/general-utils';
 import React from 'react';
 import Table from './components/Table';
 

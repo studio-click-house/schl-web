@@ -1,4 +1,4 @@
-import type { Permissions } from '@repo/schemas/types/permission.type';
+import type { Permissions } from '@repo/common/types/permission.type';
 import jwt from 'jsonwebtoken';
 import type { NextAuthConfig } from 'next-auth';
 import { UserSessionType } from './auth';

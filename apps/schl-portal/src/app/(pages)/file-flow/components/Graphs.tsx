@@ -1,6 +1,6 @@
 'use client';
 
-import { fetchApi } from '@/lib/utils';
+import { fetchApi } from '@repo/common/utils/general-utils';
 import moment from 'moment-timezone';
 import React, { useEffect, useState } from 'react';
 import { toast } from 'sonner';

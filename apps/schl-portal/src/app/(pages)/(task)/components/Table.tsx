@@ -1,6 +1,6 @@
 'use client';
 
-import { hasPerm } from '@repo/schemas/utils/permission-check';
+import { hasPerm } from '@repo/common/utils/permission-check';
 import 'flowbite';
 import { initFlowbite } from 'flowbite';
 import { useSession } from 'next-auth/react';

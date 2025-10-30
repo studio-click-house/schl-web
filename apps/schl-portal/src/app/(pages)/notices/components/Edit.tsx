@@ -1,14 +1,14 @@
 'use client';
 
 import NoticeBodyEditor from '@/components/RichText/RichTextEditor';
-import { cn } from '@/lib/utils';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { cn } from '@repo/common/utils/general-utils';
+import { hasPerm } from '@repo/common/utils/permission-check';
 import {
     setCalculatedZIndex,
     setClassNameAndIsDisabled,
     setMenuPortalTarget,
-} from '@/utility/selectHelpers';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { hasPerm } from '@repo/schemas/utils/permission-check';
+} from '@repo/common/utils/select-helpers';
 import 'flowbite';
 import { initFlowbite } from 'flowbite';
 import { SquarePen, X } from 'lucide-react';

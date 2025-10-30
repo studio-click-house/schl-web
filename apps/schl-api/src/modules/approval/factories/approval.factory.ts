@@ -1,5 +1,5 @@
+import { Approval } from '@repo/common/models/approval.schema';
 import mongoose from 'mongoose';
-import { Approval } from '@repo/schemas/approval.schema';
 import { CreateApprovalBodyDto } from '../dto/create-approval.dto';
 
 export class ApprovalFactory {

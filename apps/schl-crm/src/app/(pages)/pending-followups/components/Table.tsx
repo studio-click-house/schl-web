@@ -4,10 +4,13 @@ import CallingStatusTd from '@/components/ExtendableTd';
 import Linkify from '@/components/Linkify';
 import Pagination from '@/components/Pagination';
 import { usePaginationManager } from '@/hooks/usePaginationManager';
-import { fetchApi, getObjectChanges } from '@/lib/utils';
-import countDaysSinceLastCall from '@/utility/countDayPassed';
-import { YYYY_MM_DD_to_DD_MM_YY as convertToDDMMYYYY } from '@/utility/date';
-import { ReportDocument } from '@repo/schemas/models/report.schema';
+import { ReportDocument } from '@repo/common/models/report.schema';
+import { getObjectChanges } from '@repo/common/utils/changes-generate';
+import { YYYY_MM_DD_to_DD_MM_YY as convertToDDMMYYYY } from '@repo/common/utils/date-helpers';
+import {
+    countPassedDaysSinceADate as countDaysSinceLastCall,
+    fetchApi,
+} from '@repo/common/utils/general-utils';
 import moment from 'moment-timezone';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'nextjs-toploader/app';

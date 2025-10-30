@@ -4,7 +4,7 @@ import BarChart from '@/components/Charts/Bar.chart';
 import {
     generateBackgroundColors as generateGraphColors,
     transparentize,
-} from '@/utility/chart';
+} from '@repo/common/utils/chart-helpers';
 import React, { useEffect, useState } from 'react';
 
 interface ClientsOnboardGraphProps {

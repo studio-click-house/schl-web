@@ -359,3 +359,18 @@ export const countPassedDaysSinceADate = (date: Date): number => {
     const daysDifference = Math.floor(timeDifference / (1000 * 3600 * 24));
     return daysDifference;
 };
+
+export const calculateTimeDifference = (
+    deliveryDate?: string,
+    deliveryBdTime?: string,
+): number => {
+    if (!deliveryDate) return Number.MAX_SAFE_INTEGER;
+    const time = (deliveryBdTime || '23:59').trim() || '23:59';
+    const due = moment.tz(
+        `${deliveryDate} ${time}`,
+        'YYYY-MM-DD HH:mm',
+        'Asia/Dhaka',
+    );
+    const now = moment.tz('Asia/Dhaka');
+    return due.diff(now, 'minutes');
+};

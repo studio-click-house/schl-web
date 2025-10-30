@@ -1,6 +1,6 @@
 'use client';
 
-import cn from '@/utility/cn';
+import { cn } from '@repo/common/utils/general-utils';
 import React, { useRef, useState } from 'react';
 
 interface PropsType {

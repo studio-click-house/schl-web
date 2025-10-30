@@ -1,13 +1,17 @@
 'use client';
 
-import { fetchApi } from '@/lib/utils';
+import { fetchApi } from '@repo/common/utils/general-utils';
 
 import Badge from '@/components/Badge';
 import NoData, { Type } from '@/components/NoData';
 import Pagination from '@/components/Pagination';
 import { usePaginationManager } from '@/hooks/usePaginationManager';
-import { formatDate, formatTime, formatTimestamp } from '@/utility/date';
-import { ApprovalDocument } from '@repo/schemas/approval.schema';
+import { ApprovalDocument } from '@repo/common/models/approval.schema';
+import {
+    formatDate,
+    formatTime,
+    formatTimestamp,
+} from '@repo/common/utils/date-helpers';
 import { CircleCheckBig, CircleX } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'nextjs-toploader/app';

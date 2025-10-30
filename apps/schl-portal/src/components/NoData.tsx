@@ -1,4 +1,4 @@
-import { cn } from '@/lib/utils';
+import { cn } from '@repo/common/utils/general-utils';
 import { AlertTriangle, CheckCircle, Info, XCircle } from 'lucide-react';
 import React from 'react';
 

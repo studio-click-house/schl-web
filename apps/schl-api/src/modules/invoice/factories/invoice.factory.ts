@@ -1,4 +1,4 @@
-import { Invoice } from '@repo/schemas/invoice.schema';
+import { Invoice } from '@repo/common/models/invoice.schema';
 import { CreateInvoiceBodyDto } from '../dto/create-invoice.dto';
 
 export class InvoiceFactory {

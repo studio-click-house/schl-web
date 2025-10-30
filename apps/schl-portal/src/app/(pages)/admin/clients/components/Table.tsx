@@ -1,14 +1,14 @@
 'use client';
 
 import ExtendableTd from '@/components/ExtendableTd';
-import { cn, fetchApi } from '@/lib/utils';
-import { hasPerm } from '@repo/schemas/utils/permission-check';
+import { cn, fetchApi } from '@repo/common/utils/general-utils';
+import { hasPerm } from '@repo/common/utils/permission-check';
 
 import NoData, { Type } from '@/components/NoData';
 import Pagination from '@/components/Pagination';
 import { usePaginationManager } from '@/hooks/usePaginationManager';
-import { ClientDocument } from '@repo/schemas/client.schema';
-import type { EmployeeDocument } from '@repo/schemas/employee.schema';
+import { ClientDocument } from '@repo/common/models/client.schema';
+import type { EmployeeDocument } from '@repo/common/models/employee.schema';
 import { CirclePlus } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'nextjs-toploader/app';

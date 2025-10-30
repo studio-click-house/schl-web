@@ -1,4 +1,4 @@
-import type { Permissions } from '@repo/schemas/types/permission.type';
+import type { Permissions } from '@repo/common/types/permission.type';
 import { NextResponse } from 'next/server';
 import { auth as authMiddleware } from './auth';
 import {

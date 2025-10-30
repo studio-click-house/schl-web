@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { Client, ClientSchema } from '@repo/schemas/client.schema';
-import { Invoice, InvoiceSchema } from '@repo/schemas/invoice.schema';
+import { Client, ClientSchema } from '@repo/common/models/client.schema';
+import { Invoice, InvoiceSchema } from '@repo/common/models/invoice.schema';
 import { InvoiceController } from './invoice.controller';
 import { InvoiceService } from './invoice.service';
 

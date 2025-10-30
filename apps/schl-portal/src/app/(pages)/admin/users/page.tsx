@@ -1,6 +1,6 @@
-import { fetchApi } from '@/lib/utils';
-import { EmployeeDocument } from '@repo/schemas/models/employee.schema';
-import { RoleDocument } from '@repo/schemas/models/role.schema';
+import { EmployeeDocument } from '@repo/common/models/employee.schema';
+import { RoleDocument } from '@repo/common/models/role.schema';
+import { fetchApi } from '@repo/common/utils/general-utils';
 import React from 'react';
 import Table from './components/Table';
 

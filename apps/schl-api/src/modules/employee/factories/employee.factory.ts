@@ -1,4 +1,4 @@
-import { Employee } from '@repo/schemas/employee.schema';
+import { Employee } from '@repo/common/models/employee.schema';
 import { CreateEmployeeBodyDto } from '../dto/create-employee.dto';
 
 export class EmployeeFactory {

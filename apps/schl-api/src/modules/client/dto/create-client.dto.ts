@@ -9,7 +9,7 @@ import {
 import {
     CLIENT_CURRENCY,
     type ClientCurrency,
-} from '@repo/schemas/constants/client.constant';
+} from '@repo/common/constants/client.constant';
 
 export class CreateClientBodyDto {
     @IsString()

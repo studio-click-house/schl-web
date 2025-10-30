@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { Client, ClientSchema } from '@repo/schemas/client.schema';
-import { Invoice, InvoiceSchema } from '@repo/schemas/invoice.schema';
-import { Order, OrderSchema } from '@repo/schemas/order.schema';
+import { Client, ClientSchema } from '@repo/common/models/client.schema';
+import { Invoice, InvoiceSchema } from '@repo/common/models/invoice.schema';
+import { Order, OrderSchema } from '@repo/common/models/order.schema';
 
 import { OrderController } from './order.controller';
 

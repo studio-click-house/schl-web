@@ -1,6 +1,6 @@
 'use client';
 
-import { EmployeeDocument } from '@repo/schemas/employee.schema';
+import { EmployeeDocument } from '@repo/common/models/employee.schema';
 import { Trash2, X } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import React, { useState } from 'react';

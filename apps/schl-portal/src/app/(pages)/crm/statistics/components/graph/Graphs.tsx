@@ -1,6 +1,6 @@
 'use client';
 
-import { fetchApi } from '@/lib/utils';
+import { fetchApi } from '@repo/common/utils/general-utils';
 import React, { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import ClientsOnboardGraph from './ClientsOnboardGraph';

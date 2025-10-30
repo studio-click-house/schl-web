@@ -7,8 +7,8 @@ import {
     type EmployeeBloodGroup,
     type EmployeeServiceTime,
     type EmployeeStatus,
-} from '@repo/schemas/constants/employee.constant';
-import { toBoolean } from '@repo/schemas/utils/transformers';
+} from '@repo/common/constants/employee.constant';
+import { toBoolean } from '@repo/common/utils/transformers';
 import { Transform, Type } from 'class-transformer';
 import {
     IsBoolean,

@@ -1,6 +1,6 @@
 'use client';
 
-import { cn } from '@/lib/utils';
+import { cn } from '@repo/common/utils/general-utils';
 import { Filter, X } from 'lucide-react';
 import React, { useRef, useState } from 'react';
 

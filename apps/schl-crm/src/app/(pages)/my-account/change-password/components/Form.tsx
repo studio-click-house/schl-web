@@ -1,15 +1,13 @@
 'use client';
 
-import { fetchApi } from '@/lib/utils';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { fetchApi, generatePassword } from '@repo/common/utils/general-utils';
+import { KeySquare } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { ChangePasswordInputsType, validationSchema } from '../schema';
-
-import { generatePassword } from '@/lib/utils';
-import { KeySquare } from 'lucide-react';
 import { toast } from 'sonner';
+import { ChangePasswordInputsType, validationSchema } from '../schema';
 
 const Form: React.FC = props => {
     const [loading, setLoading] = useState(false);

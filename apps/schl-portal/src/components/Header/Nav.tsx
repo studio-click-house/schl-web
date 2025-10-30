@@ -1,9 +1,9 @@
 'use client';
 
-import type { Permissions } from '@repo/schemas/types/permission.type';
+import type { Permissions } from '@repo/common/types/permission.type';
 
-import { cn } from '@/lib/utils';
-import { hasAnyPerm, hasPerm } from '@repo/schemas/utils/permission-check';
+import { cn } from '@repo/common/utils/general-utils';
+import { hasAnyPerm, hasPerm } from '@repo/common/utils/permission-check';
 import 'flowbite';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useSession } from 'next-auth/react';

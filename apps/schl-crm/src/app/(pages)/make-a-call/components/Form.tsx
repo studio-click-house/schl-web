@@ -1,6 +1,9 @@
 'use client';
-import fetchData from '@/utility/fetch';
-import { isValidHttpUrls, isValidMails } from '@/utility/validation';
+import {
+    fetchApi as fetchData,
+    isValidHttpUrls,
+    isValidMails,
+} from '@repo/common/utils/general-utils';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 

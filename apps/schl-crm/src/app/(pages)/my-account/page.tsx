@@ -1,6 +1,10 @@
 import { auth } from '@/auth';
-import { fetchApi, generateAvatar, verifyCookie } from '@/lib/utils';
-import { EmployeeDocument } from '@repo/schemas/models/employee.schema';
+import { EmployeeDocument } from '@repo/common/models/employee.schema';
+import {
+    fetchApi,
+    generateAvatar,
+    verifyCookie,
+} from '@repo/common/utils/general-utils';
 
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';

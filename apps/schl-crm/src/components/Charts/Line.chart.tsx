@@ -1,8 +1,8 @@
-import React from 'react';
-import cn from '@/utility/cn';
-import { Line } from 'react-chartjs-2';
+import { cn } from '@repo/common/utils/general-utils';
+import { ChartData, ChartOptions } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
-import { ChartOptions, ChartData } from 'chart.js';
+import React from 'react';
+import { Line } from 'react-chartjs-2';
 
 // Registering the datalabels plugin
 import { Chart as ChartJS } from 'chart.js/auto';

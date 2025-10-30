@@ -4,7 +4,7 @@ import {
     setCalculatedZIndex,
     setClassNameAndIsDisabled,
     setMenuPortalTarget,
-} from '@/utility/selectHelpers';
+} from '@repo/common/utils/select-helpers';
 import { X } from 'lucide-react';
 import React, { useRef, useState } from 'react';
 import Select from 'react-select';

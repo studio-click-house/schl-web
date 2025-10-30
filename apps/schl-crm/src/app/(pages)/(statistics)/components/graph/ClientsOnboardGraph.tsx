@@ -1,8 +1,10 @@
 'use client';
 
 import BarChart from '@/components/Charts/Bar.chart';
-import generateGraphColors from '@/utility/genChartColors';
-import { transparentize } from '@/utility/transparentize';
+import {
+    generateBackgroundColors as generateGraphColors,
+    transparentize,
+} from '@repo/common/utils/chart-helpers';
 import React, { useEffect, useState } from 'react';
 
 interface ClientsOnboardGraphProps {

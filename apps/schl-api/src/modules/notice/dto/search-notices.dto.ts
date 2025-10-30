@@ -1,4 +1,4 @@
-import { toBoolean } from '@repo/schemas/utils/transformers';
+import { toBoolean } from '@repo/common/utils/transformers';
 import { Transform, Type } from 'class-transformer';
 import {
     IsBoolean,

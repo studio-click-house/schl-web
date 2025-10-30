@@ -1,14 +1,14 @@
 'use client';
 
 import Badge from '@/components/Badge';
-import { fetchApi } from '@/lib/utils';
-import { hasPerm } from '@repo/schemas/utils/permission-check';
+import { fetchApi } from '@repo/common/utils/general-utils';
+import { hasPerm } from '@repo/common/utils/permission-check';
 
 import NoData, { Type } from '@/components/NoData';
 import Pagination from '@/components/Pagination';
 import { usePaginationManager } from '@/hooks/usePaginationManager';
-import { cn } from '@/lib/utils';
-import { formatDate } from '@/utility/date';
+import { formatDate } from '@repo/common/utils/date-helpers';
+import { cn } from '@repo/common/utils/general-utils';
 import { CirclePlus, CloudDownload } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'nextjs-toploader/app';

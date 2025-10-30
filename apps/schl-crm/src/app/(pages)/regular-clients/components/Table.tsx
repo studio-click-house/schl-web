@@ -1,9 +1,9 @@
 'use client';
 import Pagination from '@/components/Pagination';
 import { usePaginationManager } from '@/hooks/usePaginationManager';
-import { fetchApi } from '@/lib/utils';
-import { YYYY_MM_DD_to_DD_MM_YY as convertToDDMMYYYY } from '@/utility/date';
-import { ReportDocument } from '@repo/schemas/models/report.schema';
+import { ReportDocument } from '@repo/common/models/report.schema';
+import { YYYY_MM_DD_to_DD_MM_YY as convertToDDMMYYYY } from '@repo/common/utils/date-helpers';
+import { fetchApi } from '@repo/common/utils/general-utils';
 import { useSession } from 'next-auth/react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';

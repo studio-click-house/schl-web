@@ -1,6 +1,6 @@
-import type { Permissions } from '@repo/schemas/types/permission.type';
-import { FullyPopulatedUser } from '@repo/schemas/types/populated-user.type';
-import { fetchApi } from '@repo/schemas/utils/general-utils';
+import type { Permissions } from '@repo/common/types/permission.type';
+import { FullyPopulatedUser } from '@repo/common/types/populated-user.type';
+import { fetchApi } from '@repo/common/utils/general-utils';
 import NextAuth from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { authConfig } from './auth.config';

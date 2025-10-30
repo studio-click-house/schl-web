@@ -2,16 +2,16 @@
 
 import Badge from '@/components/Badge';
 import ExtendableTd from '@/components/ExtendableTd';
-import { fetchApi } from '@/lib/utils';
-import { EmployeeDocument } from '@repo/schemas/models/employee.schema';
-import { hasAnyPerm, hasPerm } from '@repo/schemas/utils/permission-check';
+import { EmployeeDocument } from '@repo/common/models/employee.schema';
+import { fetchApi } from '@repo/common/utils/general-utils';
+import { hasAnyPerm, hasPerm } from '@repo/common/utils/permission-check';
 
 import NoData, { Type } from '@/components/NoData';
 import Pagination from '@/components/Pagination';
 import { usePaginationManager } from '@/hooks/usePaginationManager';
-import { cn } from '@/lib/utils';
-import type { RoleDocument } from '@repo/schemas/models/role.schema';
-import type { FullyPopulatedUser } from '@repo/schemas/types/populated-user.type';
+import type { RoleDocument } from '@repo/common/models/role.schema';
+import type { FullyPopulatedUser } from '@repo/common/types/populated-user.type';
+import { cn } from '@repo/common/utils/general-utils';
 
 import { CirclePlus, ClipboardCopy } from 'lucide-react';
 import { useSession } from 'next-auth/react';

@@ -5,12 +5,12 @@ import Linkify from '@/components/Linkify';
 import NoData, { Type } from '@/components/NoData';
 import Pagination from '@/components/Pagination';
 import { usePaginationManager } from '@/hooks/usePaginationManager';
-import { fetchApi } from '@/lib/utils';
-import type { EmployeeDocument } from '@repo/schemas/models/employee.schema';
-import { ReportDocument } from '@repo/schemas/models/report.schema';
-import { hasAnyPerm, hasPerm } from '@repo/schemas/utils/permission-check';
+import type { EmployeeDocument } from '@repo/common/models/employee.schema';
+import { ReportDocument } from '@repo/common/models/report.schema';
+import { fetchApi } from '@repo/common/utils/general-utils';
+import { hasAnyPerm, hasPerm } from '@repo/common/utils/permission-check';
 
-import { formatDate } from '@/utility/date';
+import { formatDate } from '@repo/common/utils/date-helpers';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'nextjs-toploader/app';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';

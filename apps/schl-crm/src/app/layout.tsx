@@ -1,5 +1,5 @@
 import '@/app/globals.css';
-import { cn } from '@/lib/utils';
+import { cn } from '@repo/common/utils/general-utils';
 import type { Metadata } from 'next';
 import { Karla, Lato } from 'next/font/google';
 import NextTopLoader from 'nextjs-toploader';

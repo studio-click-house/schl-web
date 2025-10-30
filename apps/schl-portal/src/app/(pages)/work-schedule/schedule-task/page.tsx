@@ -1,6 +1,6 @@
-import { fetchApi } from '@/lib/utils';
-import { ClientDocument } from '@repo/schemas/models/client.schema';
-import { OrderDocument } from '@repo/schemas/models/order.schema';
+import { ClientDocument } from '@repo/common/models/client.schema';
+import { OrderDocument } from '@repo/common/models/order.schema';
+import { fetchApi } from '@repo/common/utils/general-utils';
 import React, { Suspense } from 'react';
 import InputForm from './components/Form';
 

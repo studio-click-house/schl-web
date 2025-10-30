@@ -3,11 +3,11 @@
 import Badge from '@/components/Badge';
 import NoData, { Type } from '@/components/NoData';
 import Pagination from '@/components/Pagination';
-import { cn, fetchApi } from '@/lib/utils';
-import { ScheduleDocument } from '@repo/schemas/models/schedule.schema';
-import { hasPerm } from '@repo/schemas/utils/permission-check';
+import { ScheduleDocument } from '@repo/common/models/schedule.schema';
+import { cn, fetchApi } from '@repo/common/utils/general-utils';
+import { hasPerm } from '@repo/common/utils/permission-check';
 
-import { OrderDocument } from '@repo/schemas/models/order.schema';
+import { OrderDocument } from '@repo/common/models/order.schema';
 import { CirclePlus } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'nextjs-toploader/app';
@@ -23,7 +23,7 @@ import FilterButton from './Filter';
 
 import ExtendableTd from '@/components/ExtendableTd';
 import { usePaginationManager } from '@/hooks/usePaginationManager';
-import { formatDate } from '@/utility/date';
+import { formatDate } from '@repo/common/utils/date-helpers';
 import moment from 'moment-timezone';
 
 type SchedulesState = {

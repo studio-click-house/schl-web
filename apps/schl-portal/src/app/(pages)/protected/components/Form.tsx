@@ -1,8 +1,8 @@
 'use client';
 
 import { LoginDataType, validationSchema } from '@/app/login/schema';
-import { fetchApi } from '@/lib/utils';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { fetchApi } from '@repo/common/utils/general-utils';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 

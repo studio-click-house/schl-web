@@ -9,7 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import {
     init as initZeroBounce,
     zeroBounce,
-} from '@repo/schemas/lib/zero-bounce/index';
+} from '@repo/common/lib/zero-bounce/index';
 import { BulkEmailParamDto } from './dto/bulk-email.dto';
 import { SingleEmailParamDto } from './dto/single-email.dto';
 import { EmailValidationResult, ValidatorService } from './validator.service';

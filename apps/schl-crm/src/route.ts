@@ -1,6 +1,6 @@
 // Central definition of application routes and the permissions required to view / access them.
 
-import { Permissions } from '@repo/schemas/types/permission.type';
+import { Permissions } from '@repo/common/types/permission.type';
 
 export interface AuthorizedRoute {
     href: string; // URL path (no trailing slash unless root)

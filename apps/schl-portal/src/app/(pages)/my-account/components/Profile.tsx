@@ -1,14 +1,14 @@
 'use client';
 
 import HiddenText from '@/components/HiddenText';
-import { cn } from '@/lib/utils';
+import { EmployeeDocument } from '@repo/common/models/employee.schema';
 import {
     calculateSalaryComponents,
     getPFMoneyAmount,
     SalaryStructureType,
-} from '@/utility/accountMatrics';
-import { EmployeeDocument } from '@repo/schemas/employee.schema';
-import { hasPerm } from '@repo/schemas/utils/permission-check';
+} from '@repo/common/utils/account-helpers';
+import { cn } from '@repo/common/utils/general-utils';
+import { hasPerm } from '@repo/common/utils/permission-check';
 import { Clock4, Coins, Mail } from 'lucide-react';
 import moment from 'moment-timezone';
 import { useSession } from 'next-auth/react';

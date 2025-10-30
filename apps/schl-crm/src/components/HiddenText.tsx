@@ -1,5 +1,5 @@
 'use client';
-import { cn } from '@/lib/utils';
+import { cn } from '@repo/common/utils/general-utils';
 import React, { ReactNode, useState } from 'react';
 
 const HiddenText: React.FC<{

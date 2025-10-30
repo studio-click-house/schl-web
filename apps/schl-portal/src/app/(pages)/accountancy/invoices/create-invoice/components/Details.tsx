@@ -1,13 +1,20 @@
 'use client';
+import {
+    BankAustraliaAccount,
+    BankBangladeshAccount,
+    BankEurozoneAccount,
+    BankUKAccount,
+    BankUSAAccount,
+} from '@repo/common/constants/bank-details.constant';
 import generateInvoice, {
     BankAccountsType,
     BillDataType,
     InvoiceDataType,
-} from '@/lib/invoice';
-import { cn, fetchApi } from '@/lib/utils';
-import { getTodayDate } from '@/utility/date';
-import { ClientDocument } from '@repo/schemas/models/client.schema';
-import { OrderDocument } from '@repo/schemas/models/order.schema';
+} from '@repo/common/lib/invoice';
+import { ClientDocument } from '@repo/common/models/client.schema';
+import { OrderDocument } from '@repo/common/models/order.schema';
+import { getTodayDate } from '@repo/common/utils/date-helpers';
+import { cn, fetchApi } from '@repo/common/utils/general-utils';
 import 'flowbite';
 import { initFlowbite } from 'flowbite';
 import { PlusCircleIcon, X } from 'lucide-react';
@@ -15,13 +22,6 @@ import moment from 'moment-timezone';
 import { useSession } from 'next-auth/react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import {
-    BankAustraliaAccount,
-    BankBangladeshAccount,
-    BankEurozoneAccount,
-    BankUKAccount,
-    BankUSAAccount,
-} from '../../bank-details';
 
 const baseZIndex = 50; // 52
 

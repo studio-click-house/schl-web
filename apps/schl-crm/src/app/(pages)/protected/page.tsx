@@ -1,5 +1,5 @@
 import { auth } from '@/auth';
-import { verifyCookie } from '@/lib/utils';
+import { verifyCookie } from '@repo/common/utils/general-utils';
 import { cookies } from 'next/headers';
 import { permanentRedirect } from 'next/navigation';
 import React from 'react';

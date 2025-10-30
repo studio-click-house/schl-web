@@ -1,6 +1,6 @@
 import { auth } from '@/auth';
-import { fetchApi, generateAvatar } from '@/lib/utils';
-import { EmployeeDocument } from '@repo/schemas/employee.schema';
+import { EmployeeDocument } from '@repo/common/models/employee.schema';
+import { fetchApi, generateAvatar } from '@repo/common/utils/general-utils';
 
 import { redirect } from 'next/navigation';
 import React from 'react';

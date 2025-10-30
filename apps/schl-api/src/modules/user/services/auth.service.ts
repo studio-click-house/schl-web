@@ -7,10 +7,10 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
+import { User } from '@repo/common/models/user.schema';
+import { FullyPopulatedUser } from '@repo/common/types/populated-user.type';
 import { UserSession } from '@repo/common/types/user-session.type';
-import { FullyPopulatedUser } from '@repo/schemas/types/populated-user.type';
-import { User } from '@repo/schemas/user.schema';
-import { hasPerm, toPermissions } from '@repo/schemas/utils/permission-check';
+import { hasPerm, toPermissions } from '@repo/common/utils/permission-check';
 import jwt from 'jsonwebtoken';
 import { Model } from 'mongoose';
 import { LoginQueryDto } from '../dto/login.dto';

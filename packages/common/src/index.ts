@@ -12,6 +12,7 @@ export * from './models/user.schema';
 // Utilities
 export * from './utils/account-helpers';
 export * from './utils/changes-generate';
+export * from './utils/chart-helpers';
 export * from './utils/date-helpers';
 export * from './utils/filter-helpers';
 export * from './utils/general-utils';

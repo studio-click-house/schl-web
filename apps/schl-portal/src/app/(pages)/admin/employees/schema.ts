@@ -2,7 +2,7 @@ import {
     EMPLOYEE_BLOOD_GROUPS,
     EMPLOYEE_DEPARTMENTS,
     EMPLOYEE_STATUSES,
-} from '@repo/schemas/constants/employee.constant';
+} from '@repo/common/constants/employee.constant';
 import moment from 'moment-timezone';
 import mongoose from 'mongoose';
 import { z } from 'zod';

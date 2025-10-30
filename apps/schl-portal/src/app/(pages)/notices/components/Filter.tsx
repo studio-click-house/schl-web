@@ -1,12 +1,12 @@
 'use client';
 
-import { cn } from '@/lib/utils';
+import { cn } from '@repo/common/utils/general-utils';
+import { hasPerm } from '@repo/common/utils/permission-check';
 import {
     setCalculatedZIndex,
     setClassNameAndIsDisabled,
     setMenuPortalTarget,
-} from '@/utility/selectHelpers';
-import { hasPerm } from '@repo/schemas/utils/permission-check';
+} from '@repo/common/utils/select-helpers';
 import { Filter, X } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import React, { useMemo, useRef, useState } from 'react';

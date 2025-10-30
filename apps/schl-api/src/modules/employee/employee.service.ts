@@ -8,19 +8,19 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
+import { Employee } from '@repo/common/models/employee.schema';
 import { UserSession } from '@repo/common/types/user-session.type';
-import { Employee } from '@repo/schemas/employee.schema';
 import {
     calculateSalaryComponents,
     getPFMoneyAmount,
-} from '@repo/schemas/utils/account-helpers';
-import { getTodayDate } from '@repo/schemas/utils/date-helpers';
+} from '@repo/common/utils/account-helpers';
+import { getTodayDate } from '@repo/common/utils/date-helpers';
 import {
     addIfDefined,
     buildOrRegex,
     createRegexQuery,
-} from '@repo/schemas/utils/filter-helpers';
-import { hasPerm } from '@repo/schemas/utils/permission-check';
+} from '@repo/common/utils/filter-helpers';
+import { hasPerm } from '@repo/common/utils/permission-check';
 import { FilterQuery, Model } from 'mongoose';
 import { CreateEmployeeBodyDto } from './dto/create-employee.dto';
 import { SearchEmployeesBodyDto } from './dto/search-employees.dto';

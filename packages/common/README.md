@@ -73,6 +73,6 @@ This package contains shared schemas, types, and utilities for the schl-web mono
 ## Usage
 
 ```typescript
-import { getTodayDate, fetchApi, getObjectChanges } from '@repo/common';
+import { fetchApi } from '@repo/common/utils/general-utils';
 import { YYYY_MM_DD_to_DD_MM_YY } from '@repo/common/utils/date-helpers';
 ```

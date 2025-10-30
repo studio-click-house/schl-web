@@ -1,8 +1,8 @@
 'use client';
 
-import { cn } from '@/lib/utils';
-import type { Permissions } from '@repo/schemas/types/permission.type';
-import { hasPerm } from '@repo/schemas/utils/permission-check';
+import type { Permissions } from '@repo/common/types/permission.type';
+import { cn } from '@repo/common/utils/general-utils';
+import { hasPerm } from '@repo/common/utils/permission-check';
 import {
     BookOpen,
     ChartBarBig,

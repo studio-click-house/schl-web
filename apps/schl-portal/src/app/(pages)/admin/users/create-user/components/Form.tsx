@@ -1,18 +1,18 @@
 'use client';
 
-import { setMenuPortalTarget } from '@/utility/selectHelpers';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { hasPerm } from '@repo/schemas/utils/permission-check';
+import { hasPerm } from '@repo/common/utils/permission-check';
+import { setMenuPortalTarget } from '@repo/common/utils/select-helpers';
 import { useSession } from 'next-auth/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import Select from 'react-select';
 import { ZodPopulatedUserDataType, populatedUserSchema } from '../../schema';
 
-import { fetchApi, generatePassword } from '@/lib/utils';
-import { EmployeeDocument } from '@repo/schemas/models/employee.schema';
-import { RoleDocument } from '@repo/schemas/models/role.schema';
-import { Permissions } from '@repo/schemas/types/permission.type';
+import { EmployeeDocument } from '@repo/common/models/employee.schema';
+import { RoleDocument } from '@repo/common/models/role.schema';
+import { Permissions } from '@repo/common/types/permission.type';
+import { fetchApi, generatePassword } from '@repo/common/utils/general-utils';
 import { KeySquare } from 'lucide-react';
 import { toast } from 'sonner';
 interface PropsType {

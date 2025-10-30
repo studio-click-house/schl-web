@@ -2,14 +2,14 @@ import { Module } from '@nestjs/common';
 
 import { MongooseModule } from '@nestjs/mongoose';
 
-import { Approval, ApprovalSchema } from '@repo/schemas/approval.schema';
-import { Client, ClientSchema } from '@repo/schemas/client.schema';
-import { Employee, EmployeeSchema } from '@repo/schemas/employee.schema';
-import { Order, OrderSchema } from '@repo/schemas/order.schema';
-import { Report, ReportSchema } from '@repo/schemas/report.schema';
-import { Role, RoleSchema } from '@repo/schemas/role.schema';
-import { Schedule, ScheduleSchema } from '@repo/schemas/schedule.schema';
-import { User, UserSchema } from '@repo/schemas/user.schema';
+import { Approval, ApprovalSchema } from '@repo/common/models/approval.schema';
+import { Client, ClientSchema } from '@repo/common/models/client.schema';
+import { Employee, EmployeeSchema } from '@repo/common/models/employee.schema';
+import { Order, OrderSchema } from '@repo/common/models/order.schema';
+import { Report, ReportSchema } from '@repo/common/models/report.schema';
+import { Role, RoleSchema } from '@repo/common/models/role.schema';
+import { Schedule, ScheduleSchema } from '@repo/common/models/schedule.schema';
+import { User, UserSchema } from '@repo/common/models/user.schema';
 
 import { ApprovalController } from './approval.controller';
 

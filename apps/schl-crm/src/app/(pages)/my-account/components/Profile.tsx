@@ -1,13 +1,13 @@
 'use client';
 
 import HiddenText from '@/components/HiddenText';
-import cn from '@/utility/cn';
-import { EmployeeDocument } from '@repo/schemas/employee.schema';
+import { EmployeeDocument } from '@repo/common/models/employee.schema';
 import {
     calculateSalaryComponents,
     getPFMoneyAmount,
     SalaryStructureType,
-} from '@repo/schemas/utils/account-helpers';
+} from '@repo/common/utils/account-helpers';
+import { cn } from '@repo/common/utils/general-utils';
 import { Clock4, Coins, Mail } from 'lucide-react';
 import moment from 'moment-timezone';
 import Image from 'next/image';

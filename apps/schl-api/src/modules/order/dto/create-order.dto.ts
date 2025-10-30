@@ -5,7 +5,7 @@ import {
     type OrderPriority,
     type OrderStatus,
     type OrderType,
-} from '@repo/schemas/constants/order.constant';
+} from '@repo/common/constants/order.constant';
 import { Transform, Type } from 'class-transformer';
 import {
     IsIn,

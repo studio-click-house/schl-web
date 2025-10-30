@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState } from 'react';
 
-import type { ValidateEmailResponse as ValidationResult } from '@repo/schemas/lib/zero-bounce/index';
+import type { ValidateEmailResponse as ValidationResult } from '@repo/common/lib/zero-bounce/index';
 
 interface ValidationContextType {
     validationResults: ValidationResult[];

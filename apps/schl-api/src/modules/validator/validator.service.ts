@@ -9,7 +9,7 @@ import {
     init as initZeroBounce,
     zeroBounce,
     type ValidateEmailResponse,
-} from '@repo/schemas/lib/zero-bounce/index';
+} from '@repo/common/lib/zero-bounce/index';
 
 export interface BatchValidationResponse {
     email_batch: ValidateEmailResponse[];

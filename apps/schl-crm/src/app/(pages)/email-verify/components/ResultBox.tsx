@@ -1,7 +1,7 @@
 'use client';
 
 import Badge from '@/components/Badge';
-import { daysToYMD } from '@/utility/date';
+import { daysToYMD } from '@repo/common/utils/date-helpers';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import React from 'react';
 import { useValidation } from '../context/ValidationContext';

@@ -1,6 +1,6 @@
 import { auth } from '@/auth';
-import { fetchApi } from '@/lib/utils';
-import { hasPerm } from '@repo/schemas/utils/permission-check';
+import { fetchApi } from '@repo/common/utils/general-utils';
+import { hasPerm } from '@repo/common/utils/permission-check';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import React, { Suspense } from 'react';
