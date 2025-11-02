@@ -4,18 +4,20 @@
     "globalEnv": [
         "VERCEL_ENV",
         "NODE_ENV",
+        "MONGODB_URI",
+        "BASE_URL",
+        "DB_NAME",
+        "PORTAL_URL",
+        "CRM_URL",
         "AUTH_SECRET",
-        "AUTH_URL",
-        "ALLOWED_IPS",
+        "ZERO_BOUNCE_API_KEY",
         "FTP_HOST",
         "FTP_USERNAME",
         "FTP_PASSWORD",
-        "ZERO_BOUNCE_API_KEY",
+        "AUTH_URL",
         "NEXT_PUBLIC_BASE_URL",
-        "PORTAL_URL",
-        "CRM_URL",
-        "PORT",
-        "NEXT_PUBLIC_API_URL"
+        "NEXT_PUBLIC_API_URL",
+        "PORT"
     ],
     "tasks": {
         "build": {
