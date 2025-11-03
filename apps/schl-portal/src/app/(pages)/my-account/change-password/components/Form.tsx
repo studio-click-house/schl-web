@@ -1,7 +1,7 @@
 'use client';
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { fetchApi } from '@repo/common/utils/general-utils';
 import { useSession } from 'next-auth/react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -12,6 +12,7 @@ import { KeySquare } from 'lucide-react';
 import { toast } from 'sonner';
 
 const Form: React.FC = props => {
+    const authedFetchApi = useAuthedFetchApi();
     const [loading, setLoading] = useState(false);
     const { data: session } = useSession();
     console.log(session);
@@ -55,7 +56,7 @@ const Form: React.FC = props => {
                 return;
             }
 
-            const response = await fetchApi(
+            const response = await authedFetchApi(
                 { path: `/v1/user/change-password/${userId}` },
                 {
                     method: 'POST',
@@ -74,7 +75,7 @@ const Form: React.FC = props => {
                 reset();
                 // reset the form after successful submission
             } else {
-                toast.error(response.data as string);
+                toastFetchError(response);
             }
 
             console.log('data', parsed.data, data);

@@ -1,4 +1,5 @@
 'use client';
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 
 import {
     ClientDataType,
@@ -9,7 +10,6 @@ import Pagination from '@/components/Pagination';
 import { usePaginationManager } from '@/hooks/usePaginationManager';
 import type { EmployeeDocument } from '@repo/common/models/employee.schema';
 import { ReportDocument } from '@repo/common/models/report.schema';
-import { fetchApi } from '@repo/common/utils/general-utils';
 import { hasPerm } from '@repo/common/utils/permission-check';
 import { useSession } from 'next-auth/react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -28,6 +28,7 @@ type ReportsState = {
 };
 
 const Table = () => {
+    const authedFetchApi = useAuthedFetchApi();
     const [reports, setReports] = useState<ReportsState>({
         pagination: {
             count: 0,
@@ -67,7 +68,7 @@ const Table = () => {
             try {
                 // setLoading(true);
 
-                const response = await fetchApi(
+                const response = await authedFetchApi(
                     {
                         path: '/v1/report/search-reports',
                         query: {
@@ -95,7 +96,7 @@ const Table = () => {
                         (response.data as ReportsState).pagination.pageCount,
                     );
                 } else {
-                    toast.error(response.data as string);
+                    toastFetchError(response);
                 }
             } catch (error) {
                 console.error(error);
@@ -104,7 +105,7 @@ const Table = () => {
                 setLoading(false);
             }
         },
-        [],
+        [authedFetchApi],
     );
 
     const getAllClientApprovalsFiltered = useCallback(
@@ -112,7 +113,7 @@ const Table = () => {
             try {
                 // setLoading(true);
 
-                const response = await fetchApi(
+                const response = await authedFetchApi(
                     {
                         path: '/v1/report/search-reports',
                         query: {
@@ -141,7 +142,7 @@ const Table = () => {
                         (response.data as ReportsState).pagination.pageCount,
                     );
                 } else {
-                    toast.error(response.data as string);
+                    toastFetchError(response);
                 }
             } catch (error) {
                 console.error(error);
@@ -151,13 +152,13 @@ const Table = () => {
             }
             return;
         },
-        [filters],
+        [authedFetchApi, filters],
     );
 
     // reject the approval of the report to be converted to regular client
     const rejectClient = async (reportId: string) => {
         try {
-            const response = await fetchApi(
+            const response = await authedFetchApi(
                 { path: `/v1/report/reject-client-request/${reportId}` },
                 {
                     method: 'POST',
@@ -174,7 +175,7 @@ const Table = () => {
 
                 fetchClientApprovals();
             } else {
-                toast.error(response.data.message);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
@@ -186,7 +187,7 @@ const Table = () => {
     // mark the request as duplicate as the client already exists
     const markDuplicate = async (reportId: string) => {
         try {
-            const response = await fetchApi(
+            const response = await authedFetchApi(
                 {
                     path: `/v1/report/mark-duplicate-client-request/${reportId}`,
                 },
@@ -203,7 +204,7 @@ const Table = () => {
 
                 await fetchClientApprovals();
             } else {
-                toast.error(response.data.message);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
@@ -232,7 +233,7 @@ const Table = () => {
                 Object.entries(rest).filter(([, value]) => value !== undefined),
             );
 
-            const response = await fetchApi(
+            const response = await authedFetchApi(
                 { path: '/v1/report/convert-to-client' },
                 {
                     method: 'POST',
@@ -248,7 +249,7 @@ const Table = () => {
 
                 await fetchClientApprovals();
             } else {
-                toast.error(response.data.message);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
@@ -256,9 +257,9 @@ const Table = () => {
         }
     };
 
-    const getAllMarketers = async () => {
+    const getAllMarketers = useCallback(async () => {
         try {
-            const response = await fetchApi(
+            const response = await authedFetchApi(
                 {
                     path: '/v1/employee/search-employees',
                     query: { paginated: false, filtered: true },
@@ -275,23 +276,24 @@ const Table = () => {
             if (response.ok) {
                 const marketers = Array.isArray(response.data)
                     ? (response.data as EmployeeDocument[])
-                    : ((response.data?.items || []) as EmployeeDocument[]);
+                    : ((response.data as { items?: EmployeeDocument[] })
+                          ?.items ?? []);
                 const marketerNames = marketers
                     .map(marketer => marketer.company_provided_name)
                     .filter((name): name is string => Boolean(name));
                 setMarketerNames(marketerNames);
             } else {
-                toast.error(response.data as string);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
             toast.error('An error occurred while retrieving marketers data');
         }
-    };
+    }, [authedFetchApi]);
 
     useEffect(() => {
         getAllMarketers();
-    }, []);
+    }, [getAllMarketers]);
 
     const fetchClientApprovals = useCallback(async () => {
         if (!isFiltered) {

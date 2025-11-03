@@ -1,15 +1,15 @@
 import Badge from '@/components/Badge';
 import ClickToCopy from '@/components/CopyText';
 import ExtendableTd from '@/components/ExtendableTd';
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import type { OrderDocument } from '@repo/common/models/order.schema';
 import { formatDate, formatTime } from '@repo/common/utils/date-helpers';
-import { fetchApi } from '@repo/common/utils/general-utils';
 import { hasPerm } from '@repo/common/utils/permission-check';
 import 'flowbite';
 import { initFlowbite } from 'flowbite';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 function TestAndCorrection() {
@@ -23,16 +23,17 @@ function TestAndCorrection() {
     }, []);
 
     const { data: session } = useSession();
+    const authedFetchApi = useAuthedFetchApi();
     const userPermissions = useMemo(
         () => session?.user.permissions || [],
         [session?.user.permissions],
     );
 
-    async function getAllOrders() {
+    const getAllOrders = useCallback(async () => {
         try {
             setLoading(true);
 
-            const response = await fetchApi(
+            const response = await authedFetchApi<OrderDocument[]>(
                 { path: '/v1/order/rework-orders' },
                 {
                     method: 'GET',
@@ -45,7 +46,7 @@ function TestAndCorrection() {
             if (response.ok) {
                 setOrders(response.data as OrderDocument[]);
             } else {
-                toast.error(response.data?.message);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
@@ -53,11 +54,11 @@ function TestAndCorrection() {
         } finally {
             setLoading(false);
         }
-    }
+    }, [authedFetchApi]);
 
     useEffect(() => {
-        getAllOrders();
-    }, []);
+        void getAllOrders();
+    }, [getAllOrders]);
 
     if (loading) {
         return <p className="text-center">Loading...</p>;

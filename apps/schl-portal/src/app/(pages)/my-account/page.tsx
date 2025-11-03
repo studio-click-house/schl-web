@@ -1,10 +1,7 @@
 import { auth } from '@/auth';
+import { fetchApiWithServerAuth } from '@/lib/api-server';
 import { EmployeeDocument } from '@repo/common/models/employee.schema';
-import {
-    fetchApi,
-    generateAvatar,
-    verifyCookie,
-} from '@repo/common/utils/general-utils';
+import { generateAvatar, verifyCookie } from '@repo/common/utils/general-utils';
 
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
@@ -19,7 +16,7 @@ const getEmployeeInfo = async () => {
             return null;
         }
 
-        const response = await fetchApi(
+        const response = await fetchApiWithServerAuth(
             {
                 path: `/v1/employee/get-employee/${encodeURIComponent(session.user.e_id)}`,
             },

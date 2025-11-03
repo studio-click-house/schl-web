@@ -1,7 +1,8 @@
 'use client';
 
 import ExtendableTd from '@/components/ExtendableTd';
-import { cn, fetchApi } from '@repo/common/utils/general-utils';
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
+import { cn } from '@repo/common/utils/general-utils';
 import { hasPerm } from '@repo/common/utils/permission-check';
 
 import {
@@ -23,24 +24,11 @@ import DeleteButton from './Delete';
 import EditButton from './Edit';
 import FilterButton from './Filter';
 
-type EmployeesState = {
-    pagination: {
-        count: number;
-        pageCount: number;
-    };
-    items: EmployeeDocument[];
-};
-
 const Table = () => {
-    const [employees, setEmployees] = useState<EmployeesState>({
-        pagination: {
-            count: 0,
-            pageCount: 0,
-        },
-        items: [] as EmployeeDocument[],
-    });
+    const [employees, setEmployees] = useState<EmployeeDocument[]>([]);
 
     const { data: session } = useSession();
+    const authedFetchApi = useAuthedFetchApi();
 
     const userPermissions = useMemo(
         () => session?.user.permissions || [],
@@ -86,7 +74,7 @@ const Table = () => {
         try {
             // setLoading(true);
 
-            const response = await fetchApi(
+            const response = await authedFetchApi<EmployeeDocument[]>(
                 {
                     path: '/v1/employee/search-employees',
                     query: { paginated: false, filtered: false },
@@ -104,12 +92,13 @@ const Table = () => {
 
             if (response.ok) {
                 setIsFiltered(false);
-                const employees = response.data as EmployeesState;
+                const employees = response.data;
+                console.log('FILTERED EMPLOYEES: ', employees);
                 setEmployees(employees);
 
-                setTotalPayOut(getTotalPayOut(employees.items));
+                setTotalPayOut(getTotalPayOut(employees));
             } else {
-                toast.error(response.data as string);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
@@ -117,13 +106,13 @@ const Table = () => {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [authedFetchApi]);
 
     const getAllEmployeesFiltered = useCallback(async () => {
         try {
             // setLoading(true);
 
-            const response = await fetchApi(
+            const response = await authedFetchApi<EmployeeDocument[]>(
                 {
                     path: '/v1/employee/search-employees',
                     query: { paginated: false, filtered: true },
@@ -142,12 +131,13 @@ const Table = () => {
             );
 
             if (response.ok) {
-                const employees = response.data as EmployeesState;
+                const employees = response.data;
+                console.log('FILTERED EMPLOYEES: ', employees);
                 setEmployees(employees);
-                setTotalPayOut(getTotalPayOut(employees.items));
+                setTotalPayOut(getTotalPayOut(employees));
                 setIsFiltered(true);
             } else {
-                toast.error(response.data as string);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
@@ -156,11 +146,11 @@ const Table = () => {
             setLoading(false);
         }
         return;
-    }, [filters]);
+    }, [authedFetchApi, filters]);
 
     async function deleteEmployee(employeeData: EmployeeDocument) {
         try {
-            const response = await fetchApi(
+            const response = await authedFetchApi(
                 { path: '/v1/approval/new-request' },
                 {
                     method: 'POST',
@@ -179,7 +169,7 @@ const Table = () => {
             if (response.ok) {
                 toast.success('Request sent for approval');
             } else {
-                toast.error(response.data as string);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
@@ -216,7 +206,7 @@ const Table = () => {
                 Object.entries(rest).filter(([, value]) => value !== undefined),
             );
 
-            const response = await fetchApi(
+            const response = await authedFetchApi(
                 {
                     path: `/v1/employee/update-employee/${_id}`,
                 },
@@ -235,7 +225,7 @@ const Table = () => {
                 if (!isFiltered) await getAllEmployees();
                 else await getAllEmployeesFiltered();
             } else {
-                toast.error(response.data as string);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
@@ -300,7 +290,7 @@ const Table = () => {
 
             <div className="table-responsive text-nowrap text-base">
                 {!loading &&
-                    (employees?.items?.length !== 0 ? (
+                    (employees?.length !== 0 ? (
                         <table className="table border table-bordered table-striped">
                             <thead className="table-dark">
                                 <tr>
@@ -321,7 +311,7 @@ const Table = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {employees?.items?.map((employee, index) => (
+                                {employees?.map((employee, index) => (
                                     <tr key={String(employee._id)}>
                                         <td>{index + 1}</td>
                                         <td className="text-wrap">

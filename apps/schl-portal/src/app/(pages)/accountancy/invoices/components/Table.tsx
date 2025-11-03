@@ -1,7 +1,8 @@
 'use client';
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 
 import Badge from '@/components/Badge';
-import { fetchApi } from '@repo/common/utils/general-utils';
+
 import { hasPerm } from '@repo/common/utils/permission-check';
 
 import NoData, { Type } from '@/components/NoData';
@@ -36,6 +37,7 @@ const Table: React.FC = props => {
     });
 
     const { data: session } = useSession();
+    const authedFetchApi = useAuthedFetchApi();
 
     const userPermissions = useMemo(
         () => session?.user.permissions || [],
@@ -62,7 +64,7 @@ const Table: React.FC = props => {
         async (page: number, itemPerPage: number) => {
             try {
                 // setLoading(true);
-                const response = await fetchApi(
+                const response = await authedFetchApi(
                     {
                         path: '/v1/invoice/search-invoices',
                         query: {
@@ -96,7 +98,7 @@ const Table: React.FC = props => {
                 setLoading(false);
             }
         },
-        [],
+        [authedFetchApi],
     );
 
     const getAllInvoicesFiltered = useCallback(
@@ -104,7 +106,7 @@ const Table: React.FC = props => {
             try {
                 // setLoading(true);
 
-                const response = await fetchApi(
+                const response = await authedFetchApi(
                     {
                         path: '/v1/invoice/search-invoices',
                         query: {
@@ -142,109 +144,8 @@ const Table: React.FC = props => {
             }
             return;
         },
-        [filters],
+        [authedFetchApi, filters],
     );
-
-    async function deleteInvoice(invoiceNumber: string) {
-        try {
-            const response = await fetchApi(
-                {
-                    path: '/v1/invoice/delete-invoice',
-                    query: { invoiceNumber },
-                },
-                {
-                    method: 'DELETE',
-                },
-            );
-
-            if (response.ok) {
-                const ftpDeleteConfirmation = confirm(
-                    'Delete from the FTP server too?',
-                );
-                if (ftpDeleteConfirmation) {
-                    const ftp_response = await fetchApi(
-                        {
-                            path: '/v1/ftp/delete',
-                            query: {
-                                folderName: 'invoice',
-                                fileName: `invoice_studioclickhouse_${invoiceNumber}.xlsx`,
-                            },
-                        },
-                        {
-                            method: 'DELETE',
-                        },
-                    );
-                    if (ftp_response.ok) {
-                        toast.success('Deleted the invoice from FTP server');
-                    } else {
-                        toast.error(ftp_response.data.message as string);
-                    }
-                } else {
-                    toast.success(response.data.message as string);
-                }
-                await fetchInvoices();
-            } else {
-                toast.error(response.data.message);
-            }
-        } catch (error) {
-            console.error(error);
-            toast.error('An error occurred while deleting the invoice');
-        }
-        return;
-    }
-
-    async function downloadFile(invoiceNumber: string) {
-        const toastId = toast.loading('Triggering the download...');
-        try {
-            const fileName = `invoice_studioclickhouse_${invoiceNumber}.xlsx`;
-
-            const response = await fetchApi(
-                {
-                    path: '/v1/ftp/download',
-                    query: {
-                        folderName: 'invoice',
-                        fileName: fileName,
-                    },
-                },
-                {
-                    method: 'GET',
-                },
-            );
-
-            if (response.ok) {
-                const blob = response.data as Blob;
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = fileName;
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                window.URL.revokeObjectURL(url);
-                toast.success('Download triggered successfully', {
-                    id: toastId,
-                });
-            } else {
-                let errorMessage = 'Error downloading the invoice';
-                if (typeof response.data === 'string') {
-                    try {
-                        const errorData = JSON.parse(response.data);
-                        errorMessage = errorData.message || errorMessage;
-                    } catch {
-                        errorMessage = response.data || errorMessage;
-                    }
-                }
-                toast.error(errorMessage, {
-                    id: toastId,
-                });
-            }
-        } catch (error) {
-            console.error(error);
-            toast.error('An error occurred while initializing the download', {
-                id: toastId,
-            });
-        }
-    }
 
     const fetchInvoices = useCallback(async () => {
         if (!isFiltered) {
@@ -252,7 +153,121 @@ const Table: React.FC = props => {
         } else {
             await getAllInvoicesFiltered(page, itemPerPage);
         }
-    }, [isFiltered, getAllInvoices, getAllInvoicesFiltered, page, itemPerPage]);
+    }, [getAllInvoices, getAllInvoicesFiltered, isFiltered, itemPerPage, page]);
+
+    const deleteInvoice = useCallback(
+        async (invoiceNumber: string) => {
+            try {
+                const response = await authedFetchApi<{ message: string }>(
+                    {
+                        path: '/v1/invoice/delete-invoice',
+                        query: { invoiceNumber },
+                    },
+                    {
+                        method: 'DELETE',
+                    },
+                );
+
+                if (response.ok) {
+                    const ftpDeleteConfirmation = confirm(
+                        'Delete from the FTP server too?',
+                    );
+                    if (ftpDeleteConfirmation) {
+                        const ftp_response = await authedFetchApi<{
+                            message: string;
+                        }>(
+                            {
+                                path: '/v1/ftp/delete',
+                                query: {
+                                    folderName: 'invoice',
+                                    fileName: `invoice_studioclickhouse_${invoiceNumber}.xlsx`,
+                                },
+                            },
+                            {
+                                method: 'DELETE',
+                            },
+                        );
+                        if (ftp_response.ok) {
+                            toast.success(
+                                'Deleted the invoice from FTP server',
+                            );
+                        } else {
+                            toast.error(ftp_response.data.message);
+                        }
+                    } else {
+                        toast.success(response.data.message);
+                    }
+                    await fetchInvoices();
+                } else {
+                    toast.error(response.data.message);
+                }
+            } catch (error) {
+                console.error(error);
+                toast.error('An error occurred while deleting the invoice');
+            }
+            return;
+        },
+        [authedFetchApi, fetchInvoices],
+    );
+
+    const downloadFile = useCallback(
+        async (invoiceNumber: string) => {
+            const toastId = toast.loading('Triggering the download...');
+            try {
+                const fileName = `invoice_studioclickhouse_${invoiceNumber}.xlsx`;
+
+                const response = await authedFetchApi<Blob>(
+                    {
+                        path: '/v1/ftp/download',
+                        query: {
+                            folderName: 'invoice',
+                            fileName: fileName,
+                        },
+                    },
+                    {
+                        method: 'GET',
+                    },
+                );
+
+                if (response.ok) {
+                    const blob = response.data;
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = fileName;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    window.URL.revokeObjectURL(url);
+                    toast.success('Download triggered successfully', {
+                        id: toastId,
+                    });
+                } else {
+                    let errorMessage = 'Error downloading the invoice';
+                    if (typeof response.data === 'string') {
+                        try {
+                            const errorData = JSON.parse(response.data);
+                            errorMessage = errorData.message || errorMessage;
+                        } catch {
+                            errorMessage = response.data || errorMessage;
+                        }
+                    }
+                    toast.error(errorMessage, {
+                        id: toastId,
+                    });
+                }
+            } catch (error) {
+                console.error(error);
+                toast.error(
+                    'An error occurred while initializing the download',
+                    {
+                        id: toastId,
+                    },
+                );
+            }
+        },
+        [authedFetchApi],
+    );
 
     usePaginationManager({
         page,

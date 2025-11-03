@@ -1,4 +1,5 @@
 'use client';
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import {
     BankAustraliaAccount,
     BankBangladeshAccount,
@@ -14,7 +15,8 @@ import generateInvoice, {
 import { ClientDocument } from '@repo/common/models/client.schema';
 import { OrderDocument } from '@repo/common/models/order.schema';
 import { getTodayDate } from '@repo/common/utils/date-helpers';
-import { cn, fetchApi } from '@repo/common/utils/general-utils';
+import { cn } from '@repo/common/utils/general-utils';
+
 import 'flowbite';
 import { initFlowbite } from 'flowbite';
 import { PlusCircleIcon, X } from 'lucide-react';
@@ -44,6 +46,7 @@ const Details: React.FC<DetailsProps> = props => {
         null,
     );
     const { data: session } = useSession();
+    const authedFetchApi = useAuthedFetchApi();
 
     const [orders, setOrders] = useState<OrderDocument[]>([]);
 
@@ -178,7 +181,7 @@ const Details: React.FC<DetailsProps> = props => {
 
             const fileName = `invoice_studioclickhouse_${customer.invoiceNumber}.xlsx`;
 
-            const toastId = toast.loading('Generating invoice...');
+            const toastId = toast.loading('Generating invoice...') as string;
 
             const invoice = await generateInvoice(
                 invoiceData,
@@ -237,7 +240,7 @@ const Details: React.FC<DetailsProps> = props => {
                 invoiceNumber: customer.invoiceNumber,
             };
 
-            const database_response = await fetchApi(
+            const database_response = await authedFetchApi<{ message: string }>(
                 { path: '/v1/invoice/create-invoice' },
                 {
                     method: 'POST',
@@ -249,7 +252,7 @@ const Details: React.FC<DetailsProps> = props => {
             );
 
             if (!database_response.ok) {
-                toast.error(database_response.data as string, { id: toastId });
+                toastFetchError(database_response, toastId);
                 return;
             }
 
@@ -268,7 +271,7 @@ const Details: React.FC<DetailsProps> = props => {
                 new File([invoice], fileName, { type: invoice.type }),
             );
 
-            const ftp_response = await fetchApi(
+            const ftp_response = await authedFetchApi<{ message: string }>(
                 { path: '/v1/ftp/upload', query: { folderName: 'invoice' } },
                 {
                     method: 'POST',
@@ -277,7 +280,7 @@ const Details: React.FC<DetailsProps> = props => {
             );
 
             if (!ftp_response.ok) {
-                toast.error(ftp_response.data as string, { id: toastId });
+                toastFetchError(ftp_response, toastId);
                 return;
             }
 
@@ -302,13 +305,16 @@ const Details: React.FC<DetailsProps> = props => {
         props.filters,
         props.clientCode,
         session,
+        authedFetchApi,
     ]);
 
     const getClientOrders = useCallback(async () => {
         try {
             setLoading(true);
 
-            const response = await fetchApi(
+            const response = await authedFetchApi<
+                OrderDocument[] | { items?: OrderDocument[] }
+            >(
                 {
                     path: '/v1/order/search-orders',
                     query: {
@@ -332,11 +338,13 @@ const Details: React.FC<DetailsProps> = props => {
 
             if (response.ok) {
                 const data = Array.isArray(response.data)
-                    ? (response.data as OrderDocument[])
-                    : ((response.data?.items || []) as OrderDocument[]);
+                    ? response.data
+                    : Array.isArray(response.data?.items)
+                      ? response.data.items
+                      : [];
                 setOrders(data);
             } else {
-                toast.error(response.data as string);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
@@ -345,7 +353,7 @@ const Details: React.FC<DetailsProps> = props => {
             setLoading(false);
         }
         return;
-    }, [props.filters]);
+    }, [authedFetchApi, props.filters]);
 
     const getClientDetails = useCallback(async () => {
         try {
@@ -356,7 +364,7 @@ const Details: React.FC<DetailsProps> = props => {
                 return;
             }
 
-            const response = await fetchApi(
+            const response = await authedFetchApi<ClientDocument>(
                 {
                     path: `/v1/client/get-client/${encodeURIComponent(props.clientCode)}`,
                 },
@@ -366,9 +374,9 @@ const Details: React.FC<DetailsProps> = props => {
             );
 
             if (response.ok) {
-                setClientDetails(response.data as ClientDocument);
+                setClientDetails(response.data);
             } else {
-                toast.error(response.data as string);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
@@ -377,7 +385,7 @@ const Details: React.FC<DetailsProps> = props => {
             setLoading(false);
         }
         return;
-    }, [props.clientCode]);
+    }, [authedFetchApi, props.clientCode]);
 
     useEffect(() => {
         if (props.filters.clientCode) {

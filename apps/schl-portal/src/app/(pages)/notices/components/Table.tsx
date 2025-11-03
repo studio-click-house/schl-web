@@ -1,15 +1,13 @@
 'use client';
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 
 import Badge from '@/components/Badge';
 import NoData, { Type } from '@/components/NoData';
 import Pagination from '@/components/Pagination';
 import { usePaginationManager } from '@/hooks/usePaginationManager';
 import { formatDate } from '@repo/common/utils/date-helpers';
-import {
-    cn,
-    constructFileName,
-    fetchApi,
-} from '@repo/common/utils/general-utils';
+import { cn, constructFileName } from '@repo/common/utils/general-utils';
+
 import { hasAnyPerm, hasPerm } from '@repo/common/utils/permission-check';
 import { CirclePlus, SquareArrowOutUpRight } from 'lucide-react';
 import { useSession } from 'next-auth/react';
@@ -30,6 +28,7 @@ type NoticesState = {
 };
 
 const Table = () => {
+    const authedFetchApi = useAuthedFetchApi();
     const [notices, setNotices] = useState<NoticesState>({
         pagination: {
             count: 0,
@@ -76,7 +75,7 @@ const Table = () => {
                       ? { channel: 'marketers' }
                       : { channel: 'production' };
 
-                const response = await fetchApi(
+                const response = await authedFetchApi<NoticesState>(
                     {
                         path: '/v1/notice/search-notices',
                         query: {
@@ -98,11 +97,9 @@ const Table = () => {
                 if (response.ok) {
                     setNotices(response.data);
                     setIsFiltered(false);
-                    setPageCount(
-                        (response.data as NoticesState).pagination.pageCount,
-                    );
+                    setPageCount(response.data.pagination.pageCount);
                 } else {
-                    toast.error(response.data.message);
+                    toastFetchError(response);
                 }
             } catch (error) {
                 console.error(error);
@@ -111,13 +108,13 @@ const Table = () => {
                 setIsLoading(false);
             }
         },
-        [userPermissions],
+        [authedFetchApi, userPermissions],
     );
 
     const getAllNoticesFiltered = useCallback(
         async (page: number, itemPerPage: number) => {
             try {
-                const response = await fetchApi(
+                const response = await authedFetchApi<NoticesState>(
                     {
                         path: '/v1/notice/search-notices',
                         query: {
@@ -137,13 +134,11 @@ const Table = () => {
                 );
 
                 if (response.ok) {
-                    setNotices(response.data as NoticesState);
+                    setNotices(response.data);
                     setIsFiltered(true);
-                    setPageCount(
-                        (response.data as NoticesState).pagination.pageCount,
-                    );
+                    setPageCount(response.data.pagination.pageCount);
                 } else {
-                    toast.error(response.data.message);
+                    toastFetchError(response);
                 }
             } catch (error) {
                 console.error(error);
@@ -153,12 +148,12 @@ const Table = () => {
             }
             return;
         },
-        [filters],
+        [authedFetchApi, filters],
     );
 
     const deleteNotice = async (noticeData: NoticeDataType) => {
         try {
-            const response = await fetchApi(
+            const response = await authedFetchApi<{ message: string }>(
                 { path: `/v1/notice/delete-notice/${noticeData._id}` },
                 {
                     method: 'DELETE',
@@ -181,7 +176,9 @@ const Table = () => {
                         'Delete attached file from the FTP server?',
                     );
                     if (ftpDeleteConfirmation) {
-                        const ftp_response = await fetchApi(
+                        const ftp_response = await authedFetchApi<{
+                            message: string;
+                        }>(
                             {
                                 path: '/v1/ftp/delete',
                                 query: {
@@ -196,15 +193,13 @@ const Table = () => {
                                 method: 'DELETE',
                             },
                         );
-                        if (ftp_response.ok) {
-                            toast.success(
-                                'Deleted the attached file from FTP server',
-                            );
-                        } else {
-                            toast.error(ftp_response.data as string);
-                        }
+                        ftp_response.ok
+                            ? toast.success(
+                                  'Deleted the attached file from FTP server',
+                              )
+                            : toastFetchError(ftp_response);
                     } else {
-                        toast.success(response.data as string);
+                        toast.success(response.data.message);
                     }
                 } else {
                     toast.success('Successfully deleted the notice', {
@@ -213,7 +208,7 @@ const Table = () => {
                 }
                 await fetchNotices();
             } else {
-                toast.error(response.data.message);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
@@ -241,7 +236,7 @@ const Table = () => {
                 return;
             }
 
-            const response = await fetchApi(
+            const response = await authedFetchApi(
                 { path: `/v1/notice/update-notice/${_id}` },
                 {
                     method: 'PUT',
@@ -257,7 +252,7 @@ const Table = () => {
 
                 await fetchNotices();
             } else {
-                toast.error(response.data as string);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
@@ -287,8 +282,7 @@ const Table = () => {
         if (searchVersion > 0 && isFiltered && page === 1) {
             fetchNotices();
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [searchVersion, isFiltered, page]);
+    }, [fetchNotices, isFiltered, page, searchVersion]);
 
     const handleSearch = useCallback(() => {
         setIsFiltered(true);

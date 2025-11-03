@@ -1,22 +1,23 @@
 'use client';
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import { EmployeeDocument } from '@repo/common/models/employee.schema';
 import { formatDate } from '@repo/common/utils/date-helpers';
-import { fetchApi } from '@repo/common/utils/general-utils';
 import { useSession } from 'next-auth/react';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 const DailyStatusTable = () => {
+    const authedFetchApi = useAuthedFetchApi();
     const [marketers, setMarketers] = useState<EmployeeDocument[]>([]);
 
     const [loading, setLoading] = useState<boolean>(true);
     const { data: session } = useSession();
 
-    async function getAllMarketers() {
+    const getAllMarketers = useCallback(async () => {
         try {
             setLoading(true);
 
-            const response = await fetchApi(
+            const response = await authedFetchApi(
                 {
                     path: '/v1/employee/search-employees',
                     query: { paginated: false, filtered: true },
@@ -33,7 +34,7 @@ const DailyStatusTable = () => {
             if (response.ok) {
                 setMarketers(response.data as EmployeeDocument[]);
             } else {
-                toast.error(response.data as string);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
@@ -41,11 +42,11 @@ const DailyStatusTable = () => {
         } finally {
             setLoading(false);
         }
-    }
+    }, [authedFetchApi]);
 
     useEffect(() => {
         getAllMarketers();
-    }, []);
+    }, [getAllMarketers]);
 
     if (loading) {
         return <p className="text-center">Loading...</p>;

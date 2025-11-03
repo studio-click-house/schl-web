@@ -1,6 +1,5 @@
 'use client';
-
-import { fetchApi } from '@repo/common/utils/general-utils';
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 
 import Badge from '@/components/Badge';
 import NoData, { Type } from '@/components/NoData';
@@ -13,7 +12,7 @@ import {
 import { Undo2 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'nextjs-toploader/app';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import FilterButton from './Filter';
 
@@ -40,13 +39,15 @@ const Table: React.FC<{ country: string; date: string }> = props => {
         country: props.country ?? 'Others',
     });
 
-    const getOrderDetails = async () => {
+    const authedFetchApi = useAuthedFetchApi();
+
+    const getOrderDetails = useCallback(async () => {
         try {
             // setLoading(true);
 
             console.log('filters --> ', filters);
 
-            const response = await fetchApi(
+            const response = await authedFetchApi<OrderDetails>(
                 {
                     path: `/v1/order/orders-by-country/${encodeURIComponent(filters.country)}`,
                     query: {
@@ -62,7 +63,7 @@ const Table: React.FC<{ country: string; date: string }> = props => {
             if (response.ok) {
                 setOrderDetails(response.data as OrderDetails);
             } else {
-                toast.error(response.data as string);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
@@ -70,11 +71,11 @@ const Table: React.FC<{ country: string; date: string }> = props => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [authedFetchApi, filters]);
 
     useEffect(() => {
         getOrderDetails();
-    }, []);
+    }, [getOrderDetails]);
 
     return (
         <>

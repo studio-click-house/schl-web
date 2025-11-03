@@ -1,4 +1,5 @@
 'use client';
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 
 import CallingStatusTd from '@/components/ExtendableTd';
 import Linkify from '@/components/Linkify';
@@ -8,7 +9,6 @@ import { usePaginationManager } from '@/hooks/usePaginationManager';
 import { EmployeeDocument } from '@repo/common/models/employee.schema';
 import { ReportDocument } from '@repo/common/models/report.schema';
 import { formatDate } from '@repo/common/utils/date-helpers';
-import { fetchApi } from '@repo/common/utils/general-utils';
 import { hasAnyPerm, hasPerm } from '@repo/common/utils/permission-check';
 import { useSession } from 'next-auth/react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -25,6 +25,7 @@ type ReportsState = {
 };
 
 const Table = () => {
+    const authedFetchApi = useAuthedFetchApi();
     const [reports, setReports] = useState<ReportsState>({
         pagination: {
             count: 0,
@@ -65,7 +66,7 @@ const Table = () => {
             try {
                 // setLoading(true);
 
-                const response = await fetchApi(
+                const response = await authedFetchApi(
                     {
                         path: '/v1/report/search-reports',
                         query: {
@@ -94,7 +95,7 @@ const Table = () => {
                         (response.data as ReportsState).pagination.pageCount,
                     );
                 } else {
-                    toast.error(response.data as string);
+                    toastFetchError(response);
                 }
             } catch (error) {
                 console.error(error);
@@ -103,7 +104,7 @@ const Table = () => {
                 setLoading(false);
             }
         },
-        [],
+        [authedFetchApi],
     );
 
     const getAllReportsFiltered = useCallback(
@@ -111,7 +112,7 @@ const Table = () => {
             try {
                 // setLoading(true);
 
-                const response = await fetchApi(
+                const response = await authedFetchApi(
                     {
                         path: '/v1/report/search-reports',
                         query: {
@@ -141,7 +142,7 @@ const Table = () => {
                         (response.data as ReportsState).pagination.pageCount,
                     );
                 } else {
-                    toast.error(response.data as string);
+                    toastFetchError(response);
                 }
             } catch (error) {
                 console.error(error);
@@ -151,12 +152,12 @@ const Table = () => {
             }
             return;
         },
-        [filters],
+        [authedFetchApi, filters],
     );
 
     async function deleteReport(reportData: ReportDocument) {
         try {
-            const response = await fetchApi(
+            const response = await authedFetchApi(
                 { path: '/v1/approval/new-request' },
                 {
                     method: 'POST',
@@ -175,7 +176,7 @@ const Table = () => {
             if (response.ok) {
                 toast.success('Request sent for approval');
             } else {
-                toast.error(response.data.message);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
@@ -184,9 +185,9 @@ const Table = () => {
         return;
     }
 
-    const getAllMarketers = async () => {
+    const getAllMarketers = useCallback(async () => {
         try {
-            const response = await fetchApi(
+            const response = await authedFetchApi(
                 {
                     path: '/v1/employee/search-employees',
                     query: { paginated: false, filtered: true },
@@ -203,23 +204,24 @@ const Table = () => {
             if (response.ok) {
                 const marketers = Array.isArray(response.data)
                     ? (response.data as EmployeeDocument[])
-                    : ((response.data?.items || []) as EmployeeDocument[]);
+                    : ((response.data as { items?: EmployeeDocument[] })
+                          ?.items ?? []);
                 const marketerNames = marketers
                     .map(marketer => marketer.company_provided_name)
                     .filter((name): name is string => Boolean(name));
                 setMarketerNames(marketerNames);
             } else {
-                toast.error(response.data as string);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
             toast.error('An error occurred while retrieving marketers data');
         }
-    };
+    }, [authedFetchApi]);
 
     useEffect(() => {
         getAllMarketers();
-    }, []);
+    }, [getAllMarketers]);
 
     const fetchReports = useCallback(async () => {
         if (!isFiltered) {

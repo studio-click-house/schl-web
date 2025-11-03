@@ -3,11 +3,10 @@ import {
     ScheduleDataType,
     validationSchema,
 } from '@/app/(pages)/work-schedule/schema';
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { taskOptions } from '@repo/common/constants/order.constant';
 import { ClientDocument } from '@repo/common/models/client.schema';
-import { OrderDocument } from '@repo/common/models/order.schema';
-import { fetchApi } from '@repo/common/utils/general-utils';
 import { setMenuPortalTarget } from '@repo/common/utils/select-helpers';
 import { useSession } from 'next-auth/react';
 import { useState } from 'react';
@@ -21,6 +20,7 @@ interface PropsType {
 }
 
 const Form: React.FC<PropsType> = props => {
+    const authedFetchApi = useAuthedFetchApi();
     const [loading, setLoading] = useState(false);
     const { data: session } = useSession();
 
@@ -71,7 +71,7 @@ const Form: React.FC<PropsType> = props => {
             const { _id, createdAt, updatedAt, __v, updated_by, ...payload } =
                 parsed.data;
 
-            const response = await fetchApi(
+            const response = await authedFetchApi(
                 { path: '/v1/schedule/create-schedule' },
                 {
                     method: 'POST',
@@ -87,7 +87,7 @@ const Form: React.FC<PropsType> = props => {
                 reset();
                 // reset the form after successful submission
             } else {
-                toast.error(response.data as string);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);

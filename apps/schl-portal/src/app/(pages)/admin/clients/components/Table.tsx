@@ -1,7 +1,9 @@
 'use client';
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 
 import ExtendableTd from '@/components/ExtendableTd';
-import { cn, fetchApi } from '@repo/common/utils/general-utils';
+import { cn } from '@repo/common/utils/general-utils';
+
 import { hasPerm } from '@repo/common/utils/permission-check';
 
 import NoData, { Type } from '@/components/NoData';
@@ -40,6 +42,7 @@ const Table: React.FC = () => {
     });
 
     const { data: session } = useSession();
+    const authedFetchApi = useAuthedFetchApi();
 
     const userPermissions = useMemo(
         () => session?.user.permissions || [],
@@ -71,7 +74,7 @@ const Table: React.FC = () => {
             try {
                 // setLoading(true);
 
-                const response = await fetchApi(
+                const response = await authedFetchApi<ClientsState>(
                     {
                         path: '/v1/client/search-clients',
                         query: {
@@ -96,12 +99,10 @@ const Table: React.FC = () => {
                 );
 
                 if (response.ok) {
-                    setClients(response.data as ClientsState);
-                    setPageCount(
-                        (response.data as ClientsState).pagination.pageCount,
-                    );
+                    setClients(response.data);
+                    setPageCount(response.data.pagination.pageCount);
                 } else {
-                    toast.error(response.data as string);
+                    toastFetchError(response);
                 }
             } catch (error) {
                 console.error(error);
@@ -110,7 +111,7 @@ const Table: React.FC = () => {
                 setLoading(false);
             }
         },
-        [],
+        [authedFetchApi],
     );
 
     const getAllClientsFiltered = useCallback(
@@ -118,7 +119,7 @@ const Table: React.FC = () => {
             try {
                 // setLoading(true);
 
-                const response = await fetchApi(
+                const response = await authedFetchApi<ClientsState>(
                     {
                         path: '/v1/client/search-clients',
                         query: {
@@ -141,13 +142,11 @@ const Table: React.FC = () => {
                 );
 
                 if (response.ok) {
-                    setClients(response.data as ClientsState);
+                    setClients(response.data);
                     setIsFiltered(true);
-                    setPageCount(
-                        (response.data as ClientsState).pagination.pageCount,
-                    );
+                    setPageCount(response.data.pagination.pageCount);
                 } else {
-                    toast.error(response.data as string);
+                    toastFetchError(response);
                 }
             } catch (error) {
                 console.error(error);
@@ -157,42 +156,47 @@ const Table: React.FC = () => {
             }
             return;
         },
-        [filters],
+        [authedFetchApi, filters],
     );
 
-    const deleteClient = async (clientData: ClientDocument) => {
-        try {
-            const response = await fetchApi(
-                { path: '/v1/approval/new-request' },
-                {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
+    const deleteClient = useCallback(
+        async (clientData: ClientDocument) => {
+            try {
+                const response = await authedFetchApi<{ message: string }>(
+                    { path: '/v1/approval/new-request' },
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            target_model: 'Client',
+                            action: 'delete',
+                            object_id: clientData._id,
+                            deleted_data: clientData,
+                        }),
                     },
-                    body: JSON.stringify({
-                        target_model: 'Client',
-                        action: 'delete',
-                        object_id: clientData._id,
-                        deleted_data: clientData,
-                    }),
-                },
-            );
+                );
 
-            if (response.ok) {
-                toast.success('Request sent for approval');
-            } else {
-                toast.error(response.data as string);
+                response.ok
+                    ? toast.success('Request sent for approval')
+                    : toastFetchError(response);
+            } catch (error) {
+                console.error(error);
+                toast.error(
+                    'An error occurred while sending request for approval',
+                );
             }
-        } catch (error) {
-            console.error(error);
-            toast.error('An error occurred while sending request for approval');
-        }
-        return;
-    };
+            return;
+        },
+        [authedFetchApi],
+    );
 
-    const getAllMarketers = async () => {
+    const getAllMarketers = useCallback(async () => {
         try {
-            const response = await fetchApi(
+            const response = await authedFetchApi<
+                EmployeeDocument[] | { items?: EmployeeDocument[] }
+            >(
                 {
                     path: '/v1/employee/search-employees',
                     query: { paginated: false, filtered: true },
@@ -208,20 +212,22 @@ const Table: React.FC = () => {
 
             if (response.ok) {
                 const marketers = Array.isArray(response.data)
-                    ? (response.data as EmployeeDocument[])
-                    : ((response.data?.items || []) as EmployeeDocument[]);
+                    ? response.data
+                    : Array.isArray(response.data?.items)
+                      ? response.data.items
+                      : [];
                 const marketerNames = marketers
                     .map(marketer => marketer.company_provided_name)
                     .filter((name): name is string => Boolean(name));
                 setMarketerNames(marketerNames);
             } else {
-                toast.error(response.data as string);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
             toast.error('An error occurred while retrieving marketers data');
         }
-    };
+    }, [authedFetchApi]);
 
     const editClient = async (
         editedClientData: zod_ClientDataType,
@@ -249,7 +255,7 @@ const Table: React.FC = () => {
                 Object.entries(rest).filter(([, value]) => value !== undefined),
             );
 
-            const response = await fetchApi(
+            const response = await authedFetchApi(
                 {
                     path: `/v1/client/update-client/${_id}`,
                 },
@@ -266,7 +272,7 @@ const Table: React.FC = () => {
                 toast.success('Updated the client data');
                 await fetchClients();
             } else {
-                toast.error(response.data as string);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
@@ -278,7 +284,7 @@ const Table: React.FC = () => {
 
     useEffect(() => {
         getAllMarketers();
-    }, []);
+    }, [getAllMarketers]);
 
     const fetchClients = useCallback(async () => {
         if (!isFiltered) {

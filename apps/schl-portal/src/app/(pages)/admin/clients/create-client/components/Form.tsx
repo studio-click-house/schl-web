@@ -1,7 +1,7 @@
 'use client';
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { fetchApi } from '@repo/common/utils/general-utils';
 import { setMenuPortalTarget } from '@repo/common/utils/select-helpers';
 import { useSession } from 'next-auth/react';
 import { useState } from 'react';
@@ -27,6 +27,7 @@ export const currencyOptions = [
 ];
 
 const Form: React.FC<PropsType> = props => {
+    const authedFetchApi = useAuthedFetchApi();
     const [loading, setLoading] = useState(false);
     const { data: session } = useSession();
 
@@ -81,7 +82,7 @@ const Form: React.FC<PropsType> = props => {
                 Object.entries(rest).filter(([, value]) => value !== undefined),
             );
 
-            const response = await fetchApi(
+            const response = await authedFetchApi(
                 {
                     path: '/v1/client/create-client',
                 },
@@ -99,7 +100,7 @@ const Form: React.FC<PropsType> = props => {
                 reset();
                 // reset the form after successful submission
             } else {
-                toast.error(response.data as string);
+                toastFetchError(response);
             }
 
             console.log('data', parsed.data, clientData);

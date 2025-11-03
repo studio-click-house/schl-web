@@ -1,5 +1,5 @@
+import { fetchApiWithServerAuth } from '@/lib/api-server';
 import { EmployeeDocument } from '@repo/common/models/employee.schema';
-import { fetchApi } from '@repo/common/utils/general-utils';
 import React, { Suspense } from 'react';
 import InputForm from './components/Form';
 
@@ -7,7 +7,7 @@ let marketerNames: string[] = [];
 
 async function getAllMarketers() {
     try {
-        const response = await fetchApi(
+        const response = await fetchApiWithServerAuth(
             {
                 path: '/v1/employee/search-employees',
                 query: { paginated: false, filtered: true },
@@ -24,7 +24,8 @@ async function getAllMarketers() {
         if (response.ok) {
             const marketers = Array.isArray(response.data)
                 ? (response.data as EmployeeDocument[])
-                : ((response.data?.items || []) as EmployeeDocument[]);
+                : ((response.data as { items?: EmployeeDocument[] })?.items ??
+                  []);
             marketerNames = marketers
                 .map(marketer => marketer.company_provided_name)
                 .filter((name): name is string => Boolean(name));

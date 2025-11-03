@@ -1,9 +1,9 @@
 'use client';
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 
 import NoData, { Type } from '@/components/NoData';
 import Pagination from '@/components/Pagination';
 import { usePaginationManager } from '@/hooks/usePaginationManager';
-import { fetchApi } from '@repo/common/utils/general-utils';
 import { useEffect } from 'react';
 
 import Link from 'next/link';
@@ -31,6 +31,7 @@ type TrackerDataState = {
 };
 
 const Table = () => {
+    const authedFetchApi = useAuthedFetchApi();
     const [trackerData, setTrackerData] = useState<TrackerDataState>({
         pagination: {
             count: 0,
@@ -55,7 +56,7 @@ const Table = () => {
             try {
                 setLoading(true);
 
-                const response = await fetchApi(
+                const response = await authedFetchApi(
                     {
                         path: '/v1/order/orders-by-month',
                         query: {
@@ -78,7 +79,7 @@ const Table = () => {
                             .pageCount,
                     );
                 } else {
-                    toast.error(response.data as string);
+                    toastFetchError(response);
                 }
             } catch (error) {
                 console.error(error);
@@ -87,7 +88,7 @@ const Table = () => {
                 setLoading(false);
             }
         },
-        [],
+        [authedFetchApi],
     );
 
     const getAllOrdersByMonthFiltered = useCallback(
@@ -95,7 +96,7 @@ const Table = () => {
             try {
                 setLoading(true);
 
-                const response = await fetchApi(
+                const response = await authedFetchApi(
                     {
                         path: `/v1/order/orders-by-month/${filters.clientCode}`,
                         query: {
@@ -119,7 +120,7 @@ const Table = () => {
                             .pageCount,
                     );
                 } else {
-                    toast.error(response.data as string);
+                    toastFetchError(response);
                 }
             } catch (error) {
                 console.error(error);
@@ -129,7 +130,7 @@ const Table = () => {
             }
             return;
         },
-        [filters],
+        [authedFetchApi, filters],
     );
 
     const fetchOrders = useCallback(async () => {

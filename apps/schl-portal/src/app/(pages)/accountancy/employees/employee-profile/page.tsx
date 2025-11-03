@@ -1,6 +1,8 @@
 import { auth } from '@/auth';
+import { fetchApiWithServerAuth } from '@/lib/api-server';
+
 import { EmployeeDocument } from '@repo/common/models/employee.schema';
-import { fetchApi, generateAvatar } from '@repo/common/utils/general-utils';
+import { generateAvatar } from '@repo/common/utils/general-utils';
 
 import { redirect } from 'next/navigation';
 import React from 'react';
@@ -13,7 +15,7 @@ const getEmployeeInfo = async (identifier: string) => {
             return null;
         }
 
-        const response = await fetchApi(
+        const response = await fetchApiWithServerAuth<EmployeeDocument>(
             {
                 path: `/v1/employee/get-employee/${encodeURIComponent(normalized)}`,
             },
@@ -24,7 +26,7 @@ const getEmployeeInfo = async (identifier: string) => {
         if (response.ok) {
             return response.data as EmployeeDocument;
         } else {
-            console.error(response.data.message);
+            console.error(response.data);
             return null;
         }
     } catch (e) {

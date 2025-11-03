@@ -7,7 +7,7 @@ export const cn = (...input: ClassValue[]) => twMerge(clsx(input));
 
 type Primitive = string | number | boolean | null | undefined;
 
-type FetchApiTarget =
+export type FetchApiTarget =
     | string
     | URL
     | {

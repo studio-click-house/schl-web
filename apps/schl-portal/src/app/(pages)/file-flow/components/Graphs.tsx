@@ -1,8 +1,8 @@
 'use client';
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 
-import { fetchApi } from '@repo/common/utils/general-utils';
 import moment from 'moment-timezone';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { FiltersContext } from '../FiltersContext';
 import type { CountryData, OrderData } from '../types/graph-data.type';
@@ -12,6 +12,7 @@ import FlowDataGraph from './FlowDataGraph';
 import StatusDataGraph from './StatusDataGraph';
 
 const Graphs = () => {
+    const authedFetchApi = useAuthedFetchApi();
     const [isLoading, setIsLoading] = useState({
         flowData: false,
         statusData: false,
@@ -19,17 +20,18 @@ const Graphs = () => {
     });
 
     const filtersCtx = React.useContext(FiltersContext);
+    const filters = filtersCtx?.filters;
 
     const [flowData, setFlowData] = useState<OrderData[]>([]);
     const [statusData, setStatusData] = useState<OrderData[]>([]);
     const [countryData, setCountryData] = useState<CountryData>({});
 
-    const getFlowData = async () => {
+    const getFlowData = useCallback(async () => {
         try {
             setIsLoading(prevData => ({ ...prevData, flowData: true }));
 
-            const fromDate = filtersCtx?.filters.fromDate;
-            const toDate = filtersCtx?.filters.toDate;
+            const fromDate = filters?.fromDate;
+            const toDate = filters?.toDate;
             const dateRange =
                 fromDate && toDate
                     ? Math.max(
@@ -38,7 +40,7 @@ const Graphs = () => {
                       )
                     : undefined;
 
-            const response = await fetchApi(
+            const response = await authedFetchApi<OrderData[]>(
                 {
                     path: '/v1/order/orders-qp',
                     query: {
@@ -53,7 +55,7 @@ const Graphs = () => {
             if (response.ok) {
                 setFlowData(response.data);
             } else {
-                toast.error(response.data.message);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
@@ -61,15 +63,15 @@ const Graphs = () => {
         } finally {
             setIsLoading(prevData => ({ ...prevData, flowData: false }));
         }
-    };
+    }, [authedFetchApi, filters?.fromDate, filters?.toDate]);
 
-    const getStatusData = async () => {
+    const getStatusData = useCallback(async () => {
         const daysOfData = 14;
 
         try {
             setIsLoading(prevData => ({ ...prevData, statusData: true }));
 
-            const response = await fetchApi(
+            const response = await authedFetchApi<OrderData[]>(
                 {
                     path: '/v1/order/orders-qp',
                     query: {
@@ -84,7 +86,7 @@ const Graphs = () => {
             if (response.ok) {
                 setStatusData(response.data);
             } else {
-                toast.error(response.data.message);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
@@ -92,9 +94,9 @@ const Graphs = () => {
         } finally {
             setIsLoading(prevData => ({ ...prevData, statusData: false }));
         }
-    };
+    }, [authedFetchApi]);
 
-    const getCountryData = async () => {
+    const getCountryData = useCallback(async () => {
         const daysOfData = 30;
         try {
             setIsLoading(prevData => ({
@@ -102,7 +104,7 @@ const Graphs = () => {
                 countryData: true,
             }));
 
-            const response = await fetchApi(
+            const response = await authedFetchApi<CountryData>(
                 {
                     path: '/v1/order/orders-cd',
                     query: {
@@ -117,7 +119,7 @@ const Graphs = () => {
             if (response.ok) {
                 setCountryData(response.data);
             } else {
-                toast.error(response.data.message);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
@@ -128,17 +130,17 @@ const Graphs = () => {
                 countryData: false,
             }));
         }
-    };
+    }, [authedFetchApi]);
 
     useEffect(() => {
         getFlowData();
         getStatusData();
         getCountryData();
-    }, []);
+    }, [getCountryData, getFlowData, getStatusData]);
 
-    const handleFilterChange = () => {
+    const handleFilterChange = useCallback(() => {
         getFlowData();
-    };
+    }, [getFlowData]);
 
     return (
         <>

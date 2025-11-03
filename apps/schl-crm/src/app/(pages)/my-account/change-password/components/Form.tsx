@@ -1,7 +1,8 @@
 'use client';
 
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { fetchApi, generatePassword } from '@repo/common/utils/general-utils';
+import { generatePassword } from '@repo/common/utils/general-utils';
 import { hasPerm } from '@repo/common/utils/permission-check';
 import { KeySquare } from 'lucide-react';
 import { useSession } from 'next-auth/react';
@@ -13,6 +14,7 @@ import { ChangePasswordInputsType, validationSchema } from '../schema';
 const Form: React.FC = props => {
     const [loading, setLoading] = useState(false);
     const { data: session } = useSession();
+    const authedFetchApi = useAuthedFetchApi();
     console.log(session);
 
     const {
@@ -62,7 +64,7 @@ const Form: React.FC = props => {
                 return;
             }
 
-            const response = await fetchApi(
+            const response = await authedFetchApi<string>(
                 { path: `/v1/user/change-password/${userId}` },
                 {
                     method: 'POST',
@@ -76,13 +78,14 @@ const Form: React.FC = props => {
                 },
             );
 
-            if (response.ok) {
-                toast.success(response.data as string);
-                reset();
-                // reset the form after successful submission
-            } else {
-                toast.error(response.data as string);
+            if (!response.ok) {
+                toastFetchError(response, 'Failed to change password');
+                return;
             }
+
+            toast.success(response.data);
+            reset();
+            // reset the form after successful submission
 
             console.log('data', parsed.data, data);
         } catch (error) {

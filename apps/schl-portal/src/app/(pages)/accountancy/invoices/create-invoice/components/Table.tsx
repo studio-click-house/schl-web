@@ -1,9 +1,9 @@
 'use client';
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 
 import Badge from '@/components/Badge';
 import ExtendableTd from '@/components/ExtendableTd';
 import { OrderDocument } from '@repo/common/models/order.schema';
-import { fetchApi } from '@repo/common/utils/general-utils';
 
 import NoData, { Type } from '@/components/NoData';
 import Pagination from '@/components/Pagination';
@@ -47,6 +47,7 @@ function getMonthRange(monthYear: string): { from: string; to: string } {
 }
 
 const Table: React.FC<{ clientsData: ClientDocument[] }> = props => {
+    const authedFetchApi = useAuthedFetchApi();
     const [orders, setOrders] = useState<OrdersState>({
         pagination: {
             count: 0,
@@ -84,7 +85,7 @@ const Table: React.FC<{ clientsData: ClientDocument[] }> = props => {
             try {
                 // setLoading(true);
 
-                const response = await fetchApi(
+                const response = await authedFetchApi(
                     {
                         path: '/v1/order/search-orders',
                         query: {
@@ -115,7 +116,7 @@ const Table: React.FC<{ clientsData: ClientDocument[] }> = props => {
                         (response.data as OrdersState).pagination.pageCount,
                     );
                 } else {
-                    toast.error(response.data as string);
+                    toastFetchError(response);
                 }
             } catch (error) {
                 console.error(error);
@@ -126,7 +127,7 @@ const Table: React.FC<{ clientsData: ClientDocument[] }> = props => {
             }
             return;
         },
-        [filters],
+        [authedFetchApi, filters],
     );
 
     const fetchOrders = useCallback(async () => {

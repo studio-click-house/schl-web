@@ -1,13 +1,14 @@
 'use client';
+
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import {
-    fetchApi,
     isValidHttpUrls,
     isValidMails,
 } from '@repo/common/utils/general-utils';
 import { hasPerm } from '@repo/common/utils/permission-check';
 import { useSession } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 
 import { toast } from 'sonner';
 
@@ -16,6 +17,7 @@ interface propsType {
 }
 
 const Form: React.FC<propsType> = props => {
+    const authedFetchApi = useAuthedFetchApi();
     const searchParams = useSearchParams();
     const { data: session } = useSession();
     const [loading, setLoading] = useState(false);
@@ -141,7 +143,7 @@ const Form: React.FC<propsType> = props => {
 
             setLoading(true);
 
-            let response = await fetchApi(
+            const response = await authedFetchApi<{ message: string }>(
                 { path: '/v1/report/create-report' },
                 {
                     method: 'POST',
@@ -152,33 +154,34 @@ const Form: React.FC<propsType> = props => {
                 },
             );
 
-            if (response.ok) {
-                setReportData({
-                    callingDate: props.todayDate,
-                    followupDate: '',
-                    country: '',
-                    website: '',
-                    category: '',
-                    company: '',
-                    contactPerson: '',
-                    contactNumber: '',
-                    designation: '',
-                    email: '',
-                    status: '',
-                    linkedin: '',
-                    testJob: false,
-                    prospecting: false,
-                    prospectingStatus: '',
-                    followupDone: false,
-                    leadOrigin: 'generated',
-                    newLead: NewLeadQuery?.current ?? false,
-                });
-                toast.success(
-                    `New ${NewLeadQuery?.current ? 'lead' : 'report'} added successfully`,
-                );
-            } else {
-                toast.error(response.data.message);
+            if (!response.ok) {
+                toastFetchError(response, 'Failed to submit the report');
+                return;
             }
+
+            setReportData({
+                callingDate: props.todayDate,
+                followupDate: '',
+                country: '',
+                website: '',
+                category: '',
+                company: '',
+                contactPerson: '',
+                contactNumber: '',
+                designation: '',
+                email: '',
+                status: '',
+                linkedin: '',
+                testJob: false,
+                prospecting: false,
+                prospectingStatus: '',
+                followupDone: false,
+                leadOrigin: 'generated',
+                newLead: NewLeadQuery?.current ?? false,
+            });
+            toast.success(
+                `New ${NewLeadQuery?.current ? 'lead' : 'report'} added successfully`,
+            );
         } catch (error) {
             console.error(error);
             toast.error('An error occurred while submitting the form');

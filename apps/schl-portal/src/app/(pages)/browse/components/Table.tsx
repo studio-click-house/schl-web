@@ -1,4 +1,5 @@
 'use client';
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 
 import Badge from '@/components/Badge';
 import ClickToCopy from '@/components/CopyText';
@@ -6,7 +7,8 @@ import NoData, { Type } from '@/components/NoData';
 import Pagination from '@/components/Pagination';
 import { OrderDocument } from '@repo/common/models/order.schema';
 import { formatDate, formatTime } from '@repo/common/utils/date-helpers';
-import { cn, fetchApi } from '@repo/common/utils/general-utils';
+import { cn } from '@repo/common/utils/general-utils';
+
 import { hasAnyPerm, hasPerm } from '@repo/common/utils/permission-check';
 import { BookCheck, CirclePlus, Redo2 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
@@ -41,6 +43,7 @@ const Table: React.FC<{ clientsData: ClientDocument[] }> = props => {
         items: [],
     });
 
+    const authedFetchApi = useAuthedFetchApi();
     const { data: session } = useSession();
     const userPermissions = useMemo(
         () => session?.user.permissions || [],
@@ -71,7 +74,7 @@ const Table: React.FC<{ clientsData: ClientDocument[] }> = props => {
             try {
                 // setLoading(true);
 
-                const response = await fetchApi(
+                const response = await authedFetchApi(
                     {
                         path: '/v1/order/search-orders',
                         query: {
@@ -100,7 +103,7 @@ const Table: React.FC<{ clientsData: ClientDocument[] }> = props => {
                         (response.data as OrdersState).pagination.pageCount,
                     );
                 } else {
-                    toast.error(response.data as string);
+                    toastFetchError(response);
                 }
             } catch (error) {
                 console.error(error);
@@ -109,7 +112,7 @@ const Table: React.FC<{ clientsData: ClientDocument[] }> = props => {
                 setLoading(false);
             }
         },
-        [],
+        [authedFetchApi],
     );
 
     const getAllOrdersFiltered = useCallback(
@@ -117,7 +120,7 @@ const Table: React.FC<{ clientsData: ClientDocument[] }> = props => {
             try {
                 // setLoading(true);
 
-                const response = await fetchApi(
+                const response = await authedFetchApi(
                     {
                         path: '/v1/order/search-orders',
                         query: {
@@ -145,7 +148,7 @@ const Table: React.FC<{ clientsData: ClientDocument[] }> = props => {
                         (response.data as OrdersState).pagination.pageCount,
                     );
                 } else {
-                    toast.error(response.data as string);
+                    toastFetchError(response);
                 }
             } catch (error) {
                 console.error(error);
@@ -155,12 +158,12 @@ const Table: React.FC<{ clientsData: ClientDocument[] }> = props => {
             }
             return;
         },
-        [filters],
+        [authedFetchApi, filters],
     );
 
     const deleteOrder = async (orderData: OrderDocument) => {
         try {
-            const response = await fetchApi(
+            const response = await authedFetchApi(
                 { path: '/v1/approval/new-request' },
                 {
                     method: 'POST',
@@ -195,7 +198,7 @@ const Table: React.FC<{ clientsData: ClientDocument[] }> = props => {
                 orderData.qc1 >= orderData.quantity &&
                 orderData.qc2 >= orderData.quantity
             ) {
-                const response = await fetchApi(
+                const response = await authedFetchApi(
                     { path: `/v1/order/finish-order/${orderData._id}` },
                     {
                         method: 'POST',
@@ -232,7 +235,7 @@ const Table: React.FC<{ clientsData: ClientDocument[] }> = props => {
 
     const redoOrder = async (orderData: OrderDocument) => {
         try {
-            const response = await fetchApi(
+            const response = await authedFetchApi(
                 { path: `/v1/order/redo-order/${orderData._id}` },
                 {
                     method: 'POST',
@@ -269,7 +272,7 @@ const Table: React.FC<{ clientsData: ClientDocument[] }> = props => {
                 return;
             }
 
-            const response = await fetchApi(
+            const response = await authedFetchApi(
                 { path: `/v1/order/update-order/${parsed.data._id}` },
                 {
                     method: 'PUT',
@@ -285,7 +288,7 @@ const Table: React.FC<{ clientsData: ClientDocument[] }> = props => {
 
                 await fetchOrders();
             } else {
-                toast.error(response.data as string);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
@@ -301,7 +304,7 @@ const Table: React.FC<{ clientsData: ClientDocument[] }> = props => {
         } else {
             await getAllOrdersFiltered(page, itemPerPage);
         }
-    }, [isFiltered, getAllOrders, getAllOrdersFiltered, page, itemPerPage]);
+    }, [getAllOrders, getAllOrdersFiltered, isFiltered, itemPerPage, page]);
 
     usePaginationManager({
         page,

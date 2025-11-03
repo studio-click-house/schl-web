@@ -1,6 +1,6 @@
+import { fetchApiWithServerAuth } from '@/lib/api-server';
 import type { Permissions } from '@repo/common/types/permission.type';
 import { FullyPopulatedUser } from '@repo/common/types/populated-user.type';
-import { fetchApi } from '@repo/common/utils/general-utils';
 import NextAuth from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { authConfig } from './auth.config';
@@ -18,7 +18,7 @@ async function getUser(
     password: string,
 ): Promise<UserSessionType | null> {
     try {
-        const res = await fetchApi(
+        const res = await fetchApiWithServerAuth(
             {
                 path: '/v1/user/login',
                 query: {

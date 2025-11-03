@@ -1,7 +1,8 @@
 'use client';
 
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { cn, fetchApi } from '@repo/common/utils/general-utils';
+import { cn } from '@repo/common/utils/general-utils';
 import { hasPerm } from '@repo/common/utils/permission-check';
 import { useSession } from 'next-auth/react';
 import { useState } from 'react';
@@ -10,7 +11,19 @@ import { toast } from 'sonner';
 import { useValidation } from '../context/ValidationContext';
 import { ValidationInputType, validationSchema } from '../schema';
 
+type ValidationEntry = {
+    email?: string;
+    status?: string;
+    [key: string]: unknown;
+};
+
+type ValidationResponse = {
+    validations?: ValidationEntry[];
+    validation?: ValidationEntry;
+};
+
 const Form: React.FC = () => {
+    const authedFetchApi = useAuthedFetchApi();
     const [loading, setLoading] = useState(false);
     const { data: session } = useSession();
     const { setValidationResults, clearResults, validationResults } =
@@ -64,16 +77,19 @@ const Form: React.FC = () => {
                 ? `/v1/validator/bulk-email/${encodeURIComponent(parsed.data.emails.replace(/;/g, ','))}`
                 : `/v1/validator/single-email/${encodeURIComponent(parsed.data.emails)}`;
 
-            const response = await fetchApi(endpoint, {
-                method: 'GET',
-            });
+            const response = await authedFetchApi<ValidationResponse>(
+                endpoint,
+                {
+                    method: 'GET',
+                },
+            );
 
             if (!response.ok) {
-                toast.error(response.data.error || 'Failed to validate emails');
+                toastFetchError(response, 'Failed to validate emails');
                 return;
             }
 
-            const result = response.data;
+            const result = response.data as ValidationResponse;
             console.log('Validation result:', result);
 
             if (

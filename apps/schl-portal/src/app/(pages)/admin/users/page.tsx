@@ -1,12 +1,12 @@
+import { fetchApiWithServerAuth } from '@/lib/api-server';
 import { EmployeeDocument } from '@repo/common/models/employee.schema';
 import { RoleDocument } from '@repo/common/models/role.schema';
-import { fetchApi } from '@repo/common/utils/general-utils';
 import React from 'react';
 import Table from './components/Table';
 
 export const getAllEmployees = async () => {
     try {
-        const response = await fetchApi(
+        const response = await fetchApiWithServerAuth(
             {
                 path: '/v1/employee/search-employees',
                 query: { paginated: false, filtered: false },
@@ -35,7 +35,7 @@ export const getAllEmployees = async () => {
 
 export const getAllRoles = async () => {
     try {
-        const response = await fetchApi(
+        const response = await fetchApiWithServerAuth(
             {
                 path: '/v1/role/search-roles',
                 query: { paginated: false, filtered: false },

@@ -2,8 +2,8 @@
 
 import Pagination from '@/components/Pagination';
 import { usePaginationManager } from '@/hooks/usePaginationManager';
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import { ISO_to_DD_MM_YY as convertToDDMMYYYY } from '@repo/common/utils/date-helpers';
-import { fetchApi } from '@repo/common/utils/general-utils';
 import moment from 'moment-timezone';
 import { useRouter } from 'nextjs-toploader/app';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -19,6 +19,7 @@ type NoticesState = {
 };
 
 const Table = () => {
+    const authedFetchApi = useAuthedFetchApi();
     const [notices, setNotices] = useState<NoticesState>({
         pagination: {
             count: 0,
@@ -48,7 +49,7 @@ const Table = () => {
             try {
                 // setIsLoading(true);
 
-                let response = await fetchApi(
+                const response = await authedFetchApi<NoticesState>(
                     {
                         path: '/v1/notice/search-notices',
                         query: {
@@ -65,11 +66,12 @@ const Table = () => {
                 );
 
                 if (response.ok) {
-                    setNotices(response.data);
+                    const data = response.data as NoticesState;
+                    setNotices(data);
                     setIsFiltered(false);
-                    setPageCount(response.data.pagination.pageCount);
+                    setPageCount(data.pagination.pageCount);
                 } else {
-                    toast.error(response.data.message);
+                    toastFetchError(response);
                 }
             } catch (error) {
                 console.error(error);
@@ -78,7 +80,7 @@ const Table = () => {
                 setIsLoading(false);
             }
         },
-        [],
+        [authedFetchApi],
     );
 
     const getAllNoticesFiltered = useCallback(
@@ -86,7 +88,7 @@ const Table = () => {
             try {
                 // setIsLoading(true);
 
-                let response = await fetchApi(
+                const response = await authedFetchApi<NoticesState>(
                     {
                         path: '/v1/notice/search-notices',
                         query: {
@@ -106,11 +108,12 @@ const Table = () => {
                 );
 
                 if (response.ok) {
-                    setNotices(response.data);
+                    const data = response.data as NoticesState;
+                    setNotices(data);
                     setIsFiltered(true);
-                    setPageCount(response.data.pagination.pageCount);
+                    setPageCount(data.pagination.pageCount);
                 } else {
-                    toast.error(response.data.message);
+                    toastFetchError(response);
                 }
             } catch (error) {
                 console.error(error);
@@ -120,7 +123,7 @@ const Table = () => {
             }
             return;
         },
-        [filters],
+        [authedFetchApi, filters],
     );
 
     const fetchNotices = useCallback(async () => {

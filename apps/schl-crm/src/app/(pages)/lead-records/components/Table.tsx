@@ -5,11 +5,11 @@ import CallingStatusTd from '@/components/ExtendableTd';
 import Linkify from '@/components/Linkify';
 import Pagination from '@/components/Pagination';
 import { usePaginationManager } from '@/hooks/usePaginationManager';
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import { ReportDocument } from '@repo/common/models/report.schema';
 import { PopulatedByEmployeeUser } from '@repo/common/types/populated-user.type';
 import { getObjectChanges } from '@repo/common/utils/changes-generate';
 import { YYYY_MM_DD_to_DD_MM_YY as convertToDDMMYYYY } from '@repo/common/utils/date-helpers';
-import { fetchApi } from '@repo/common/utils/general-utils';
 import { hasPerm } from '@repo/common/utils/permission-check';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'nextjs-toploader/app';
@@ -29,6 +29,7 @@ type LeadsState = {
 };
 
 const Table: React.FC = props => {
+    const authedFetchApi = useAuthedFetchApi();
     const [leads, setLeads] = useState<LeadsState>({
         pagination: {
             count: 0,
@@ -69,7 +70,7 @@ const Table: React.FC = props => {
             try {
                 // setIsLoading(true);
 
-                let response = await fetchApi(
+                const response = await authedFetchApi<LeadsState>(
                     {
                         path: '/v1/report/search-reports',
                         query: {
@@ -90,11 +91,12 @@ const Table: React.FC = props => {
                 );
 
                 if (response.ok) {
-                    setLeads(response.data);
+                    const data = response.data as LeadsState;
+                    setLeads(data);
                     setIsFiltered(false);
-                    setPageCount(response.data.pagination.pageCount);
+                    setPageCount(data.pagination.pageCount);
                 } else {
-                    toast.error(response.data.message);
+                    toastFetchError(response);
                 }
             } catch (error) {
                 console.error(error);
@@ -103,12 +105,12 @@ const Table: React.FC = props => {
                 setIsLoading(false);
             }
         },
-        [],
+        [authedFetchApi],
     );
 
-    async function getAllMarketers() {
+    const getAllMarketers = useCallback(async () => {
         try {
-            let response = await fetchApi(
+            const response = await authedFetchApi<PopulatedByEmployeeUser[]>(
                 {
                     path: '/v1/employee/search-employees',
                     query: { paginated: false, filtered: true },
@@ -123,7 +125,7 @@ const Table: React.FC = props => {
             );
 
             if (response.ok) {
-                let marketers = response.data as PopulatedByEmployeeUser[];
+                const marketers = response.data as PopulatedByEmployeeUser[];
 
                 const marketer_names = marketers.map(
                     marketer => marketer.employee.company_provided_name!,
@@ -138,14 +140,14 @@ const Table: React.FC = props => {
             console.error(e);
             console.log('An error occurred while fetching marketer names');
         }
-    }
+    }, [authedFetchApi]);
 
     const getAllLeadsFiltered = useCallback(
         async (page: number, itemPerPage: number) => {
             try {
                 // setIsLoading(true);
 
-                let response = await fetchApi(
+                const response = await authedFetchApi<LeadsState>(
                     {
                         path: '/v1/report/search-reports',
                         query: {
@@ -165,11 +167,12 @@ const Table: React.FC = props => {
                 );
 
                 if (response.ok) {
-                    setLeads(response.data);
+                    const data = response.data as LeadsState;
+                    setLeads(data);
                     setIsFiltered(true);
-                    setPageCount(response.data.pagination.pageCount);
+                    setPageCount(data.pagination.pageCount);
                 } else {
-                    toast.error(response.data.message);
+                    toastFetchError(response);
                 }
             } catch (error) {
                 console.error(error);
@@ -179,7 +182,7 @@ const Table: React.FC = props => {
             }
             return;
         },
-        [filters],
+        [authedFetchApi, filters],
     );
 
     const fetchReports = useCallback(async () => {
@@ -216,7 +219,7 @@ const Table: React.FC = props => {
                 return;
             }
 
-            let response = await fetchApi(
+            const response = await authedFetchApi(
                 { path: '/v1/approval/new-request' },
                 {
                     method: 'POST',
@@ -233,7 +236,7 @@ const Table: React.FC = props => {
             if (response.ok) {
                 toast.success('Request sent for approval');
             } else {
-                toast.error(response.data.message);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
@@ -304,7 +307,7 @@ const Table: React.FC = props => {
                     return;
                 }
 
-                let response = await fetchApi(
+                const response = await authedFetchApi(
                     { path: '/v1/approval/new-request' },
                     {
                         method: 'POST',
@@ -329,7 +332,7 @@ const Table: React.FC = props => {
                 if (response.ok) {
                     toast.success('Request sent for approval');
                 } else {
-                    toast.error(response.data.message);
+                    toastFetchError(response);
                 }
 
                 return;
@@ -337,7 +340,7 @@ const Table: React.FC = props => {
 
             // setIsLoading(true);
 
-            const response = await fetchApi(
+            const response = await authedFetchApi(
                 { path: `/v1/report/update-report/${editedLeadData._id}` },
                 {
                     method: 'PUT',
@@ -350,7 +353,7 @@ const Table: React.FC = props => {
 
                 toast.success('Edited the lead successfully');
             } else {
-                toast.error(response.data.message);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
@@ -390,7 +393,7 @@ const Table: React.FC = props => {
                 return;
             }
 
-            let response = await fetchApi(
+            const response = await authedFetchApi(
                 { path: `/v1/report/withdraw-lead/${leadId}/${reqBy}` },
                 {
                     method: 'POST',
@@ -403,7 +406,7 @@ const Table: React.FC = props => {
 
                 toast.success('The lead has been withdrawn successfully');
             } else {
-                toast.error(response.data.message);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
@@ -427,8 +430,8 @@ const Table: React.FC = props => {
     }, [searchVersion, isFiltered, page]);
 
     useEffect(() => {
-        getAllMarketers();
-    }, []);
+        void getAllMarketers();
+    }, [getAllMarketers]);
 
     return (
         <>

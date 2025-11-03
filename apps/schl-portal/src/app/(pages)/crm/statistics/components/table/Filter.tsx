@@ -1,7 +1,9 @@
 'use client';
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 
 import { getTodayDate } from '@repo/common/utils/date-helpers';
-import { cn, fetchApi } from '@repo/common/utils/general-utils';
+import { cn } from '@repo/common/utils/general-utils';
+
 import { Filter, X } from 'lucide-react';
 import moment from 'moment-timezone';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -56,6 +58,7 @@ const FilterButton: React.FC<PropsType> = ({
     const [isOpen, setIsOpen] = useState<boolean>(false);
     const popupRef = useRef<HTMLElement>(null);
     const formRef = useRef<HTMLFormElement>(null);
+    const authedFetchApi = useAuthedFetchApi();
 
     const getReportsStatus = useCallback(
         async (data: FiltersType) => {
@@ -64,7 +67,7 @@ const FilterButton: React.FC<PropsType> = ({
 
                 const filters = data;
 
-                const response = await fetchApi(
+                const response = await authedFetchApi(
                     {
                         path: '/v1/report/report-statuses',
                         query: {
@@ -91,7 +94,7 @@ const FilterButton: React.FC<PropsType> = ({
                             countDays(filters.fromDate, filters.toDate),
                     );
                 } else {
-                    toast.error(response.data as string);
+                    toastFetchError(response);
                 }
             } catch (error) {
                 console.error(error);
@@ -102,7 +105,13 @@ const FilterButton: React.FC<PropsType> = ({
                 setLoading(false);
             }
         },
-        [setLoading, setReportsStatus, setCallsTarget, setLeadsTarget],
+        [
+            authedFetchApi,
+            setLoading,
+            setReportsStatus,
+            setCallsTarget,
+            setLeadsTarget,
+        ],
     );
 
     const { register, handleSubmit, reset, watch } = useForm<FiltersType>({

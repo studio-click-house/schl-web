@@ -1,5 +1,5 @@
 import { auth } from '@/auth';
-import { fetchApi } from '@repo/common/utils/general-utils';
+import { fetchApiWithServerAuth } from '@/lib/api-server';
 import { hasPerm } from '@repo/common/utils/permission-check';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
@@ -9,7 +9,7 @@ import InputForm from './components/Form';
 
 const getOrderData = async (orderId: string) => {
     try {
-        const response = await fetchApi(
+        const response = await fetchApiWithServerAuth(
             { path: `/v1/order/${orderId}` },
             {
                 method: 'GET',
@@ -21,10 +21,10 @@ const getOrderData = async (orderId: string) => {
         );
         if (response.ok) {
             return response.data as OrderDataType;
-        } else {
-            console.error(response.data.message);
-            return null;
         }
+
+        console.error('Unable to fetch order data', response.data);
+        return null;
     } catch (e) {
         console.error(e);
         console.log('An error occurred while fetching order data');

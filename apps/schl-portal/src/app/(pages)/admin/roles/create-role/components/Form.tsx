@@ -1,9 +1,9 @@
 'use client';
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { USER_PERMISSIONS } from '@repo/common/constants/permission.constant';
 import type { PermissionOption } from '@repo/common/types/permission.type';
-import { fetchApi } from '@repo/common/utils/general-utils';
 import { hasPerm } from '@repo/common/utils/permission-check';
 import { setMenuPortalTarget } from '@repo/common/utils/select-helpers';
 import { useSession } from 'next-auth/react';
@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import { RoleDataType, validationSchema } from '../../schema';
 
 const Form: React.FC = props => {
+    const authedFetchApi = useAuthedFetchApi();
     const [loading, setLoading] = useState(false);
     const { data: session } = useSession();
 
@@ -92,7 +93,7 @@ const Form: React.FC = props => {
 
             setLoading(true);
 
-            const response = await fetchApi(
+            const response = await authedFetchApi(
                 { path: '/v1/role/create-role' },
                 {
                     method: 'POST',
@@ -108,7 +109,7 @@ const Form: React.FC = props => {
                 reset();
                 // reset the form after successful submission
             } else {
-                toast.error(response.data as string);
+                toastFetchError(response);
             }
 
             console.log('data', parsed.data, roleData);

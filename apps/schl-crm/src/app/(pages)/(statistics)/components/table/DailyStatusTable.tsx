@@ -1,9 +1,9 @@
 'use client';
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import { getTodayDate } from '@repo/common/utils/date-helpers';
-import { fetchApi } from '@repo/common/utils/general-utils';
 import moment from 'moment-timezone';
 import { useSession } from 'next-auth/react';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import FilterButton from './Filter';
 
@@ -33,6 +33,7 @@ const countDays = (startDate: string, endDate: string): number => {
 };
 
 const DailyStatusTable = () => {
+    const authedFetchApi = useAuthedFetchApi();
     const callsTargetConst = 50;
     const leadsTargetConst = 20;
 
@@ -54,11 +55,11 @@ const DailyStatusTable = () => {
     const [callsTarget, setCallsTarget] = useState<number>(callsTargetConst);
     const [leadsTarget, setLeadsTarget] = useState<number>(leadsTargetConst);
 
-    async function getReportsStatus() {
+    const getReportsStatus = useCallback(async () => {
         try {
             setIsLoading(true);
 
-            let response = await fetchApi(
+            const response = await authedFetchApi<ReportsStatusState>(
                 {
                     path: `/v1/report/report-statuses/${session?.user.provided_name}`,
                     query: {
@@ -75,7 +76,8 @@ const DailyStatusTable = () => {
             );
 
             if (response.ok) {
-                setReportsStatus(response.data);
+                const data = response.data as ReportsStatusState;
+                setReportsStatus(data);
                 setCallsTarget(
                     callsTargetConst *
                         countDays(filters.fromDate, filters.toDate),
@@ -85,7 +87,7 @@ const DailyStatusTable = () => {
                         countDays(filters.fromDate, filters.toDate),
                 );
             } else {
-                toast.error(response.data.message);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
@@ -94,13 +96,19 @@ const DailyStatusTable = () => {
             );
         } finally {
             setIsLoading(false);
-            console.log(callsTarget, leadsTarget);
         }
-    }
+    }, [
+        authedFetchApi,
+        callsTargetConst,
+        filters.fromDate,
+        filters.toDate,
+        leadsTargetConst,
+        session?.user.provided_name,
+    ]);
 
     useEffect(() => {
-        getReportsStatus();
-    }, []);
+        void getReportsStatus();
+    }, [getReportsStatus]);
 
     return (
         <div className="mt-6">

@@ -1,10 +1,7 @@
 'use client';
 
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import { ISO_to_DD_MM_YY as convertToDDMMYYYY } from '@repo/common/utils/date-helpers';
-import {
-    fetchApi,
-    fetchApi as fetchData,
-} from '@repo/common/utils/general-utils';
 import moment from 'moment-timezone';
 import { useRouter } from 'nextjs-toploader/app';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -16,10 +13,6 @@ import parse, {
     Element,
     HTMLReactParserOptions,
 } from 'html-react-parser';
-interface ViewNoticeProps {
-    notice_no: string;
-}
-
 interface ViewNoticeProps {
     notice_no: string;
 }
@@ -91,6 +84,7 @@ const options: HTMLReactParserOptions = {
 };
 
 const ViewNotice: React.FC<ViewNoticeProps> = props => {
+    const authedFetchApi = useAuthedFetchApi();
     const notice_no = decodeURIComponent(props.notice_no);
     const [notice, setNotice] = useState<Notice>({
         channel: '',
@@ -115,7 +109,7 @@ const ViewNotice: React.FC<ViewNoticeProps> = props => {
         try {
             setIsLoading(true);
 
-            const response = await fetchApi(
+            const response = await authedFetchApi<Notice>(
                 {
                     path: '/v1/notice/get-notice',
                     query: {
@@ -128,13 +122,14 @@ const ViewNotice: React.FC<ViewNoticeProps> = props => {
             );
 
             if (response.ok) {
-                if (response.data?.channel != 'marketers') {
+                const data = response.data as Notice;
+                if (data?.channel != 'marketers') {
                     toast.error("The notice doesn't belong to this channel");
                     router.push('/');
                 }
-                setNotice(response.data);
+                setNotice(data);
             } else {
-                toast.error(response.data.message);
+                toastFetchError(response, 'Failed to retrieve the notice');
                 router.push(process.env.NEXT_PUBLIC_BASE_URL + '/notices');
             }
         } catch (error) {
@@ -144,11 +139,11 @@ const ViewNotice: React.FC<ViewNoticeProps> = props => {
         } finally {
             setIsLoading(false);
         }
-    }, [notice_no, router]);
+    }, [authedFetchApi, notice_no, router]);
 
     const handleFileDownload = async () => {
         try {
-            const response = await fetchApi(
+            const response = await authedFetchApi<Blob>(
                 {
                     path: '/v1/ftp/download',
                     query: {
@@ -166,7 +161,7 @@ const ViewNotice: React.FC<ViewNoticeProps> = props => {
 
             if (response.ok) {
                 // Create a blob from the response and download it
-                const blob = await response.data.blob();
+                const blob = response.data as Blob;
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
@@ -175,8 +170,7 @@ const ViewNotice: React.FC<ViewNoticeProps> = props => {
                 a.click();
                 window.URL.revokeObjectURL(url);
             } else {
-                console.error(response.data);
-                toast.error('Error downloading the file');
+                toastFetchError(response, 'Error downloading the file');
             }
         } catch (error) {
             console.error(error);

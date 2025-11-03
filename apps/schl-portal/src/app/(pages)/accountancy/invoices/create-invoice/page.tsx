@@ -1,12 +1,12 @@
+import { fetchApiWithServerAuth } from '@/lib/api-server';
 import { ClientDocument } from '@repo/common/models/client.schema';
 import { OrderDocument } from '@repo/common/models/order.schema';
-import { fetchApi } from '@repo/common/utils/general-utils';
 import React from 'react';
 import Table from './components/Table';
 
 const getAllClients = async () => {
     try {
-        const response = await fetchApi(
+        const response = await fetchApiWithServerAuth(
             {
                 path: '/v1/client/search-clients',
                 query: { paginated: false, filtered: false },

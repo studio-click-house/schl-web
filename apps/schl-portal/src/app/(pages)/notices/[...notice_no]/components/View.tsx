@@ -1,12 +1,20 @@
 'use client';
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 
 import { formatDate } from '@repo/common/utils/date-helpers';
-import { constructFileName, fetchApi } from '@repo/common/utils/general-utils';
+import { constructFileName } from '@repo/common/utils/general-utils';
+
 import { hasAnyPerm } from '@repo/common/utils/permission-check';
 import DOMPurify from 'dompurify';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'nextjs-toploader/app';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 import { toast } from 'sonner';
 
 import parse, {
@@ -29,6 +37,8 @@ interface Notice {
     createdAt: string;
     [key: string]: any;
 }
+
+type NoticeSearchResponse = Notice[] | { items?: Notice[] };
 
 const options: HTMLReactParserOptions = {
     replace(domNode) {
@@ -98,6 +108,8 @@ const ViewNotice: React.FC<ViewNoticeProps> = props => {
     });
     const [isLoading, setIsLoading] = useState(false);
     const router = useRouter();
+    const authedFetchApi = useAuthedFetchApi();
+    const lastFetchedNotice = useRef<string | null>(null);
 
     const { data: session } = useSession();
     const userPermissions = useMemo(
@@ -105,11 +117,11 @@ const ViewNotice: React.FC<ViewNoticeProps> = props => {
         [session?.user.permissions],
     );
 
-    async function getNotice() {
+    const getNotice = useCallback(async () => {
         try {
             setIsLoading(true);
 
-            const response = await fetchApi(
+            const response = await authedFetchApi<NoticeSearchResponse>(
                 {
                     path: '/v1/notice/search-notices',
                     query: {
@@ -130,7 +142,8 @@ const ViewNotice: React.FC<ViewNoticeProps> = props => {
                 const result = Array.isArray(response.data)
                     ? response.data
                     : response.data?.items;
-                const [matchedNotice] = (result || []) as Notice[];
+                const notices: Notice[] = result ?? [];
+                const [matchedNotice] = notices;
 
                 if (!matchedNotice) {
                     toast.error('Notice not found', {
@@ -168,7 +181,7 @@ const ViewNotice: React.FC<ViewNoticeProps> = props => {
                 }
                 setNotice(matchedNotice);
             } else {
-                toast.error(response.data as string, { id: 'notice-error' });
+                toastFetchError(response, 'Failed to retrieve notice');
                 router.push(
                     process.env.NEXT_PUBLIC_BASE_URL + '/admin/notices',
                 );
@@ -180,35 +193,36 @@ const ViewNotice: React.FC<ViewNoticeProps> = props => {
         } finally {
             setIsLoading(false);
         }
-    }
+    }, [authedFetchApi, notice_no, router, userPermissions]);
 
     const handleFileDownload = async () => {
         try {
-            const baseUrl = process.env.NEXT_PUBLIC_API_URL;
-            if (!baseUrl) {
-                throw new Error('API base URL is not configured');
-            }
-
-            const url = new URL('/v1/ftp/download', baseUrl);
-            url.searchParams.set('folderName', 'notice');
-            url.searchParams.set(
-                'fileName',
-                constructFileName(notice.file_name, notice.notice_no),
+            const response = await authedFetchApi<Blob>(
+                {
+                    path: '/v1/ftp/download',
+                    query: {
+                        folderName: 'notice',
+                        fileName: constructFileName(
+                            notice.file_name,
+                            notice.notice_no,
+                        ),
+                    },
+                },
+                {
+                    method: 'GET',
+                },
             );
 
-            const res = await fetch(url, {
-                method: 'GET',
-                headers: {
-                    Authorization: `Bearer ${session?.accessToken ?? ''}`,
-                },
-            });
-
-            if (!res.ok) {
-                toast.error('Error downloading the file');
+            if (!response.ok) {
+                toastFetchError(response, 'Error downloading the file');
                 return;
             }
 
-            const blob = await res.blob();
+            const blob = response.data;
+            if (!(blob instanceof Blob)) {
+                toast.error('Unexpected file response');
+                return;
+            }
             const downloadUrl = window.URL.createObjectURL(blob);
             const anchor = document.createElement('a');
             anchor.href = downloadUrl;
@@ -224,13 +238,19 @@ const ViewNotice: React.FC<ViewNoticeProps> = props => {
     };
 
     useEffect(() => {
-        if (notice_no) {
-            getNotice();
-        } else {
+        if (!notice_no) {
             setIsLoading(false);
             router.push(process.env.NEXT_PUBLIC_BASE_URL + '/admin/notices');
+            return;
         }
-    }, []);
+
+        if (lastFetchedNotice.current === notice_no) {
+            return;
+        }
+
+        lastFetchedNotice.current = notice_no;
+        getNotice();
+    }, [getNotice, notice_no, router]);
 
     return (
         <>

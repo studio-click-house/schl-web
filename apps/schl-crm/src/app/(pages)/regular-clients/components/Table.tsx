@@ -1,12 +1,12 @@
 'use client';
 import Pagination from '@/components/Pagination';
 import { usePaginationManager } from '@/hooks/usePaginationManager';
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import { ReportDocument } from '@repo/common/models/report.schema';
 import { YYYY_MM_DD_to_DD_MM_YY as convertToDDMMYYYY } from '@repo/common/utils/date-helpers';
-import { fetchApi } from '@repo/common/utils/general-utils';
 import { hasPerm } from '@repo/common/utils/permission-check';
 import { useSession } from 'next-auth/react';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import DeleteButton from './Delete';
 import EditButton from './Edit';
@@ -22,6 +22,7 @@ type ClientsState = {
 };
 
 const Table = () => {
+    const authedFetchApi = useAuthedFetchApi();
     const [clients, setClients] = useState<ClientsState>({
         pagination: {
             count: 0,
@@ -55,7 +56,7 @@ const Table = () => {
             try {
                 // setIsLoading(true);
 
-                let response = await fetchApi(
+                const response = await authedFetchApi<ClientsState>(
                     {
                         path: '/v1/report/search-reports',
                         query: {
@@ -75,11 +76,12 @@ const Table = () => {
                 );
 
                 if (response.ok) {
-                    setClients(response.data);
+                    const data = response.data as ClientsState;
+                    setClients(data);
                     setIsFiltered(false);
-                    setPageCount(response.data.pagination.pageCount);
+                    setPageCount(data.pagination.pageCount);
                 } else {
-                    toast.error(response.data.message);
+                    toastFetchError(response);
                 }
             } catch (error) {
                 console.error(error);
@@ -88,7 +90,7 @@ const Table = () => {
                 setIsLoading(false);
             }
         },
-        [],
+        [authedFetchApi],
     );
 
     const getAllClientsFiltered = useCallback(
@@ -96,7 +98,7 @@ const Table = () => {
             try {
                 // setIsLoading(true);
 
-                let response = await fetchApi(
+                const response = await authedFetchApi<ClientsState>(
                     {
                         path: '/v1/report/search-reports',
                         query: {
@@ -116,11 +118,12 @@ const Table = () => {
                 );
 
                 if (response.ok) {
-                    setClients(response.data);
+                    const data = response.data as ClientsState;
+                    setClients(data);
                     setIsFiltered(true);
-                    setPageCount(response.data.pagination.pageCount);
+                    setPageCount(data.pagination.pageCount);
                 } else {
-                    toast.error(response.data.message);
+                    toastFetchError(response);
                 }
             } catch (error) {
                 console.error(error);
@@ -130,7 +133,7 @@ const Table = () => {
             }
             return;
         },
-        [filters],
+        [authedFetchApi, filters],
     );
 
     const fetchReports = useCallback(async () => {
@@ -166,7 +169,7 @@ const Table = () => {
                 return;
             }
 
-            let response = await fetchApi(
+            const response = await authedFetchApi(
                 { path: '/v1/approval/new-request' },
                 {
                     method: 'POST',
@@ -183,7 +186,7 @@ const Table = () => {
             if (response.ok) {
                 toast.success('Request sent for approval');
             } else {
-                toast.error(response.data.message);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
@@ -228,7 +231,7 @@ const Table = () => {
 
             // setIsLoading(true);
 
-            const response = await fetchApi(
+            const response = await authedFetchApi(
                 { path: `/v1/report/update-report/${editedData._id}` },
                 {
                     method: 'PUT',
@@ -241,7 +244,7 @@ const Table = () => {
 
                 toast.success('Edited the client data successfully');
             } else {
-                toast.error(response.data.message);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
@@ -277,7 +280,7 @@ const Table = () => {
                 return;
             }
 
-            let response = await fetchApi(
+            const response = await authedFetchApi(
                 {
                     path: `/v1/report/remove-client-from-report/${clientId}/${reqBy}`,
                 },
@@ -292,7 +295,7 @@ const Table = () => {
 
                 toast.success('The client has been removed successfully');
             } else {
-                toast.error(response.data.message);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);

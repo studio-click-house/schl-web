@@ -1,9 +1,9 @@
 'use client';
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 
 import Badge from '@/components/Badge';
 import ExtendableTd from '@/components/ExtendableTd';
 import { EmployeeDocument } from '@repo/common/models/employee.schema';
-import { fetchApi } from '@repo/common/utils/general-utils';
 import { hasAnyPerm, hasPerm } from '@repo/common/utils/permission-check';
 
 import NoData, { Type } from '@/components/NoData';
@@ -35,6 +35,7 @@ const Table: React.FC<{
     employeesData: EmployeeDocument[];
     rolesData: RoleDocument[];
 }> = props => {
+    const authedFetchApi = useAuthedFetchApi();
     const [users, setUsers] = useState<UsersState>({
         pagination: {
             count: 0,
@@ -67,7 +68,7 @@ const Table: React.FC<{
         async (page: number, itemPerPage: number) => {
             setLoading(true);
             try {
-                const response = await fetchApi(
+                const response = await authedFetchApi(
                     {
                         path: '/v1/user/search-users',
                         query: {
@@ -106,7 +107,7 @@ const Table: React.FC<{
                 setLoading(false);
             }
         },
-        [],
+        [authedFetchApi],
     );
 
     const getAllUsersFiltered = useCallback(
@@ -122,7 +123,7 @@ const Table: React.FC<{
                         : {}),
                 };
 
-                const response = await fetchApi(
+                const response = await authedFetchApi(
                     {
                         path: '/v1/user/search-users',
                         query: {
@@ -162,12 +163,12 @@ const Table: React.FC<{
             }
             return;
         },
-        [filters.generalSearchString],
+        [authedFetchApi, filters.generalSearchString],
     );
 
     const deleteUser = async (userData: FullyPopulatedUser) => {
         try {
-            const response = await fetchApi(
+            const response = await authedFetchApi(
                 { path: '/v1/approval/new-request' },
                 {
                     method: 'POST',
@@ -233,7 +234,7 @@ const Table: React.FC<{
                     : {}),
             };
 
-            const response = await fetchApi(
+            const response = await authedFetchApi(
                 { path: `/v1/user/update-user/${targetId}` },
                 {
                     method: 'PUT',

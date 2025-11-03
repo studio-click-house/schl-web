@@ -1,4 +1,5 @@
 'use client';
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { hasPerm } from '@repo/common/utils/permission-check';
@@ -12,7 +13,7 @@ import { ZodPopulatedUserDataType, populatedUserSchema } from '../../schema';
 import { EmployeeDocument } from '@repo/common/models/employee.schema';
 import { RoleDocument } from '@repo/common/models/role.schema';
 import { Permissions } from '@repo/common/types/permission.type';
-import { fetchApi, generatePassword } from '@repo/common/utils/general-utils';
+import { generatePassword } from '@repo/common/utils/general-utils';
 import { KeySquare } from 'lucide-react';
 import { toast } from 'sonner';
 interface PropsType {
@@ -21,6 +22,7 @@ interface PropsType {
 }
 
 const Form: React.FC<PropsType> = props => {
+    const authedFetchApi = useAuthedFetchApi();
     const [loading, setLoading] = useState(false);
     const { data: session } = useSession();
 
@@ -156,7 +158,7 @@ const Form: React.FC<PropsType> = props => {
             };
 
             if (hasPerm('admin:create_user', userPermissions)) {
-                const response = await fetchApi(
+                const response = await authedFetchApi(
                     { path: '/v1/user/create-user' },
                     {
                         method: 'POST',
@@ -172,14 +174,10 @@ const Form: React.FC<PropsType> = props => {
                     reset();
                     // reset the form after successful submission
                 } else {
-                    const message =
-                        typeof response.data === 'string'
-                            ? response.data
-                            : response.data?.message || 'Unable to create user';
-                    toast.error(message);
+                    toastFetchError(response);
                 }
             } else if (hasPerm('admin:create_user_approval', userPermissions)) {
-                const response = await fetchApi(
+                const response = await authedFetchApi(
                     { path: '/v1/approval/new-request' },
                     {
                         method: 'POST',
@@ -197,12 +195,7 @@ const Form: React.FC<PropsType> = props => {
                 if (response.ok) {
                     toast.success('Request sent for approval');
                 } else {
-                    const message =
-                        typeof response.data === 'string'
-                            ? response.data
-                            : response.data?.message ||
-                              'Unable to submit approval request';
-                    toast.error(message);
+                    toastFetchError(response);
                 }
             } else {
                 toast.error('You do not have permission to create users');

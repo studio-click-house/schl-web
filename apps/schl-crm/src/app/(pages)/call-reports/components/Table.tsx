@@ -4,13 +4,11 @@ import CallingStatusTd from '@/components/ExtendableTd';
 import Linkify from '@/components/Linkify';
 import Pagination from '@/components/Pagination';
 import { usePaginationManager } from '@/hooks/usePaginationManager';
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import { ReportDocument } from '@repo/common/models/report.schema';
 import { getObjectChanges } from '@repo/common/utils/changes-generate';
 import { YYYY_MM_DD_to_DD_MM_YY as convertToDDMMYYYY } from '@repo/common/utils/date-helpers';
-import {
-    countPassedDaysSinceADate as countDaysSinceLastCall,
-    fetchApi,
-} from '@repo/common/utils/general-utils';
+import { countPassedDaysSinceADate as countDaysSinceLastCall } from '@repo/common/utils/general-utils';
 import { hasPerm } from '@repo/common/utils/permission-check';
 import { CirclePlus } from 'lucide-react';
 import moment from 'moment-timezone';
@@ -31,6 +29,7 @@ type ReportsState = {
 };
 
 const Table = () => {
+    const authedFetchApi = useAuthedFetchApi();
     const [reports, setReports] = useState<ReportsState>({
         pagination: {
             count: 0,
@@ -67,7 +66,7 @@ const Table = () => {
             try {
                 // setIsLoading(true);
 
-                const response = await fetchApi(
+                const response = await authedFetchApi<ReportsState>(
                     {
                         path: '/v1/report/search-reports',
                         query: {
@@ -88,11 +87,12 @@ const Table = () => {
                 );
 
                 if (response.ok) {
-                    setReports(response.data);
+                    const data = response.data as ReportsState;
+                    setReports(data);
                     setIsFiltered(false);
-                    setPageCount(response.data.pagination.pageCount);
+                    setPageCount(data.pagination.pageCount);
                 } else {
-                    toast.error(response.data.message);
+                    toastFetchError(response);
                 }
             } catch (error) {
                 console.error(error);
@@ -101,7 +101,7 @@ const Table = () => {
                 setIsLoading(false);
             }
         },
-        [session?.user.provided_name],
+        [authedFetchApi, session?.user.provided_name],
     );
 
     const getAllReportsFiltered = useCallback(
@@ -109,7 +109,7 @@ const Table = () => {
             try {
                 // setIsLoading(true);
 
-                const response = await fetchApi(
+                const response = await authedFetchApi<ReportsState>(
                     {
                         path: '/v1/report/search-reports',
                         query: {
@@ -132,11 +132,12 @@ const Table = () => {
                 );
 
                 if (response.ok) {
-                    setReports(response.data);
+                    const data = response.data as ReportsState;
+                    setReports(data);
                     setIsFiltered(true);
-                    setPageCount(response.data.pagination.pageCount);
+                    setPageCount(data.pagination.pageCount);
                 } else {
-                    toast.error(response.data.message);
+                    toastFetchError(response);
                 }
             } catch (error) {
                 console.error(error);
@@ -146,7 +147,7 @@ const Table = () => {
             }
             return;
         },
-        [filters, session?.user.provided_name],
+        [authedFetchApi, filters, session?.user.provided_name],
     );
 
     const fetchReports = useCallback(async () => {
@@ -186,7 +187,7 @@ const Table = () => {
                 return;
             }
 
-            const response = await fetchApi(
+            const response = await authedFetchApi(
                 {
                     path: '/v1/approval/new-request',
                 },
@@ -208,7 +209,7 @@ const Table = () => {
             if (response.ok) {
                 toast.success('Request sent for approval');
             } else {
-                toast.error(response.data.message);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
@@ -301,7 +302,7 @@ const Table = () => {
 
             if (isRecall) {
                 if (isRecallAllowed) {
-                    const recallCount = await fetchApi(
+                    const recallCount = await authedFetchApi<number>(
                         {
                             path: `/v1/report/recall-count/${session?.user.provided_name}`,
                         },
@@ -311,7 +312,9 @@ const Table = () => {
                     );
 
                     if (recallCount.ok) {
-                        if (recallCount.data < recallLimit) {
+                        const recallTotal = recallCount.data as number;
+
+                        if (recallTotal < recallLimit) {
                             const today = moment().utc().format('YYYY-MM-DD');
 
                             const isFollowup = reports.items.find(
@@ -321,7 +324,7 @@ const Table = () => {
                             );
 
                             if (isFollowup) {
-                                const response = await fetchApi(
+                                const response = await authedFetchApi(
                                     {
                                         path: `/v1/report/update-report/${editedReportData._id}`,
                                     },
@@ -346,7 +349,7 @@ const Table = () => {
                                     setEditedData({});
                                     setIsRecall(false);
                                 } else {
-                                    toast.error(response.data.message);
+                                    toastFetchError(response);
                                 }
                             } else {
                                 const submitData = {
@@ -360,7 +363,7 @@ const Table = () => {
                                     req_by: session?.user.db_id,
                                 };
 
-                                const response = await fetchApi(
+                                const response = await authedFetchApi(
                                     {
                                         path: '/v1/approval/new-request',
                                     },
@@ -381,7 +384,7 @@ const Table = () => {
                                         'Today is not the followup date of the report to recall, an approval request has been sent to admin',
                                     );
                                 } else {
-                                    toast.error(response.data.message);
+                                    toastFetchError(response);
                                 }
                             }
                         } else {
@@ -393,7 +396,7 @@ const Table = () => {
                             return;
                         }
                     } else {
-                        toast.error(recallCount.data);
+                        toastFetchError(recallCount);
                     }
                 } else {
                     toast.error(
@@ -401,7 +404,7 @@ const Table = () => {
                     );
                 }
             } else {
-                const response = await fetchApi(
+                const response = await authedFetchApi(
                     {
                         path: `/v1/report/update-report/${editedReportData._id}`,
                     },
@@ -419,7 +422,7 @@ const Table = () => {
 
                     toast.success('Edited the report successfully');
                 } else {
-                    toast.error(response.data.message);
+                    toastFetchError(response);
                 }
             }
         } catch (error) {

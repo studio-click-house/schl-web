@@ -1,8 +1,8 @@
 'use client';
 
 import { LoginDataType, validationSchema } from '@/app/login/schema';
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { fetchApi } from '@repo/common/utils/general-utils';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 
@@ -15,6 +15,7 @@ interface PropsType {
 
 const Form: React.FC<PropsType> = props => {
     const [loading, setLoading] = useState(false);
+    const authedFetchApi = useAuthedFetchApi();
 
     const router = useRouter();
 
@@ -45,7 +46,7 @@ const Form: React.FC<PropsType> = props => {
                 return;
             }
 
-            const response = await fetchApi(
+            const response = await authedFetchApi<{ redirect_path?: string }>(
                 {
                     path: '/v1/user/verify-user',
                     query: {
@@ -61,16 +62,15 @@ const Form: React.FC<PropsType> = props => {
                 },
             );
 
-            if (response.ok) {
-                const redirect_path =
-                    (response.data?.redirect_path as string | undefined) ||
-                    props.redirect_path ||
-                    '/';
-                router.replace(redirect_path);
-            } else {
-                console.error('verification failed:', response.data.message);
-                toast.error(response.data.message as string);
+            if (!response.ok) {
+                console.error('verification failed:', response.data);
+                toastFetchError(response, 'Failed to verify credentials');
+                return;
             }
+
+            const redirect_path =
+                response.data.redirect_path || props.redirect_path || '/';
+            router.replace(redirect_path);
         } catch (error) {
             console.log(error);
             toast.error('An error occurred while verifying the credentials');

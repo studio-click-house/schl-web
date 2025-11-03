@@ -1,10 +1,12 @@
 'use client';
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 
 import Badge from '@/components/Badge';
 import NoData, { Type } from '@/components/NoData';
 import Pagination from '@/components/Pagination';
 import { ScheduleDocument } from '@repo/common/models/schedule.schema';
-import { cn, fetchApi } from '@repo/common/utils/general-utils';
+import { cn } from '@repo/common/utils/general-utils';
+
 import { hasPerm } from '@repo/common/utils/permission-check';
 
 import { OrderDocument } from '@repo/common/models/order.schema';
@@ -44,6 +46,7 @@ const Table: React.FC<{ clientsData: OrderDocument[] }> = props => {
     });
 
     const { data: session } = useSession();
+    const authedFetchApi = useAuthedFetchApi();
 
     const userPermissions = useMemo(
         () => session?.user.permissions || [],
@@ -72,7 +75,7 @@ const Table: React.FC<{ clientsData: OrderDocument[] }> = props => {
     const getAllSchedules = useCallback(
         async (page: number, itemPerPage: number) => {
             try {
-                const response = await fetchApi(
+                const response = await authedFetchApi<SchedulesState>(
                     {
                         path: '/v1/schedule/search-schedules',
                         query: {
@@ -92,12 +95,10 @@ const Table: React.FC<{ clientsData: OrderDocument[] }> = props => {
                 );
 
                 if (response.ok) {
-                    setSchedules(response.data as SchedulesState);
-                    setPageCount(
-                        (response.data as SchedulesState).pagination.pageCount,
-                    );
+                    setSchedules(response.data);
+                    setPageCount(response.data.pagination.pageCount);
                 } else {
-                    toast.error(response.data as string);
+                    toastFetchError(response);
                 }
             } catch (error) {
                 console.error(error);
@@ -108,13 +109,13 @@ const Table: React.FC<{ clientsData: OrderDocument[] }> = props => {
                 setLoading(false);
             }
         },
-        [],
+        [authedFetchApi],
     );
 
     const getAllSchedulesFiltered = useCallback(
         async (page: number, itemPerPage: number) => {
             try {
-                const response = await fetchApi(
+                const response = await authedFetchApi<SchedulesState>(
                     {
                         path: '/v1/schedule/search-schedules',
                         query: {
@@ -136,13 +137,11 @@ const Table: React.FC<{ clientsData: OrderDocument[] }> = props => {
                 );
 
                 if (response.ok) {
-                    setSchedules(response.data as SchedulesState);
+                    setSchedules(response.data);
                     setIsFiltered(true);
-                    setPageCount(
-                        (response.data as SchedulesState).pagination.pageCount,
-                    );
+                    setPageCount(response.data.pagination.pageCount);
                 } else {
-                    toast.error(response.data as string);
+                    toastFetchError(response);
                 }
             } catch (error) {
                 console.error(error);
@@ -154,38 +153,41 @@ const Table: React.FC<{ clientsData: OrderDocument[] }> = props => {
             }
             return;
         },
-        [filters],
+        [authedFetchApi, filters],
     );
 
-    const deleteSchedule = async (scheduleData: ScheduleDocument) => {
-        try {
-            const response = await fetchApi(
-                { path: '/v1/approval/new-request' },
-                {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
+    const deleteSchedule = useCallback(
+        async (scheduleData: ScheduleDocument) => {
+            try {
+                const response = await authedFetchApi<{ message: string }>(
+                    { path: '/v1/approval/new-request' },
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            target_model: 'Schedule',
+                            action: 'delete',
+                            object_id: scheduleData._id,
+                            deleted_data: scheduleData,
+                        }),
                     },
-                    body: JSON.stringify({
-                        target_model: 'Schedule',
-                        action: 'delete',
-                        object_id: scheduleData._id,
-                        deleted_data: scheduleData,
-                    }),
-                },
-            );
+                );
 
-            if (response.ok) {
-                toast.success('Request sent for approval');
-            } else {
-                toast.error(response.data.message);
+                response.ok
+                    ? toast.success('Request sent for approval')
+                    : toastFetchError(response);
+            } catch (error) {
+                console.error(error);
+                toast.error(
+                    'An error occurred while sending request for approval',
+                );
             }
-        } catch (error) {
-            console.error(error);
-            toast.error('An error occurred while sending request for approval');
-        }
-        return;
-    };
+            return;
+        },
+        [authedFetchApi],
+    );
 
     const editedSchedule = async (
         editedScheduleData: zod_ScheduleDataType,
@@ -209,7 +211,7 @@ const Table: React.FC<{ clientsData: OrderDocument[] }> = props => {
                 return;
             }
 
-            const response = await fetchApi(
+            const response = await authedFetchApi<{ message: string }>(
                 { path: `/v1/schedule/update-schedule/${_id}` },
                 {
                     method: 'PUT',
@@ -225,7 +227,7 @@ const Table: React.FC<{ clientsData: OrderDocument[] }> = props => {
 
                 await fetchSchedules();
             } else {
-                toast.error(response.data as string);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
@@ -261,8 +263,7 @@ const Table: React.FC<{ clientsData: OrderDocument[] }> = props => {
         if (searchVersion > 0 && isFiltered && page === 1) {
             fetchSchedules();
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [searchVersion, isFiltered, page]);
+    }, [fetchSchedules, isFiltered, page, searchVersion]);
 
     const handleSearch = useCallback(() => {
         setIsFiltered(true);

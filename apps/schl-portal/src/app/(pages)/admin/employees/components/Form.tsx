@@ -1,6 +1,6 @@
 'use client';
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { fetchApi } from '@repo/common/utils/general-utils';
 import { setMenuPortalTarget } from '@repo/common/utils/select-helpers';
 import { useSession } from 'next-auth/react';
 import { useState } from 'react';
@@ -40,6 +40,7 @@ export const statusOptions = [
 ];
 
 const Form: React.FC = () => {
+    const authedFetchApi = useAuthedFetchApi();
     const [loading, setLoading] = useState(false);
     const { data: session } = useSession();
 
@@ -95,7 +96,7 @@ const Form: React.FC = () => {
                 Object.entries(rest).filter(([, value]) => value !== undefined),
             );
 
-            const response = await fetchApi(
+            const response = await authedFetchApi(
                 {
                     path: '/v1/employee/create-employee',
                 },
@@ -113,7 +114,7 @@ const Form: React.FC = () => {
                 reset();
                 // reset the form after successful submission
             } else {
-                toast.error(response.data as string);
+                toastFetchError(response);
             }
 
             console.log('data', parsed.data, employeeData);

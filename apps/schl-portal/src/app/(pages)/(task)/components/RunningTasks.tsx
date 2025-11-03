@@ -1,14 +1,15 @@
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import { OrderDocument } from '@repo/common/models/order.schema';
-import { fetchApi } from '@repo/common/utils/general-utils';
 import 'flowbite';
 import { initFlowbite } from 'flowbite';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import OrderRenderer from './OrderRenderer';
 
 function RunningTasks() {
     const [loading, setLoading] = useState(true);
     const [orders, setOrders] = useState<OrderDocument[]>([]);
+    const authedFetchApi = useAuthedFetchApi();
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -16,10 +17,10 @@ function RunningTasks() {
         }
     }, []);
 
-    async function getAllOrders() {
+    const getAllOrders = useCallback(async () => {
         try {
             setLoading(true);
-            const response = await fetchApi(
+            const response = await authedFetchApi<OrderDocument[]>(
                 { path: '/v1/order/unfinished-orders' },
                 {
                     method: 'GET',
@@ -30,7 +31,7 @@ function RunningTasks() {
             if (response.ok) {
                 setOrders(response.data as OrderDocument[]);
             } else {
-                toast.error(response.data?.message);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
@@ -38,11 +39,11 @@ function RunningTasks() {
         } finally {
             setLoading(false);
         }
-    }
+    }, [authedFetchApi]);
 
     useEffect(() => {
-        getAllOrders();
-    }, []);
+        void getAllOrders();
+    }, [getAllOrders]);
 
     if (loading) {
         return <p className="text-center">Loading...</p>;

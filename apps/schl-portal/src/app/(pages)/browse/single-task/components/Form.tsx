@@ -1,7 +1,7 @@
 'use client';
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { fetchApi } from '@repo/common/utils/general-utils';
 import { hasPerm } from '@repo/common/utils/permission-check';
 import { setMenuPortalTarget } from '@repo/common/utils/select-helpers';
 import { useSession } from 'next-auth/react';
@@ -25,6 +25,7 @@ interface PropsType {
 }
 
 const Form: React.FC<PropsType> = props => {
+    const authedFetchApi = useAuthedFetchApi();
     const [loading, setLoading] = useState({
         deleteOrder: false,
         editOrder: false,
@@ -60,7 +61,7 @@ const Form: React.FC<PropsType> = props => {
             if (!confirm('Are you sure you want to delete this order?')) return;
             setLoading(prevData => ({ ...prevData, deleteOrder: true }));
 
-            const response = await fetchApi(
+            const response = await authedFetchApi(
                 { path: '/v1/approval/new-request' },
                 {
                     method: 'POST',
@@ -79,7 +80,7 @@ const Form: React.FC<PropsType> = props => {
             if (response.ok) {
                 toast.success('Request sent for approval');
             } else {
-                toast.error(response.data.message);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
@@ -103,7 +104,7 @@ const Form: React.FC<PropsType> = props => {
                 return;
             }
 
-            const response = await fetchApi(
+            const response = await authedFetchApi(
                 { path: `/v1/order/finish-order/${orderData._id}` },
                 {
                     method: 'POST',
@@ -122,7 +123,7 @@ const Form: React.FC<PropsType> = props => {
                     toast.success('Changed the status to FINISHED');
                     router.refresh();
                 } else {
-                    toast.error('Unable to change status');
+                    toastFetchError(response);
                 }
             } else {
                 if (orderData.production < orderData.quantity) {
@@ -148,7 +149,7 @@ const Form: React.FC<PropsType> = props => {
         try {
             setLoading(prevData => ({ ...prevData, redoOrder: true }));
 
-            const response = await fetchApi(
+            const response = await authedFetchApi(
                 { path: `/v1/order/redo-order/${orderData._id}` },
                 {
                     method: 'POST',
@@ -162,7 +163,7 @@ const Form: React.FC<PropsType> = props => {
                 toast.success('Changed the status to CORRECTION');
                 router.refresh();
             } else {
-                toast.error('Unable to change status');
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
@@ -183,7 +184,7 @@ const Form: React.FC<PropsType> = props => {
                 return;
             }
 
-            const response = await fetchApi(
+            const response = await authedFetchApi(
                 { path: `/v1/order/update-order/${parsed.data._id}` },
                 {
                     method: 'PUT',
@@ -198,7 +199,7 @@ const Form: React.FC<PropsType> = props => {
                 toast.success('Updated the order data');
                 router.refresh();
             } else {
-                toast.error(response.data as string);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);

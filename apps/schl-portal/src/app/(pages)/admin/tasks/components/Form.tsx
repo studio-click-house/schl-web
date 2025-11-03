@@ -1,4 +1,5 @@
 'use client';
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import {
     priorityOptions,
     statusOptions,
@@ -10,7 +11,6 @@ import { OrderDataType, validationSchema } from '@/app/(pages)/browse/schema';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ClientDocument } from '@repo/common/models/client.schema';
 import { OrderDocument } from '@repo/common/models/order.schema';
-import { fetchApi } from '@repo/common/utils/general-utils';
 import { setMenuPortalTarget } from '@repo/common/utils/select-helpers';
 import moment from 'moment-timezone';
 import { useSession } from 'next-auth/react';
@@ -25,6 +25,7 @@ interface PropsType {
 }
 
 const Form: React.FC<PropsType> = props => {
+    const authedFetchApi = useAuthedFetchApi();
     const [loading, setLoading] = useState(false);
     const { data: session } = useSession();
 
@@ -85,7 +86,7 @@ const Form: React.FC<PropsType> = props => {
                 return;
             }
 
-            const response = await fetchApi(
+            const response = await authedFetchApi(
                 { path: '/v1/order/create' },
                 {
                     method: 'POST',
@@ -101,7 +102,7 @@ const Form: React.FC<PropsType> = props => {
                 reset();
                 // reset the form after successful submission
             } else {
-                toast.error(response.data as string);
+                toastFetchError(response);
             }
 
             console.log('data', parsed.data, orderData);

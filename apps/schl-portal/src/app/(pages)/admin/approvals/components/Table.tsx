@@ -1,6 +1,5 @@
 'use client';
-
-import { fetchApi } from '@repo/common/utils/general-utils';
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 
 import Badge from '@/components/Badge';
 import NoData, { Type } from '@/components/NoData';
@@ -39,6 +38,7 @@ type ApprovalsState = {
 };
 
 const Table: React.FC = props => {
+    const authedFetchApi = useAuthedFetchApi();
     const [approvals, setApprovals] = useState<ApprovalsState>({
         pagination: {
             count: 0,
@@ -75,7 +75,7 @@ const Table: React.FC = props => {
             try {
                 // setLoading(true);
 
-                const response = await fetchApi(
+                const response = await authedFetchApi<ApprovalsState>(
                     {
                         path: '/v1/approval/search-approvals',
                         query: {
@@ -95,12 +95,10 @@ const Table: React.FC = props => {
                 );
 
                 if (response.ok) {
-                    setApprovals(response.data as ApprovalsState);
-                    setPageCount(
-                        (response.data as ApprovalsState).pagination.pageCount,
-                    );
+                    setApprovals(response.data);
+                    setPageCount(response.data.pagination.pageCount);
                 } else {
-                    toast.error(response.data as string);
+                    toastFetchError(response);
                 }
             } catch (error) {
                 console.error(error);
@@ -111,7 +109,7 @@ const Table: React.FC = props => {
                 setLoading(false);
             }
         },
-        [],
+        [authedFetchApi],
     );
 
     const getAllApprovalsFiltered = useCallback(
@@ -119,7 +117,7 @@ const Table: React.FC = props => {
             try {
                 // setLoading(true);
 
-                const response = await fetchApi(
+                const response = await authedFetchApi<ApprovalsState>(
                     {
                         path: '/v1/approval/search-approvals',
                         query: {
@@ -141,13 +139,11 @@ const Table: React.FC = props => {
                 );
 
                 if (response.ok) {
-                    setApprovals(response.data as ApprovalsState);
+                    setApprovals(response.data);
                     setIsFiltered(true);
-                    setPageCount(
-                        (response.data as ApprovalsState).pagination.pageCount,
-                    );
+                    setPageCount(response.data.pagination.pageCount);
                 } else {
-                    toast.error(response.data as string);
+                    toastFetchError(response);
                 }
             } catch (error) {
                 console.error(error);
@@ -159,7 +155,7 @@ const Table: React.FC = props => {
             }
             return;
         },
-        [filters],
+        [authedFetchApi, filters],
     );
 
     const singleApproval = async (
@@ -167,8 +163,10 @@ const Table: React.FC = props => {
         res: 'approve' | 'reject',
     ) => {
         try {
-            const toastId = toast.loading('Sending request for approval...');
-            const response = await fetchApi(
+            const toastId = toast.loading(
+                'Sending request for approval...',
+            ) as string;
+            const response = await authedFetchApi<{ message: string }>(
                 { path: '/v1/approval/single-response' },
                 {
                     method: 'POST',
@@ -189,7 +187,7 @@ const Table: React.FC = props => {
                 });
                 await fetchApprovals();
             } else {
-                toast.error(response.data.message, { id: toastId });
+                toastFetchError(response, toastId);
             }
         } catch (error) {
             console.error(error);
@@ -200,8 +198,10 @@ const Table: React.FC = props => {
 
     const multipleApproval = async (res: 'approve' | 'reject') => {
         try {
-            const toastId = toast.loading('Sending request for approval...');
-            const response = await fetchApi(
+            const toastId = toast.loading(
+                'Sending request for approval...',
+            ) as string;
+            const response = await authedFetchApi<{ message: string }>(
                 { path: '/v1/approval/bulk-response' },
                 {
                     method: 'POST',
@@ -226,7 +226,7 @@ const Table: React.FC = props => {
                 setApprovalIds([]);
                 await fetchApprovals();
             } else {
-                toast.error(response.data.message, { id: toastId });
+                toastFetchError(response, toastId);
             }
         } catch (error) {
             console.error(error);
@@ -289,8 +289,7 @@ const Table: React.FC = props => {
         if (searchVersion > 0 && isFiltered && page === 1) {
             fetchApprovals();
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [searchVersion, isFiltered, page]);
+    }, [fetchApprovals, isFiltered, page, searchVersion]);
 
     const handleSearch = useCallback(() => {
         setIsFiltered(true);

@@ -1,19 +1,17 @@
 'use client';
 
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import type { OrderDocument } from '@repo/common/models/order.schema';
-import { fetchApi } from '@repo/common/utils/general-utils';
 import 'flowbite';
 import { initFlowbite } from 'flowbite';
-import { isArray } from 'lodash';
-import { useSession } from 'next-auth/react';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import OrderRenderer from './OrderRenderer';
 
 function WaitingForQC() {
     const [loading, setLoading] = useState(true);
     const [orders, setOrders] = useState<OrderDocument[]>([]);
-    const { data: session } = useSession();
+    const authedFetchApi = useAuthedFetchApi();
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -21,28 +19,21 @@ function WaitingForQC() {
         }
     }, []);
 
-    async function getAllOrders() {
+    const getAllOrders = useCallback(async () => {
         try {
             setLoading(true);
-            const response = await fetchApi(
+            const response = await authedFetchApi<OrderDocument[]>(
                 { path: '/v1/order/qc-orders' },
                 {
                     method: 'GET',
                     headers: { 'Content-Type': 'application/json' },
                 },
-                session?.accessToken,
             );
 
             if (response.ok) {
                 setOrders(response.data as OrderDocument[]);
             } else {
-                if (isArray(response.data?.message)) {
-                    response.data?.message.forEach((msg: string) =>
-                        toast.error(msg),
-                    );
-                } else {
-                    toast.error(response.data?.message);
-                }
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
@@ -50,11 +41,11 @@ function WaitingForQC() {
         } finally {
             setLoading(false);
         }
-    }
+    }, [authedFetchApi]);
 
     useEffect(() => {
-        getAllOrders();
-    }, []);
+        void getAllOrders();
+    }, [getAllOrders]);
 
     if (loading) {
         return <p className="text-center">Loading...</p>;

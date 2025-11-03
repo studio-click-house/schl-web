@@ -1,6 +1,6 @@
 'use client';
 
-import { fetchApi } from '@repo/common/utils/general-utils';
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import { useSession } from 'next-auth/react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -9,6 +9,7 @@ import ReportsCountGraph from './ReportsCountGraph';
 import TestOrdersTrendGraph from './TestOrdersTrendGraph';
 
 const Graphs = () => {
+    const authedFetchApi = useAuthedFetchApi();
     const { data: session } = useSession();
     const [isLoading, setIsLoading] = useState({
         reportsCount: false,
@@ -16,15 +17,17 @@ const Graphs = () => {
         testOrdersTrend: false,
     });
 
-    const [reportsCount, setReportsCount] = useState({});
-    const [clientsOnboard, setClientsOnboard] = useState({});
-    const [testOrdersTrend, setTestOrdersTrend] = useState({});
+    type TrendData = Record<string, number>;
+
+    const [reportsCount, setReportsCount] = useState<TrendData>({});
+    const [clientsOnboard, setClientsOnboard] = useState<TrendData>({});
+    const [testOrdersTrend, setTestOrdersTrend] = useState<TrendData>({});
 
     const getReportsCount = useCallback(async () => {
         try {
             setIsLoading(prevData => ({ ...prevData, reportsCount: true }));
 
-            const response = await fetchApi(
+            const response = await authedFetchApi<TrendData>(
                 {
                     path: '/v1/report/call-reports-trend',
                     query: {
@@ -37,9 +40,9 @@ const Graphs = () => {
             );
 
             if (response.ok) {
-                setReportsCount(response.data);
+                setReportsCount(response.data as TrendData);
             } else {
-                toast.error(response.data.message);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
@@ -49,7 +52,7 @@ const Graphs = () => {
         } finally {
             setIsLoading(prevData => ({ ...prevData, reportsCount: false }));
         }
-    }, [session]);
+    }, [authedFetchApi, session?.user.provided_name]);
 
     const getClientsOnboard = useCallback(async () => {
         try {
@@ -58,7 +61,7 @@ const Graphs = () => {
                 clientsOnboard: true,
             }));
 
-            const response = await fetchApi(
+            const response = await authedFetchApi<TrendData>(
                 {
                     path: '/v1/report/clients-onboard-trend',
                     query: {
@@ -71,9 +74,9 @@ const Graphs = () => {
             );
 
             if (response.ok) {
-                setClientsOnboard(response.data);
+                setClientsOnboard(response.data as TrendData);
             } else {
-                toast.error(response.data.message);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
@@ -86,7 +89,7 @@ const Graphs = () => {
                 clientsOnboard: false,
             }));
         }
-    }, [session]);
+    }, [authedFetchApi, session?.user.provided_name]);
 
     const getTestOrdersTrend = useCallback(async () => {
         try {
@@ -95,7 +98,7 @@ const Graphs = () => {
                 testOrdersTrend: true,
             }));
 
-            const response = await fetchApi(
+            const response = await authedFetchApi<TrendData>(
                 {
                     path: '/v1/report/test-orders-trend',
                     query: {
@@ -108,9 +111,9 @@ const Graphs = () => {
             );
 
             if (response.ok) {
-                setTestOrdersTrend(response.data);
+                setTestOrdersTrend(response.data as TrendData);
             } else {
-                toast.error(response.data.message);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
@@ -123,12 +126,12 @@ const Graphs = () => {
                 testOrdersTrend: false,
             }));
         }
-    }, [session]);
+    }, [authedFetchApi, session?.user.provided_name]);
 
     useEffect(() => {
-        getReportsCount();
-        getClientsOnboard();
-        getTestOrdersTrend();
+        void getReportsCount();
+        void getClientsOnboard();
+        void getTestOrdersTrend();
     }, [getReportsCount, getClientsOnboard, getTestOrdersTrend]);
 
     return (

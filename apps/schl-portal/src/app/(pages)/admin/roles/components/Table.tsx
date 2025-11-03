@@ -1,15 +1,23 @@
 'use client';
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 
 import ExtendableTd from '@/components/ExtendableTd';
 import Pagination from '@/components/Pagination';
 import { RoleDocument } from '@repo/common/models/role.schema';
 import type { Permissions } from '@repo/common/types/permission.type';
-import { cn, fetchApi } from '@repo/common/utils/general-utils';
+import { cn } from '@repo/common/utils/general-utils';
+
 import { hasAnyPerm, hasPerm } from '@repo/common/utils/permission-check';
 import { CirclePlus } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'nextjs-toploader/app';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 import { toast } from 'sonner';
 import { validationSchema, RoleDataType as zod_RoleDataType } from '../schema';
 import DeleteButton from './Delete';
@@ -24,7 +32,7 @@ type RolesState = {
     items: RoleDocument[];
 };
 
-const Table: React.FC = props => {
+const Table: React.FC = () => {
     const [roles, setRules] = useState<RolesState>({
         pagination: {
             count: 0,
@@ -34,6 +42,7 @@ const Table: React.FC = props => {
     });
 
     const { data: session } = useSession();
+    const authedFetchApi = useAuthedFetchApi();
 
     const userPermissions = useMemo(
         () => session?.user.permissions || [],
@@ -55,11 +64,11 @@ const Table: React.FC = props => {
         name: '',
     });
 
-    async function getAllRoles() {
+    const getAllRoles = useCallback(async () => {
         try {
             // setLoading(true);
 
-            const response = await fetchApi(
+            const response = await authedFetchApi<RolesState>(
                 {
                     path: '/v1/role/search-roles',
                     query: {
@@ -79,9 +88,9 @@ const Table: React.FC = props => {
             );
 
             if (response.ok) {
-                setRules(response.data as RolesState);
+                setRules(response.data);
             } else {
-                toast.error(response.data as string);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
@@ -89,20 +98,20 @@ const Table: React.FC = props => {
         } finally {
             setLoading(false);
         }
-    }
+    }, [authedFetchApi, itemPerPage, page]);
 
-    async function getAllRolesFiltered() {
+    const getAllRolesFiltered = useCallback(async () => {
         try {
             // setLoading(true);
 
-            const response = await fetchApi(
+            const response = await authedFetchApi<RolesState>(
                 {
                     path: '/v1/role/search-roles',
                     query: {
                         paginated: true,
                         filtered: true,
                         itemsPerPage: itemPerPage,
-                        page: !isFiltered ? 1 : page,
+                        page: isFiltered ? page : 1,
                     },
                 },
                 {
@@ -117,10 +126,10 @@ const Table: React.FC = props => {
             );
 
             if (response.ok) {
-                setRules(response.data as RolesState);
+                setRules(response.data);
                 setIsFiltered(true);
             } else {
-                toast.error(response.data as string);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
@@ -129,114 +138,143 @@ const Table: React.FC = props => {
             setLoading(false);
         }
         return;
-    }
+    }, [authedFetchApi, filters, isFiltered, itemPerPage, page]);
 
-    async function deleteRole(roleData: RoleDocument) {
-        try {
-            if (!session?.user.permissions.includes('admin:delete_role')) {
-                toast.error("You don't have the permission to delete roles");
-                return;
-            }
+    const deleteRole = useCallback(
+        async (roleData: RoleDocument) => {
+            try {
+                if (
+                    !session?.user?.permissions?.includes('admin:delete_role')
+                ) {
+                    toast.error(
+                        "You don't have the permission to delete roles",
+                    );
+                    return;
+                }
 
-            const response = await fetchApi(
-                { path: `/v1/role/delete-role/${roleData._id}` },
-                {
-                    method: 'DELETE',
-                    headers: {
-                        'Content-Type': 'application/json',
+                const response = await authedFetchApi<{ message: string }>(
+                    { path: `/v1/role/delete-role/${roleData._id}` },
+                    {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
                     },
-                },
-            );
-
-            if (response.ok) {
-                toast.success('Deleted the role successfully');
-                if (!isFiltered) await getAllRoles();
-                else await getAllRolesFiltered();
-            } else {
-                toast.error(response.data as string);
-            }
-        } catch (error) {
-            console.error(error);
-            toast.error('An error occurred while deleting the role');
-        }
-        return;
-    }
-
-    async function editRole(
-        editedRoleData: zod_RoleDataType,
-        previousRoleData: zod_RoleDataType,
-    ) {
-        try {
-            const parsed = validationSchema.safeParse(editedRoleData);
-
-            if (!parsed.success) {
-                console.error(parsed.error.issues.map(issue => issue.message));
-                toast.error('Invalid form data');
-                return;
-            }
-
-            const userPerms = session?.user?.permissions || [];
-            const superAdminPerm = 'settings:the_super_admin';
-
-            // Cannot touch a role containing super-admin permission unless you have it
-            if (
-                !userPerms.includes(superAdminPerm) &&
-                (previousRoleData.permissions.includes(superAdminPerm) ||
-                    parsed.data.permissions.includes(superAdminPerm))
-            ) {
-                toast.error("You can't modify a super admin role");
-                return;
-            }
-
-            // Detect newly added permissions (those not originally on the role)
-            const addedPermissions = parsed.data.permissions.filter(
-                p => !previousRoleData.permissions.includes(p),
-            ) as Permissions[];
-
-            // Any newly added permission must already be possessed by the editor
-            const invalidAdds = addedPermissions.filter(
-                p => !userPerms.includes(p),
-            );
-            if (invalidAdds.length > 0) {
-                toast.error(
-                    `You can't assign permissions you don't have: ${invalidAdds.join(', ')}`,
                 );
-                return;
+
+                if (response.ok) {
+                    toast.success('Deleted the role successfully');
+                    if (!isFiltered) {
+                        await getAllRoles();
+                    } else {
+                        await getAllRolesFiltered();
+                    }
+                } else {
+                    toastFetchError(response);
+                }
+            } catch (error) {
+                console.error(error);
+                toast.error('An error occurred while deleting the role');
             }
+            return;
+        },
+        [
+            authedFetchApi,
+            getAllRoles,
+            getAllRolesFiltered,
+            isFiltered,
+            session?.user?.permissions,
+        ],
+    );
 
-            setLoading(true);
+    const editRole = useCallback(
+        async (
+            editedRoleData: zod_RoleDataType,
+            previousRoleData: zod_RoleDataType,
+        ) => {
+            try {
+                const parsed = validationSchema.safeParse(editedRoleData);
 
-            const response = await fetchApi(
-                { path: `/v1/role/update-role/${parsed.data._id}` },
-                {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
+                if (!parsed.success) {
+                    console.error(
+                        parsed.error.issues.map(issue => issue.message),
+                    );
+                    toast.error('Invalid form data');
+                    return;
+                }
+
+                const userPerms = session?.user?.permissions || [];
+                const superAdminPerm = 'settings:the_super_admin';
+
+                // Cannot touch a role containing super-admin permission unless you have it
+                if (
+                    !userPerms.includes(superAdminPerm) &&
+                    (previousRoleData.permissions.includes(superAdminPerm) ||
+                        parsed.data.permissions.includes(superAdminPerm))
+                ) {
+                    toast.error("You can't modify a super admin role");
+                    return;
+                }
+
+                // Detect newly added permissions (those not originally on the role)
+                const addedPermissions = parsed.data.permissions.filter(
+                    p => !previousRoleData.permissions.includes(p),
+                ) as Permissions[];
+
+                // Any newly added permission must already be possessed by the editor
+                const invalidAdds = addedPermissions.filter(
+                    p => !userPerms.includes(p),
+                );
+                if (invalidAdds.length > 0) {
+                    toast.error(
+                        `You can't assign permissions you don't have: ${invalidAdds.join(', ')}`,
+                    );
+                    return;
+                }
+
+                setLoading(true);
+
+                const response = await authedFetchApi<{ message: string }>(
+                    { path: `/v1/role/update-role/${parsed.data._id}` },
+                    {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(parsed.data),
                     },
-                    body: JSON.stringify(parsed.data),
-                },
-            );
+                );
 
-            if (response.ok) {
-                toast.success('Updated the role data');
+                if (response.ok) {
+                    toast.success('Updated the role data');
 
-                if (!isFiltered) await getAllRoles();
-                else await getAllRolesFiltered();
-            } else {
-                toast.error(response.data as string);
+                    if (!isFiltered) {
+                        await getAllRoles();
+                    } else {
+                        await getAllRolesFiltered();
+                    }
+                } else {
+                    toastFetchError(response);
+                }
+            } catch (error) {
+                console.error(error);
+                toast.error('An error occurred while updating the role');
+            } finally {
+                setLoading(false);
             }
-        } catch (error) {
-            console.error(error);
-            toast.error('An error occurred while updating the role');
-        } finally {
-            setLoading(false);
-        }
-    }
+        },
+        [
+            authedFetchApi,
+            getAllRoles,
+            getAllRolesFiltered,
+            isFiltered,
+            session?.user?.permissions,
+        ],
+    );
 
     useEffect(() => {
         getAllRoles();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [getAllRoles]);
 
     useEffect(() => {
         if (prevPage.current !== 1 || page > 1) {
@@ -245,8 +283,13 @@ const Table: React.FC = props => {
             else getAllRolesFiltered();
         }
         prevPage.current = page;
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [page]);
+    }, [
+        getAllRoles,
+        getAllRolesFiltered,
+        isFiltered,
+        page,
+        roles?.pagination?.pageCount,
+    ]);
 
     useEffect(() => {
         if (roles?.pagination?.pageCount !== undefined) {
@@ -258,8 +301,7 @@ const Table: React.FC = props => {
             prevPageCount.current = roles?.pagination?.pageCount;
             prevPage.current = 1;
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [roles?.pagination?.pageCount]);
+    }, [getAllRolesFiltered, isFiltered, roles]);
 
     useEffect(() => {
         // Reset to first page when itemPerPage changes
@@ -269,8 +311,7 @@ const Table: React.FC = props => {
 
         if (!isFiltered) getAllRoles();
         else getAllRolesFiltered();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [itemPerPage]);
+    }, [getAllRoles, getAllRolesFiltered, isFiltered, itemPerPage]);
 
     return (
         <>

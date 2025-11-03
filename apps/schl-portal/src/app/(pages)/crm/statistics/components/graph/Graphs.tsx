@@ -1,7 +1,7 @@
 'use client';
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 
-import { fetchApi } from '@repo/common/utils/general-utils';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import ClientsOnboardGraph from './ClientsOnboardGraph';
 import ReportsCountGraph from './ReportsCountGraph';
@@ -23,19 +23,20 @@ const Graphs = () => {
     const [testOrdersTrend, setTestOrdersTrend] = useState<
         Record<string, number>
     >({});
+    const authedFetchApi = useAuthedFetchApi();
 
-    async function getReportsCount() {
+    const getReportsCount = useCallback(async () => {
         try {
             setIsLoading(prevData => ({ ...prevData, reportsCount: true }));
 
-            const response = await fetchApi({
+            const response = await authedFetchApi<Record<string, number>>({
                 path: '/v1/report/call-reports-trend',
             });
 
             if (response.ok) {
-                setReportsCount(response.data as Record<string, number>);
+                setReportsCount(response.data);
             } else {
-                toast.error(response.data as string);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
@@ -45,23 +46,23 @@ const Graphs = () => {
         } finally {
             setIsLoading(prevData => ({ ...prevData, reportsCount: false }));
         }
-    }
+    }, [authedFetchApi]);
 
-    async function getClientsOnboard() {
+    const getClientsOnboard = useCallback(async () => {
         try {
             setIsLoading(prevData => ({
                 ...prevData,
                 clientsOnboard: true,
             }));
 
-            const response = await fetchApi({
+            const response = await authedFetchApi<Record<string, number>>({
                 path: '/v1/report/clients-onboard-trend',
             });
 
             if (response.ok) {
-                setClientsOnboard(response.data as Record<string, number>);
+                setClientsOnboard(response.data);
             } else {
-                toast.error(response.data as string);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
@@ -74,23 +75,23 @@ const Graphs = () => {
                 clientsOnboard: false,
             }));
         }
-    }
+    }, [authedFetchApi]);
 
-    async function getTestOrdersTrend() {
+    const getTestOrdersTrend = useCallback(async () => {
         try {
             setIsLoading(prevData => ({
                 ...prevData,
                 testOrdersTrend: true,
             }));
 
-            const response = await fetchApi({
+            const response = await authedFetchApi<Record<string, number>>({
                 path: '/v1/report/test-orders-trend',
             });
 
             if (response.ok) {
-                setTestOrdersTrend(response.data as Record<string, number>);
+                setTestOrdersTrend(response.data);
             } else {
-                toast.error(response.data as string);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
@@ -103,13 +104,13 @@ const Graphs = () => {
                 testOrdersTrend: false,
             }));
         }
-    }
+    }, [authedFetchApi]);
 
     useEffect(() => {
         getReportsCount();
         getClientsOnboard();
         getTestOrdersTrend();
-    }, []);
+    }, [getClientsOnboard, getReportsCount, getTestOrdersTrend]);
 
     return (
         <div className="px-2 space-y-4">

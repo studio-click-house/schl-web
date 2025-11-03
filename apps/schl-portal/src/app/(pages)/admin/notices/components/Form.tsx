@@ -1,6 +1,6 @@
 'use client';
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { fetchApi } from '@repo/common/utils/general-utils';
 import { hasPerm } from '@repo/common/utils/permission-check';
 import { setMenuPortalTarget } from '@repo/common/utils/select-helpers';
 import { CheckCircle, CloudUpload, Loader2 } from 'lucide-react';
@@ -19,6 +19,7 @@ export const channelOptions = [
 ];
 
 const Form: React.FC = () => {
+    const authedFetchApi = useAuthedFetchApi();
     const [loading, setLoading] = useState(false);
     const { data: session } = useSession();
     const [file, setFile] = useState<File | null>(null);
@@ -98,7 +99,7 @@ const Form: React.FC = () => {
             const { _id, createdAt, updatedAt, __v, updated_by, ...payload } =
                 parsed.data;
 
-            const response = await fetchApi(
+            const response = await authedFetchApi(
                 { path: '/v1/notice/create-notice' },
                 {
                     method: 'POST',
@@ -110,16 +111,17 @@ const Form: React.FC = () => {
             );
 
             if (response.ok) {
+                const notice = response.data as { notice_no: string };
                 toast.success('Created new notice successfully');
                 if (file) {
                     const formData = new FormData();
                     formData.append(
                         'file',
                         file,
-                        constructFileName(file, response.data.notice_no),
+                        constructFileName(file, notice.notice_no),
                     );
 
-                    const ftp_response = await fetchApi(
+                    const ftp_response = await authedFetchApi(
                         {
                             path: '/v1/ftp/upload',
                             query: { folderName: 'notice' },
@@ -131,7 +133,7 @@ const Form: React.FC = () => {
                     );
 
                     if (!ftp_response.ok) {
-                        toast.error(ftp_response.data as string);
+                        toastFetchError(ftp_response);
                         return;
                     }
 
@@ -141,7 +143,7 @@ const Form: React.FC = () => {
                 reset();
                 setFile(null);
             } else {
-                toast.error(response.data as string);
+                toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
