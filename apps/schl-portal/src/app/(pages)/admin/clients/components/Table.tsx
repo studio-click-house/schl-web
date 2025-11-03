@@ -90,11 +90,7 @@ const Table: React.FC = () => {
                             Accept: '*/*',
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify({
-                            staleClient: true,
-                            regularClient: false,
-                            test: false,
-                        }),
+                        body: JSON.stringify({}),
                     },
                 );
 

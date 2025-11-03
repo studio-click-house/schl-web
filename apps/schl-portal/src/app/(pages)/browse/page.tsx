@@ -7,6 +7,7 @@ let clients: ClientDocument[];
 
 const getAllClients = async () => {
     try {
+        console.log('Fetching clients...');
         const response = await fetchApiWithServerAuth(
             {
                 path: '/v1/client/search-clients',
@@ -22,9 +23,12 @@ const getAllClients = async () => {
                 cache: 'no-store',
             },
         );
+
+        console.log('Response received ==>', response);
         if (response.ok) {
             const data = response.data as ClientDocument[];
             clients = data;
+            console.log('Clients fetched successfully ==>', clients);
         } else {
             console.error('Unable to fetch clients');
         }

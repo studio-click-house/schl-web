@@ -336,16 +336,12 @@ const Form: React.FC<PropsType> = props => {
                                         ) || null
                                     }
                                     onChange={option => {
-                                        field.onChange(
-                                            option ? option.value : '',
-                                        );
-                                        setValue(
-                                            'role.permissions',
+                                        const selectedRole =
                                             props.rolesData.find(
                                                 role =>
                                                     role._id === option?.value,
-                                            )?.permissions || [],
-                                        );
+                                            );
+                                        field.onChange(selectedRole || null);
                                     }}
                                 />
                             );

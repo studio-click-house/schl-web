@@ -68,13 +68,13 @@ export class UserService {
             );
         }
 
-        // Ensure editor has every permission being granted
-        const invalid = rolePerms.filter(p => !hasPerm(p, editorPermsArr));
-        if (invalid.length > 0) {
-            throw new ForbiddenException(
-                `You tried to assign permissions you don't have: ${invalid.join(', ')}`,
-            );
-        }
+        // // Ensure editor has every permission being granted
+        // const invalid = rolePerms.filter(p => !hasPerm(p, editorPermsArr));
+        // if (invalid.length > 0) {
+        //     throw new ForbiddenException(
+        //         `You tried to assign permissions you don't have: ${invalid.join(', ')}`,
+        //     );
+        // }
 
         try {
             const payload = UserFactory.fromCreateDto(userData);

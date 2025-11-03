@@ -450,7 +450,7 @@ const Table: React.FC = props => {
                                             </div>
                                         </td>
                                         <td className="text-wrap">
-                                            {approval.req_by.real_name}
+                                            {String(approval.req_by?.real_name)}
                                         </td>
                                         <td
                                             className="uppercase text-wrap"

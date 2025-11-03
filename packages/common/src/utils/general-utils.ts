@@ -97,6 +97,37 @@ export const fetchApi = async <TData = unknown>(
 
         const mergedHeaders = new Headers(options.headers);
 
+        if (typeof window !== 'undefined') {
+            // Client-side: Use browser's location
+            if (!mergedHeaders.has('origin')) {
+                mergedHeaders.set('origin', window.location.origin);
+            }
+            if (!mergedHeaders.has('host')) {
+                mergedHeaders.set('host', window.location.host);
+            }
+        } else {
+            // Server-side: Use environment variables to determine origin
+            const appName = process.env.NEXT_PUBLIC_APP_NAME; // 'portal' or 'crm'
+            const consumerUrl = process.env.NEXT_PUBLIC_BASE_URL;
+
+            let origin: string | undefined;
+            if (appName === 'portal' && consumerUrl) {
+                origin = consumerUrl;
+            } else if (appName === 'crm' && consumerUrl) {
+                origin = consumerUrl;
+            }
+
+            if (origin) {
+                const originUrl = new URL(origin);
+                if (!mergedHeaders.has('origin')) {
+                    mergedHeaders.set('origin', originUrl.origin);
+                }
+                if (!mergedHeaders.has('host')) {
+                    mergedHeaders.set('host', originUrl.host);
+                }
+            }
+        }
+
         if (authToken && !mergedHeaders.has('Authorization')) {
             mergedHeaders.set('Authorization', `Bearer ${authToken}`);
         }

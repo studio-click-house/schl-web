@@ -155,7 +155,7 @@ const ViewButton: React.FC<PropsType> = props => {
                             <p className="text-xs text-gray-400">
                                 Requested by{' '}
                                 <span className="font-bold">
-                                    {approvalData.req_by.real_name}
+                                    {String(approvalData.req_by?.real_name)}
                                 </span>{' '}
                                 • {formatDate(approvalData.createdAt)}
                             </p>
@@ -511,7 +511,7 @@ const ViewButton: React.FC<PropsType> = props => {
                             <div className="flex flex-wrap justify-start items-center me-auto text-gray-400">
                                 <span>Checked by </span>
                                 <span className="font-semibold mx-1">
-                                    {approvalData.rev_by.real_name}
+                                    {String(approvalData.rev_by?.real_name)}
                                 </span>
                                 <span>on </span>
                                 <span className="font-semibold mx-1">
