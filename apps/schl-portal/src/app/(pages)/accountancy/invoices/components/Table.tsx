@@ -71,7 +71,7 @@ const Table: React.FC = props => {
                             paginated: true,
                             page,
                             itemsPerPage: itemPerPage,
-                            filtered: false,
+                            // filtered: false,
                         },
                     },
                     {
@@ -113,7 +113,7 @@ const Table: React.FC = props => {
                             paginated: true,
                             page,
                             itemsPerPage: itemPerPage,
-                            filtered: true,
+                            // filtered: true,
                         },
                     },
                     {

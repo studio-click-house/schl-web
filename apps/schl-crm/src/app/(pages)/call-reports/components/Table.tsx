@@ -113,7 +113,7 @@ const Table = () => {
                     {
                         path: '/v1/report/search-reports',
                         query: {
-                            filtered: true,
+                            // filtered: true,
                             paginated: true,
                             itemsPerPage: itemPerPage,
                             page,

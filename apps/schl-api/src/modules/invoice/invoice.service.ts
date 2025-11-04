@@ -118,7 +118,12 @@ export class InvoiceService {
             );
         }
 
-        const { page, itemsPerPage, filtered, paginated } = pagination;
+        const {
+            page,
+            itemsPerPage,
+            // filtered,
+            paginated,
+        } = pagination;
         const { invoiceNumber, clientCode, fromDate, toDate } = filters;
 
         type QueryShape = {
@@ -151,9 +156,9 @@ export class InvoiceService {
             }),
         );
 
-        if (filtered && !invoiceNumber && !clientCode && !fromDate && !toDate) {
-            throw new BadRequestException('No filter applied');
-        }
+        // if (filtered && !invoiceNumber && !clientCode && !fromDate && !toDate) {
+        //     throw new BadRequestException('No filter applied');
+        // }
 
         const searchQuery: QueryShape = { ...query };
 

@@ -523,7 +523,12 @@ export class ReportService {
             );
         }
 
-        const { page, itemsPerPage, filtered, paginated } = pagination;
+        const {
+            page,
+            itemsPerPage,
+            // filtered,
+            paginated,
+        } = pagination;
         const {
             country,
             companyName,
@@ -659,25 +664,25 @@ export class ReportService {
             };
         }
 
-        if (
-            filtered &&
-            !country &&
-            !companyName &&
-            !category &&
-            !marketerName &&
-            !prospectStatus &&
-            !generalSearchString &&
-            !fromDate &&
-            !toDate &&
-            !test &&
-            prospect !== true &&
-            followupDone === undefined &&
-            regularClient === undefined &&
-            staleClient !== true &&
-            onlyLead !== true
-        ) {
-            throw new BadRequestException('No filter applied');
-        }
+        // if (
+        //     filtered &&
+        //     !country &&
+        //     !companyName &&
+        //     !category &&
+        //     !marketerName &&
+        //     !prospectStatus &&
+        //     !generalSearchString &&
+        //     !fromDate &&
+        //     !toDate &&
+        //     !test &&
+        //     prospect !== true &&
+        //     followupDone === undefined &&
+        //     regularClient === undefined &&
+        //     staleClient !== true &&
+        //     onlyLead !== true
+        // ) {
+        //     throw new BadRequestException('No filter applied');
+        // }
 
         // Additional marketer scoping: show 'mine' or 'others'
         if (show) {

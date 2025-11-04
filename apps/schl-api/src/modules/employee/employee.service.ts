@@ -185,7 +185,7 @@ export class EmployeeService {
         pagination: {
             page: number;
             itemsPerPage: number;
-            filtered: boolean;
+            // filtered: boolean;
             paginated: boolean;
         },
         userSession: UserSession,
@@ -201,7 +201,12 @@ export class EmployeeService {
             );
         }
 
-        const { page, itemsPerPage, filtered, paginated } = pagination;
+        const {
+            page,
+            itemsPerPage,
+            // filtered,
+            paginated,
+        } = pagination;
         const {
             bloodGroup,
             designation,
@@ -273,17 +278,17 @@ export class EmployeeService {
 
         console.log('searchQuery', searchQuery);
 
-        if (
-            filtered &&
-            !bloodGroup &&
-            !designation &&
-            !department &&
-            !status &&
-            !serviceTime &&
-            !generalSearchString
-        ) {
-            throw new ForbiddenException('No filter applied');
-        }
+        // if (
+        //     filtered &&
+        //     !bloodGroup &&
+        //     !designation &&
+        //     !department &&
+        //     !status &&
+        //     !serviceTime &&
+        //     !generalSearchString
+        // ) {
+        //     throw new ForbiddenException('No filter applied');
+        // }
 
         if (generalSearchString) {
             const or = buildOrRegex(generalSearchString, [

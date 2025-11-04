@@ -11,15 +11,37 @@ import { useCallback } from 'react';
 import { toast } from 'sonner';
 
 export const useAuthedFetchApi = () => {
-    const { data: session } = useSession();
-    const token = session?.accessToken;
+    const { data: session, status } = useSession();
 
     return useCallback(
         async <TData>(
             target: Parameters<typeof fetchApi>[0],
             options: RequestInit = {},
-        ) => fetchApi<TData>(target, options, token),
-        [token],
+        ): Promise<FetchApiResponse<TData>> => {
+            if (status === 'loading') {
+                // Prevent API calls while session is loading.
+                // The component should handle this loading state.
+                return {
+                    ok: false,
+                    status: 0, // Special status to indicate a non-HTTP failure
+                    data: { message: 'Session is loading' },
+                } as FetchApiResponse<any>;
+            }
+
+            if (status !== 'authenticated' || !session?.accessToken) {
+                return {
+                    ok: false,
+                    status: 401,
+                    data: {
+                        statusCode: 401,
+                        message: 'Unauthorized',
+                    },
+                } as FetchApiResponse<TData>;
+            }
+
+            return fetchApi<TData>(target, options, session.accessToken);
+        },
+        [session, status],
     );
 };
 
@@ -28,6 +50,14 @@ export const toastFetchError = (
     fallbackMessage?: string,
 ) => {
     if (response.ok) return;
+
+    // Do not show a toast if the request was held back because the session was loading.
+    if (
+        response.status === 0 &&
+        (response.data as any)?.message === 'Session is loading'
+    ) {
+        return;
+    }
 
     const error = response.data as NestJsError | undefined;
 

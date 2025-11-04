@@ -45,11 +45,16 @@ export class ClientService {
         pagination: {
             page: number;
             itemsPerPage: number;
-            filtered: boolean;
+            // filtered: boolean;
             paginated: boolean;
         },
     ) {
-        const { page, itemsPerPage, filtered, paginated } = pagination;
+        const {
+            page,
+            itemsPerPage,
+            // filtered,
+            paginated,
+        } = pagination;
         const {
             countryName,
             clientCode,
@@ -68,13 +73,13 @@ export class ClientService {
 
         const searchQuery: QueryShape = { ...query };
 
-        if (
-            filtered &&
-            Object.keys(query).length === 0 &&
-            !generalSearchString
-        ) {
-            throw new BadRequestException('No filter applied');
-        }
+        // if (
+        //     filtered &&
+        //     Object.keys(query).length === 0 &&
+        //     !generalSearchString
+        // ) {
+        //     throw new BadRequestException('No filter applied');
+        // }
 
         if (generalSearchString) {
             searchQuery.$or = buildOrRegex(generalSearchString, [

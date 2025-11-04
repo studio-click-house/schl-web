@@ -319,7 +319,7 @@ const Details: React.FC<DetailsProps> = props => {
                     path: '/v1/order/search-orders',
                     query: {
                         paginated: false,
-                        filtered: true,
+                        // filtered: true,
                     },
                 },
                 {

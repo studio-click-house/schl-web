@@ -36,7 +36,7 @@ export class ScheduleService {
         pagination: {
             page: number;
             itemsPerPage: number;
-            filtered: boolean;
+            // filtered: boolean;
             paginated: boolean;
         },
         userSession: UserSession,
@@ -50,7 +50,12 @@ export class ScheduleService {
                 "You don't have permission to view schedules",
             );
         }
-        const { page, itemsPerPage, filtered, paginated } = pagination;
+        const {
+            page,
+            itemsPerPage,
+            // filtered,
+            paginated,
+        } = pagination;
         const {
             clientCode,
             task,
@@ -61,7 +66,7 @@ export class ScheduleService {
             generalSearchString,
         } = filters;
 
-        // // Build base query (string date ranges + regex fields)
+        // Build base query (string date ranges + regex fields)
         // interface RangeQuery {
         //     $gte?: string;
         //     $lte?: string;
@@ -113,13 +118,13 @@ export class ScheduleService {
         // Clone for search extension
         const searchQuery: QueryShape = { ...query };
 
-        if (
-            filtered &&
-            Object.keys(query).length === 0 &&
-            !generalSearchString
-        ) {
-            throw new BadRequestException('No filter applied');
-        }
+        // if (
+        //     filtered &&
+        //     Object.keys(query).length === 0 &&
+        //     !generalSearchString
+        // ) {
+        //     throw new BadRequestException('No filter applied');
+        // }
 
         // General search across multiple fields
         if (generalSearchString) {

@@ -126,7 +126,7 @@ const ViewNotice: React.FC<ViewNoticeProps> = props => {
                     path: '/v1/notice/search-notices',
                     query: {
                         paginated: false,
-                        filtered: true,
+                        // filtered: true,
                     },
                 },
                 {

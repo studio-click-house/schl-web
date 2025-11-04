@@ -23,11 +23,11 @@ export class SearchSchedulesQueryDto {
     @Max(100)
     itemsPerPage: number = 30;
 
-    @IsOptional()
-    @Type(() => String)
-    @Transform(({ value }) => toBoolean(value, false))
-    @IsBoolean()
-    filtered: boolean = false;
+    // @IsOptional()
+    // @Type(() => String)
+    // @Transform(({ value }) => toBoolean(value, false))
+    // @IsBoolean()
+    // filtered: boolean = false;
 
     @IsOptional()
     @Type(() => String)

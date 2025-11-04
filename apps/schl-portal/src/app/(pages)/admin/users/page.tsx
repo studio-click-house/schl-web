@@ -9,7 +9,10 @@ export const getAllEmployees = async () => {
         const response = await fetchApiWithServerAuth(
             {
                 path: '/v1/employee/search-employees',
-                query: { paginated: false, filtered: false },
+                query: {
+                    paginated: false,
+                    // filtered: false
+                },
             },
             {
                 method: 'POST',
@@ -23,6 +26,7 @@ export const getAllEmployees = async () => {
         );
         if (response.ok) {
             const data = response.data as EmployeeDocument[];
+            // console.log('Employees data:', data);
             return data;
         } else {
             console.error('Unable to fetch employees');
@@ -38,7 +42,10 @@ export const getAllRoles = async () => {
         const response = await fetchApiWithServerAuth(
             {
                 path: '/v1/role/search-roles',
-                query: { paginated: false, filtered: false },
+                query: {
+                    paginated: false,
+                    // filtered: false
+                },
             },
             {
                 method: 'POST',
@@ -62,7 +69,7 @@ export const getAllRoles = async () => {
     }
 };
 
-const BrowsePage = async () => {
+const UsersPage = async () => {
     const employees = await getAllEmployees();
     const roles = await getAllRoles();
 
@@ -78,4 +85,4 @@ const BrowsePage = async () => {
     );
 };
 
-export default BrowsePage;
+export default UsersPage;

@@ -29,8 +29,8 @@ const Form: React.FC<PropsType> = props => {
     const [loading, setLoading] = useState(false);
     const { data: session } = useSession();
 
-    const clientNames = props.clientsData.map(client => client.client_name);
-    const clientCodes = props.clientsData.map(client => client.client_code);
+    const clientNames = props.clientsData?.map(client => client.client_name);
+    const clientCodes = props.clientsData?.map(client => client.client_code);
 
     const clientNameOptions = (clientNames || []).map(clientName => ({
         value: clientName,

@@ -68,7 +68,7 @@ export class UserService {
             );
         }
 
-        // // Ensure editor has every permission being granted
+        // Ensure editor has every permission being granted
         // const invalid = rolePerms.filter(p => !hasPerm(p, editorPermsArr));
         // if (invalid.length > 0) {
         //     throw new ForbiddenException(
@@ -230,7 +230,7 @@ export class UserService {
         pagination: {
             page: number;
             itemsPerPage: number;
-            filtered: boolean;
+            // filtered: boolean;
             paginated: boolean;
         },
         userSession: UserSession,
@@ -243,7 +243,12 @@ export class UserService {
             viewerIsSuper ||
             hasPerm('admin:edit_user', userSession.permissions);
 
-        const { page, itemsPerPage, filtered, paginated } = pagination;
+        const {
+            page,
+            itemsPerPage,
+            // filtered,
+            paginated,
+        } = pagination;
         const { generalSearchString, role } = filters;
 
         interface SearchQuery {
@@ -256,9 +261,11 @@ export class UserService {
         const sortQuery: Record<string, 1 | -1> = {
             createdAt: -1,
         };
-        if (filtered && !generalSearchString && !role) {
-            throw new BadRequestException('No filter applied');
-        }
+
+        // if (filtered && !generalSearchString && !role) {
+        //     throw new BadRequestException('No filter applied');
+        // }
+
         // Apply role filter if provided
         if (role) {
             // Accept both raw ObjectId string or role name; if it's not a 24-char hex, attempt match by role name via subquery
@@ -343,6 +350,15 @@ export class UserService {
                         },
                     },
                     { $unwind: '$role' },
+                    {
+                        $lookup: {
+                            from: 'employees',
+                            localField: 'employee',
+                            foreignField: '_id',
+                            as: 'employee',
+                        },
+                    },
+                    { $unwind: '$employee' },
                 ];
                 if (!viewerIsSuper) {
                     pipeline.push({
@@ -353,11 +369,29 @@ export class UserService {
                         },
                     });
                 }
+                pipeline.push({
+                    $project: {
+                        username: 1,
+                        createdAt: 1,
+                        updatedAt: 1,
+                        'role._id': 1,
+                        'role.name': 1,
+                        'role.permissions': 1,
+                        'employee._id': 1,
+                        'employee.e_id': 1,
+                        'employee.real_name': 1,
+                        'employee.company_provided_name': 1,
+                    },
+                });
                 users = await this.userModel.aggregate(pipeline);
             } else {
                 users = await this.userModel
                     .find(searchQuery)
-                    .populate('role', 'name description permissions')
+                    .populate('role', 'name permissions')
+                    .populate(
+                        'employee',
+                        'e_id real_name company_provided_name',
+                    )
                     .lean()
                     .exec();
                 if (!viewerIsSuper) {

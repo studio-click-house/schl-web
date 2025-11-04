@@ -79,7 +79,7 @@ const Table: React.FC<{ clientsData: ClientDocument[] }> = props => {
                         path: '/v1/order/search-orders',
                         query: {
                             paginated: true,
-                            filtered: false,
+                            // filtered: false,
                             itemsPerPage: itemPerPage,
                             page,
                         },
@@ -125,7 +125,7 @@ const Table: React.FC<{ clientsData: ClientDocument[] }> = props => {
                         path: '/v1/order/search-orders',
                         query: {
                             paginated: true,
-                            filtered: true,
+                            // filtered: true,
                             itemsPerPage: itemPerPage,
                             page,
                         },

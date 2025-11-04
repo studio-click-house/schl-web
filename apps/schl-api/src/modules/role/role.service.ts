@@ -33,7 +33,7 @@ export class RoleService {
         pagination: {
             page: number;
             itemsPerPage: number;
-            filtered: boolean;
+            // filtered: boolean;
             paginated: boolean;
         },
         userSession: UserSession,
@@ -43,16 +43,21 @@ export class RoleService {
             userSession.permissions,
         );
 
-        const { page, itemsPerPage, filtered, paginated } = pagination;
+        const {
+            page,
+            itemsPerPage,
+            // filtered,
+            paginated,
+        } = pagination;
         const { name } = filters;
 
         type SearchQuery = FilterQuery<Role>;
         const searchQuery: SearchQuery = {};
         const sortQuery: Record<string, 1 | -1> = { createdAt: -1 };
 
-        if (filtered && !name) {
-            throw new BadRequestException('No filter applied');
-        }
+        // if (filtered && !name) {
+        //     throw new BadRequestException('No filter applied');
+        // }
 
         if (name) {
             searchQuery.name = { $regex: name, $options: 'i' };

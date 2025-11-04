@@ -74,7 +74,7 @@ const Table = () => {
                         path: '/v1/report/search-reports',
                         query: {
                             paginated: true,
-                            filtered: false,
+                            // filtered: false,
                             itemsPerPage: itemPerPage,
                             page,
                         },
@@ -120,7 +120,7 @@ const Table = () => {
                         path: '/v1/report/search-reports',
                         query: {
                             paginated: true,
-                            filtered: true,
+                            // filtered: true,
                             itemsPerPage: itemPerPage,
                             page,
                         },
@@ -194,7 +194,10 @@ const Table = () => {
             const response = await authedFetchApi(
                 {
                     path: '/v1/employee/search-employees',
-                    query: { paginated: false, filtered: true },
+                    query: {
+                        paginated: false,
+                        // filtered: true
+                    },
                 },
                 {
                     method: 'POST',

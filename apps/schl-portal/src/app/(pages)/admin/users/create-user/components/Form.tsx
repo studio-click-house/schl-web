@@ -66,13 +66,12 @@ const Form: React.FC<PropsType> = props => {
                 return true;
             }
 
-            // Otherwise ensure editor can only assign roles whose permissions are subset of their own
-            return perms.every(p => hasPerm(p as Permissions, userPermissions));
+            return false;
         });
     }, [props.rolesData, userPermissions]);
 
     const roleOptions = allowedRoles.map(role => ({
-        value: role._id,
+        value: String(role._id),
         label: role.name,
     }));
 
@@ -105,6 +104,18 @@ const Form: React.FC<PropsType> = props => {
     });
 
     const [employeeId, setEmployeeId] = useState<string>('');
+
+    const watchedRole = watch('role');
+    const rolePermissions = Array.isArray(watchedRole?.permissions)
+        ? (watchedRole?.permissions as Permissions[])
+        : [];
+
+    const companyProvidedNameValue = watch('employee.company_provided_name');
+
+    const shouldShowProvidedNameField =
+        rolePermissions.includes('login:crm') &&
+        typeof companyProvidedNameValue === 'string' &&
+        companyProvidedNameValue.trim().length > 0;
 
     const fillEmployeeData = useCallback(() => {
         try {
@@ -142,6 +153,16 @@ const Form: React.FC<PropsType> = props => {
             if (!parsed.success) {
                 console.error(parsed.error.issues.map(issue => issue.message));
                 toast.error('Invalid form data');
+                return;
+            }
+
+            const requiresProvidedName =
+                parsed.data.role.permissions?.includes('login:crm');
+            const providedNameValue =
+                parsed.data.employee.company_provided_name?.trim() || '';
+
+            if (requiresProvidedName && providedNameValue === '') {
+                toast.error('Provided Name is required for CRM login role');
                 return;
             }
 
@@ -319,37 +340,66 @@ const Form: React.FC<PropsType> = props => {
                     <Controller
                         name="role"
                         control={control}
-                        render={({ field }) => {
-                            return (
-                                <Select
-                                    {...field}
-                                    options={roleOptions}
-                                    closeMenuOnSelect={true}
-                                    placeholder="Select role"
-                                    classNamePrefix="react-select"
-                                    menuPortalTarget={setMenuPortalTarget}
-                                    value={
-                                        roleOptions.find(
-                                            option =>
-                                                String(option.value) ===
-                                                String(field.value),
-                                        ) || null
+                        render={({ field }) => (
+                            <Select
+                                name={field.name}
+                                options={roleOptions}
+                                closeMenuOnSelect
+                                placeholder="Select role"
+                                classNamePrefix="react-select"
+                                menuPortalTarget={setMenuPortalTarget}
+                                value={
+                                    field.value?._id
+                                        ? (roleOptions.find(
+                                              option =>
+                                                  option.value ===
+                                                  String(
+                                                      field.value?._id || '',
+                                                  ),
+                                          ) ?? null)
+                                        : null
+                                }
+                                onBlur={field.onBlur}
+                                onChange={option => {
+                                    if (!option) {
+                                        field.onChange({
+                                            _id: '',
+                                            name: '',
+                                            permissions: [],
+                                        });
+                                        return;
                                     }
-                                    onChange={option => {
-                                        const selectedRole =
-                                            props.rolesData.find(
-                                                role =>
-                                                    role._id === option?.value,
-                                            );
-                                        field.onChange(selectedRole || null);
-                                    }}
-                                />
-                            );
-                        }}
+
+                                    const selectedRole = allowedRoles.find(
+                                        role =>
+                                            String(role._id) === option.value,
+                                    );
+
+                                    if (!selectedRole) {
+                                        field.onChange({
+                                            _id: '',
+                                            name: '',
+                                            permissions: [],
+                                        });
+                                        return;
+                                    }
+
+                                    field.onChange({
+                                        _id: String(selectedRole._id),
+                                        name: selectedRole.name || '',
+                                        permissions: Array.isArray(
+                                            selectedRole.permissions,
+                                        )
+                                            ? selectedRole.permissions
+                                            : [],
+                                    });
+                                }}
+                            />
+                        )}
                     />
                 </div>
 
-                {watch('role.permissions')?.includes('login:crm') && (
+                {shouldShowProvidedNameField && (
                     <div>
                         <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
                             <span className="uppercase">Provided Name*</span>

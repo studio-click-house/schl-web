@@ -81,7 +81,7 @@ const Table = () => {
                         query: {
                             page,
                             itemsPerPage: itemPerPage,
-                            filtered: false,
+                            // filtered: false,
                             paginated: true,
                         },
                     },
@@ -120,7 +120,7 @@ const Table = () => {
                         query: {
                             page,
                             itemsPerPage: itemPerPage,
-                            filtered: true,
+                            // filtered: true,
                             paginated: true,
                         },
                     },

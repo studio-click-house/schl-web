@@ -113,7 +113,10 @@ const Table: React.FC = props => {
             const response = await authedFetchApi<PopulatedByEmployeeUser[]>(
                 {
                     path: '/v1/employee/search-employees',
-                    query: { paginated: false, filtered: true },
+                    query: {
+                        paginated: false,
+                        // filtered: true
+                    },
                 },
                 {
                     method: 'POST',

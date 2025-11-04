@@ -63,7 +63,12 @@ export class ApprovalService {
             );
         }
 
-        const { page, itemsPerPage, filtered, paginated } = pagination;
+        const {
+            page,
+            itemsPerPage,
+            // filtered,
+            paginated,
+        } = pagination;
         const {
             reqBy,
             reqType,
@@ -144,9 +149,9 @@ export class ApprovalService {
 
         const searchQuery: FilterQuery<Approval> = { ...query };
 
-        if (filtered && Object.keys(searchQuery).length === 0) {
-            throw new BadRequestException('No filter applied');
-        }
+        // if (filtered && Object.keys(searchQuery).length === 0) {
+        //     throw new BadRequestException('No filter applied');
+        // }
 
         const skip = Math.max(page - 1, 0) * itemsPerPage;
 

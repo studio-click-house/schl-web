@@ -71,7 +71,7 @@ export function usePaginationManager({
         }
     }, [page, itemPerPage, triggerFetch]);
 
-    // // 6) pageCount changes → fetch once (unless skipped)
+    // 6) pageCount changes → fetch once (unless skipped)
     // useEffect(() => {
     //   if (!didMountRef.current) return;
 

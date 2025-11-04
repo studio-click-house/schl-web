@@ -10,7 +10,10 @@ const getAllClients = async () => {
         const response = await fetchApiWithServerAuth(
             {
                 path: '/v1/client/search-clients',
-                query: { paginated: false, filtered: false },
+                query: {
+                    paginated: false,
+                    // filtered: false
+                },
             },
             {
                 method: 'POST',
@@ -22,6 +25,7 @@ const getAllClients = async () => {
                 cache: 'no-store',
             },
         );
+        console.log('Clients response:', response);
         if (response.ok) {
             const data = response.data as ClientDocument[];
             clients = data;

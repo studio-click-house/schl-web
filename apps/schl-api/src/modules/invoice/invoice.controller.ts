@@ -47,7 +47,7 @@ export class InvoiceController {
         const pagination = {
             page: query.page,
             itemsPerPage: query.itemsPerPage,
-            filtered: query.filtered,
+            // filtered: query.filtered,
             paginated: query.paginated,
         };
         return this.invoiceService.searchInvoices(body, pagination, req.user);

@@ -73,7 +73,7 @@ const Table: React.FC = () => {
                     path: '/v1/role/search-roles',
                     query: {
                         paginated: true,
-                        filtered: false,
+                        // filtered: false,
                         itemsPerPage: itemPerPage,
                         page,
                     },
@@ -109,7 +109,7 @@ const Table: React.FC = () => {
                     path: '/v1/role/search-roles',
                     query: {
                         paginated: true,
-                        filtered: true,
+                        // filtered: true,
                         itemsPerPage: itemPerPage,
                         page: isFiltered ? page : 1,
                     },

@@ -109,7 +109,12 @@ export class NoticeService {
             );
         }
 
-        const { page, itemsPerPage, filtered, paginated } = pagination;
+        const {
+            page,
+            itemsPerPage,
+            // filtered,
+            paginated,
+        } = pagination;
         const { channel, title, noticeNo, fromDate, toDate } = filters;
 
         type QueryShape = {
@@ -141,17 +146,17 @@ export class NoticeService {
 
         const sortQuery: Record<string, 1 | -1> = { createdAt: -1 };
 
-        if (
-            filtered &&
-            !channel &&
-            !title &&
-            !noticeNo &&
-            !fromDate &&
-            !toDate
-        ) {
-            console.log('No filters applied', filtered, searchQuery);
-            throw new BadRequestException('No filter applied');
-        }
+        // if (
+        //     filtered &&
+        //     !channel &&
+        //     !title &&
+        //     !noticeNo &&
+        //     !fromDate &&
+        //     !toDate
+        // ) {
+        //     console.log('No filters applied', filtered, searchQuery);
+        //     throw new BadRequestException('No filter applied');
+        // }
 
         const skip = (page - 1) * itemsPerPage;
 

@@ -21,13 +21,15 @@ import { calculateTimeDifference } from '@repo/common/utils/general-utils';
 import { hasAnyPerm, hasPerm } from '@repo/common/utils/permission-check';
 import moment from 'moment-timezone';
 import { Model } from 'mongoose';
-import { SearchUsersQueryDto } from '../user/dto/search-users.dto';
 import { CreateOrderBodyDto } from './dto/create-order.dto';
 import { OrdersByCountryQueryDto } from './dto/orders-by-country.dto';
 import { OrdersByMonthQueryDto } from './dto/orders-by-month.dto';
 import { OrdersCDQueryDto } from './dto/orders-cd.dto';
 import { OrdersQPQueryDto } from './dto/orders-qp.dto';
-import { SearchOrdersBodyDto } from './dto/search-orders.dto';
+import {
+    SearchOrdersBodyDto,
+    SearchOrdersQueryDto,
+} from './dto/search-orders.dto';
 import { OrderFactory } from './factories/order.factory';
 
 @Injectable()
@@ -41,7 +43,7 @@ export class OrderService {
 
     async searchOrders(
         filters: SearchOrdersBodyDto,
-        pagination: SearchUsersQueryDto,
+        pagination: SearchOrdersQueryDto,
         userSession: UserSession,
     ) {
         if (
@@ -60,7 +62,12 @@ export class OrderService {
             );
         }
 
-        const { page, itemsPerPage, filtered, paginated } = pagination;
+        const {
+            page,
+            itemsPerPage,
+            // filtered,
+            paginated,
+        } = pagination;
 
         const {
             clientCode,
@@ -124,19 +131,19 @@ export class OrderService {
             download_date: -1,
         };
 
-        if (
-            filtered &&
-            !clientCode &&
-            !task &&
-            !folder &&
-            !type &&
-            !status &&
-            !fromDate &&
-            !toDate &&
-            !generalSearchString
-        ) {
-            throw new BadRequestException('No filter applied');
-        }
+        // if (
+        //     filtered &&
+        //     !clientCode &&
+        //     !task &&
+        //     !folder &&
+        //     !type &&
+        //     !status &&
+        //     !fromDate &&
+        //     !toDate &&
+        //     !generalSearchString
+        // ) {
+        //     throw new BadRequestException('No filter applied');
+        // }
 
         console.log('Search Query:', searchQuery);
 

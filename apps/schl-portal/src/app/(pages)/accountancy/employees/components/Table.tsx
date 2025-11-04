@@ -77,7 +77,10 @@ const Table = () => {
             const response = await authedFetchApi<EmployeeDocument[]>(
                 {
                     path: '/v1/employee/search-employees',
-                    query: { paginated: false, filtered: false },
+                    query: {
+                        paginated: false,
+                        // filtered: false
+                    },
                 },
                 {
                     method: 'POST',
@@ -115,7 +118,10 @@ const Table = () => {
             const response = await authedFetchApi<EmployeeDocument[]>(
                 {
                     path: '/v1/employee/search-employees',
-                    query: { paginated: false, filtered: true },
+                    query: {
+                        paginated: false,
+                        // filtered: true
+                    },
                 },
                 {
                     method: 'POST',

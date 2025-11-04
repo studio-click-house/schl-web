@@ -79,7 +79,7 @@ const Table: React.FC = () => {
                         path: '/v1/client/search-clients',
                         query: {
                             paginated: true,
-                            filtered: false,
+                            // filtered: false,
                             page,
                             itemsPerPage: itemPerPage,
                         },
@@ -120,7 +120,7 @@ const Table: React.FC = () => {
                         path: '/v1/client/search-clients',
                         query: {
                             paginated: true,
-                            filtered: true,
+                            // filtered: true,
                             page,
                             itemsPerPage: itemPerPage,
                         },
@@ -195,7 +195,10 @@ const Table: React.FC = () => {
             >(
                 {
                     path: '/v1/employee/search-employees',
-                    query: { paginated: false, filtered: true },
+                    query: {
+                        paginated: false,
+                        // filtered: true
+                    },
                 },
                 {
                     method: 'POST',

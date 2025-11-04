@@ -193,54 +193,98 @@ export function escapeRegex(text: string) {
     return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+// generatePassword: build a 12+ character password with strong entropy while staying somewhat memorable
 export function generatePassword(
     inputString: string,
     specifiedDigits?: number | string,
 ): string {
-    // Ensure input string is trimmed and properly formatted
-    const baseString = inputString.trim();
-
-    // If no input string is provided, use a random English word from a predefined list
-    const words = [
-        'apple',
-        'table',
-        'piano',
-        'river',
-        'house',
-        'stars',
-        'plane',
-        'green',
-        'light',
-        'cloud',
-        'dream',
-        'stone',
-        'beach',
-        'ocean',
-        'mount',
-        'space',
-        'bird',
-        'plane',
-        'flower',
-        'grape',
+    const fallbackWords = [
+        'aurora',
+        'falcon',
+        'ember',
+        'harbor',
+        'lagoon',
+        'meadow',
+        'nebula',
+        'onyx',
+        'prairie',
+        'quartz',
+        'ranger',
+        'saffron',
+        'tundra',
+        'vertex',
+        'willow',
+        'zephyr',
     ];
 
-    const finalBaseString =
-        baseString || words[Math.floor(Math.random() * words.length)];
+    const alphaOnly = (inputString || '')
+        .trim()
+        .replace(/[^a-zA-Z]/g, '')
+        .toLowerCase();
+    const base =
+        alphaOnly || fallbackWords[getRandomInt(fallbackWords.length) || 0];
 
-    // Validate and process the specified digits
-    const digits = specifiedDigits
-        ? specifiedDigits.toString().slice(0, 4) // Convert to string and limit to 4 digits
-        : Math.floor(100 + Math.random() * 900); // Generate random 3-digit number if not provided
+    const digitsSource = (specifiedDigits ?? '')
+        .toString()
+        .replace(/\D/g, '')
+        .slice(0, 6);
 
-    // Define a set of simple patterns for special characters
-    const specialChars = ['!', '@', '#', '$', '%', '&', '*'];
-    const randomChar =
-        specialChars[Math.floor(Math.random() * specialChars.length)];
+    const upperSet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const lowerSet = 'abcdefghijklmnopqrstuvwxyz';
+    const digitSet = '0123456789';
+    const specialSet = '!@#$%&*-_=+';
+    const combinedSet = upperSet + lowerSet + digitSet + specialSet;
 
-    // Create the password
-    const password = `${finalBaseString!.charAt(0).toUpperCase()}${finalBaseString!.slice(1)}${randomChar}${digits}`;
+    const requiredChars: string[] = [];
+    requiredChars.push(
+        base ? base.charAt(0).toUpperCase() : pickRandom(upperSet),
+    );
+    requiredChars.push(
+        base.length > 1 ? pickRandom(base.slice(1)) : pickRandom(lowerSet),
+    );
+    requiredChars.push(
+        digitsSource ? digitsSource.charAt(0) : pickRandom(digitSet),
+    );
+    requiredChars.push(pickRandom(specialSet));
 
-    return password;
+    const targetLength = Math.max(12, base.length + 6);
+    const extras: string[] = digitsSource.split('').slice(1);
+
+    while (requiredChars.length + extras.length < targetLength) {
+        extras.push(pickRandom(combinedSet));
+    }
+
+    const passwordChars = [...requiredChars, ...extras].slice(0, targetLength);
+    shuffleInPlace(passwordChars);
+    return passwordChars.join('');
+}
+
+function getRandomInt(max: number): number {
+    if (max <= 0) return 0;
+    if (
+        typeof globalThis.crypto !== 'undefined' &&
+        typeof globalThis.crypto.getRandomValues === 'function'
+    ) {
+        const array = new Uint32Array(1);
+        globalThis.crypto.getRandomValues(array);
+        return array[0] % max;
+    }
+
+    return Math.floor(Math.random() * max);
+}
+
+function pickRandom(source: string): string {
+    if (!source) return '';
+    return source.charAt(getRandomInt(source.length));
+}
+
+function shuffleInPlace(chars: string[]): void {
+    for (let i = chars.length - 1; i > 0; i -= 1) {
+        const j = getRandomInt(i + 1);
+        const temp = chars[i];
+        chars[i] = chars[j];
+        chars[j] = temp;
+    }
 }
 
 export const isEmployeePermanent = (

@@ -47,7 +47,7 @@ export class EmployeeController {
         const pagination = {
             page: query.page,
             itemsPerPage: query.itemsPerPage,
-            filtered: query.filtered,
+            // filtered: query.filtered,
             paginated: query.paginated,
         };
         return this.employeeService.searchEmployees(body, pagination, req.user);

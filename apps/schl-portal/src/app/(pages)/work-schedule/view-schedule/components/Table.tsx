@@ -81,7 +81,7 @@ const Table: React.FC<{ clientsData: OrderDocument[] }> = props => {
                         query: {
                             page,
                             itemsPerPage: itemPerPage,
-                            filtered: false,
+                            // filtered: false,
                             paginated: true,
                         },
                     },
@@ -121,7 +121,7 @@ const Table: React.FC<{ clientsData: OrderDocument[] }> = props => {
                         query: {
                             page,
                             itemsPerPage: itemPerPage,
-                            filtered: true,
+                            // filtered: true,
                             paginated: true,
                         },
                     },

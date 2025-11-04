@@ -29,7 +29,7 @@ export class ClientController {
         const pagination = {
             page: query.page,
             itemsPerPage: query.itemsPerPage,
-            filtered: query.filtered,
+            // filtered: query.filtered,
             paginated: query.paginated,
         };
 
