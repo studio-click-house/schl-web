@@ -7,13 +7,17 @@ import { UserSessionType } from './auth';
 const ACCESS_TOKEN_TTL_SECONDS = 5 * 60; // 5 minutes
 
 function signAccessToken(
-    payload: Pick<UserSessionType, 'db_id' | 'db_role_id' | 'permissions'>,
+    payload: Pick<
+        UserSessionType,
+        'real_name' | 'db_id' | 'db_role_id' | 'permissions'
+    >,
 ) {
     const secret = process.env.AUTH_SECRET;
     if (!secret)
         throw new Error('Missing AUTH_SECRET for signing access token');
     return jwt.sign(
         {
+            name: payload.real_name,
             sub: payload.db_id,
             role: payload.db_role_id,
             perms: payload.permissions,
@@ -45,6 +49,7 @@ export const authConfig: NextAuthConfig = {
 
                 try {
                     token.accessToken = signAccessToken({
+                        real_name: user.real_name,
                         db_id: user.db_id as string,
                         db_role_id: user.db_role_id as string,
                         permissions: (user.permissions as Permissions[]) || [],
@@ -64,6 +69,7 @@ export const authConfig: NextAuthConfig = {
             ) {
                 try {
                     token.accessToken = signAccessToken({
+                        real_name: token.real_name as string,
                         db_id: token.db_id as string,
                         db_role_id: token.db_role_id as string,
                         permissions: (token.permissions as Permissions[]) || [],

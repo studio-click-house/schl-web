@@ -1,7 +1,13 @@
 'use client';
 import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import { zodResolver } from '@hookform/resolvers/zod';
+import {
+    EMPLOYEE_BLOOD_GROUPS,
+    EMPLOYEE_DEPARTMENTS,
+    EMPLOYEE_STATUSES,
+} from '@repo/common/constants/employee.constant';
 import { setMenuPortalTarget } from '@repo/common/utils/select-helpers';
+import { capitalize } from 'lodash';
 import { useSession } from 'next-auth/react';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -10,34 +16,21 @@ import { EmployeeDataType, validationSchema } from '../schema';
 
 import { toast } from 'sonner';
 
-export const bloodGroupOptions = [
-    { value: 'A+', label: 'A+' },
-    { value: 'A-', label: 'A-' },
-    { value: 'B+', label: 'B+' },
-    { value: 'B-', label: 'B-' },
-    { value: 'AB+', label: 'AB+' },
-    { value: 'AB-', label: 'AB-' },
-    { value: 'O+', label: 'O+' },
-    { value: 'O-', label: 'O-' },
-];
+export const bloodGroupOptions = EMPLOYEE_BLOOD_GROUPS.map(group => ({
+    value: group,
+    label: group.toUpperCase(),
+}));
 
-export const departmentOptions = [
-    { value: 'Production', label: 'Production' },
-    { value: 'Marketing', label: 'Marketing' },
-    { value: 'Software', label: 'Software' },
-    { value: 'Accounting', label: 'Accounting' },
-    { value: 'Management', label: 'Management' },
-    { value: 'HR', label: 'HR' },
-    { value: 'Administration', label: 'Administration' },
-    { value: 'Others', label: 'Others' },
-];
+export const departmentOptions = EMPLOYEE_DEPARTMENTS.map(department => ({
+    value: department,
+    // label: department.toUpperCase(),
+    label: department,
+}));
 
-export const statusOptions = [
-    { value: 'Active', label: 'Active' },
-    { value: 'Inactive', label: 'Inactive' },
-    { value: 'Resigned', label: 'Resigned' },
-    { value: 'Fired', label: 'Fired' },
-];
+export const statusOptions = EMPLOYEE_STATUSES.map(status => ({
+    value: status,
+    label: capitalize(status),
+}));
 
 const Form: React.FC = () => {
     const authedFetchApi = useAuthedFetchApi();

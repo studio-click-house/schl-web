@@ -26,7 +26,7 @@ export class ClientFactory {
                 dto.last_invoice_number == null
                     ? null
                     : dto.last_invoice_number,
-            updated_by: session.db_id,
+            updated_by: session.real_name,
         } as Partial<Client>;
     }
 
@@ -61,7 +61,7 @@ export class ClientFactory {
                 dto.last_invoice_number == null
                     ? null
                     : dto.last_invoice_number;
-        patch.updated_by = session.db_id;
+        patch.updated_by = session.real_name;
         return patch;
     }
 }

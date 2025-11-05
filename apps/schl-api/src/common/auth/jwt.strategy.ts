@@ -67,6 +67,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         // `payload` is what we signed in the JWT token
         // Here, we can extract and return the user information we need
         return {
+            real_name: payload.name, // user's real name
             db_id: payload.sub, // user ID
             permissions: payload.perms, // array of permission strings
             role_id: payload.role, // role ID

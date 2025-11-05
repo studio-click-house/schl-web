@@ -91,7 +91,7 @@ export class OrderService {
             client_code?: ReturnType<typeof createRegexQuery>;
             task?: ReturnType<typeof createRegexQuery>;
             type?: ReturnType<typeof createRegexQuery>;
-            download_date?: { $gte?: Date; $lte?: Date };
+            download_date?: { $gte?: string; $lte?: string };
             status?: ReturnType<typeof createRegexQuery>;
             $or?: Record<string, RegexQuery>[];
         }
@@ -99,7 +99,9 @@ export class OrderService {
         const query: QueryShape = {};
 
         // Date range over download_date
-        applyDateRange(query, 'download_date', fromDate, toDate);
+        applyDateRange(query, 'download_date', fromDate, toDate, {
+            asString: true,
+        });
 
         // Regex fields: channel (exact), notice_no (exact), title (fuzzy)
         addIfDefined(query, 'folder', createRegexQuery(folder));
@@ -583,51 +585,64 @@ export class OrderService {
             );
         }
 
-        // Build orders query
+        // Build base query (download date range stored as YYYY-MM-DD)
         const orderQuery: Record<string, any> = {};
         applyDateRange(
             orderQuery,
             'download_date',
             query.fromDate,
             query.toDate,
+            { asString: true },
         );
 
-        // Build client filter for the country
-        const countryFilter =
-            country === 'Others' ? { $nin: CLIENT_COMMON_COUNTRY } : country;
-        const clients = await this.clientModel
-            .find({ country: countryFilter }, { client_code: 1, country: 1 })
+        // Load client -> country mapping once (needed to resolve non-common countries)
+        const clientsAll = await this.clientModel
+            .find({}, { client_code: 1, country: 1 })
             .lean()
             .exec();
 
-        const result: {
-            details: { [key: string]: any }[];
-            totalFiles: number;
-        } = {
-            details: [],
-            totalFiles: 0,
-        };
-
-        await Promise.all(
-            clients.map(async clientData => {
-                const orders = await this.orderModel
-                    .find({
-                        ...orderQuery,
-                        client_code: clientData.client_code,
-                    })
-                    .lean()
-                    .exec();
-                for (const order of orders) {
-                    result.details.push({
-                        ...order,
-                        country: clientData.country,
-                    });
-                    result.totalFiles += Number(order.quantity) || 0;
-                }
-            }),
+        const clientCodeCountryMap = clientsAll.reduce(
+            (map: Record<string, string>, client) => {
+                map[client.client_code] = client.country || 'Others';
+                return map;
+            },
+            {} as Record<string, string>,
         );
 
-        return result;
+        const orders = await this.orderModel.find(orderQuery).lean().exec();
+
+        const normalizedTarget = country;
+
+        const details = orders
+            .map(order => {
+                const resolved =
+                    clientCodeCountryMap[order.client_code] || 'N/A';
+                const normalized = CLIENT_COMMON_COUNTRY.includes(resolved)
+                    ? resolved
+                    : 'Others';
+                return {
+                    normalized,
+                    country: resolved,
+                    order,
+                };
+            })
+            .filter(item => item.normalized === normalizedTarget)
+            .map(item => ({ ...item.order, country: item.country }))
+            .sort((a, b) => {
+                const aDate = String(a.download_date ?? '');
+                const bDate = String(b.download_date ?? '');
+                return bDate.localeCompare(aDate);
+            });
+
+        const totalFiles = details.reduce(
+            (sum, current) => sum + (Number((current as any).quantity) || 0),
+            0,
+        );
+
+        return {
+            details,
+            totalFiles,
+        };
     }
 
     /**
@@ -647,9 +662,11 @@ export class OrderService {
             query.dateRange && query.dateRange > 0 ? query.dateRange : 30;
         const { from, to } = getDateRange(days);
 
-        // Query orders in range
+        // Build query using string comparison because download_date is stored as "YYYY-MM-DD"
         const orderQuery: Record<string, any> = {};
-        applyDateRange(orderQuery, 'download_date', from, to);
+        applyDateRange(orderQuery, 'download_date', from, to, {
+            asString: true,
+        });
 
         // Clients map: client_code -> country (default Others)
         const clientsAll = await this.clientModel
@@ -679,16 +696,24 @@ export class OrderService {
 
         // Fetch orders in range
         const ordersAll = await this.orderModel
-            .find(orderQuery, {
-                client_code: 1,
-                download_date: 1,
-                quantity: 1,
-            })
+            .find(orderQuery, { client_code: 1, download_date: 1, quantity: 1 })
             .lean()
             .exec();
 
-        // Map orders to countries
+        // Map orders to countries and normalize download_date to YYYY-MM-DD
         for (const order of ordersAll) {
+            let d = String(order.download_date || '').trim();
+            if (!d) continue; // skip records with no date
+            if (d.includes('T')) {
+                const [datePart = d] = d.split('T');
+                d = datePart || d;
+            }
+            if (d.includes(' ')) {
+                const [datePart = d] = d.split(' ');
+                d = datePart || d;
+            }
+            order.download_date = d;
+
             const clientCountry =
                 clientCodeCountryMap[order.client_code] || 'Others';
             const targetCountry = ordersDetails[clientCountry]
@@ -700,14 +725,14 @@ export class OrderService {
             ];
         }
 
-        // Build date range list if both provided
+        // Build date range list inclusive using UTC increments
         const dateRange: string[] = [];
         if (from && to) {
             const end = new Date(to);
             const current = new Date(from);
             while (current <= end) {
-                dateRange.push(current.toISOString().substring(0, 10));
-                current.setDate(current.getDate() + 1);
+                dateRange.push(current.toISOString().substring(0, 10)); // YYYY-MM-DD
+                current.setUTCDate(current.getUTCDate() + 1);
             }
         }
 
@@ -718,16 +743,13 @@ export class OrderService {
             fileQuantity: number;
         };
         const ordersCD: Record<string, CountryOrderData[]> = {};
+
         for (const [country, ordersArr] of Object.entries(ordersDetails)) {
             const merged: Record<string, CountryOrderData> = {};
             for (const order of ordersArr) {
                 const date = String(order.download_date);
                 if (!merged[date]) {
-                    merged[date] = {
-                        date,
-                        orderQuantity: 0,
-                        fileQuantity: 0,
-                    };
+                    merged[date] = { date, orderQuantity: 0, fileQuantity: 0 };
                 }
                 merged[date].fileQuantity += Number(order.quantity) || 0;
                 merged[date].orderQuantity += 1;
@@ -770,7 +792,9 @@ export class OrderService {
 
         // Query orders in range
         const orderQuery: Record<string, any> = {};
-        applyDateRange(orderQuery, 'download_date', from, to);
+        applyDateRange(orderQuery, 'download_date', from, to, {
+            asString: true,
+        });
         const orders = await this.orderModel.find(orderQuery).lean().exec();
 
         // Build a complete date list between from and to (inclusive)

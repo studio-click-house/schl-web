@@ -45,7 +45,7 @@ export class ReportFactory {
         $set: Record<string, any>;
         $addToSet?: Record<string, any>;
     } {
-        const $set: Record<string, any> = { updated_by: session.db_id };
+        const $set: Record<string, any> = { updated_by: session.real_name };
         const $addToSet: Record<string, any> = {};
 
         if (dto.callingDate !== undefined) {

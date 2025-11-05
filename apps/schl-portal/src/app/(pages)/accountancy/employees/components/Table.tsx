@@ -58,7 +58,7 @@ const Table = () => {
         };
 
         employees.forEach((employee: EmployeeDocument) => {
-            if (employee.status === 'active') {
+            if (['active', 'on-leave'].includes(employee.status)) {
                 totalPayOut.salary_gross += employee.gross_salary;
                 totalPayOut.bonus_eid_ul_fitr += employee.bonus_eid_ul_fitr;
                 totalPayOut.bonus_eid_ul_adha += employee.bonus_eid_ul_adha;
@@ -344,7 +344,7 @@ const Table = () => {
                                             {formatDate(employee.joining_date)}
                                         </td>
                                         <td className="text-wrap">
-                                            {employee.blood_group}
+                                            {employee.blood_group?.toUpperCase()}
                                         </td>
                                         <td className="text-wrap">
                                             {employee.designation}

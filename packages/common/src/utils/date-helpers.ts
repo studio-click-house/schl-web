@@ -13,19 +13,45 @@ export const getDateRange = (daysAgo: number): { from: string; to: string } => {
 };
 
 /**
- * Build a MongoDB date range filter for a date field using ISO date strings (YYYY-MM-DD).
+ * Build a MongoDB date range filter. Defaults to Date objects; use { asString: true }
+ * when the target field stores YYYY-MM-DD strings so plain string comparison works.
  */
+type ApplyDateRangeOptions = {
+    asString?: boolean;
+};
+
 export const applyDateRange = <T extends Record<string, unknown>>(
     query: T,
     field: keyof T,
     fromDate?: string,
     toDate?: string,
+    options: ApplyDateRangeOptions = {},
 ) => {
     if (!fromDate && !toDate) return;
-    const range: { $gte?: Date; $lte?: Date } = {};
-    if (fromDate) range.$gte = new Date(`${fromDate}T00:00:00.000Z`);
-    if (toDate) range.$lte = new Date(`${toDate}T23:59:59.999Z`);
-    (query as Record<string, unknown>)[field as string] = range;
+
+    const { asString = false } = options;
+
+    const target = query as Record<string, unknown>;
+
+    if (asString) {
+        const normalizeUpperBound = (value: string) => {
+            if (!value) return value;
+            return value.includes('T') || value.includes(' ')
+                ? value
+                : `${value}~`;
+        };
+
+        target[field as string] = {
+            ...(fromDate ? { $gte: fromDate } : {}),
+            ...(toDate ? { $lte: normalizeUpperBound(toDate) } : {}),
+        };
+        return;
+    }
+
+    target[field as string] = {
+        ...(fromDate ? { $gte: new Date(`${fromDate}T00:00:00.000Z`) } : {}),
+        ...(toDate ? { $lte: new Date(`${toDate}T23:59:59.999Z`) } : {}),
+    };
 };
 
 export const YYYY_MM_DD_to_DD_MM_YY = (dateString: string) => {

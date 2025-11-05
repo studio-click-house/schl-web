@@ -14,7 +14,7 @@ export class ScheduleFactory {
             client_name: dto.client_name.trim(),
             task: dto.task.trim(),
             comment: dto.comment?.trim() || '',
-            updated_by: session.db_id,
+            updated_by: session.real_name,
         } as Partial<Schedule>;
     }
 
@@ -35,7 +35,7 @@ export class ScheduleFactory {
         if (dto.comment !== undefined)
             patch.comment = dto.comment?.trim() || '';
         if (Object.keys(patch).length > 0) {
-            patch.updated_by = session.db_id;
+            patch.updated_by = session.real_name;
         }
         return patch;
     }
