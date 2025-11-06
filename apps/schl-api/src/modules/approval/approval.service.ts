@@ -31,6 +31,28 @@ import {
 } from './dto/search-approvals.dto';
 import { ApprovalFactory } from './factories/approval.factory';
 
+type NormalizedApprovalUser = {
+    user_id: string | null;
+    employee_id: string | null;
+    real_name: string | null;
+};
+
+type ApprovalWithUsers = Omit<Approval, 'req_by' | 'rev_by'> & {
+    req_by: NormalizedApprovalUser | null;
+    rev_by: NormalizedApprovalUser | null;
+};
+
+interface ApprovalSearchQuery extends Record<string, unknown> {
+    createdAt?: { $gte?: Date; $lte?: Date };
+    $or?: FilterQuery<Approval>[];
+    target_model?: Approval['target_model'];
+    action?: Approval['action'];
+    req_by?:
+        | mongoose.Types.ObjectId
+        | null
+        | { $in: mongoose.Types.ObjectId[] };
+}
+
 @Injectable()
 export class ApprovalService {
     constructor(
@@ -79,15 +101,7 @@ export class ApprovalService {
             toDate,
         } = filters;
 
-        interface QueryShape extends Record<string, any> {
-            createdAt?: { $gte?: Date; $lte?: Date };
-            $or?: FilterQuery<Approval>[];
-            target_model?: Approval['target_model'];
-            action?: Approval['action'];
-            req_by?: mongoose.Types.ObjectId | null;
-        }
-
-        const query: QueryShape = {};
+        const query: ApprovalSearchQuery = {};
 
         applyDateRange(query, 'createdAt', fromDate, toDate);
 
@@ -130,22 +144,7 @@ export class ApprovalService {
             }
         }
 
-        if (reqBy) {
-            const nameQuery = createRegexQuery(reqBy);
-            if (!nameQuery) {
-                query.req_by = null;
-            } else {
-                const userDoc = await this.userModel
-                    .findOne({ real_name: nameQuery })
-                    .select('_id')
-                    .lean();
-                if (userDoc?._id) {
-                    query.req_by = userDoc._id;
-                } else {
-                    query.req_by = null;
-                }
-            }
-        }
+        await this.applyRequesterFilter(query, reqBy);
 
         const searchQuery: FilterQuery<Approval> = { ...query };
 
@@ -153,116 +152,252 @@ export class ApprovalService {
         //     throw new BadRequestException('No filter applied');
         // }
 
-        const skip = Math.max(page - 1, 0) * itemsPerPage;
-
         try {
             const count = await this.approvalModel.countDocuments(searchQuery);
-            let approvals: Approval[];
+            const skip = Math.max(page - 1, 0) * itemsPerPage;
 
             if (paginated) {
-                const sortQuery: Record<string, 1 | -1> = {
-                    sortPriority: 1,
-                    createdAt: -1,
-                };
-
-                const pipeline: PipelineStage[] = [
-                    { $match: searchQuery },
-                    {
-                        $lookup: {
-                            from: 'users',
-                            let: { reqById: '$req_by' },
-                            pipeline: [
-                                {
-                                    $match: {
-                                        $expr: { $eq: ['$_id', '$$reqById'] },
-                                    },
-                                },
-                                { $project: { _id: 0, real_name: 1 } },
-                            ],
-                            as: 'req_by',
-                        },
-                    },
-                    {
-                        $unwind: {
-                            path: '$req_by',
-                            preserveNullAndEmptyArrays: true,
-                        },
-                    },
-                    {
-                        $lookup: {
-                            from: 'users',
-                            let: { revById: '$rev_by' },
-                            pipeline: [
-                                {
-                                    $match: {
-                                        $expr: { $eq: ['$_id', '$$revById'] },
-                                    },
-                                },
-                                { $project: { _id: 0, real_name: 1 } },
-                            ],
-                            as: 'rev_by',
-                        },
-                    },
-                    {
-                        $unwind: {
-                            path: '$rev_by',
-                            preserveNullAndEmptyArrays: true,
-                        },
-                    },
-                    {
-                        $addFields: {
-                            sortPriority: {
-                                $cond: {
-                                    if: { $eq: ['$status', 'pending'] },
-                                    then: 0,
-                                    else: 1,
-                                },
-                            },
-                        },
-                    },
-                    { $sort: sortQuery },
-                    { $skip: skip },
-                    { $limit: itemsPerPage },
-                    { $project: { sortPriority: 0 } },
-                ];
-
-                approvals = await this.approvalModel.aggregate(pipeline).exec();
-
-                if (!approvals) {
-                    throw new InternalServerErrorException(
-                        'Failed to retrieve approvals',
-                    );
-                }
-
+                const items = await this.aggregateApprovals(
+                    searchQuery,
+                    skip,
+                    itemsPerPage,
+                );
                 return {
                     pagination: {
                         count,
                         pageCount: Math.ceil(count / itemsPerPage),
                     },
-                    items: approvals,
+                    items,
                 };
             }
-            approvals = await this.approvalModel
-                .find(searchQuery)
-                .populate('req_by', 'real_name -_id')
-                .populate('rev_by', 'real_name -_id')
-                .sort({ createdAt: -1 })
-                .lean()
-                .exec();
 
-            if (!approvals) {
-                throw new InternalServerErrorException(
-                    'Failed to retrieve approvals',
-                );
-            }
-
-            return approvals;
+            return this.findApprovals(searchQuery);
         } catch (e) {
             if (e instanceof HttpException) throw e;
             throw new InternalServerErrorException(
                 'Unable to search approvals',
             );
         }
+    }
+
+    private async applyRequesterFilter(
+        query: ApprovalSearchQuery,
+        reqBy?: string,
+    ) {
+        if (!reqBy) return;
+        const nameQuery = createRegexQuery(reqBy);
+        if (!nameQuery) {
+            query.req_by = { $in: [] };
+            return;
+        }
+
+        const matchedUsers = await this.userModel
+            .aggregate<{ _id: mongoose.Types.ObjectId }>([
+                {
+                    $lookup: {
+                        from: 'employees',
+                        localField: 'employee',
+                        foreignField: '_id',
+                        as: 'employee',
+                    },
+                },
+                {
+                    $unwind: {
+                        path: '$employee',
+                        preserveNullAndEmptyArrays: true,
+                    },
+                },
+                {
+                    $match: {
+                        $or: [
+                            { username: nameQuery },
+                            { 'employee.real_name': nameQuery },
+                        ],
+                    },
+                },
+                { $project: { _id: 1 } },
+            ])
+            .exec();
+
+        const matchedIds = matchedUsers.map(doc => doc._id);
+        query.req_by = { $in: matchedIds };
+    }
+
+    private buildUserLookupStages(field: 'req_by' | 'rev_by'): PipelineStage[] {
+        return [
+            {
+                $lookup: {
+                    from: 'users',
+                    let: { userId: `$${field}` },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: { $eq: ['$_id', '$$userId'] },
+                            },
+                        },
+                        {
+                            $lookup: {
+                                from: 'employees',
+                                localField: 'employee',
+                                foreignField: '_id',
+                                as: 'employee',
+                            },
+                        },
+                        {
+                            $unwind: {
+                                path: '$employee',
+                                preserveNullAndEmptyArrays: true,
+                            },
+                        },
+                        {
+                            $project: {
+                                _id: 0,
+                                user_id: '$_id',
+                                employee_id: '$employee._id',
+                                real_name: {
+                                    $ifNull: [
+                                        '$employee.real_name',
+                                        '$username',
+                                    ],
+                                },
+                            },
+                        },
+                    ],
+                    as: field,
+                },
+            },
+            {
+                $unwind: {
+                    path: `$${field}`,
+                    preserveNullAndEmptyArrays: true,
+                },
+            },
+        ];
+    }
+
+    private async aggregateApprovals(
+        searchQuery: FilterQuery<Approval>,
+        skip: number,
+        limit: number,
+    ): Promise<ApprovalWithUsers[]> {
+        const pipeline: PipelineStage[] = [
+            { $match: searchQuery },
+            ...this.buildUserLookupStages('req_by'),
+            ...this.buildUserLookupStages('rev_by'),
+            {
+                $addFields: {
+                    sortPriority: {
+                        $cond: {
+                            if: { $eq: ['$status', 'pending'] },
+                            then: 0,
+                            else: 1,
+                        },
+                    },
+                },
+            },
+            { $sort: { sortPriority: 1, createdAt: -1 } },
+            { $skip: skip },
+            { $limit: limit },
+            { $project: { sortPriority: 0 } },
+        ];
+
+        const aggregateResult = await this.approvalModel
+            .aggregate(pipeline)
+            .exec();
+
+        return aggregateResult.map(doc =>
+            this.normalizeApprovalDoc(doc as Record<string, unknown>),
+        );
+    }
+
+    private async findApprovals(
+        searchQuery: FilterQuery<Approval>,
+    ): Promise<ApprovalWithUsers[]> {
+        const docs = await this.approvalModel
+            .find(searchQuery)
+            .populate({
+                path: 'req_by',
+                select: 'employee username',
+                populate: { path: 'employee', select: 'real_name' },
+            })
+            .populate({
+                path: 'rev_by',
+                select: 'employee username',
+                populate: { path: 'employee', select: 'real_name' },
+            })
+            .sort({ createdAt: -1 })
+            .lean()
+            .exec();
+
+        if (!docs) {
+            throw new InternalServerErrorException(
+                'Failed to retrieve approvals',
+            );
+        }
+
+        return docs.map(doc =>
+            this.normalizeApprovalDoc(doc as Record<string, unknown>),
+        );
+    }
+
+    private normalizeApprovalDoc(
+        doc: Record<string, unknown>,
+    ): ApprovalWithUsers {
+        const { req_by: rawReqBy, rev_by: rawRevBy, ...rest } = doc;
+        return {
+            ...(rest as Omit<ApprovalWithUsers, 'req_by' | 'rev_by'>),
+            req_by: this.normalizeUserReference(rawReqBy),
+            rev_by: this.normalizeUserReference(rawRevBy),
+        };
+    }
+
+    private normalizeUserReference(
+        user: unknown,
+    ): NormalizedApprovalUser | null {
+        if (!user || typeof user !== 'object') return null;
+        const candidate = user as Record<string, unknown>;
+
+        const employeeCandidate = candidate.employee;
+        const employeeObject =
+            employeeCandidate && typeof employeeCandidate === 'object'
+                ? (employeeCandidate as Record<string, unknown>)
+                : undefined;
+
+        const resolvedEmployeeId =
+            this.toObjectIdString(candidate.employee_id) ??
+            this.toObjectIdString(employeeObject?._id) ??
+            this.toObjectIdString(candidate.employee);
+
+        const resolvedUserId =
+            this.toObjectIdString(candidate.user_id) ??
+            this.toObjectIdString(candidate._id);
+
+        let resolvedName: string | null = null;
+        if (typeof candidate.real_name === 'string') {
+            resolvedName = candidate.real_name;
+        } else {
+            const employeeName = employeeObject?.real_name;
+            if (typeof employeeName === 'string') {
+                resolvedName = employeeName;
+            } else if (typeof candidate.username === 'string') {
+                resolvedName = candidate.username;
+            }
+        }
+
+        return {
+            user_id: resolvedUserId,
+            employee_id: resolvedEmployeeId,
+            real_name: resolvedName,
+        };
+    }
+
+    private toObjectIdString(value: unknown): string | null {
+        if (!value) return null;
+        if (typeof value === 'string') return value;
+        if (value instanceof mongoose.Types.ObjectId) {
+            return value.toHexString();
+        }
+        return null;
     }
 
     async createApproval(

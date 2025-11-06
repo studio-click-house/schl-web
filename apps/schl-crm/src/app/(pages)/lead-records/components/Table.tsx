@@ -231,7 +231,7 @@ const Table: React.FC = props => {
                         action: 'delete',
                         object_id: leadData._id,
                         deleted_data: leadData,
-                        req_by: session?.user.db_id,
+                        // req_by: session?.user.db_id,
                     }),
                 },
             );
@@ -327,7 +327,7 @@ const Table: React.FC = props => {
                                 marketer_name: editedLeadData.marketer_name,
                             }),
 
-                            req_by: session?.user.db_id,
+                            // req_by: session?.user.db_id,
                         }),
                     },
                 );

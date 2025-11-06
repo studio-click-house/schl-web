@@ -1,4 +1,7 @@
-import { toBoolean } from '@repo/common/utils/transformers';
+import {
+    emptyStringToUndefined,
+    toBoolean,
+} from '@repo/common/utils/transformers';
 import { Transform, Type } from 'class-transformer';
 import {
     IsBoolean,
@@ -37,18 +40,22 @@ export class SearchInvoicesQueryDto {
 }
 
 export class SearchInvoicesBodyDto {
+    @Transform(emptyStringToUndefined)
     @IsOptional()
     @IsString()
     invoiceNumber?: string;
 
+    @Transform(emptyStringToUndefined)
     @IsOptional()
     @IsString()
     clientCode?: string;
 
+    @Transform(emptyStringToUndefined)
     @IsOptional()
     @IsString()
     fromDate?: string;
 
+    @Transform(emptyStringToUndefined)
     @IsOptional()
     @IsString()
     toDate?: string;

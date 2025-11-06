@@ -23,9 +23,11 @@ export interface PopulatedApprovalType
     extends Omit<ApprovalDocument, 'req_by' | 'rev_by'> {
     req_by: {
         real_name: string;
+        _id: string;
     };
     rev_by: {
         real_name: string;
+        _id: string;
     };
 }
 

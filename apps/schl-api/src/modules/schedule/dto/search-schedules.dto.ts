@@ -1,4 +1,7 @@
-import { toBoolean } from '@repo/common/utils/transformers';
+import {
+    emptyStringToUndefined,
+    toBoolean,
+} from '@repo/common/utils/transformers';
 import { Transform, Type } from 'class-transformer';
 import {
     IsBoolean,
@@ -37,30 +40,37 @@ export class SearchSchedulesQueryDto {
 }
 
 export class SearchSchedulesBodyDto {
+    @Transform(emptyStringToUndefined)
     @IsOptional()
     @IsString()
     clientCode?: string;
 
+    @Transform(emptyStringToUndefined)
     @IsOptional()
     @IsString()
     task?: string;
 
+    @Transform(emptyStringToUndefined)
     @IsOptional()
     @IsString()
     receiveFromDate?: string;
 
+    @Transform(emptyStringToUndefined)
     @IsOptional()
     @IsString()
     receiveToDate?: string;
 
+    @Transform(emptyStringToUndefined)
     @IsOptional()
     @IsString()
     deliveryFromDate?: string;
 
+    @Transform(emptyStringToUndefined)
     @IsOptional()
     @IsString()
     deliveryToDate?: string;
 
+    @Transform(emptyStringToUndefined)
     @IsOptional()
     @IsString()
     generalSearchString?: string;

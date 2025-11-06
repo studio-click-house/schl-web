@@ -8,7 +8,10 @@ import {
     type EmployeeServiceTime,
     type EmployeeStatus,
 } from '@repo/common/constants/employee.constant';
-import { toBoolean } from '@repo/common/utils/transformers';
+import {
+    emptyStringToUndefined,
+    toBoolean,
+} from '@repo/common/utils/transformers';
 import { Transform, Type } from 'class-transformer';
 import {
     IsBoolean,
@@ -48,27 +51,33 @@ export class SearchEmployeesQueryDto {
 }
 
 export class SearchEmployeesBodyDto {
+    @Transform(emptyStringToUndefined)
     @IsOptional()
     @IsString()
     @IsIn(EMPLOYEE_BLOOD_GROUPS)
     bloodGroup?: EmployeeBloodGroup;
 
+    @Transform(emptyStringToUndefined)
     @IsOptional()
     @IsString()
     designation?: string;
 
+    @Transform(emptyStringToUndefined)
     @IsOptional()
     @IsIn(EMPLOYEE_STATUSES)
     status?: EmployeeStatus;
 
+    @Transform(emptyStringToUndefined)
     @IsOptional()
     @IsIn(EMPLOYEE_DEPARTMENTS as readonly EmployeeDepartment[])
     department?: string;
 
+    @Transform(emptyStringToUndefined)
     @IsOptional()
     @IsIn(EMPLOYEE_SERVICE_TIME)
     serviceTime?: EmployeeServiceTime;
 
+    @Transform(emptyStringToUndefined)
     @IsOptional()
     @IsString()
     generalSearchString?: string;

@@ -4,7 +4,7 @@ import type { NextAuthConfig } from 'next-auth';
 import { UserSessionType } from './auth';
 
 // Access token lifetime (short-lived, exposed to frontend). Keep it short to reduce XSS blast radius.
-const ACCESS_TOKEN_TTL_SECONDS = 5 * 60; // 5 minutes
+const ACCESS_TOKEN_TTL_SECONDS = 10 * 60; // 10 minutes
 
 function signAccessToken(
     payload: Pick<UserSessionType, 'db_id' | 'db_role_id' | 'permissions'>,

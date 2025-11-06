@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 type ChangeValue = any;
 
 export type Change =
@@ -14,18 +15,50 @@ export function getObjectChanges(
     newObj: Record<string, ChangeValue>,
 ): Change[] {
     const changes: Change[] = [];
-    Object.keys(oldObj).forEach(key => {
+
+    const buildMultisetMap = (arr: ChangeValue[]) => {
+        const map = new Map<string, { count: number; items: ChangeValue[] }>();
+
+        arr.forEach(item => {
+            const key = JSON.stringify(item);
+            const existing = map.get(key);
+
+            if (existing) {
+                existing.count += 1;
+                existing.items.push(item);
+            } else {
+                map.set(key, { count: 1, items: [item] });
+            }
+        });
+
+        return map;
+    };
+    const keys = new Set([...Object.keys(oldObj), ...Object.keys(newObj)]);
+
+    keys.forEach(key => {
         const oldValue = oldObj[key];
         const newValue = newObj[key];
         if (Array.isArray(oldValue) && Array.isArray(newValue)) {
-            const oldSet = new Set(oldValue.map(item => JSON.stringify(item)));
-            const newSet = new Set(newValue.map(item => JSON.stringify(item)));
-            const added = newValue.filter(
-                item => !oldSet.has(JSON.stringify(item)),
-            );
-            const removed = oldValue.filter(
-                item => !newSet.has(JSON.stringify(item)),
-            );
+            const oldMap = buildMultisetMap(oldValue);
+            const newMap = buildMultisetMap(newValue);
+
+            const added: ChangeValue[] = [];
+            newMap.forEach((data, key) => {
+                const oldCount = oldMap.get(key)?.count ?? 0;
+
+                if (data.count > oldCount) {
+                    added.push(...data.items.slice(oldCount));
+                }
+            });
+
+            const removed: ChangeValue[] = [];
+            oldMap.forEach((data, key) => {
+                const newCount = newMap.get(key)?.count ?? 0;
+
+                if (data.count > newCount) {
+                    removed.push(...data.items.slice(newCount));
+                }
+            });
             if (added.length > 0 || removed.length > 0) {
                 changes.push({
                     field: key,

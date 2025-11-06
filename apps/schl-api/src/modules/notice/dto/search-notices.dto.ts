@@ -1,4 +1,7 @@
-import { toBoolean } from '@repo/common/utils/transformers';
+import {
+    emptyStringToUndefined,
+    toBoolean,
+} from '@repo/common/utils/transformers';
 import { Transform, Type } from 'class-transformer';
 import {
     IsBoolean,
@@ -37,22 +40,27 @@ export class SearchNoticesQueryDto {
 }
 
 export class SearchNoticesBodyDto {
+    @Transform(emptyStringToUndefined)
     @IsOptional()
     @IsString()
     channel?: string;
 
+    @Transform(emptyStringToUndefined)
     @IsOptional()
     @IsString()
     title?: string;
 
+    @Transform(emptyStringToUndefined)
     @IsOptional()
     @IsString()
     noticeNo?: string;
 
+    @Transform(emptyStringToUndefined)
     @IsOptional()
     @IsString()
     fromDate?: string; // YYYY-MM-DD
 
+    @Transform(emptyStringToUndefined)
     @IsOptional()
     @IsString()
     toDate?: string; // YYYY-MM-DD

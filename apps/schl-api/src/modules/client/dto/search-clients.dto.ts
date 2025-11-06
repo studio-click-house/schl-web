@@ -1,4 +1,7 @@
-import { toBoolean } from '@repo/common/utils/transformers';
+import {
+    emptyStringToUndefined,
+    toBoolean,
+} from '@repo/common/utils/transformers';
 import { Transform, Type } from 'class-transformer';
 import {
     IsBoolean,
@@ -37,26 +40,32 @@ export class SearchClientsQueryDto {
 }
 
 export class SearchClientsBodyDto {
+    @Transform(emptyStringToUndefined)
     @IsOptional()
     @IsString()
     countryName?: string;
 
+    @Transform(emptyStringToUndefined)
     @IsOptional()
     @IsString()
     clientCode?: string;
 
+    @Transform(emptyStringToUndefined)
     @IsOptional()
     @IsString()
     contactPerson?: string;
 
+    @Transform(emptyStringToUndefined)
     @IsOptional()
     @IsString()
     marketerName?: string;
 
+    @Transform(emptyStringToUndefined)
     @IsOptional()
     @IsString()
     category?: string;
 
+    @Transform(emptyStringToUndefined)
     @IsOptional()
     @IsString()
     generalSearchString?: string;

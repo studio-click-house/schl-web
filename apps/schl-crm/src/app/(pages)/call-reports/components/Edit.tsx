@@ -67,16 +67,23 @@ const EditButton: React.FC<PropsType> = props => {
                 setEditedData(prevData => {
                     const currentHistory = prevData.calling_date_history || [];
 
-                    return {
-                        ...prevData,
-                        calling_date_history: checked
-                            ? currentHistory.includes(today)
-                                ? currentHistory
-                                : [...currentHistory, today]
-                            : currentHistory.filter(
-                                  (date: string) => date !== today,
-                              ),
-                    };
+                    if (checked) {
+                        return {
+                            ...prevData,
+                            calling_date_history: [...currentHistory, today],
+                        };
+                    } else {
+                        // On uncheck, remove the last added date for today
+                        const newHistory = [...currentHistory];
+                        const lastIndex = newHistory.lastIndexOf(today);
+                        if (lastIndex > -1) {
+                            newHistory.splice(lastIndex, 1);
+                        }
+                        return {
+                            ...prevData,
+                            calling_date_history: newHistory,
+                        };
+                    }
                 });
             }
 

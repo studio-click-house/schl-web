@@ -1,4 +1,7 @@
-import { toBoolean } from '@repo/common/utils/transformers';
+import {
+    emptyStringToUndefined,
+    toBoolean,
+} from '@repo/common/utils/transformers';
 import { Transform, Type } from 'class-transformer';
 import {
     IsBoolean,
@@ -37,10 +40,12 @@ export class SearchApprovalsQueryDto {
 }
 
 export class SearchApprovalsBodyDto {
+    @Transform(emptyStringToUndefined)
     @IsOptional()
     @IsString()
     reqBy?: string;
 
+    @Transform(emptyStringToUndefined)
     @IsOptional()
     @IsString()
     reqType?: string;
@@ -63,10 +68,12 @@ export class SearchApprovalsBodyDto {
     @IsBoolean()
     waitingCheck?: boolean;
 
+    @Transform(emptyStringToUndefined)
     @IsOptional()
     @IsString()
     fromDate?: string;
 
+    @Transform(emptyStringToUndefined)
     @IsOptional()
     @IsString()
     toDate?: string;

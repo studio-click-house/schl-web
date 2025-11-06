@@ -236,6 +236,7 @@ export class OrderService {
                 { $sort: sortQuery },
                 { $skip: skip },
                 { $limit: itemsPerPage },
+                { $project: { customSortField: 0 } },
             ];
 
             const items = await this.orderModel.aggregate(pipeline).exec();

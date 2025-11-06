@@ -211,7 +211,7 @@ const Table = () => {
                         action: 'delete',
                         object_id: reportData._id,
                         deleted_data: reportData,
-                        req_by: session?.user.db_id,
+                        // req_by: session?.user.db_id,
                     }),
                     headers: {
                         'Content-Type': 'application/json',
@@ -361,7 +361,7 @@ const Table = () => {
                                         previousReportData,
                                         editedReportData,
                                     ),
-                                    req_by: session?.user.db_id,
+                                    // req_by: session?.user.db_id,
                                 };
 
                                 const response = await authedFetchApi(

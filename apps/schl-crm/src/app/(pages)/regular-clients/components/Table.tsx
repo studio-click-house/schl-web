@@ -178,7 +178,7 @@ const Table = () => {
                         action: 'delete',
                         object_id: clientData._id,
                         deleted_data: clientData,
-                        req_by: session?.user.db_id,
+                        // req_by: session?.user.db_id,
                     }),
                 },
             );

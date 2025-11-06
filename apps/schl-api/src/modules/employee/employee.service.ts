@@ -20,7 +20,7 @@ import {
     buildOrRegex,
     createRegexQuery,
 } from '@repo/common/utils/filter-helpers';
-import { hasPerm } from '@repo/common/utils/permission-check';
+import { hasAnyPerm, hasPerm } from '@repo/common/utils/permission-check';
 import { FilterQuery, Model } from 'mongoose';
 import { CreateEmployeeBodyDto } from './dto/create-employee.dto';
 import { SearchEmployeesBodyDto } from './dto/search-employees.dto';
@@ -191,8 +191,12 @@ export class EmployeeService {
         userSession: UserSession,
     ) {
         // Basic permission: viewing employees could map to manage or create permission
-        const canView = hasPerm(
-            'accountancy:manage_employee',
+        const canView = hasAnyPerm(
+            [
+                'accountancy:manage_employee',
+                'crm:view_reports',
+                'crm:view_leads',
+            ],
             userSession.permissions,
         );
         if (!canView) {
@@ -334,6 +338,7 @@ export class EmployeeService {
                 },
             },
             { $sort: { priority: 1, e_id: 1 } },
+            { $project: { priority: 0 } },
         ];
 
         // Count always executed (kept simple; could skip when !paginated if size not needed)

@@ -15,3 +15,18 @@ import type { TransformFnParams } from 'class-transformer';
 
 export const booleanTransform = ({ value }: TransformFnParams): boolean =>
     toBoolean(value, false);
+
+export const emptyStringToUndefined = ({
+    value,
+}: TransformFnParams): string | undefined => {
+    if (value === undefined || value === null) {
+        return undefined;
+    }
+
+    if (typeof value === 'string') {
+        const trimmed = value.trim();
+        return trimmed.length > 0 ? trimmed : undefined;
+    }
+
+    return value;
+};
