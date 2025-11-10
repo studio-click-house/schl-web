@@ -1,4 +1,5 @@
 import '@/app/globals.css';
+import { auth } from '@/auth';
 import SessionProvider from '@/components/SessionProvider';
 import { cn } from '@repo/common/utils/general-utils';
 import type { Metadata } from 'next';
@@ -21,6 +22,8 @@ export default async function RootLayout({
 }: Readonly<{
     children: React.ReactNode;
 }>) {
+    const session = await auth();
+
     return (
         <html lang="en" suppressHydrationWarning>
             <body
@@ -30,8 +33,8 @@ export default async function RootLayout({
                     lato.className,
                 )}
             >
-                <SessionProvider>
-                    <NextTopLoader color="#7ba541" height={4} />
+                <SessionProvider session={session}>
+                    <NextTopLoader color="#7BA541" height={4} />
                     <noscript>
                         You need to enable JavaScript to run this app.
                     </noscript>

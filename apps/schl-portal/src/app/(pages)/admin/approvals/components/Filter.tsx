@@ -37,6 +37,7 @@ export const reqTypeOptions = [
     { value: 'Report Delete', label: 'Report Delete' },
     { value: 'Employee Delete', label: 'Employee Delete' },
     { value: 'Report Update', label: 'Report Update' },
+    { value: 'Schedule Delete', label: 'Schedule Delete' },
 ];
 
 const FilterButton: React.FC<PropsType> = props => {

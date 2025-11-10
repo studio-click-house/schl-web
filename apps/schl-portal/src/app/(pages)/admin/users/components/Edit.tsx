@@ -61,10 +61,10 @@ const EditButton: React.FC<PropsType> = props => {
         );
 
         return (props.rolesData || []).filter(role => {
-            const perms = role.permissions || [];
+            const perms = role.permissions as Permissions[];
 
             if (
-                perms.includes('settings:the_super_admin' as Permissions) &&
+                hasPerm('settings:the_super_admin', perms) &&
                 !hasPerm(
                     'settings:the_super_admin' as Permissions,
                     userPermissions,

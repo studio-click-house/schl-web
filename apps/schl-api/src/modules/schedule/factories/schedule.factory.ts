@@ -8,7 +8,7 @@ export class ScheduleFactory {
         session: UserSession,
     ): Partial<Schedule> {
         return {
-            receiveDate: dto.receiveDate.trim(),
+            receive_date: dto.receiveDate.trim(),
             delivery_date: dto.deliveryDate.trim(),
             client_code: dto.clientCode.trim(),
             client_name: dto.clientName.trim(),

@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
+import { type Permissions } from '../types/permission.type';
 
 export type RoleDocument = HydratedDocument<Role>;
 
@@ -13,7 +14,7 @@ export class Role {
         type: [String],
         minLength: [1, 'At least one permission is required'],
     })
-    permissions: string[];
+    permissions: Permissions[];
 }
 
 export const RoleSchema = SchemaFactory.createForClass(Role);

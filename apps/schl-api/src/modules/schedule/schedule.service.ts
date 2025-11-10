@@ -200,6 +200,8 @@ export class ScheduleService {
             userSession,
         );
 
+        console.log('Payload:', payload);
+
         // Duplicate prevention heuristic:
         const existing = await this.scheduleModel.countDocuments({
             client_code: payload.client_code,

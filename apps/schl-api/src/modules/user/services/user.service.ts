@@ -372,6 +372,7 @@ export class UserService {
                 pipeline.push({
                     $project: {
                         username: 1,
+                        password: 1,
                         createdAt: 1,
                         updatedAt: 1,
                         'role._id': 1,

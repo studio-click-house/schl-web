@@ -39,6 +39,9 @@ const Form: React.FC = () => {
                     });
                 }
             } else if (result?.ok) {
+                toast.success('Logged in successfully, redirecting...', {
+                    id: 'login-success',
+                });
                 router.push('/');
                 setLoading(false);
             } else {
