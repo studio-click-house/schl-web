@@ -82,6 +82,8 @@ const Form: React.FC<PropsType> = props => {
                 Object.entries(rest).filter(([, value]) => value !== undefined),
             );
 
+            console.log('payload', payload);
+
             const response = await authedFetchApi(
                 {
                     path: '/v1/client/create-client',
@@ -195,7 +197,7 @@ const Form: React.FC<PropsType> = props => {
                 </div>
                 <div>
                     <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
-                        <span className="uppercase">Contact Person</span>
+                        <span className="uppercase">Contact Person*</span>
                         <span className="text-red-700 text-wrap block text-xs">
                             {errors.contact_person &&
                                 errors.contact_person.message}
@@ -211,7 +213,7 @@ const Form: React.FC<PropsType> = props => {
 
                 <div>
                     <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
-                        <span className="uppercase">Designation</span>
+                        <span className="uppercase">Designation*</span>
                         <span className="text-red-700 text-wrap block text-xs">
                             {errors.designation && errors.designation.message}
                         </span>
@@ -225,7 +227,7 @@ const Form: React.FC<PropsType> = props => {
                 </div>
                 <div>
                     <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
-                        <span className="uppercase">Contact Number</span>
+                        <span className="uppercase">Contact Number*</span>
                         <span className="text-red-700 text-wrap block text-xs">
                             {errors.contact_number &&
                                 errors.contact_number.message}
@@ -241,7 +243,7 @@ const Form: React.FC<PropsType> = props => {
                 <div>
                     <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
                         <span className="uppercase">
-                            Email{' '}
+                            Email*{' '}
                             <span className="cursor-pointer has-tooltip">
                                 &#9432;
                                 <span className="tooltip italic font-medium rounded-md text-xs shadow-lg p-1 px-2 bg-gray-100 ml-2">
@@ -262,7 +264,7 @@ const Form: React.FC<PropsType> = props => {
                 </div>
                 <div>
                     <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
-                        <span className="uppercase">Address</span>
+                        <span className="uppercase">Address*</span>
                         <span className="text-red-700 text-wrap block text-xs">
                             {errors.address && errors.address.message}
                         </span>
@@ -276,7 +278,7 @@ const Form: React.FC<PropsType> = props => {
                 </div>
                 <div>
                     <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
-                        <span className="uppercase">Country</span>
+                        <span className="uppercase">Country*</span>
                         <span className="text-red-700 text-wrap block text-xs">
                             {errors.country && errors.country.message}
                         </span>

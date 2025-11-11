@@ -107,7 +107,13 @@ const ViewNotice: React.FC<ViewNoticeProps> = props => {
         createdAt: '',
     });
     const [isLoading, setIsLoading] = useState(false);
+
     const router = useRouter();
+    const routerRef = useRef(router);
+    useEffect(() => {
+        routerRef.current = router;
+    }, [router]);
+
     const authedFetchApi = useAuthedFetchApi();
     const lastFetchedNotice = useRef<string | null>(null);
 
@@ -123,39 +129,33 @@ const ViewNotice: React.FC<ViewNoticeProps> = props => {
 
             const response = await authedFetchApi<NoticeSearchResponse>(
                 {
-                    path: '/v1/notice/search-notices',
+                    path: `/v1/notice/get-notice`,
                     query: {
-                        paginated: false,
-                        // filtered: true,
+                        noticeNo: notice_no,
                     },
                 },
                 {
-                    method: 'POST',
+                    method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ noticeNo: notice_no }),
                 },
             );
 
             if (response.ok) {
-                const result = Array.isArray(response.data)
-                    ? response.data
-                    : response.data?.items;
-                const notices: Notice[] = result ?? [];
-                const [matchedNotice] = notices;
+                const noticeData = response.data as Notice;
 
-                if (!matchedNotice) {
+                if (!noticeData) {
                     toast.error('Notice not found', {
                         id: 'notice-error',
                     });
-                    router.push(
+                    routerRef.current.replace(
                         process.env.NEXT_PUBLIC_BASE_URL + '/admin/notices',
                     );
                     return;
                 }
 
-                if (matchedNotice.channel !== 'production') {
+                if (noticeData.channel !== 'production') {
                     // currently acknowledging only "marketing" channel exists besides production
                     if (
                         !hasAnyPerm(
@@ -169,31 +169,33 @@ const ViewNotice: React.FC<ViewNoticeProps> = props => {
                                 id: 'notice-channel',
                             },
                         );
-                        router.push('/');
+                        routerRef.current.replace('/');
                     } else {
                         toast.info(
-                            `The notice belongs to ${matchedNotice.channel} channel`,
+                            `The notice belongs to ${noticeData.channel} channel`,
                             {
                                 id: 'notice-channel',
                             },
                         );
                     }
                 }
-                setNotice(matchedNotice);
+                setNotice(noticeData);
             } else {
                 toastFetchError(response, 'Failed to retrieve notice');
-                router.push(
+                routerRef.current.replace(
                     process.env.NEXT_PUBLIC_BASE_URL + '/admin/notices',
                 );
             }
         } catch (error) {
             console.error(error);
             toast.error('An error occurred while retrieving the notice');
-            router.push(process.env.NEXT_PUBLIC_BASE_URL + '/admin/notices');
+            routerRef.current.replace(
+                process.env.NEXT_PUBLIC_BASE_URL + '/admin/notices',
+            );
         } finally {
             setIsLoading(false);
         }
-    }, [authedFetchApi, notice_no, router, userPermissions]);
+    }, [authedFetchApi, notice_no, userPermissions]);
 
     const handleFileDownload = async () => {
         try {
@@ -240,7 +242,9 @@ const ViewNotice: React.FC<ViewNoticeProps> = props => {
     useEffect(() => {
         if (!notice_no) {
             setIsLoading(false);
-            router.push(process.env.NEXT_PUBLIC_BASE_URL + '/admin/notices');
+            routerRef.current.replace(
+                process.env.NEXT_PUBLIC_BASE_URL + '/admin/notices',
+            );
             return;
         }
 
@@ -250,7 +254,7 @@ const ViewNotice: React.FC<ViewNoticeProps> = props => {
 
         lastFetchedNotice.current = notice_no;
         getNotice();
-    }, [getNotice, notice_no, router]);
+    }, [getNotice, notice_no]);
 
     return (
         <>

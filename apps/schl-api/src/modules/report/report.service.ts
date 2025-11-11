@@ -639,6 +639,62 @@ export class ReportService {
             }
         }
 
+        // Additional marketer scoping: show 'mine' or 'others'
+        console.log('Show filter:', show);
+        if (show) {
+            const userDoc = await this.userModel
+                .findById(userSession.db_id)
+                .populate(
+                    'employee',
+                    '_id e_id real_name company_provided_name',
+                )
+                .lean<PopulatedByEmployeeUser>()
+                .exec();
+            const marketerNameFromSession =
+                userDoc?.employee.company_provided_name;
+            switch (show) {
+                case 'all':
+                    break;
+                case 'others':
+                    if (marketerNameFromSession) {
+                        query.marketer_name = {
+                            $not: createRegexQuery(marketerNameFromSession, {
+                                exact: true,
+                                flexible: false,
+                            })!,
+                        };
+                    }
+                    break;
+                case 'mine':
+                    console.log(
+                        'Marketer name from session:',
+                        marketerNameFromSession,
+                    );
+                    query.marketer_name = createRegexQuery(
+                        marketerNameFromSession || '',
+                        {
+                            exact: true,
+                            flexible: false,
+                        },
+                    );
+
+                    console.log('Applied query:', query.marketer_name);
+
+                    break;
+            }
+        }
+
+        console.log('Final search query:', query);
+
+        // Lead origin scoping: only for lead records endpoints
+        if (leadOrigin) {
+            if (leadOrigin === 'generated') {
+                query.lead_origin = 'generated';
+            } else {
+                query.lead_origin = { $ne: 'generated' };
+            }
+        }
+
         const searchQuery: QueryShape = { ...query };
 
         // Sorting defaults
@@ -674,53 +730,6 @@ export class ReportService {
         // ) {
         //     throw new BadRequestException('No filter applied');
         // }
-
-        // Additional marketer scoping: show 'mine' or 'others'
-        if (show) {
-            const userDoc = await this.userModel
-                .findById(userSession.db_id)
-                .populate(
-                    'employee',
-                    '_id e_id real_name company_provided_name',
-                )
-                .lean<PopulatedByEmployeeUser>()
-                .exec();
-            const marketerNameFromSession =
-                userDoc?.employee.company_provided_name;
-            switch (show) {
-                case 'all':
-                    break;
-                case 'others':
-                    if (marketerNameFromSession) {
-                        query.marketer_name = {
-                            $not: createRegexQuery(marketerNameFromSession, {
-                                exact: true,
-                                flexible: false,
-                            })!,
-                        };
-                    }
-                    break;
-                case 'mine':
-                    addIfDefined(
-                        query,
-                        'marketer_name',
-                        createRegexQuery(marketerNameFromSession || '', {
-                            exact: true,
-                            flexible: false,
-                        }),
-                    );
-                    break;
-            }
-        }
-
-        // Lead origin scoping: only for lead records endpoints
-        if (leadOrigin) {
-            if (leadOrigin === 'generated') {
-                query.lead_origin = 'generated';
-            } else {
-                query.lead_origin = { $ne: 'generated' };
-            }
-        }
 
         // General search
         if (generalSearchString) {
@@ -913,7 +922,7 @@ export class ReportService {
         try {
             // 1) Ensure unique client_code
             const existingCount = await this.clientModel.countDocuments(
-                { client_code: body.client_code },
+                { client_code: body.clientCode },
                 { session },
             );
             if (existingCount > 0) {
@@ -936,7 +945,7 @@ export class ReportService {
 
             // 3) Update corresponding report: find one non-lead with company_name == client_name
             const updatedReport = await this.reportModel.findOneAndUpdate(
-                { company_name: body.client_name, is_lead: false },
+                { company_name: body.clientName, is_lead: false },
                 { client_status: 'approved', onboard_date: getTodayDate() },
                 { new: true, session },
             );

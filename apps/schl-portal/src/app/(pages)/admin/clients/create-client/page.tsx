@@ -1,5 +1,6 @@
 import { fetchApiWithServerAuth } from '@/lib/api-server';
 import { EmployeeDocument } from '@repo/common/models/employee.schema';
+import { removeDuplicates } from '@repo/common/utils/general-utils';
 import React, { Suspense } from 'react';
 import InputForm from './components/Form';
 
@@ -29,9 +30,11 @@ async function getAllMarketers() {
                 ? (response.data as EmployeeDocument[])
                 : ((response.data as { items?: EmployeeDocument[] })?.items ??
                   []);
-            marketerNames = marketers
-                .map(marketer => marketer.company_provided_name)
-                .filter((name): name is string => Boolean(name));
+            marketerNames = removeDuplicates(
+                marketers
+                    .map(marketer => marketer.company_provided_name)
+                    .filter((name): name is string => Boolean(name)),
+            );
         } else {
             console.error('Unable to fetch marketers');
         }

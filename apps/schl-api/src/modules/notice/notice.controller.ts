@@ -31,11 +31,19 @@ export class NoticeController {
     }
 
     @Get('get-notice/:id')
-    getNotice(
+    getNoticeById(
         @Param() { id }: IdParamDto,
         @Req() req: Request & { user: UserSession },
     ) {
-        return this.noticeService.getNotice(id, req.user);
+        return this.noticeService.getNoticeById(id, req.user);
+    }
+
+    @Get('get-notice')
+    getNoticeByNoticeNo(
+        @Req() req: Request & { user: UserSession },
+        @Query() query: { noticeNo: string },
+    ) {
+        return this.noticeService.getNoticeByNoticeNo(query.noticeNo, req.user);
     }
 
     @Delete('delete-notice/:id')

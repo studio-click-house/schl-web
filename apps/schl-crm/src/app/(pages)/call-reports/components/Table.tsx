@@ -79,7 +79,6 @@ const Table = () => {
                         method: 'POST',
                         body: JSON.stringify({
                             show: 'mine',
-                            marketerName: session?.user.provided_name, // doesn't matter in this case as 'mine' is set
                         }),
                         headers: {
                             'Content-Type': 'application/json',

@@ -24,11 +24,11 @@ const transformEmailList = ({
 export class CreateClientBodyDto {
     @IsString()
     @IsNotEmpty()
-    client_code: string;
+    clientCode: string;
 
     @IsString()
     @IsNotEmpty()
-    client_name: string;
+    clientName: string;
 
     @IsString()
     @IsNotEmpty()
@@ -36,11 +36,11 @@ export class CreateClientBodyDto {
 
     @IsString()
     @IsNotEmpty()
-    contact_person: string;
+    contactPerson: string;
 
     @IsString()
     @IsNotEmpty()
-    contact_number: string;
+    contactNumber: string;
 
     @IsString()
     @IsNotEmpty()
@@ -69,16 +69,16 @@ export class CreateClientBodyDto {
 
     @IsOptional()
     @IsString()
-    vat_number?: string;
+    vatNumber?: string;
 
     @IsOptional()
     @IsString()
-    tax_id?: string;
+    taxId?: string;
 
     @IsOptional()
     @IsString()
     category?: string;
 
     @IsOptional()
-    last_invoice_number?: string | null;
+    lastInvoiceNumber?: string | null;
 }

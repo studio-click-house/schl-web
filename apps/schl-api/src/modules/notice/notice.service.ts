@@ -80,14 +80,36 @@ export class NoticeService {
         }
     }
 
-    async getNotice(reportId: string, userSession: UserSession) {
+    async getNoticeById(noticeId: string, userSession: UserSession) {
         if (!hasPerm('notice:view_notice', userSession.permissions)) {
             throw new ForbiddenException(
                 "You don't have permission to view this notice",
             );
         }
         try {
-            const notice = await this.noticeModel.findById(reportId).exec();
+            const notice = await this.noticeModel.findById(noticeId).exec();
+            if (!notice) {
+                throw new NotFoundException('Notice not found');
+            }
+            return notice;
+        } catch (e) {
+            if (e instanceof HttpException) throw e;
+            throw new InternalServerErrorException('Unable to retrieve notice');
+        }
+    }
+
+    async getNoticeByNoticeNo(noticeNo: string, userSession: UserSession) {
+        if (!hasPerm('notice:view_notice', userSession.permissions)) {
+            throw new ForbiddenException(
+                "You don't have permission to view this notice",
+            );
+        }
+        try {
+            const notice = await this.noticeModel
+                .findOne({
+                    notice_no: createRegexQuery(noticeNo, { exact: true }),
+                })
+                .exec();
             if (!notice) {
                 throw new NotFoundException('Notice not found');
             }

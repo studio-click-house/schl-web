@@ -127,7 +127,7 @@ export class SearchReportsBodyDto {
     @IsOptional()
     @IsString()
     @IsEnum(['all', 'others', 'mine'])
-    show?: string; // 'all' | 'others' | 'mine'
+    show?: 'all' | 'others' | 'mine';
 
     @IsOptional()
     @Type(() => String)

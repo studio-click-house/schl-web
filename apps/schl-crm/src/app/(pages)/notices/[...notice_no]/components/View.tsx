@@ -4,7 +4,7 @@ import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import { ISO_to_DD_MM_YY as convertToDDMMYYYY } from '@repo/common/utils/date-helpers';
 import moment from 'moment-timezone';
 import { useRouter } from 'nextjs-toploader/app';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import parse, {
@@ -96,7 +96,12 @@ const ViewNotice: React.FC<ViewNoticeProps> = props => {
         createdAt: '',
     });
     const [isLoading, setIsLoading] = useState(false);
+
     const router = useRouter();
+    const routerRef = useRef(router);
+    useEffect(() => {
+        routerRef.current = router;
+    }, [router]);
 
     let constructFileName = (file_name: string, notice_no: string): string => {
         let file_ext = file_name.split('.').pop();
@@ -111,13 +116,16 @@ const ViewNotice: React.FC<ViewNoticeProps> = props => {
 
             const response = await authedFetchApi<Notice>(
                 {
-                    path: '/v1/notice/get-notice',
+                    path: `/v1/notice/get-notice`,
                     query: {
-                        notice_no: notice_no,
+                        noticeNo: notice_no,
                     },
                 },
                 {
                     method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
                 },
             );
 
@@ -125,21 +133,25 @@ const ViewNotice: React.FC<ViewNoticeProps> = props => {
                 const data = response.data as Notice;
                 if (data?.channel != 'marketers') {
                     toast.error("The notice doesn't belong to this channel");
-                    router.push('/');
+                    routerRef.current.replace('/');
                 }
                 setNotice(data);
             } else {
                 toastFetchError(response, 'Failed to retrieve the notice');
-                router.push(process.env.NEXT_PUBLIC_BASE_URL + '/notices');
+                routerRef.current.replace(
+                    process.env.NEXT_PUBLIC_BASE_URL + '/notices',
+                );
             }
         } catch (error) {
             console.error(error);
             toast.error('An error occurred while retrieving the notice');
-            router.push(process.env.NEXT_PUBLIC_BASE_URL + '/notices');
+            routerRef.current.replace(
+                process.env.NEXT_PUBLIC_BASE_URL + '/notices',
+            );
         } finally {
             setIsLoading(false);
         }
-    }, [authedFetchApi, notice_no, router]);
+    }, [authedFetchApi, notice_no]);
 
     const handleFileDownload = async () => {
         try {

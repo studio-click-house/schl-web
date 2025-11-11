@@ -167,7 +167,7 @@ export class ClientService {
         clientData: CreateClientBodyDto,
         userSession: UserSession,
     ) {
-        const client_code = clientData.client_code.trim();
+        const client_code = clientData.clientCode.trim();
 
         // Duplicate check (same code)
         const existing = await this.clientModel
@@ -217,11 +217,6 @@ export class ClientService {
         const existing = await this.clientModel.findById(clientId).exec();
         if (!existing) {
             throw new BadRequestException('Client not found');
-        }
-
-        // If client_code is changing, trim it; uniqueness will be enforced by index and handled in catch (race-safe)
-        if (clientData.client_code) {
-            clientData.client_code = clientData.client_code.trim();
         }
 
         const patch = ClientFactory.fromUpdateDto(clientData, userSession);

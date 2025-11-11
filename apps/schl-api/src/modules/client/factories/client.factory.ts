@@ -8,24 +8,22 @@ export class ClientFactory {
         session: UserSession,
     ): Partial<Client> {
         return {
-            client_code: dto.client_code.trim(),
-            client_name: dto.client_name.trim(),
+            client_code: dto.clientCode.trim(),
+            client_name: dto.clientName.trim(),
             marketer: dto.marketer.trim(),
-            contact_person: dto.contact_person.trim(),
-            contact_number: dto.contact_number.trim(),
+            contact_person: dto.contactPerson.trim(),
+            contact_number: dto.contactNumber.trim(),
             email: dto.email.toLowerCase().trim(),
             designation: dto.designation.trim(),
             country: dto.country.trim(),
             address: dto.address.trim(),
             prices: dto.prices?.trim(),
             currency: dto.currency,
-            vat_number: dto.vat_number?.trim(),
-            tax_id: dto.tax_id?.trim(),
+            vat_number: dto.vatNumber?.trim(),
+            tax_id: dto.taxId?.trim(),
             category: dto.category?.trim(),
             last_invoice_number:
-                dto.last_invoice_number == null
-                    ? null
-                    : dto.last_invoice_number,
+                dto.lastInvoiceNumber == null ? null : dto.lastInvoiceNumber,
             updated_by: session.real_name,
         } as Partial<Client>;
     }
@@ -35,15 +33,15 @@ export class ClientFactory {
         session: UserSession,
     ): Partial<Client> {
         const patch: Partial<Client> = {};
-        if (dto.client_code !== undefined)
-            patch.client_code = dto.client_code.trim();
-        if (dto.client_name !== undefined)
-            patch.client_name = dto.client_name.trim();
+        if (dto.clientCode !== undefined)
+            patch.client_code = dto.clientCode.trim();
+        if (dto.clientName !== undefined)
+            patch.client_name = dto.clientName.trim();
         if (dto.marketer !== undefined) patch.marketer = dto.marketer.trim();
-        if (dto.contact_person !== undefined)
-            patch.contact_person = dto.contact_person.trim();
-        if (dto.contact_number !== undefined)
-            patch.contact_number = dto.contact_number.trim();
+        if (dto.contactPerson !== undefined)
+            patch.contact_person = dto.contactPerson.trim();
+        if (dto.contactNumber !== undefined)
+            patch.contact_number = dto.contactNumber.trim();
         if (dto.email !== undefined)
             patch.email = dto.email.toLowerCase().trim();
         if (dto.designation !== undefined)
@@ -52,15 +50,13 @@ export class ClientFactory {
         if (dto.address !== undefined) patch.address = dto.address.trim();
         if (dto.prices !== undefined) patch.prices = dto.prices?.trim();
         if (dto.currency !== undefined) patch.currency = dto.currency;
-        if (dto.vat_number !== undefined)
-            patch.vat_number = dto.vat_number?.trim();
-        if (dto.tax_id !== undefined) patch.tax_id = dto.tax_id?.trim();
+        if (dto.vatNumber !== undefined)
+            patch.vat_number = dto.vatNumber?.trim();
+        if (dto.taxId !== undefined) patch.tax_id = dto.taxId?.trim();
         if (dto.category !== undefined) patch.category = dto.category?.trim();
-        if (dto.last_invoice_number !== undefined)
+        if (dto.lastInvoiceNumber !== undefined)
             patch.last_invoice_number =
-                dto.last_invoice_number == null
-                    ? null
-                    : dto.last_invoice_number;
+                dto.lastInvoiceNumber == null ? null : dto.lastInvoiceNumber;
         patch.updated_by = session.real_name;
         return patch;
     }
