@@ -23,7 +23,7 @@ export class UserFactory {
         if (dto.role !== undefined)
             patch.role = new mongoose.Types.ObjectId(dto.role);
         if (dto.employee !== undefined)
-            patch.role = new mongoose.Types.ObjectId(dto.employee);
+            patch.employee = new mongoose.Types.ObjectId(dto.employee);
         return patch;
     }
 }

@@ -193,14 +193,14 @@ export class UserService {
                 );
             }
 
-            const invalid = targetPerms.filter(
-                p => !hasPerm(p, userSession.permissions),
-            );
-            if (invalid.length > 0) {
-                throw new ForbiddenException(
-                    `You tried to assign permissions you don't have: ${invalid.join(', ')}`,
-                );
-            }
+            // const invalid = targetPerms.filter(
+            //     p => !hasPerm(p, userSession.permissions),
+            // );
+            // if (invalid.length > 0) {
+            //     throw new ForbiddenException(
+            //         `You tried to assign permissions you don't have: ${invalid.join(', ')}`,
+            //     );
+            // }
         }
 
         try {
