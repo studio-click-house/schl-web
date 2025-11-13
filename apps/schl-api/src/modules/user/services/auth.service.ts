@@ -72,8 +72,22 @@ export class AuthService {
         password: string,
         userSession: UserSession,
         redirectPath: string = '/',
+        origin: string,
     ) {
         try {
+            let authSecret: string | undefined;
+
+            const portalUrl = this.config.get<string>('PORTAL_URL');
+            const crmUrl = this.config.get<string>('CRM_URL');
+
+            if (portalUrl && origin?.includes(portalUrl)) {
+                authSecret = this.config.get<string>('PORTAL_AUTH_SECRET');
+            } else if (crmUrl && origin?.includes(crmUrl)) {
+                authSecret = this.config.get<string>('CRM_AUTH_SECRET');
+            } else {
+                authSecret = this.config.get<string>('AUTH_SECRET');
+            }
+
             const userData = await this.userModel
                 .findOne({
                     username: username,
@@ -91,7 +105,11 @@ export class AuthService {
                         userId: userData._id,
                         exp: Math.floor(Date.now() / 1000) + 10,
                     },
-                    this.config.get<string>('AUTH_SECRET')!,
+                    authSecret!,
+                );
+
+                console.log(
+                    `Generated verification token for user: ${userData._id.toString()}, redirecting to: ${redirectPath}, origin: ${origin}, using secret from: ${authSecret}`,
                 );
 
                 return { token, redirect_path: redirectPath };

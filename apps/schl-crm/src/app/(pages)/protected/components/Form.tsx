@@ -49,9 +49,7 @@ const Form: React.FC<PropsType> = props => {
             const response = await authedFetchApi<{ redirect_path?: string }>(
                 {
                     path: '/v1/user/verify-user',
-                    query: {
-                        redirect: props.redirect_path || '/',
-                    },
+                    query: { redirect: props.redirect_path },
                 },
                 {
                     method: 'POST',
@@ -59,6 +57,7 @@ const Form: React.FC<PropsType> = props => {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify(parsed.data),
+                    credentials: 'include',
                 },
             );
 

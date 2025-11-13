@@ -8,9 +8,13 @@ import {
     Put,
     Query,
     Req,
-    Request,
+    Res,
 } from '@nestjs/common';
 import { UserSession } from '@repo/common/types/user-session.type';
+import type {
+    Request as ExpressRequest,
+    Response as ExpressResponse,
+} from 'express';
 import { Public } from '../../common/auth/public.decorator';
 import { IdParamDto } from '../../common/dto/id-param.dto';
 import { ChangePasswordBodyDto } from './dto/change-password.dto';
@@ -55,23 +59,42 @@ export class UserController {
     }
 
     @Post('verify-user')
-    verifyUser(
+    async verifyUser(
         @Body() body: VerifyUserBodyDto,
-        @Req() req: Request & { user: UserSession },
+        @Req() req: ExpressRequest & { user: UserSession },
         @Query('redirect') redirectPath: string,
+        @Res({ passthrough: true }) res: ExpressResponse,
     ) {
-        return this.authService.verifyUser(
+        const origin = req.get('origin') || req.get('host') || '';
+        const result = await this.authService.verifyUser(
             body.username,
             body.password,
             req.user,
             redirectPath,
+            origin,
         );
+        if (
+            typeof result === 'object' &&
+            result !== null &&
+            'token' in result &&
+            typeof result.token === 'string'
+        ) {
+            const isLocalhost = origin?.includes('localhost');
+            res.cookie('verify-token.tmp', result.token, {
+                path: '/',
+                httpOnly: true,
+                maxAge: 10_000,
+                sameSite: isLocalhost ? 'lax' : 'none',
+                secure: !isLocalhost,
+            });
+        }
+        return result;
     }
 
     @Post('create-user')
     createUser(
         @Body() userData: CreateUserBodyDto,
-        @Req() req: Request & { user: UserSession },
+        @Req() req: ExpressRequest & { user: UserSession },
     ) {
         return this.userService.createUser(userData, req.user);
     }
@@ -80,7 +103,7 @@ export class UserController {
     updateUser(
         @Param() { id }: IdParamDto,
         @Body() userData: Partial<CreateUserBodyDto>,
-        @Req() req: Request & { user: UserSession },
+        @Req() req: ExpressRequest & { user: UserSession },
     ) {
         return this.userService.updateUser(id, userData, req.user);
     }
@@ -88,7 +111,7 @@ export class UserController {
     @Delete('delete-user/:id')
     deleteUser(
         @Param() { id }: IdParamDto,
-        @Req() req: Request & { user: UserSession },
+        @Req() req: ExpressRequest & { user: UserSession },
     ) {
         return this.userService.deleteUser(id, req.user);
     }
@@ -97,7 +120,7 @@ export class UserController {
     searchUsers(
         @Query() query: SearchUsersQueryDto,
         @Body() body: SearchUsersBodyDto,
-        @Req() req: Request & { user: UserSession },
+        @Req() req: ExpressRequest & { user: UserSession },
     ) {
         const pagination = {
             page: query.page,
@@ -113,7 +136,7 @@ export class UserController {
     getUser(
         @Param() { id }: IdParamDto,
         @Query() query: GetUserQueryDto,
-        @Req() req: Request & { user: UserSession },
+        @Req() req: ExpressRequest & { user: UserSession },
     ) {
         const wantsExpanded = query.expanded;
         return this.userService.getUserById(id, req.user, wantsExpanded);
