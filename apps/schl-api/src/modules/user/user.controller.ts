@@ -10,6 +10,7 @@ import {
     Req,
     Res,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { UserSession } from '@repo/common/types/user-session.type';
 import type {
     Request as ExpressRequest,
@@ -17,6 +18,7 @@ import type {
 } from 'express';
 import { Public } from '../../common/auth/public.decorator';
 import { IdParamDto } from '../../common/dto/id-param.dto';
+import { buildVerifyCookieOptions } from '../../common/utils/verify-cookie.util';
 import { ChangePasswordBodyDto } from './dto/change-password.dto';
 import { CreateUserBodyDto } from './dto/create-user.dto';
 import { GetUserQueryDto } from './dto/get-user.dto';
@@ -34,15 +36,12 @@ export class UserController {
     constructor(
         private readonly authService: AuthService,
         private readonly userService: UserService,
+        private readonly configService: ConfigService,
     ) {}
 
     @Public()
     @Post('login')
-    login(
-        @Body() body: LoginBodyDto,
-
-        @Query() { clientType }: LoginQueryDto,
-    ) {
+    login(@Body() body: LoginBodyDto, @Query() { clientType }: LoginQueryDto) {
         return this.authService.login(body.username, body.password, clientType);
     }
 
@@ -65,29 +64,33 @@ export class UserController {
         @Query('redirect') redirectPath: string,
         @Res({ passthrough: true }) res: ExpressResponse,
     ) {
-        const origin = req.get('origin') || req.get('host') || '';
+        const originHeader = req.get('origin') || '';
+        const hostHeader = req.get('host') || '';
+
         const result = await this.authService.verifyUser(
             body.username,
             body.password,
             req.user,
             redirectPath,
-            origin,
+            originHeader || hostHeader,
         );
+
         if (
             typeof result === 'object' &&
             result !== null &&
             'token' in result &&
             typeof result.token === 'string'
         ) {
-            const isLocalhost = origin?.includes('localhost');
-            res.cookie('verify-token.tmp', result.token, {
-                path: '/',
-                httpOnly: true,
-                maxAge: 10_000,
-                sameSite: isLocalhost ? 'lax' : 'none',
-                secure: !isLocalhost,
+            const { options } = buildVerifyCookieOptions({
+                originHeader,
+                hostHeader,
+                requestHostname: req.hostname,
+                baseUrl: this.configService.get<string>('BASE_URL'),
             });
+
+            res.cookie('verify-token.tmp', result.token, options);
         }
+
         return result;
     }
 
