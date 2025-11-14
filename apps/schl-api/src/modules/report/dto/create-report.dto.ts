@@ -74,17 +74,17 @@ export class CreateReportBodyDto {
     @Type(() => String)
     @Transform(({ value }) => toBoolean(value, false))
     @IsBoolean()
-    prospecting?: boolean;
+    isProspected?: boolean;
 
     @IsOptional()
     @IsString()
-    prospectingStatus?: string;
+    prospectStatus?: string;
 
     @IsOptional()
     @Type(() => String)
     @Transform(({ value }) => toBoolean(value, false))
     @IsBoolean()
-    newLead?: boolean;
+    isLead?: boolean;
 
     @IsOptional()
     @IsString()

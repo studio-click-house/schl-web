@@ -28,9 +28,9 @@ export class ReportFactory {
             calling_date_history: [callingDate],
             updated_by: null,
             followup_done: dto.followupDone ?? false,
-            is_prospected: dto.prospecting ?? false,
-            prospect_status: (dto.prospectingStatus ?? '').trim(),
-            is_lead: dto.newLead ?? false,
+            is_prospected: dto.isProspected ?? false,
+            prospect_status: (dto.prospectStatus ?? '').trim(),
+            is_lead: dto.isLead ?? false,
             lead_withdrawn: false,
             client_status: dto.clientStatus ?? 'none',
             lead_origin: dto.leadOrigin ?? null,
@@ -84,10 +84,11 @@ export class ReportFactory {
             $set.linkedin = (dto.linkedin ?? '').trim();
         if (dto.followupDone !== undefined)
             $set.followup_done = dto.followupDone;
-        if (dto.prospecting !== undefined) $set.is_prospected = dto.prospecting;
-        if (dto.prospectingStatus !== undefined)
-            $set.prospect_status = (dto.prospectingStatus ?? '').trim();
-        if (dto.newLead !== undefined) $set.is_lead = dto.newLead;
+        if (dto.isProspected !== undefined)
+            $set.is_prospected = dto.isProspected;
+        if (dto.prospectStatus !== undefined)
+            $set.prospect_status = (dto.prospectStatus ?? '').trim();
+        if (dto.isLead !== undefined) $set.is_lead = dto.isLead;
         if (dto.leadOrigin !== undefined)
             $set.lead_origin = dto.leadOrigin ?? null;
         if (dto.testJob) {

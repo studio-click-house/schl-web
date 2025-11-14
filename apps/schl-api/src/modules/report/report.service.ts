@@ -840,7 +840,7 @@ export class ReportService {
                 );
             }
 
-            const isLead = body.newLead === true;
+            const isLead = body.isLead === true;
 
             // If creating a lead, check duplicate by flexible company name
             if (isLead && body.companyName) {

@@ -40,12 +40,12 @@ const Form: React.FC<propsType> = props => {
         callingStatus: '',
         linkedin: '',
         testJob: false,
-        prospecting: false,
-        prospectingStatus: '',
+        isProspected: false,
+        prospectStatus: '',
         followupDone: false,
         leadOrigin: 'generated',
         clientStatus: 'none' as ClientStatus,
-        newLead: NewLeadQuery?.current ?? false,
+        isLead: NewLeadQuery?.current ?? false,
     });
 
     const inputValidations = (reportData: any) => {
@@ -137,7 +137,7 @@ const Form: React.FC<propsType> = props => {
 
             if (
                 session?.user.permissions &&
-                reportData.newLead &&
+                reportData.isLead &&
                 !hasPerm('crm:create_lead', session?.user.permissions)
             ) {
                 toast.error("You don't have permission to create leads");
@@ -175,12 +175,12 @@ const Form: React.FC<propsType> = props => {
                 callingStatus: '',
                 linkedin: '',
                 testJob: false,
-                prospecting: false,
-                prospectingStatus: '',
+                isProspected: false,
+                prospectStatus: '',
                 followupDone: false,
                 leadOrigin: 'generated',
                 clientStatus: 'none' as ClientStatus,
-                newLead: NewLeadQuery?.current ?? false,
+                isLead: NewLeadQuery?.current ?? false,
             });
             toast.success(
                 `New ${NewLeadQuery?.current ? 'lead' : 'report'} added successfully`,
@@ -212,10 +212,10 @@ const Form: React.FC<propsType> = props => {
                 }));
             }
 
-            if (!checked && name === 'prospecting')
+            if (!checked && name === 'isProspected')
                 setReportData(prevData => ({
                     ...prevData,
-                    prospectingStatus: '',
+                    prospectStatus: '',
                 }));
         } else {
             setReportData(prevData => ({
@@ -454,7 +454,7 @@ const Form: React.FC<propsType> = props => {
                             placeholder="Contact person's/company's linkedin link"
                         />
                     </div>
-                    {reportData.prospecting && (
+                    {reportData.isProspected && (
                         <div>
                             <label
                                 className="uppercase tracking-wide text-gray-700 text-sm font-bold block mb-2"
@@ -463,11 +463,11 @@ const Form: React.FC<propsType> = props => {
                                 Prospect Status
                             </label>
                             <select
-                                value={reportData.prospectingStatus}
+                                value={reportData.prospectStatus}
                                 onChange={e =>
                                     setReportData(prevData => ({
                                         ...prevData,
-                                        prospectingStatus: e.target.value,
+                                        prospectStatus: e.target.value,
                                     }))
                                 }
                                 // defaultValue={''}
@@ -506,8 +506,8 @@ const Form: React.FC<propsType> = props => {
 
                 <div className="flex gap-2 items-center">
                     <input
-                        name="prospecting"
-                        checked={reportData.prospecting}
+                        name="isProspected"
+                        checked={reportData.isProspected}
                         onChange={handleChange}
                         id="prospecting-checkbox"
                         type="checkbox"
@@ -540,8 +540,8 @@ const Form: React.FC<propsType> = props => {
 
                 <div className="flex gap-2 items-center">
                     <input
-                        name="newLead"
-                        checked={reportData.newLead ?? NewLeadQuery.current}
+                        name="isLead"
+                        checked={reportData.isLead ?? NewLeadQuery.current}
                         onChange={handleChange}
                         id="new-lead-checkbox"
                         type="checkbox"
