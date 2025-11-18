@@ -654,6 +654,16 @@ const Form: React.FC<PropsType> = props => {
                         )}
                     </button>
                 )}
+
+                {watch('updated_by') && (
+                    <div className="flex justify-start items-center me-auto text-gray-400">
+                        <span className="me-1">Last updated by </span>
+
+                        <span className="font-semibold">
+                            {watch('updated_by')}
+                        </span>
+                    </div>
+                )}
             </div>
         </div>
     );
