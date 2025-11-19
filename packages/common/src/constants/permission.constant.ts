@@ -24,6 +24,15 @@ export const USER_PERMISSIONS = [
     },
 
     {
+        label: 'Job',
+        options: [
+            { value: 'job:view_page', label: 'View job page' },
+            { value: 'job:get_jobs', label: 'Get jobs' },
+            { value: 'job:transfer_job', label: 'Transfer job' },
+        ],
+    },
+
+    {
         label: 'Browse',
         options: [
             { value: 'browse:view_page', label: 'View browse page' },

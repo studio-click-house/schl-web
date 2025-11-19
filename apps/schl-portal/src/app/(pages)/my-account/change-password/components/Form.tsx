@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { ChangePasswordInputsType, validationSchema } from '../schema';
 
+import LogoutAction from '@/components/Header/Logout/LogoutAction';
 import { generatePassword } from '@repo/common/utils/general-utils';
 import { KeySquare } from 'lucide-react';
 import { toast } from 'sonner';
@@ -74,6 +75,7 @@ const Form: React.FC = props => {
                 toast.success(response.data as string);
                 reset();
                 // reset the form after successful submission
+                await LogoutAction();
             } else {
                 toastFetchError(response);
             }
@@ -112,22 +114,24 @@ const Form: React.FC = props => {
                 </div>
 
                 <div>
-                    <label
-                        className="uppercase tracking-wide text-gray-700 text-sm font-bold flex gap-2 mb-2"
-                        htmlFor="grid-password"
-                    >
-                        New password*
-                        <span className="cursor-pointer has-tooltip">
-                            &#9432;
-                            <span className="tooltip italic font-medium rounded-md text-xs shadow-lg p-1 px-2 bg-gray-100 ml-2">
-                                You can generate a new password by clicking the
-                                right button
+                    <div className="mb-2">
+                        <label
+                            className="uppercase tracking-wide text-gray-700 text-sm font-bold flex gap-2"
+                            htmlFor="grid-password"
+                        >
+                            New password*
+                            <span className="cursor-pointer has-tooltip">
+                                &#9432;
+                                <span className="tooltip italic font-medium rounded-md text-xs shadow-lg p-1 px-2 bg-gray-100 ml-2">
+                                    You can generate a new password by clicking
+                                    the right button
+                                </span>
                             </span>
-                        </span>
-                        <span className="text-red-700 text-wrap block text-xs">
+                        </label>
+                        <span className="text-red-700 text-wrap block font-bold text-xs">
                             {errors.new_password && errors.new_password.message}
                         </span>
-                    </label>
+                    </div>
 
                     <div className="flex items-center">
                         <input

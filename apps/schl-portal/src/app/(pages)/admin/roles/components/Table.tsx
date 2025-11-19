@@ -219,15 +219,15 @@ const Table: React.FC = () => {
                 ) as Permissions[];
 
                 // Any newly added permission must already be possessed by the editor
-                const invalidAdds = addedPermissions.filter(
-                    p => !userPerms.includes(p),
-                );
-                if (invalidAdds.length > 0) {
-                    toast.error(
-                        `You can't assign permissions you don't have: ${invalidAdds.join(', ')}`,
-                    );
-                    return;
-                }
+                // const invalidAdds = addedPermissions.filter(
+                //     p => !userPerms.includes(p),
+                // );
+                // if (invalidAdds.length > 0) {
+                //     toast.error(
+                //         `You can't assign permissions you don't have: ${invalidAdds.join(', ')}`,
+                //     );
+                //     return;
+                // }
 
                 setLoading(true);
 

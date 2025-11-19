@@ -65,3 +65,8 @@ export const priorityOptions = [
 ];
 export const JOB_SHIFTS = ['morning', 'evening'] as const;
 export type JobShift = (typeof JOB_SHIFTS)[number];
+
+export const jobShiftOptions = [
+    { value: 'morning', label: 'Morning' },
+    { value: 'evening', label: 'Evening' },
+];

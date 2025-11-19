@@ -4,12 +4,18 @@ import type { Permissions } from '@repo/common/types/permission.type';
 import { cn } from '@repo/common/utils/general-utils';
 import { hasAnyPerm, hasPerm } from '@repo/common/utils/permission-check';
 import {
+    BriefcaseBusiness,
     Building,
     Building2,
+    CalendarClock,
+    CalendarPlus,
+    CalendarRange,
     ChartBarBig,
     ChartNoAxesCombined,
     ChevronDown,
     CirclePause,
+    ClipboardList,
+    FilePlus,
     FilePlus2,
     FileSliders,
     FlaskConical,
@@ -105,6 +111,57 @@ const Sidebar: React.FC<PropsType> = props => {
                             <FolderTree className="w-6 h-6 mr-2" />
                             Browse
                         </Link>
+                    )}
+
+                    {has('job:view_page') && (
+                        <>
+                            <span
+                                className={cn(
+                                    'p-4 flex items-center justify-between',
+                                    pathname.includes('/my-jobs')
+                                        ? 'bg-primary text-white'
+                                        : 'hover:bg-gray-100',
+                                )}
+                                aria-controls="dropdown-parent-3"
+                                data-collapse-toggle="dropdown-parent-3"
+                            >
+                                <span className="flex items-center">
+                                    <BriefcaseBusiness className="w-6 h-6 mr-2" />
+                                    <span>My Jobs</span>
+                                </span>
+                                <ChevronDown size={17} />
+                            </span>
+                            <ul
+                                id="dropdown-parent-3"
+                                className="hidden pb-2 space-y-1"
+                            >
+                                {hasAny([
+                                    'job:view_page',
+                                    'job:transfer_job',
+                                ]) && (
+                                    <li>
+                                        <Link
+                                            href="/my-jobs"
+                                            className="flex items-center w-full p-2 text-gray-900 transition duration-75 pl-11 group hover:bg-gray-100"
+                                        >
+                                            <ClipboardList className="w-6 h-6 mr-2" />
+                                            Job Board
+                                        </Link>
+                                    </li>
+                                )}
+                                {has('job:get_jobs') && (
+                                    <li>
+                                        <Link
+                                            href="/my-jobs/new-job"
+                                            className="flex items-center w-full p-2 text-gray-900 transition duration-75 pl-11 group hover:bg-gray-100"
+                                        >
+                                            <FilePlus className="w-6 h-6 mr-2" />
+                                            New Job
+                                        </Link>
+                                    </li>
+                                )}
+                            </ul>
+                        </>
                     )}
 
                     {has('admin:view_page') && (
@@ -478,7 +535,7 @@ const Sidebar: React.FC<PropsType> = props => {
                                 data-collapse-toggle="dropdown-parent-4"
                             >
                                 <span className="flex items-center">
-                                    <Table2 className="w-6 h-6 mr-2" />
+                                    <CalendarClock className="w-6 h-6 mr-2" />
                                     <span>Work Schedule</span>
                                 </span>
                                 <ChevronDown size={17} />
@@ -493,7 +550,7 @@ const Sidebar: React.FC<PropsType> = props => {
                                             href="/work-schedule/schedule-task"
                                             className="flex items-center w-full p-2 text-gray-900 transition duration-75 pl-11 group hover:bg-gray-100"
                                         >
-                                            <ChartBarBig className="w-6 h-6 mr-2" />
+                                            <CalendarPlus className="w-6 h-6 mr-2" />
                                             Schedule Task
                                         </Link>
                                     </li>
@@ -504,7 +561,7 @@ const Sidebar: React.FC<PropsType> = props => {
                                             href="/work-schedule/view-schedule"
                                             className="flex items-center w-full p-2 text-gray-900 transition duration-75 pl-11 group hover:bg-gray-100"
                                         >
-                                            <FlaskConical className="w-6 h-6 mr-2" />
+                                            <CalendarRange className="w-6 h-6 mr-2" />
                                             View Schedule
                                         </Link>
                                     </li>

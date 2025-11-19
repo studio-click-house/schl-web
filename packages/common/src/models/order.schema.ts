@@ -13,10 +13,31 @@ import {
 
 export type OrderDocument = HydratedDocument<Order>;
 
-@Schema({ _id: false })
-class OrderFilesTracking {}
+@Schema({ _id: false, timestamps: false })
+class OrderFilesTracking {
+    @Prop({ required: [true, 'File name is required'] })
+    file_name: string;
 
-@Schema({ _id: false })
+    @Prop({ required: [true, 'Start timestamp is required'], type: Date })
+    start_timestamp: Date;
+
+    @Prop({ default: null, type: Date })
+    end_timestamp: Date | null;
+
+    @Prop({ default: false })
+    is_paused: boolean;
+
+    @Prop({ default: 0 })
+    total_pause_duration: number;
+
+    @Prop({ default: null, type: Date })
+    pause_start_timestamp: Date | null;
+
+    @Prop({ default: false })
+    is_completed: boolean;
+}
+
+@Schema({ _id: false, timestamps: false })
 class OrderProgress {
     @Prop({
         required: [true, 'Employee has not been assigned'],
@@ -43,9 +64,17 @@ class OrderProgress {
             },
             'QC step is required when QC is enabled',
         ],
-        min: [1, 'QC step must be greater than 0'],
+        validate: {
+            validator: function (this: OrderProgress, value: number | null) {
+                if (this.is_qc) {
+                    return value !== null && value > 0;
+                }
+                return true;
+            },
+            message: 'QC step must be greater than 0 when QC is enabled',
+        },
     })
-    qc_step?: number;
+    qc_step: number | null;
 
     @Prop({ type: [OrderFilesTracking], default: [] })
     files_tracking: OrderFilesTracking[];
@@ -116,10 +145,8 @@ export class Order {
     @Prop({ type: String, default: null })
     updated_by: string | null;
 
-    @Prop({ type: Date })
     readonly createdAt: Date;
 
-    @Prop({ type: Date })
     readonly updatedAt: Date;
 }
 
