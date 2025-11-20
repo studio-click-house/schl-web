@@ -51,6 +51,9 @@ export const taskOptions = [
     { value: 'Masking', label: 'Masking' },
     { value: 'Dusting', label: 'Dusting' },
     { value: 'Cropping', label: 'Cropping' },
+    { value: 'Background change', label: 'Background change' },
+    { value: 'Transparent background', label: 'Transparent background' },
+    { value: 'Others', label: 'Others' },
 ];
 
 export const typeOptions = [
