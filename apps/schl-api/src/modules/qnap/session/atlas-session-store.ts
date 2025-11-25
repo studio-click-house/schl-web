@@ -15,27 +15,21 @@ export class AtlasSessionStore implements QnapSessionStore {
     ) {}
 
     async getSid(): Promise<string | null> {
-        // Get the most recent session
-        const newest = (await this.model
-            .findOne()
-            .sort({ createdAt: -1 })
-            .lean()) as QnapSession | null;
-        return newest?.sid ?? null;
+        const session = await this.model
+            .findOne({ sessionId: 'CURRENT_SESSION' })
+            .lean();
+        return session?.sid ?? null;
     }
 
     async setSid(sid: string | null): Promise<void> {
         if (!sid) {
-            // Clear session on logout
-            await this.model.deleteMany({});
+            await this.model.deleteOne({ sessionId: 'CURRENT_SESSION' });
             return;
         }
 
-        // Replace the single document with the new session
-        // The empty filter {} ensures we match any existing doc
-        // upsert: true creates it if it doesn't exist
-        await this.model.replaceOne(
-            {},
-            { sid, createdAt: new Date() },
+        await this.model.updateOne(
+            { sessionId: 'CURRENT_SESSION' },
+            { $set: { sid, createdAt: new Date() } },
             { upsert: true },
         );
     }

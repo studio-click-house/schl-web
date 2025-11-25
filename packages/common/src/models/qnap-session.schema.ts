@@ -3,12 +3,14 @@ import { HydratedDocument } from 'mongoose';
 
 @Schema({ collection: 'qnap_sessions', timestamps: true })
 export class QnapSession {
+    @Prop({ required: true, unique: true })
+    sessionId: string;
+
     @Prop({ required: true })
     sid: string;
 
     // TTL Index: MongoDB will automatically remove this doc 30 mins after creation
-    // This matches QNAP's default session timeout
-    @Prop({ required: true, index: true, expireAfterSeconds: 1800 })
+    @Prop({ required: true, index: { expires: 1800 } })
     createdAt: Date;
 }
 

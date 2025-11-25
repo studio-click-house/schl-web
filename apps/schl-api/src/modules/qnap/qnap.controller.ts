@@ -7,6 +7,7 @@ import {
     Query,
     UseFilters,
 } from '@nestjs/common';
+import { Public } from 'src/common/auth/public.decorator';
 import { CreateFolderDto } from './dto/create-folder.dto';
 import { DeleteFileDto } from './dto/delete-file.dto';
 import { ListFilesDto } from './dto/list-files.dto';
@@ -20,6 +21,7 @@ import { QnapService } from './qnap.service';
 export class QnapController {
     constructor(private readonly qnapService: QnapService) {}
 
+    @Public()
     @Get('list')
     async listFiles(@Query() query: ListFilesDto) {
         return this.qnapService.listFolderContents(query);

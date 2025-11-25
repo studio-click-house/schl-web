@@ -11,17 +11,23 @@ export interface QnapConfig {
     https?: boolean;
 }
 
-export interface LoginResponse {
-    status: number;
-    sid: string;
-    servername: string;
-    username: string;
-    authSid: string;
+// v5 Auth returns XML, parsed structure looks like this
+export interface LoginResponseXml {
+    QDocRoot: {
+        authPassed: number; // 1 = success, 0 = fail
+        authSid: string; // The Session ID
+        username: string;
+        isAdmin: number;
+        errorValue?: number;
+        [key: string]: any;
+    };
 }
 
 export interface ApiResponse {
-    status: number;
-    success?: string; // QNAP returns "true" string
+    status: number; // 1 = success
+    success?: string; // "true"
+    version?: string; // e.g., "5.0.0"
+    build?: string;
     [key: string]: any;
 }
 
@@ -35,6 +41,10 @@ export interface ListOptions {
 }
 
 export interface DeleteOptions {
+    /** * Force delete function.
+     * true: permanently delete (not active Recycle bin).
+     * false: move to recycle bin (if enabled).
+     */
     force?: boolean;
 }
 

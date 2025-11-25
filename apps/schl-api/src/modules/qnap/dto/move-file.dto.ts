@@ -1,6 +1,7 @@
 import {
+    ArrayNotEmpty,
     IsArray,
-    IsEnum,
+    IsIn,
     IsNotEmpty,
     IsOptional,
     IsString,
@@ -12,8 +13,8 @@ export class MoveFileDto {
     sourcePath: string;
 
     @IsArray()
+    @ArrayNotEmpty()
     @IsString({ each: true })
-    @IsNotEmpty()
     items: string[];
 
     @IsString()
@@ -21,6 +22,6 @@ export class MoveFileDto {
     destPath: string;
 
     @IsOptional()
-    @IsEnum([0, 1])
-    mode?: 0 | 1;
+    @IsIn([0, 1, 2])
+    mode?: 0 | 1 | 2;
 }
