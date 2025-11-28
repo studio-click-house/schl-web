@@ -7,7 +7,12 @@ export class ClientCodeQueryDto {
 }
 
 export class OrderTypeQueryDto {
-    @IsOptional()
     @IsString()
-    orderType?: 'general' | 'test' | 'qc';
+    orderType:
+        | 'General'
+        | 'Test'
+        | 'QC - General'
+        | 'QC - Test'
+        | 'Correction - General'
+        | 'Correction - Test';
 }

@@ -1,3 +1,14 @@
+/*
+ORDER_STATUSES is an order-level lifecycle enum (running, paused, finished, correction, etc.). It describes the status for the whole order (the order document level).
+
+WORK_CATEGORIES (production/qc/correction) is a progress-level enum describing the type of work or activity a particular progress entry (employee activity) is doing. It isn’t the same as the overall order status.
+
+FILE_STATUSES is a file-level runtime state (working/paused/completed/...), used to track a specific file's state inside files_tracking.
+
+Domain separation: Order status describes global/aggregate stage; work category describes what type of work an employee is doing; file status describes an individual file lifecycle.
+
+*/
+
 export const ORDER_STATUSES = [
     'running',
     'uploaded',
@@ -23,6 +34,21 @@ export const statusOptions = [
     { value: 'correction', label: 'Correction' },
     { value: 'finished', label: 'Finished' },
 ];
+
+export const FILE_STATUSES = [
+    'working', // Currently active
+    'paused', // Paused by employee
+    'completed', // Done
+    'cancelled', // Walkout/Incomplete
+    'transferred', // Moved to another employee
+] as const;
+
+export type FileStatus = (typeof FILE_STATUSES)[number];
+
+// To handle General, QC, Correction explicitly in history
+export const WORK_CATEGORIES = ['production', 'qc', 'correction'] as const;
+export type WorkCategory = (typeof WORK_CATEGORIES)[number];
+
 export const taskOptions = [
     { value: 'Ghost Mannequine', label: 'Ghost Mannequine' },
     { value: 'Banner', label: 'Banner' },
@@ -73,4 +99,24 @@ export type JobShift = (typeof JOB_SHIFTS)[number];
 export const jobShiftOptions = [
     { value: 'morning', label: 'Morning' },
     { value: 'evening', label: 'Evening' },
+];
+
+export const JOB_SELECTION_TYPES = [
+    'General',
+    'Test',
+    'QC - General',
+    'QC - Test',
+    'Correction - General',
+    'Correction - Test',
+] as const;
+
+export type JobSelectionType = (typeof JOB_SELECTION_TYPES)[number];
+
+export const jobSelectionOptions = [
+    { value: 'General', label: 'General' },
+    { value: 'Test', label: 'Test' },
+    { value: 'QC - General', label: 'QC - General' },
+    { value: 'QC - Test', label: 'QC - Test' },
+    { value: 'Correction - General', label: 'Correction - General' },
+    { value: 'Correction - Test', label: 'Correction - Test' },
 ];

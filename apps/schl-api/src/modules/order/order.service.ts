@@ -22,6 +22,10 @@ import { calculateTimeDifference } from '@repo/common/utils/general-utils';
 import { hasAnyPerm, hasPerm } from '@repo/common/utils/permission-check';
 import moment from 'moment-timezone';
 import { Model } from 'mongoose';
+import {
+    ClientCodeQueryDto,
+    OrderTypeQueryDto,
+} from './dto/available-orders.dto';
 import { CreateOrderBodyDto } from './dto/create-order.dto';
 import { OrdersByCountryQueryDto } from './dto/orders-by-country.dto';
 import { OrdersByMonthQueryDto } from './dto/orders-by-month.dto';
@@ -975,55 +979,85 @@ export class OrderService {
         return order;
     }
 
-    availableOrders() {
-        // orderType?: 'general' | 'test' | 'qc', // clientCode?: string, // userSession: UserSession,
-        // if (
-        //     !hasAnyPerm(
-        //         ['job:get_jobs', 'browse:view_page'],
-        //         userSession.permissions,
-        //     )
-        // ) {
-        //     throw new ForbiddenException(
-        //         "You don't have permission to view orders",
-        //     );
-        // }
+    async availableOrders(
+        jobType: OrderTypeQueryDto['orderType'],
+        userSession: UserSession,
+        clientCode?: ClientCodeQueryDto['code'],
+    ) {
+        // Ensure user has permission to pick up jobs
+        if (!hasPerm('job:get_jobs', userSession.permissions)) {
+            throw new ForbiddenException(
+                "You don't have permission to view available jobs",
+            );
+        }
 
-        // const query: Record<string, any> = {};
-        // addIfDefined(
-        //     query,
-        //     'client_code',
-        //     createRegexQuery(clientCode, { exact: true }),
-        // );
-        // if (orderType === 'qc') {
-        //     query.status = { $nin: ['finished', 'correction'] };
-        //     query.type = { $ne: 'test' };
-        //     query.$expr = { $eq: ['$production', '$quantity'] };
-        // } else {
-        //     addIfDefined(
-        //         query,
-        //         'type', // OrderType => 'general' | 'test'
-        //         createRegexQuery(orderType, { exact: true }),
-        //     );
-        // }
+        const query: Record<string, any> = {};
 
-        // const projection = {
-        //     type: 1,
-        //     status: 1,
-        //     folder_path: 1,
-        //     folder: 1,
-        //     client_code: 1,
-        // };
+        // Common filter: Never show finished orders
+        // We will refine status per case below
+        addIfDefined(
+            query,
+            'client_code',
+            createRegexQuery(clientCode, { exact: true }),
+        );
 
-        // const items = (await this.orderModel
-        //     .find(query, projection)
-        //     .lean()
-        //     .exec()) as Array<
-        //     Pick<
-        //         Order,
-        //         'type' | 'status' | 'folder_path' | 'folder' | 'client_code'
-        //     >
-        // >;
+        switch (jobType) {
+            case 'General':
+                // Standard production work
+                query.type = createRegexQuery('general', { exact: true });
+                query.status = { $nin: ['finished', 'correction'] };
+                // Production is not yet complete
+                query.$expr = { $lt: ['$production', '$quantity'] };
+                break;
 
-        return [];
+            case 'Test':
+                // Test production work
+                query.type = createRegexQuery('test', { exact: true });
+                query.status = { $nin: ['finished', 'correction'] };
+                query.$expr = { $lt: ['$production', '$quantity'] };
+                break;
+
+            case 'QC - General':
+                // QC for General orders
+                query.type = createRegexQuery('general', { exact: true });
+                query.status = { $nin: ['finished', 'correction'] };
+                // Production is complete, so it's ready for QC
+                query.$expr = { $eq: ['$production', '$quantity'] };
+                break;
+
+            case 'QC - Test':
+                // QC for Test orders
+                query.type = createRegexQuery('test', { exact: true });
+                query.status = { $nin: ['finished', 'correction'] };
+                query.$expr = { $eq: ['$production', '$quantity'] };
+                break;
+
+            case 'Correction - General':
+                // Rework for General orders
+                query.type = createRegexQuery('general', { exact: true });
+                query.status = createRegexQuery('correction', { exact: true });
+                break;
+
+            case 'Correction - Test':
+                // Rework for Test orders
+                query.type = createRegexQuery('test', { exact: true });
+                query.status = createRegexQuery('correction', { exact: true });
+                break;
+
+            default:
+                throw new BadRequestException('Invalid job type selected');
+        }
+
+        // Return only necessary fields for the dropdown/selection UI
+        const items = await this.orderModel
+            .find(query)
+            .select(
+                'client_code folder folder_path _id task quantity production',
+            )
+            .sort({ download_date: 1 }) // FIFO (First In First Out) usually
+            .lean()
+            .exec();
+
+        return items || [];
     }
 }

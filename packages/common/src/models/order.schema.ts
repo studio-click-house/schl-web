@@ -1,14 +1,18 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { HydratedDocument } from 'mongoose';
 import {
+    FILE_STATUSES,
     JOB_SHIFTS,
     ORDER_PRIORITIES,
     ORDER_STATUSES,
     ORDER_TYPES,
+    WORK_CATEGORIES,
+    type FileStatus,
     type JobShift,
     type OrderPriority,
     type OrderStatus,
     type OrderType,
+    type WorkCategory,
 } from '../constants/order.constant';
 
 export type OrderDocument = HydratedDocument<Order>;
@@ -24,8 +28,15 @@ class OrderFilesTracking {
     @Prop({ default: null, type: Date })
     end_timestamp: Date | null;
 
-    @Prop({ default: false })
-    is_paused: boolean;
+    // REPLACED: is_paused, is_completed with a single status enum
+    // This makes queries like "Find all active files" much faster/easier
+    @Prop({
+        type: String,
+        enum: FILE_STATUSES,
+        default: 'working',
+        index: true, // Important for checking if a file is available to be picked up
+    })
+    status: FileStatus;
 
     @Prop({ default: 0 })
     total_pause_duration: number;
@@ -33,8 +44,13 @@ class OrderFilesTracking {
     @Prop({ default: null, type: Date })
     pause_start_timestamp: Date | null;
 
-    @Prop({ default: false })
-    is_completed: boolean;
+    // New: Track if this file came from someone else
+    @Prop({
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Employee',
+        default: null,
+    })
+    transferred_from: mongoose.Types.ObjectId | null;
 }
 
 @Schema({ _id: false, timestamps: false })
@@ -48,6 +64,11 @@ class OrderProgress {
 
     @Prop({ required: [true, 'Shift is required'], enum: JOB_SHIFTS })
     shift: JobShift;
+
+    // This decouples the work history from the current Order Status.
+    // e.g., Order can be 'finished', but we know this specific entry was 'correction' work.
+    @Prop({ enum: WORK_CATEGORIES, default: 'production' })
+    category: WorkCategory;
 
     @Prop({ default: false })
     is_qc: boolean;
@@ -151,3 +172,11 @@ export class Order {
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);
+
+// Create a compound index to quickly find if a specific file in an order is currently locked/busy
+// This prevents two employees from selecting the same file
+OrderSchema.index({
+    _id: 1,
+    'progress.files_tracking.file_name': 1,
+    'progress.files_tracking.status': 1,
+});

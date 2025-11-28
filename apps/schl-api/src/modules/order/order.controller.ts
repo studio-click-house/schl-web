@@ -162,8 +162,7 @@ export class OrderController {
         @Query() { code }: ClientCodeQueryDto,
         @Query() { orderType }: OrderTypeQueryDto,
     ) {
-        // return this.orderService.availableOrders(req.user, code, orderType);
-        return;
+        return this.orderService.availableOrders(orderType, req.user, code);
     }
 
     @Get(':id')
