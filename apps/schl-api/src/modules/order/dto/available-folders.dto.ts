@@ -1,7 +1,7 @@
 import { type JobSelectionType } from '@repo/common/constants/order.constant';
 import { IsOptional, IsString } from 'class-validator';
 
-export class AvailableOrdersQueryDto {
+export class AvailableFoldersQueryDto {
     @IsString()
     jobType: JobSelectionType;
 

@@ -1,6 +1,7 @@
 'use client';
 import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import {
+    jobSelectionOptions,
     priorityOptions,
     statusOptions,
     taskOptions,
@@ -9,18 +10,19 @@ import {
 import { removeDuplicates } from '@repo/common/utils/general-utils';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { jobShiftOptions } from '@repo/common/constants/order.constant';
+import JobSelectionOptions, {
+    jobShiftOptions,
+} from '@repo/common/constants/order.constant';
 import { ClientDocument } from '@repo/common/models/client.schema';
 import { OrderDocument } from '@repo/common/models/order.schema';
 import { setMenuPortalTarget } from '@repo/common/utils/select-helpers';
 import moment from 'moment-timezone';
 import { useSession } from 'next-auth/react';
-import { useState } from 'react';
+import { use, useCallback, useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import Select from 'react-select';
-import { NewJobDataType, validationSchema } from '../schema';
-
 import { toast } from 'sonner';
+import { NewJobDataType, validationSchema } from '../schema';
 
 interface PropsType {
     clientsData: ClientDocument[];
@@ -32,7 +34,12 @@ const Form: React.FC<PropsType> = props => {
     const { data: session } = useSession();
 
     const [fetchLoading, setFetchLoading] = useState(false);
-    const [folders, setFolders] = useState<string[]>([]);
+    const [folders, setFolders] = useState<
+        {
+            name: string;
+            path: string;
+        }[]
+    >([]);
     const [fileNames, setFileNames] = useState<string[]>([]);
 
     const clientCodes = props.clientsData?.map(client => client.client_code);
@@ -43,8 +50,8 @@ const Form: React.FC<PropsType> = props => {
     }));
 
     const folderOptions = folders.map(folder => ({
-        value: folder,
-        label: folder,
+        value: folder.path,
+        label: folder.name || folder.path,
     }));
 
     const fileNameOptions = fileNames.map(fileName => ({
@@ -64,10 +71,10 @@ const Form: React.FC<PropsType> = props => {
         resolver: zodResolver(validationSchema),
         defaultValues: {
             client_code: '',
-            folder: '',
+            folder_path: '',
             file_names: [],
-            is_qc: false,
             is_active: true,
+            job_type: 'general',
             shift: 'morning',
         },
     });
@@ -138,14 +145,14 @@ const Form: React.FC<PropsType> = props => {
         }),
     };
 
-    const getAvailableOrdersOfClient = async () => {
+    const getAvailableFoldersOfClient = useCallback(async () => {
         try {
-            setFetchLoading(true);
-            const response = await authedFetchApi<OrderDocument[]>(
+            const response = await authedFetchApi<any[]>(
                 {
-                    path: '/v1/order/available-orders',
+                    path: '/v1/order/available-folders',
                     query: {
-                        client_code: watch('client_code'),
+                        clientCode: watch('client_code'),
+                        jobType: watch('job_type'),
                     },
                 },
                 {
@@ -158,12 +165,23 @@ const Form: React.FC<PropsType> = props => {
                 },
             );
             if (response.ok) {
-                const data = response.data as OrderDocument[];
-                const folders = removeDuplicates(
-                    data.map(o => o.folder).filter(Boolean) as string[],
+                const data = response.data as Array<{
+                    folder_path: string;
+                    folder_name?: string;
+                    display_path?: string;
+                    folder_key?: string;
+                }>;
+                const items = (data || [])
+                    .filter(f => f && f.folder_path)
+                    .map(f => ({
+                        name: f.folder_name || f.display_path || f.folder_path,
+                        path: f.folder_path,
+                        key: f.folder_key,
+                    }));
+                const foldersUnique = removeDuplicates(items, f => f.path);
+                setFolders(
+                    foldersUnique.map(x => ({ name: x.name, path: x.path })),
                 );
-
-                setFolders(folders);
             } else {
                 console.error('Unable to fetch orders of the client');
             }
@@ -172,13 +190,73 @@ const Form: React.FC<PropsType> = props => {
             console.log(
                 'An error occurred while fetching orders of the client',
             );
+        }
+    }, [authedFetchApi, watch]);
+    // Build unique folder objects: { name, path }
+    // Guard against null values
+    const getFilesForFolder = useCallback(async () => {
+        try {
+            setFetchLoading(true);
+            const folderPath = watch('folder_path');
+            if (!folderPath) return setFileNames([]);
+            const resp = await authedFetchApi<string[]>(
+                {
+                    path: '/v1/order/available-files',
+                    query: {
+                        folderPath,
+                        jobType: watch('job_type'),
+                    },
+                },
+                {
+                    method: 'GET',
+                    headers: {
+                        Accept: '*/*',
+                        'Content-Type': 'application/json',
+                    },
+                    cache: 'no-store',
+                },
+            );
+            if (resp.ok) setFileNames(resp.data || []);
+            else setFileNames([]);
+        } catch (e) {
+            console.error(e);
+            setFileNames([]);
         } finally {
             setFetchLoading(false);
         }
-    };
+    }, [authedFetchApi, watch]);
+
+    useEffect(() => {
+        if (watch('client_code') && watch('job_type')) {
+            getAvailableFoldersOfClient();
+        }
+        if (watch('folder_path') && watch('job_type')) {
+            getFilesForFolder();
+        }
+    }, [
+        getAvailableFoldersOfClient,
+        getFilesForFolder,
+        watch('client_code'),
+        watch('job_type'),
+        watch('folder_path'),
+    ]);
+
+    useEffect(() => {
+        setFileNames([]);
+        setValue('file_names', []);
+        setValue('folder_path', '');
+    }, [watch('client_code'), watch('job_type')]);
+
+    // Reset file names when folder changes to avoid stale selections
+    useEffect(() => {
+        setFileNames([]);
+        setValue('file_names', []);
+    }, [watch('folder_path'), watch('job_type')]);
+
+    // console.log('Fetched available orders of the client', folders);
 
     return (
-        <form className="" onSubmit={handleSubmit(onSubmit)}>
+        <form onSubmit={handleSubmit(onSubmit)}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 mb-4 gap-y-4">
                 <div>
                     <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
@@ -254,14 +332,45 @@ const Form: React.FC<PropsType> = props => {
 
                 <div>
                     <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
-                        <span className="uppercase">Folder*</span>
+                        <span className="uppercase">Job Type*</span>
                         <span className="text-red-700 text-wrap block text-xs">
-                            {errors.folder && errors.folder?.message}
+                            {errors.job_type && errors.job_type?.message}
                         </span>
                     </label>
 
                     <Controller
-                        name="folder"
+                        name="job_type"
+                        control={control}
+                        render={({ field }) => (
+                            <Select
+                                options={jobSelectionOptions}
+                                closeMenuOnSelect={true}
+                                placeholder="Select job type"
+                                classNamePrefix="react-select"
+                                menuPortalTarget={setMenuPortalTarget}
+                                value={
+                                    jobSelectionOptions.find(
+                                        option => option.value === field.value,
+                                    ) || null
+                                }
+                                onChange={option =>
+                                    field.onChange(option ? option.value : '')
+                                }
+                            />
+                        )}
+                    />
+                </div>
+
+                <div>
+                    <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
+                        <span className="uppercase">Folder*</span>
+                        <span className="text-red-700 text-wrap block text-xs">
+                            {errors.folder_path && errors.folder_path?.message}
+                        </span>
+                    </label>
+
+                    <Controller
+                        name="folder_path"
                         control={control}
                         render={({ field }) => (
                             <Select
@@ -323,14 +432,48 @@ const Form: React.FC<PropsType> = props => {
                     />
                 </div>
             </div>
-            <div></div>
+            <div>
+                <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
+                    <span className="uppercase">Start*</span>
+                </label>
+                <Controller
+                    name="is_active"
+                    control={control}
+                    render={({ field }) => (
+                        <div className="flex gap-4 items-center">
+                            <label className="inline-flex items-center gap-2">
+                                <input
+                                    type="radio"
+                                    name={field.name}
+                                    value="true"
+                                    checked={field.value === true}
+                                    onChange={() => field.onChange(true)}
+                                    className="form-radio"
+                                />
+                                <span>Start Now</span>
+                            </label>
+                            <label className="inline-flex items-center gap-2">
+                                <input
+                                    type="radio"
+                                    name={field.name}
+                                    value="false"
+                                    checked={field.value === false}
+                                    onChange={() => field.onChange(false)}
+                                    className="form-radio"
+                                />
+                                <span>Start Later</span>
+                            </label>
+                        </div>
+                    )}
+                />
+            </div>
 
             <button
                 disabled={loading}
                 className="rounded-md bg-primary text-white hover:opacity-90 hover:ring-4 hover:ring-primary transition duration-200 delay-300 hover:text-opacity-100 text-primary-foreground px-10 py-2 mt-6 uppercase"
                 type="submit"
             >
-                {loading ? 'Creating...' : 'Create this task'}
+                {loading ? 'Processing...' : 'Submit'}
             </button>
         </form>
     );

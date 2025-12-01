@@ -21,6 +21,67 @@ import {
 const toLower = ({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.toLowerCase() : value;
 
+import {
+    FILE_STATUSES,
+    type FileStatus,
+    JOB_SHIFTS,
+    type JobShift,
+    WORK_CATEGORIES,
+    type WorkCategory,
+} from '@repo/common/constants/order.constant';
+
+export class FilesTrackingDto {
+    @IsString()
+    file_name: string;
+
+    @IsOptional()
+    start_timestamp?: string | Date;
+
+    @IsOptional()
+    end_timestamp?: string | Date | null;
+
+    @IsOptional()
+    @IsOptional()
+    @IsIn(FILE_STATUSES as readonly FileStatus[])
+    status?: FileStatus;
+
+    @IsOptional()
+    @Type(() => Number)
+    total_pause_duration?: number;
+
+    @IsOptional()
+    pause_start_timestamp?: string | Date | null;
+
+    @IsOptional()
+    @IsString()
+    transferred_from?: string | null;
+}
+
+export class ProgressDto {
+    @IsString()
+    employee: string;
+
+    @IsIn(JOB_SHIFTS as readonly JobShift[])
+    @Transform(toLower)
+    shift: JobShift;
+
+    @IsOptional()
+    @Transform(toLower)
+    @IsIn(WORK_CATEGORIES as readonly WorkCategory[])
+    category?: WorkCategory;
+
+    @IsOptional()
+    is_qc?: boolean;
+
+    @IsOptional()
+    @Type(() => Number)
+    qc_step?: number | null;
+
+    @IsOptional()
+    @Type(() => FilesTrackingDto)
+    files_tracking?: FilesTrackingDto[];
+}
+
 export class CreateOrderBodyDto {
     @IsString()
     @IsNotEmpty()
@@ -103,6 +164,11 @@ export class CreateOrderBodyDto {
     @IsOptional()
     @IsString()
     folderPath?: string;
+
+    // Progress entries which may include file-level tracking
+    @IsOptional()
+    @Type(() => ProgressDto)
+    progress?: ProgressDto[];
 
     @IsOptional()
     @Transform(toLower)

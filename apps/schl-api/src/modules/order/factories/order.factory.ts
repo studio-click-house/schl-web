@@ -1,12 +1,38 @@
 import { Order } from '@repo/common/models/order.schema';
 import { UserSession } from '@repo/common/types/user-session.type';
+import mongoose from 'mongoose';
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+import type { FilesTrackingDto, ProgressDto } from '../dto/create-order.dto';
 import { CreateOrderBodyDto } from '../dto/create-order.dto';
 
+// NOTE: We intentionally use explicit any-casts for DTO fields here to avoid linting
+// errors from @typescript-eslint/no-unsafe-argument when transforming inputs returned
+// from the controller. These fields are validated at controller-level DTOs.
+
 export class OrderFactory {
+    private static toMaybeDate = (
+        v?: string | Date | number | null,
+    ): Date | null => {
+        if (v === undefined || v === null) return null;
+        if (v instanceof Date) return v;
+        return new Date(String(v));
+    };
+
+    private static toMaybeObjectId = (
+        id?: string | mongoose.Types.ObjectId | null,
+    ): mongoose.Types.ObjectId | null => {
+        if (id === undefined || id === null) return null;
+        return new mongoose.Types.ObjectId(String(id));
+    };
     static fromCreateDto(
         dto: CreateOrderBodyDto,
         session: UserSession,
     ): Partial<Order> {
+        // NOTE: We intentionally use explicit any-casts for DTO fields here to avoid linting
+        // errors from @typescript-eslint/no-unsafe-argument when transforming inputs returned
+        // from the controller. These fields are validated at controller-level DTOs.
+        const toDate = OrderFactory.toMaybeDate;
+        const toObjectId = OrderFactory.toMaybeObjectId;
         return {
             client_code: dto.clientCode.trim(),
             client_name: dto.clientName.trim(),
@@ -27,6 +53,38 @@ export class OrderFactory {
             folder_path: dto.folderPath ?? '',
             priority: dto.priority ?? 'medium',
             updated_by: session.real_name,
+            progress: dto.progress
+                ? dto.progress.map((p: ProgressDto) => ({
+                      employee: toObjectId(String(p.employee)) as any,
+                      shift: p.shift,
+                      category: p.category ?? 'production',
+                      is_qc: p.is_qc ?? false,
+                      qc_step: p.qc_step ?? null,
+                      files_tracking: (p.files_tracking || []).map(
+                          (ft: FilesTrackingDto) => ({
+                              file_name: ft.file_name,
+
+                              start_timestamp:
+                                  toDate(ft.start_timestamp as any) ??
+                                  new Date(),
+
+                              end_timestamp:
+                                  toDate(ft.end_timestamp as any) ?? null,
+                              status: ft.status ?? 'working',
+                              total_pause_duration:
+                                  ft.total_pause_duration ?? 0,
+
+                              pause_start_timestamp:
+                                  toDate(ft.pause_start_timestamp as any) ??
+                                  null,
+
+                              transferred_from: toObjectId(
+                                  ft.transferred_from as any,
+                              ),
+                          }),
+                      ),
+                  }))
+                : [],
         };
     }
 
@@ -59,6 +117,36 @@ export class OrderFactory {
         if (dto.status !== undefined) doc.status = dto.status;
         if (dto.folderPath !== undefined) doc.folder_path = dto.folderPath;
         if (dto.priority !== undefined) doc.priority = dto.priority;
+        if (dto.progress !== undefined) {
+            const toDate = OrderFactory.toMaybeDate;
+            const toObjectId = OrderFactory.toMaybeObjectId;
+            doc.progress = dto.progress.map((p: ProgressDto) => ({
+                employee: toObjectId(String(p.employee)) as any,
+                shift: p.shift,
+                category: p.category ?? 'production',
+                is_qc: p.is_qc ?? false,
+                qc_step: p.qc_step ?? null,
+                files_tracking: (p.files_tracking || []).map(
+                    (ft: FilesTrackingDto) => ({
+                        file_name: ft.file_name,
+
+                        start_timestamp:
+                            toDate(ft.start_timestamp as any) ?? new Date(),
+
+                        end_timestamp: toDate(ft.end_timestamp as any) ?? null,
+                        status: ft.status ?? 'working',
+                        total_pause_duration: ft.total_pause_duration ?? 0,
+
+                        pause_start_timestamp:
+                            toDate(ft.pause_start_timestamp as any) ?? null,
+
+                        transferred_from: toObjectId(
+                            ft.transferred_from as any,
+                        ),
+                    }),
+                ),
+            }));
+        }
 
         return doc;
     }

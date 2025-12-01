@@ -561,6 +561,29 @@ export const calculateTimeDifference = (
         'YYYY-MM-DD HH:mm',
         'Asia/Dhaka',
     );
+
     const now = moment.tz('Asia/Dhaka');
     return due.diff(now, 'minutes');
+};
+
+/**
+ * Normalize folder path and generate a stable key.
+ * - backslashes to forward slashes
+ * - strip drive letters like C:\ or C:/
+ * - collapse duplicate slashes, trim leading/trailing slashes
+ */
+export const normalizeFolderPath = (rawPath?: string | null) => {
+    const input = String(rawPath || '').trim();
+    if (!input) return { displayPath: '', folderKey: '' };
+    // convert backslashes to forward slashes
+    let s = input.replace(/\\+/g, '/');
+    // remove drive prefix like 'C:/'
+    s = s.replace(/^[A-Za-z]:\//, '');
+    // collapse duplicate slashes
+    s = s.replace(/\/+/g, '/');
+    // trim leading and trailing slashes
+    s = s.replace(/^\/+/, '').replace(/\/+$/, '');
+    const displayPath = s;
+    const folderKey = displayPath.toLowerCase();
+    return { displayPath, folderKey };
 };

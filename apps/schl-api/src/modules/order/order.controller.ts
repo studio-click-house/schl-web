@@ -2,6 +2,7 @@ import {
     Body,
     Controller,
     Delete,
+    ForbiddenException,
     Get,
     Param,
     Post,
@@ -10,16 +11,16 @@ import {
     Req,
 } from '@nestjs/common';
 import { UserSession } from '@repo/common/types/user-session.type';
+import { hasPerm } from '@repo/common/utils/permission-check';
 import {
     ClientCodeParamDto,
     ClientCodeRequiredParamDto,
 } from '../../common/dto/client-code-param.dto';
 import { IdParamDto } from '../../common/dto/id-param.dto';
-import {
-    ClientCodeQueryDto,
-    OrderTypeQueryDto,
-} from './dto/available-orders.dto';
+import { AvailableFoldersQueryDto } from './dto/available-folders.dto';
+import { AvailableOrdersQueryDto } from './dto/available-orders.dto';
 import { CreateOrderBodyDto } from './dto/create-order.dto';
+import { ListFilesQueryDto } from './dto/list-files.dto';
 import {
     OrdersByCountryParamDto,
     OrdersByCountryQueryDto,
@@ -156,13 +157,29 @@ export class OrderController {
         return this.orderService.reworkOrders(req.user);
     }
 
-    @Get('available-orders')
-    availableOrders(
+    @Get('available-folders')
+    availableFolders(
         @Req() req: Request & { user: UserSession },
-        @Query() { code }: ClientCodeQueryDto,
-        @Query() { orderType }: OrderTypeQueryDto,
+        @Query() { jobType, clientCode }: AvailableFoldersQueryDto,
     ) {
-        return this.orderService.availableOrders(orderType, req.user, code);
+        return this.orderService.getAvailableFolders(
+            jobType,
+            req.user,
+            clientCode,
+        );
+    }
+
+    @Get('available-files')
+    availableFiles(
+        @Req() req: Request & { user: UserSession },
+        @Query() { folderPath, jobType }: ListFilesQueryDto,
+    ) {
+        if (!hasPerm('job:get_jobs', req.user.permissions)) {
+            throw new ForbiddenException(
+                "You don't have permission to view available jobs",
+            );
+        }
+        return this.orderService.getAvailableFiles(folderPath, jobType || '');
     }
 
     @Get(':id')

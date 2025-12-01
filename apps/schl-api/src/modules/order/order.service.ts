@@ -4,7 +4,9 @@ import {
     HttpException,
     Injectable,
     InternalServerErrorException,
+    Logger,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { CLIENT_COMMON_COUNTRY } from '@repo/common/constants/client.constant';
 import { Client } from '@repo/common/models/client.schema';
@@ -18,14 +20,15 @@ import {
     buildOrRegex,
     createRegexQuery,
 } from '@repo/common/utils/filter-helpers';
-import { calculateTimeDifference } from '@repo/common/utils/general-utils';
+import {
+    calculateTimeDifference,
+    normalizeFolderPath,
+} from '@repo/common/utils/general-utils';
 import { hasAnyPerm, hasPerm } from '@repo/common/utils/permission-check';
 import moment from 'moment-timezone';
 import { Model } from 'mongoose';
-import {
-    ClientCodeQueryDto,
-    OrderTypeQueryDto,
-} from './dto/available-orders.dto';
+import { QnapService } from '../qnap/qnap.service';
+import { AvailableOrdersQueryDto } from './dto/available-orders.dto';
 import { CreateOrderBodyDto } from './dto/create-order.dto';
 import { OrdersByCountryQueryDto } from './dto/orders-by-country.dto';
 import { OrdersByMonthQueryDto } from './dto/orders-by-month.dto';
@@ -39,11 +42,14 @@ import { OrderFactory } from './factories/order.factory';
 
 @Injectable()
 export class OrderService {
+    private readonly logger = new Logger(OrderService.name);
     constructor(
         @InjectModel(Order.name) private readonly orderModel: Model<Order>,
         @InjectModel(Client.name) private readonly clientModel: Model<Client>,
         @InjectModel(Invoice.name)
         private readonly invoiceModel: Model<Invoice>,
+        private readonly configService: ConfigService,
+        private readonly qnapService: QnapService,
     ) {}
 
     async searchOrders(
@@ -980,9 +986,9 @@ export class OrderService {
     }
 
     async availableOrders(
-        jobType: OrderTypeQueryDto['orderType'],
+        jobType: string,
         userSession: UserSession,
-        clientCode?: ClientCodeQueryDto['code'],
+        clientCode?: string,
     ) {
         // Ensure user has permission to pick up jobs
         if (!hasPerm('job:get_jobs', userSession.permissions)) {
@@ -1059,5 +1065,321 @@ export class OrderService {
             .exec();
 
         return items || [];
+    }
+
+    async getAvailableFolders(
+        jobType: string,
+        userSession: UserSession,
+        clientCode?: string,
+    ) {
+        if (!hasPerm('job:get_jobs', userSession.permissions)) {
+            throw new ForbiddenException(
+                "You don't have permission to view available jobs",
+            );
+        }
+
+        const query: Record<string, any> = {};
+        addIfDefined(
+            query,
+            'client_code',
+            createRegexQuery(clientCode, { exact: true }),
+        );
+
+        switch (String(jobType || '').toLowerCase()) {
+            case 'general':
+                query.type = createRegexQuery('general', { exact: true });
+                query.status = { $nin: ['finished', 'correction'] };
+                query.$expr = { $lt: ['$production', '$quantity'] };
+                break;
+            case 'test':
+                query.type = createRegexQuery('test', { exact: true });
+                query.status = { $nin: ['finished', 'correction'] };
+                query.$expr = { $lt: ['$production', '$quantity'] };
+                break;
+            case 'qc_general':
+                query.type = createRegexQuery('general', { exact: true });
+                query.status = { $nin: ['finished', 'correction'] };
+                query.$expr = { $eq: ['$production', '$quantity'] };
+                break;
+            case 'qc_test':
+                query.type = createRegexQuery('test', { exact: true });
+                query.status = { $nin: ['finished', 'correction'] };
+                query.$expr = { $eq: ['$production', '$quantity'] };
+                break;
+            case 'correction_general':
+                query.type = createRegexQuery('general', { exact: true });
+                query.status = createRegexQuery('correction', { exact: true });
+                break;
+            case 'correction_test':
+                query.type = createRegexQuery('test', { exact: true });
+                query.status = createRegexQuery('correction', { exact: true });
+                break;
+            default:
+                break;
+        }
+
+        const pipeline = [
+            { $match: query },
+            {
+                $group: {
+                    _id: '$folder_path',
+                    folder_name: { $first: '$folder' },
+                    client_code: { $first: '$client_code' },
+                    orderId: { $first: '$_id' },
+                    quantity: { $first: '$quantity' },
+                    production: { $first: '$production' },
+                },
+            },
+            {
+                $project: {
+                    _id: 0,
+                    folder_path: '$_id',
+                    folder_name: 1,
+                    client_code: 1,
+                    orderId: 1,
+                    quantity: 1,
+                    production: 1,
+                },
+            },
+            { $sort: { folder_name: 1 as const } },
+        ];
+
+        const groups = (await this.orderModel
+            .aggregate(pipeline)
+            .exec()) as Array<Record<string, any>>;
+        const folders = (groups || []).map((g: Record<string, any>) => {
+            const { displayPath, folderKey } = normalizeFolderPath(
+                g.folder_path,
+            );
+            return {
+                folder_path: g.folder_path,
+                folder_name: g.folder_name,
+                client_code: g.client_code,
+                orderId: g.orderId,
+                quantity: g.quantity,
+                production: g.production,
+                display_path: displayPath,
+                folder_key: folderKey,
+            };
+        });
+
+        return folders;
+    }
+
+    async getAvailableFiles(
+        folderPath: string,
+        jobType: string,
+    ): Promise<string[]> {
+        const normalizedType = String(jobType || '').toLowerCase();
+        const rawPath = String(folderPath || '').trim();
+        if (!rawPath) return [];
+
+        const joinPath = (base: string, suffix: string) => {
+            const b = String(base || '').replace(/\\+$/, '');
+            const s = String(suffix || '').replace(/^\\+|\/+$/g, '');
+            return `${b}/${s}`;
+        };
+
+        const mapFolderPathToQnapPath = (p: string): string => {
+            const input = String(p || '').trim();
+            if (!input) return '';
+            if (input.startsWith('/')) return input.replace(/\\+/g, '/');
+            const rawMap = this.configService.get<string>('QNAP_DRIVE_MAP');
+            const mapping: Record<string, string> = { P: 'Production' };
+            if (rawMap) {
+                try {
+                    const parsed = JSON.parse(rawMap) as Record<
+                        string,
+                        unknown
+                    >;
+                    if (typeof parsed === 'object' && parsed !== null) {
+                        for (const [k, v] of Object.entries(parsed)) {
+                            mapping[String(k).toUpperCase()] = String(v);
+                        }
+                    }
+                } catch {
+                    try {
+                        rawMap.split(',').forEach(pair => {
+                            const [k, v] = pair.split(':');
+                            if (k && v)
+                                mapping[String(k).toUpperCase()] = String(v);
+                        });
+                    } catch {
+                        /* ignore */
+                    }
+                }
+            }
+            const winDrive = input.match(/^([A-Za-z]):[\\/](.*)$/);
+            if (winDrive && winDrive[1]) {
+                const drive = String(winDrive[1]).toUpperCase();
+                const rest = String(winDrive[2] ?? '').replace(/\\+/g, '/');
+                const share = mapping[drive] || drive;
+                return `/${share}/${rest}`;
+            }
+            const unc = input.match(/^\\\\[^\\]+\\([^\\]+)\\?(.*)$/);
+            if (unc) {
+                const share = unc[1];
+                const rest = (unc[2] || '').replace(/\\+/g, '/');
+                return `/${share}/${rest}`;
+            }
+            return `/${input.replace(/\\+/g, '/')}`;
+        };
+
+        const occupiedStatuses = ['working', 'paused', 'transferred'];
+        const occPipeline = [
+            {
+                $match: {
+                    folder_path: {
+                        $in: [rawPath, mapFolderPathToQnapPath(rawPath)],
+                    },
+                },
+            },
+            { $unwind: '$progress' },
+            { $unwind: '$progress.files_tracking' },
+            {
+                $match: {
+                    'progress.files_tracking.status': { $in: occupiedStatuses },
+                },
+            },
+            {
+                $group: {
+                    _id: null,
+                    files: { $addToSet: '$progress.files_tracking.file_name' },
+                },
+            },
+        ];
+
+        const occRes = await this.orderModel.aggregate(occPipeline).exec();
+        const occFiles =
+            Array.isArray(occRes) &&
+            occRes.length > 0 &&
+            Array.isArray(occRes[0].files)
+                ? (occRes[0].files as string[])
+                : [];
+        const occupiedSet = new Set<string>(occFiles);
+
+        const filesSet = new Set<string>();
+        const parseQnapResponse = (
+            resp: any,
+        ): Array<{ name: string; isFolder?: boolean }> => {
+            if (!resp) return [];
+            const candidates: any[] = [];
+            const collectArrays = (obj: unknown) => {
+                if (!obj || typeof obj !== 'object') return;
+                if (Array.isArray(obj)) {
+                    for (const el of obj) collectArrays(el);
+                    return;
+                }
+                for (const v of Object.values(obj as Record<string, unknown>)) {
+                    if (Array.isArray(v)) candidates.push(v);
+                    else collectArrays(v);
+                }
+            };
+            collectArrays(resp);
+            for (const arr of candidates) {
+                if (arr.length === 0) continue;
+                if (
+                    arr[0] &&
+                    typeof arr[0] === 'object' &&
+                    (arr[0].filename || arr[0].name || arr[0].file_name)
+                ) {
+                    return arr.map((it: any) => ({
+                        name: String(
+                            it.filename ||
+                                it.name ||
+                                it.file_name ||
+                                it.file ||
+                                '',
+                        ),
+                        isFolder: Boolean(
+                            it.isfolder ||
+                                it.is_dir ||
+                                it.isFolder ||
+                                it.type === 'dir' ||
+                                it.filetype === 'dir',
+                        ),
+                    }));
+                }
+            }
+            return [];
+        };
+
+        const qnapBase = mapFolderPathToQnapPath(rawPath);
+        try {
+            if (normalizedType === 'general' || normalizedType === 'test') {
+                const p = joinPath(qnapBase, 'RAW');
+                this.logger.debug(`Calling QNAP path: ${p}`);
+                const resp = await this.qnapService.listFolderContents({
+                    path: p,
+                    limit: 20000,
+                });
+                const entries = parseQnapResponse(resp);
+                for (const e of entries) {
+                    if (e.isFolder) continue;
+                    if (occupiedSet.has(e.name)) continue;
+                    filesSet.add(e.name);
+                }
+                return Array.from(filesSet);
+            }
+            if (
+                normalizedType === 'correction' ||
+                normalizedType.startsWith('correction')
+            ) {
+                const p = joinPath(qnapBase, 'FEEDBACK');
+                this.logger.debug(`Calling QNAP path: ${p}`);
+                const resp = await this.qnapService.listFolderContents({
+                    path: p,
+                    limit: 20000,
+                });
+                const entries = parseQnapResponse(resp);
+                for (const e of entries) {
+                    if (e.isFolder) continue;
+                    if (occupiedSet.has(e.name)) continue;
+                    filesSet.add(e.name);
+                }
+                return Array.from(filesSet);
+            }
+            if (normalizedType.startsWith('qc')) {
+                const donePath = joinPath(qnapBase, 'DONE');
+                this.logger.debug(`Calling QNAP path: ${donePath}`);
+                const doneResp = await this.qnapService.listFolderContents({
+                    path: donePath,
+                    limit: 20000,
+                });
+                const doneEntries = parseQnapResponse(doneResp);
+                const subfolders = doneEntries
+                    .filter(e => e.isFolder)
+                    .map(e => e.name);
+                for (const sf of subfolders) {
+                    const subpath = joinPath(donePath, sf);
+                    this.logger.debug(`Calling QNAP path: ${subpath}`);
+                    const subResp = await this.qnapService.listFolderContents({
+                        path: subpath,
+                        limit: 20000,
+                    });
+                    const subEntries = parseQnapResponse(subResp);
+                    for (const se of subEntries) {
+                        if (se.isFolder) continue;
+                        if (occupiedSet.has(se.name)) continue;
+                        filesSet.add(se.name);
+                    }
+                }
+                return Array.from(filesSet);
+            }
+            const f = joinPath(qnapBase, 'RAW');
+            this.logger.debug(`Calling QNAP fallback path: ${f}`);
+            const fallback = await this.qnapService.listFolderContents({
+                path: f,
+                limit: 20000,
+            });
+            const fallbackEntries = parseQnapResponse(fallback);
+            for (const e of fallbackEntries)
+                if (!e.isFolder && !occupiedSet.has(e.name))
+                    filesSet.add(e.name);
+            return Array.from(filesSet);
+        } catch (err) {
+            this.logger.error('getAvailableFiles failed', err as any);
+            return [];
+        }
     }
 }

@@ -102,21 +102,21 @@ export const jobShiftOptions = [
 ];
 
 export const JOB_SELECTION_TYPES = [
-    'General',
-    'Test',
-    'QC - General',
-    'QC - Test',
-    'Correction - General',
-    'Correction - Test',
+    'general',
+    'test',
+    'qc_general',
+    'qc_test',
+    'correction_general',
+    'correction_test',
 ] as const;
 
 export type JobSelectionType = (typeof JOB_SELECTION_TYPES)[number];
 
 export const jobSelectionOptions = [
-    { value: 'General', label: 'General' },
-    { value: 'Test', label: 'Test' },
-    { value: 'QC - General', label: 'QC - General' },
-    { value: 'QC - Test', label: 'QC - Test' },
-    { value: 'Correction - General', label: 'Correction - General' },
-    { value: 'Correction - Test', label: 'Correction - Test' },
+    { value: 'general', label: 'General' },
+    { value: 'test', label: 'Test' },
+    { value: 'qc_general', label: 'QC - General' },
+    { value: 'qc_test', label: 'QC - Test' },
+    { value: 'correction_general', label: 'Correction - General' },
+    { value: 'correction_test', label: 'Correction - Test' },
 ];
