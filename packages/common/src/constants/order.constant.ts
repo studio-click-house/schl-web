@@ -127,3 +127,8 @@ export const fileConditionOptions = [
     { value: 'fresh', label: 'Fresh' },
     { value: 'incomplete', label: 'Incomplete' },
 ];
+
+export const qcStepOptions = [
+    { value: 1, label: 'QC1' },
+    { value: 2, label: 'QC2' },
+];

@@ -1,10 +1,12 @@
 import {
     BadRequestException,
+    ConflictException,
     ForbiddenException,
     HttpException,
     Injectable,
     InternalServerErrorException,
     Logger,
+    NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
@@ -30,10 +32,11 @@ import {
 } from '@repo/common/utils/general-utils';
 import { hasAnyPerm, hasPerm } from '@repo/common/utils/permission-check';
 import moment from 'moment-timezone';
-import { Model } from 'mongoose';
+import mongoose, { Model } from 'mongoose';
 import { QnapService } from '../qnap/qnap.service';
 // Removed unused AvailableOrdersQueryDto import
 import { CreateOrderBodyDto } from './dto/create-order.dto';
+import { NewJobBodyDto } from './dto/new-job.dto';
 import { OrdersByCountryQueryDto } from './dto/orders-by-country.dto';
 import { OrdersByMonthQueryDto } from './dto/orders-by-month.dto';
 import { OrdersCDQueryDto } from './dto/orders-cd.dto';
@@ -331,6 +334,155 @@ export class OrderService {
         } catch (e) {
             if (e instanceof HttpException) throw e;
             throw new InternalServerErrorException('Unable to create order');
+        }
+    }
+
+    // Portal: Add a new progress entry to existing order (identified by clientCode + folderPath)
+    async createNewJob(payload: NewJobBodyDto, userSession: UserSession) {
+        if (!hasPerm('job:get_jobs', userSession.permissions)) {
+            throw new ForbiddenException(
+                "You don't have permission to create new jobs",
+            );
+        }
+
+        const clientCode = String(payload.clientCode || '').trim();
+        if (!clientCode)
+            throw new BadRequestException('Client code is required');
+
+        const folderPath = String(payload.folderPath || '').trim();
+        if (!folderPath)
+            throw new BadRequestException('Folder path is required');
+
+        const fileNames = Array.isArray(payload.fileNames)
+            ? payload.fileNames
+                  .map(fn => String(fn || '').trim())
+                  .filter(Boolean)
+            : [];
+        if (fileNames.length === 0) {
+            throw new BadRequestException('At least one file is required');
+        }
+
+        const normalizedType = String(payload.jobType || '')
+            .trim()
+            .toLowerCase();
+        const category = normalizedType.startsWith('qc')
+            ? 'qc'
+            : normalizedType.startsWith('correction')
+              ? 'correction'
+              : 'production';
+
+        const existing = await this.orderModel
+            .findOne({ client_code: clientCode, folder_path: folderPath })
+            .exec();
+        if (!existing) throw new NotFoundException('Order not found');
+
+        // Filter out files that are already in-progress in this order
+        const occupiedStatuses = new Set(['working', 'paused', 'transferred']);
+        const occupiedSet = new Set<string>();
+        if (Array.isArray(existing.progress)) {
+            for (const p of existing.progress) {
+                if (!Array.isArray(p.files_tracking)) continue;
+                for (const ft of p.files_tracking) {
+                    if (
+                        ft &&
+                        typeof ft.file_name === 'string' &&
+                        occupiedStatuses.has(ft.status)
+                    ) {
+                        occupiedSet.add(String(ft.file_name));
+                    }
+                }
+            }
+        }
+        let filteredFileNames = fileNames.filter(f => !occupiedSet.has(f));
+        // Cross-order check: exclude files that are already assigned to other orders
+        if (filteredFileNames.length > 0) {
+            const otherOccupiedOrders = await this.orderModel
+                .find({
+                    _id: { $ne: existing._id },
+                    'progress.files_tracking': {
+                        $elemMatch: {
+                            file_name: { $in: filteredFileNames },
+                            status: { $in: Array.from(occupiedStatuses) },
+                        },
+                    },
+                })
+                .lean()
+                .exec();
+            if (otherOccupiedOrders && otherOccupiedOrders.length > 0) {
+                const otherOccupiedSet = new Set<string>();
+                for (const o of otherOccupiedOrders) {
+                    if (!Array.isArray(o.progress)) continue;
+                    for (const p of o.progress) {
+                        if (!Array.isArray(p.files_tracking)) continue;
+                        for (const ft of p.files_tracking) {
+                            if (
+                                ft &&
+                                typeof ft.file_name === 'string' &&
+                                occupiedStatuses.has(ft.status)
+                            ) {
+                                otherOccupiedSet.add(String(ft.file_name));
+                            }
+                        }
+                    }
+                }
+                filteredFileNames = filteredFileNames.filter(
+                    f => !otherOccupiedSet.has(f),
+                );
+            }
+        }
+        if (filteredFileNames.length === 0) {
+            throw new ConflictException(
+                'All requested files are already in progress',
+            );
+        }
+
+        const now = new Date();
+        const fileStatus = payload.isActive ? 'working' : 'paused';
+        const filesTracking = filteredFileNames.map(f => ({
+            file_name: f,
+            start_timestamp: now,
+            end_timestamp: null,
+            status: fileStatus,
+            total_pause_duration: 0,
+            // If the employee does not want to start immediately, mark pause start
+            pause_start_timestamp: fileStatus === 'paused' ? now : null,
+            transferred_from: null,
+        }));
+
+        const progressEntry: Record<string, any> = {
+            employee: new mongoose.Types.ObjectId(String(userSession.db_id)),
+            shift: payload.shift,
+            category: category,
+            is_qc: category === 'qc',
+            qc_step:
+                category === 'qc'
+                    ? payload.qcStep && Number(payload.qcStep) > 0
+                        ? Number(payload.qcStep)
+                        : 1
+                    : null,
+            files_tracking: filesTracking,
+        };
+
+        const update: Record<string, any> = {
+            $push: { progress: progressEntry },
+            $set: { updated_by: userSession.real_name ?? null },
+        };
+
+        try {
+            const updated = await this.orderModel
+                .findByIdAndUpdate(existing._id, update, { new: true })
+                .exec();
+            if (!updated)
+                throw new InternalServerErrorException(
+                    'Failed to update order',
+                );
+            const skippedFiles = fileNames.filter(
+                f => !filteredFileNames.includes(f),
+            );
+            return { order: updated, skippedFiles };
+        } catch (e) {
+            if (e instanceof HttpException) throw e;
+            throw new InternalServerErrorException('Unable to update order');
         }
     }
 

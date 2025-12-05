@@ -20,6 +20,7 @@ import { IdParamDto } from '../../common/dto/id-param.dto';
 import { AvailableFoldersQueryDto } from './dto/available-folders.dto';
 import { CreateOrderBodyDto } from './dto/create-order.dto';
 import { ListFilesQueryDto } from './dto/list-files.dto';
+import { NewJobBodyDto } from './dto/new-job.dto';
 import {
     OrdersByCountryParamDto,
     OrdersByCountryQueryDto,
@@ -183,6 +184,19 @@ export class OrderController {
             jobType,
             fileCondition,
         );
+    }
+
+    @Post('new-job')
+    createNewJob(
+        @Req() req: Request & { user: UserSession },
+        @Body() body: NewJobBodyDto,
+    ) {
+        if (!hasPerm('job:get_jobs', req.user.permissions)) {
+            throw new ForbiddenException(
+                "You don't have permission to create new jobs",
+            );
+        }
+        return this.orderService.createNewJob(body, req.user);
     }
 
     @Get(':id')

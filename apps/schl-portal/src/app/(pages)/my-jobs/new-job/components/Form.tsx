@@ -13,6 +13,7 @@ import { removeDuplicates } from '@repo/common/utils/general-utils';
 import { zodResolver } from '@hookform/resolvers/zod';
 import JobSelectionOptions, {
     jobShiftOptions,
+    qcStepOptions,
 } from '@repo/common/constants/order.constant';
 import { ClientDocument } from '@repo/common/models/client.schema';
 import { OrderDocument } from '@repo/common/models/order.schema';
@@ -38,6 +39,9 @@ const Form: React.FC<PropsType> = props => {
         [],
     );
     const [fileNames, setFileNames] = useState<string[]>([]);
+    const [skippedFilesFromLastOp, setSkippedFilesFromLastOp] = useState<
+        string[]
+    >([]);
 
     const clientCodes = props.clientsData?.map(c => c.client_code) || [];
 
@@ -64,6 +68,7 @@ const Form: React.FC<PropsType> = props => {
             file_names: [],
             file_condition: 'fresh',
             is_active: true,
+            qc_step: undefined,
             job_type: 'general',
             shift: 'morning',
         },
@@ -243,6 +248,9 @@ const Form: React.FC<PropsType> = props => {
         setFileNames([]);
         setValue('folder_path', '');
         setValue('file_names', []);
+        if (jobType && jobType.startsWith('qc')) {
+            setValue('qc_step', 1);
+        } else setValue('qc_step', undefined);
         if (clientCode) getAvailableFoldersOfClient(clientCode, jobType);
     }, [jobType]);
 
@@ -257,52 +265,72 @@ const Form: React.FC<PropsType> = props => {
 
     // submit unchanged
     const onSubmit = async (data: NewJobDataType) => {
-        toast.info('Form submission is disabled currently');
+        await addNewJob(data);
         return;
     };
-    // async function createOrder(orderData: OrderDataType) {
-    //     try {
-    //         setLoading(true);
-    //         const parsed = validationSchema.safeParse(orderData);
+    async function addNewJob(jobData: NewJobDataType) {
+        try {
+            setLoading(true);
+            const parsed = validationSchema.safeParse(jobData);
 
-    //         if (!parsed.success) {
-    //             console.error(parsed.error.issues.map(issue => issue.message));
-    //             toast.error('Invalid form data');
-    //             return;
-    //         }
+            if (!parsed.success) {
+                console.error(parsed.error.issues.map(issue => issue.message));
+                toast.error('Invalid form data');
+                return;
+            }
 
-    //         const response = await authedFetchApi(
-    //             { path: '/v1/order/create' },
-    //             {
-    //                 method: 'POST',
-    //                 headers: {
-    //                     'Content-Type': 'application/json',
-    //                 },
-    //                 body: JSON.stringify(parsed.data),
-    //             },
-    //         );
+            const response = await authedFetchApi(
+                { path: '/v1/order/new-job' },
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(parsed.data),
+                },
+            );
 
-    //         if (response.ok) {
-    //             toast.success('Created new order successfully');
-    //             reset();
-    //             // reset the form after successful submission
-    //         } else {
-    //             toastFetchError(response);
-    //         }
+            if (response.ok) {
+                toast.success('Added new job successfully');
+                // If the backend returned skipped files, warn the user
+                const skippedFilesFromResponse = (response.data as any)
+                    ?.skippedFiles;
+                if (
+                    skippedFilesFromResponse &&
+                    skippedFilesFromResponse.length > 0
+                ) {
+                    toast.warning(
+                        `The following files were skipped: ${skippedFilesFromResponse.join(', ')}`,
+                    );
+                }
+                const skippedFilesFromResponse2 =
+                    (response.data as any)?.skippedFiles || [];
+                setSkippedFilesFromLastOp(skippedFilesFromResponse2);
+                // reset the form after successful submission
+                reset();
+            } else {
+                toastFetchError(response);
+            }
 
-    //         console.log('data', parsed.data, orderData);
-    //     } catch (error) {
-    //         console.error(error);
-    //         toast.error('An error occurred while creating new order');
-    //     } finally {
-    //         setLoading(false);
-    //     }
-    // }
+            console.log('data', parsed.data, jobData);
+        } catch (error) {
+            console.error(error);
+            toast.error('An error occurred while adding the job');
+        } finally {
+            setLoading(false);
+        }
+    }
 
     // console.log('Fetched available orders of the client', folders);
 
     return (
         <form onSubmit={handleSubmit(onSubmit)}>
+            {skippedFilesFromLastOp.length > 0 && (
+                <div className="mb-4 p-3 border border-yellow-200 bg-yellow-50 text-yellow-900 rounded">
+                    <strong>Skipped files:</strong>
+                    <div>{skippedFilesFromLastOp.join(', ')}</div>
+                </div>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 mb-4 gap-y-4">
                 <div>
                     <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
@@ -406,6 +434,43 @@ const Form: React.FC<PropsType> = props => {
                         )}
                     />
                 </div>
+
+                {jobType?.startsWith('qc') && (
+                    <div>
+                        <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
+                            <span className="uppercase">QC Step*</span>
+                            <span className="text-red-700 text-wrap block text-xs">
+                                {errors.qc_step &&
+                                    (errors.qc_step as any)?.message}
+                            </span>
+                        </label>
+
+                        <Controller
+                            name="qc_step"
+                            control={control}
+                            render={({ field }) => (
+                                <Select
+                                    options={qcStepOptions}
+                                    closeMenuOnSelect={true}
+                                    placeholder="Select QC step"
+                                    classNamePrefix="react-select"
+                                    menuPortalTarget={setMenuPortalTarget}
+                                    value={
+                                        qcStepOptions.find(
+                                            option =>
+                                                option.value === field.value,
+                                        ) || null
+                                    }
+                                    onChange={option =>
+                                        field.onChange(
+                                            option ? option.value : undefined,
+                                        )
+                                    }
+                                />
+                            )}
+                        />
+                    </div>
+                )}
 
                 <div>
                     <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
