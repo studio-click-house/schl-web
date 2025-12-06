@@ -14,7 +14,7 @@ export const validationSchema = z.object({
         .min(1, "Folder can't be empty"),
     file_names: z.array(z.string()).min(1, 'At least one file is required'),
     is_active: z.boolean().default(true), // start now or later
-    qc_step: z.number().int().min(1).max(2).optional(),
+    qc_step: z.number().int().min(1).max(2).default(1),
     job_type: z.enum(JOB_SELECTION_TYPES, {
         required_error: 'Job type is required',
     }),

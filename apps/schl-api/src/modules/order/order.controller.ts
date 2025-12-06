@@ -162,7 +162,7 @@ export class OrderController {
         @Req() req: Request & { user: UserSession },
         @Query() { jobType, clientCode }: AvailableFoldersQueryDto,
     ) {
-        return this.orderService.getAvailableFolders(
+        return this.orderService.availableFolders(
             jobType,
             req.user,
             clientCode,
@@ -172,31 +172,33 @@ export class OrderController {
     @Get('available-files')
     availableFiles(
         @Req() req: Request & { user: UserSession },
-        @Query() { folderPath, jobType, fileCondition }: ListFilesQueryDto,
+        @Query()
+        { folderPath, jobType, fileCondition, qcStep }: ListFilesQueryDto,
     ) {
         if (!hasPerm('job:get_jobs', req.user.permissions)) {
             throw new ForbiddenException(
                 "You don't have permission to view available jobs",
             );
         }
-        return this.orderService.getAvailableFiles(
+        return this.orderService.availableFiles(
             folderPath,
             jobType,
             fileCondition,
+            qcStep != null ? Number(qcStep) : 1,
         );
     }
 
     @Post('new-job')
-    createNewJob(
+    newJob(
         @Req() req: Request & { user: UserSession },
         @Body() body: NewJobBodyDto,
     ) {
         if (!hasPerm('job:get_jobs', req.user.permissions)) {
             throw new ForbiddenException(
-                "You don't have permission to create new jobs",
+                "You don't have permission to get new jobs",
             );
         }
-        return this.orderService.createNewJob(body, req.user);
+        return this.orderService.newJob(body, req.user);
     }
 
     @Get(':id')

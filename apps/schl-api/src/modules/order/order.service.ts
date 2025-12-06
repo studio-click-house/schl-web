@@ -51,7 +51,8 @@ import {
     getCandidateSuffix,
     joinPath,
     mapFolderPathToQnapPath,
-} from './order.path.utils';
+    moveFilesForNewJob,
+} from './order.utils';
 
 @Injectable()
 export class OrderService {
@@ -338,10 +339,10 @@ export class OrderService {
     }
 
     // Portal: Add a new progress entry to existing order (identified by clientCode + folderPath)
-    async createNewJob(payload: NewJobBodyDto, userSession: UserSession) {
+    async newJob(payload: NewJobBodyDto, userSession: UserSession) {
         if (!hasPerm('job:get_jobs', userSession.permissions)) {
             throw new ForbiddenException(
-                "You don't have permission to create new jobs",
+                "You don't have permission to get new jobs",
             );
         }
 
@@ -365,124 +366,161 @@ export class OrderService {
         const normalizedType = String(payload.jobType || '')
             .trim()
             .toLowerCase();
+        const normalizedCondition = String(payload.fileCondition || '')
+            .trim()
+            .toLowerCase();
         const category = normalizedType.startsWith('qc')
             ? 'qc'
             : normalizedType.startsWith('correction')
               ? 'correction'
               : 'production';
 
-        const existing = await this.orderModel
-            .findOne({ client_code: clientCode, folder_path: folderPath })
-            .exec();
-        if (!existing) throw new NotFoundException('Order not found');
+        const session = await this.orderModel.db.startSession();
+        session.startTransaction();
+        try {
+            const existing = await this.orderModel
+                .findOne({ client_code: clientCode, folder_path: folderPath })
+                .session(session)
+                .exec();
+            if (!existing) throw new NotFoundException('Order not found');
 
-        // Filter out files that are already in-progress in this order
-        const occupiedStatuses = new Set(['working', 'paused', 'transferred']);
-        const occupiedSet = new Set<string>();
-        if (Array.isArray(existing.progress)) {
-            for (const p of existing.progress) {
-                if (!Array.isArray(p.files_tracking)) continue;
-                for (const ft of p.files_tracking) {
-                    if (
-                        ft &&
-                        typeof ft.file_name === 'string' &&
-                        occupiedStatuses.has(ft.status)
-                    ) {
-                        occupiedSet.add(String(ft.file_name));
+            // Filter out files that are already in-progress in this order
+            const occupiedStatuses = new Set([
+                'working',
+                'paused',
+                'transferred',
+            ]);
+            const occupiedSet = new Set<string>();
+            if (existing && Array.isArray(existing.progress)) {
+                for (const p of existing.progress) {
+                    if (!Array.isArray(p.files_tracking)) continue;
+                    for (const ft of p.files_tracking) {
+                        if (
+                            ft &&
+                            typeof ft.file_name === 'string' &&
+                            occupiedStatuses.has(ft.status)
+                        ) {
+                            occupiedSet.add(String(ft.file_name));
+                        }
                     }
                 }
             }
-        }
-        let filteredFileNames = fileNames.filter(f => !occupiedSet.has(f));
-        // Cross-order check: exclude files that are already assigned to other orders
-        if (filteredFileNames.length > 0) {
-            const otherOccupiedOrders = await this.orderModel
-                .find({
-                    _id: { $ne: existing._id },
+            let filteredFileNames = fileNames.filter(f => !occupiedSet.has(f));
+            // Cross-order check: exclude files that are already assigned to other orders
+            if (filteredFileNames.length > 0) {
+                const searchQuery: Record<string, any> = {
                     'progress.files_tracking': {
                         $elemMatch: {
                             file_name: { $in: filteredFileNames },
                             status: { $in: Array.from(occupiedStatuses) },
                         },
                     },
-                })
-                .lean()
-                .exec();
-            if (otherOccupiedOrders && otherOccupiedOrders.length > 0) {
-                const otherOccupiedSet = new Set<string>();
-                for (const o of otherOccupiedOrders) {
-                    if (!Array.isArray(o.progress)) continue;
-                    for (const p of o.progress) {
-                        if (!Array.isArray(p.files_tracking)) continue;
-                        for (const ft of p.files_tracking) {
-                            if (
-                                ft &&
-                                typeof ft.file_name === 'string' &&
-                                occupiedStatuses.has(ft.status)
-                            ) {
-                                otherOccupiedSet.add(String(ft.file_name));
+                };
+                if (existing && existing._id) {
+                    searchQuery._id = { $ne: existing._id };
+                }
+                const otherOccupiedOrders = await this.orderModel
+                    .find(searchQuery)
+                    .session(session)
+                    .lean()
+                    .exec();
+                if (otherOccupiedOrders && otherOccupiedOrders.length > 0) {
+                    const otherOccupiedSet = new Set<string>();
+                    for (const o of otherOccupiedOrders) {
+                        if (!Array.isArray(o.progress)) continue;
+                        for (const p of o.progress) {
+                            if (!Array.isArray(p.files_tracking)) continue;
+                            for (const ft of p.files_tracking) {
+                                if (
+                                    ft &&
+                                    typeof ft.file_name === 'string' &&
+                                    occupiedStatuses.has(ft.status)
+                                ) {
+                                    otherOccupiedSet.add(String(ft.file_name));
+                                }
                             }
                         }
                     }
+                    filteredFileNames = filteredFileNames.filter(
+                        f => !otherOccupiedSet.has(f),
+                    );
                 }
-                filteredFileNames = filteredFileNames.filter(
-                    f => !otherOccupiedSet.has(f),
+            }
+            if (filteredFileNames.length === 0) {
+                throw new ConflictException(
+                    'All requested files are already in progress',
                 );
             }
-        }
-        if (filteredFileNames.length === 0) {
-            throw new ConflictException(
-                'All requested files are already in progress',
-            );
-        }
 
-        const now = new Date();
-        const fileStatus = payload.isActive ? 'working' : 'paused';
-        const filesTracking = filteredFileNames.map(f => ({
-            file_name: f,
-            start_timestamp: now,
-            end_timestamp: null,
-            status: fileStatus,
-            total_pause_duration: 0,
-            // If the employee does not want to start immediately, mark pause start
-            pause_start_timestamp: fileStatus === 'paused' ? now : null,
-            transferred_from: null,
-        }));
+            const now = new Date();
+            const fileStatus = payload.isActive ? 'working' : 'paused';
+            const filesTracking = filteredFileNames.map(f => ({
+                file_name: f,
+                start_timestamp: now,
+                end_timestamp: null,
+                status: fileStatus,
+                total_pause_duration: 0,
+                // If the employee does not want to start immediately, mark pause start
+                pause_start_timestamp: fileStatus === 'paused' ? now : null,
+                transferred_from: null,
+            }));
 
-        const progressEntry: Record<string, any> = {
-            employee: new mongoose.Types.ObjectId(String(userSession.db_id)),
-            shift: payload.shift,
-            category: category,
-            is_qc: category === 'qc',
-            qc_step:
-                category === 'qc'
-                    ? payload.qcStep && Number(payload.qcStep) > 0
-                        ? Number(payload.qcStep)
-                        : 1
-                    : null,
-            files_tracking: filesTracking,
-        };
+            const progressEntry: Record<string, any> = {
+                employee: new mongoose.Types.ObjectId(
+                    String(userSession.db_id),
+                ),
+                shift: payload.shift,
+                category: category,
+                is_qc: category === 'qc',
+                qc_step: category === 'qc' ? Number(payload.qcStep) : null,
+                files_tracking: filesTracking,
+            };
 
-        const update: Record<string, any> = {
-            $push: { progress: progressEntry },
-            $set: { updated_by: userSession.real_name ?? null },
-        };
-
-        try {
+            const update: Record<string, any> = {
+                $push: { progress: progressEntry },
+                $set: { updated_by: userSession.real_name ?? null },
+            };
             const updated = await this.orderModel
-                .findByIdAndUpdate(existing._id, update, { new: true })
+                .findByIdAndUpdate(existing._id, update, {
+                    new: true,
+                    session,
+                })
                 .exec();
             if (!updated)
                 throw new InternalServerErrorException(
                     'Failed to update order',
                 );
+
+            try {
+                await moveFilesForNewJob({
+                    folderPath,
+                    normalizedType,
+                    normalizedCondition,
+                    qcStep: payload.qcStep,
+                    employeeName: userSession.real_name || 'employee',
+                    fileNames: filteredFileNames,
+                    driveMap: this.configService.get<string>('QNAP_DRIVE_MAP'),
+                    qnapService: this.qnapService,
+                    logger: this.logger,
+                });
+            } catch (err) {
+                const msg = err instanceof Error ? err.message : String(err);
+                throw new InternalServerErrorException(
+                    `File move failed, no progress was added: ${msg}`,
+                );
+            }
+
+            await session.commitTransaction();
             const skippedFiles = fileNames.filter(
                 f => !filteredFileNames.includes(f),
             );
             return { order: updated, skippedFiles };
         } catch (e) {
+            await session.abortTransaction();
             if (e instanceof HttpException) throw e;
             throw new InternalServerErrorException('Unable to update order');
+        } finally {
+            await session.endSession();
         }
     }
 
@@ -1229,7 +1267,7 @@ export class OrderService {
         return items || [];
     }
 
-    async getAvailableFolders(
+    async availableFolders(
         jobType: string,
         userSession: UserSession,
         clientCode?: string,
@@ -1328,25 +1366,24 @@ export class OrderService {
         return folders;
     }
 
-    async getAvailableFiles(
+    async availableFiles(
         folderPath: string,
         jobType: JobSelectionType,
         fileCondition: FileCondition,
+        qcStep: number = 1,
     ): Promise<string[]> {
         const normalizedType = jobType.trim().toLowerCase();
         const normalizedCondition = fileCondition.trim().toLowerCase();
         const rawPath = String(folderPath || '').trim();
         if (!rawPath) return [];
 
-        // Use helper functions from order.path.utils
-
         const occupiedStatuses = ['working', 'paused', 'transferred'];
-        // escapeRegex helper is imported
 
         // Candidate suffix for the selected jobType and condition
         const candidateSuffix = getCandidateSuffix(
             String(normalizedType),
             String(normalizedCondition),
+            Number(qcStep || 1),
         );
 
         const rawCandidatePath = joinPath(rawPath, candidateSuffix);

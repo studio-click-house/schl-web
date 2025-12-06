@@ -68,7 +68,7 @@ const Form: React.FC<PropsType> = props => {
             file_names: [],
             file_condition: 'fresh',
             is_active: true,
-            qc_step: undefined,
+            qc_step: 1,
             job_type: 'general',
             shift: 'morning',
         },
@@ -78,6 +78,7 @@ const Form: React.FC<PropsType> = props => {
     const jobType = useWatch({ control, name: 'job_type' });
     const folderPath = useWatch({ control, name: 'folder_path' });
     const fileCondition = useWatch({ control, name: 'file_condition' });
+    const qc_step = useWatch({ control, name: 'qc_step' });
 
     const LOADING_SHOW_DELAY = 300; // ms
 
@@ -148,11 +149,12 @@ const Form: React.FC<PropsType> = props => {
         [authedFetchApi],
     );
 
-    const getFilesForFolder = useCallback(
+    const getFilesOfFolder = useCallback(
         async (
             folderPathParam: string,
             jobTypeParam: string,
             fileConditionParam: string,
+            qcStepParam?: number,
         ) => {
             if (!folderPathParam) {
                 setFileNames([]);
@@ -172,6 +174,7 @@ const Form: React.FC<PropsType> = props => {
                             folderPath: folderPathParam,
                             jobType: jobTypeParam,
                             fileCondition: fileConditionParam,
+                            qcStep: qcStepParam || 1,
                         },
                     },
                     {
@@ -248,9 +251,7 @@ const Form: React.FC<PropsType> = props => {
         setFileNames([]);
         setValue('folder_path', '');
         setValue('file_names', []);
-        if (jobType && jobType.startsWith('qc')) {
-            setValue('qc_step', 1);
-        } else setValue('qc_step', undefined);
+        setValue('qc_step', 1);
         if (clientCode) getAvailableFoldersOfClient(clientCode, jobType);
     }, [jobType]);
 
@@ -260,7 +261,8 @@ const Form: React.FC<PropsType> = props => {
     useEffect(() => {
         setFileNames([]);
         setValue('file_names', []);
-        if (folderPath) getFilesForFolder(folderPath, jobType, fileCondition);
+        if (folderPath)
+            getFilesOfFolder(folderPath, jobType, fileCondition, qc_step);
     }, [folderPath, jobType, fileCondition]);
 
     // submit unchanged

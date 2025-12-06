@@ -4,7 +4,8 @@ import {
     type FileCondition,
     type JobSelectionType,
 } from '@repo/common/constants/order.constant';
-import { IsIn, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 
 export class ListFilesQueryDto {
     @IsString()
@@ -17,4 +18,11 @@ export class ListFilesQueryDto {
     @IsString()
     @IsIn(FILE_CONDITIONS as readonly FileCondition[])
     fileCondition: FileCondition;
+
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt()
+    @Min(1)
+    @Max(2)
+    qcStep?: number;
 }
