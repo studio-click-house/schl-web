@@ -391,12 +391,27 @@ const Details: React.FC<DetailsProps> = props => {
         return;
     }, [authedFetchApi, props.clientCode]);
 
+    // Only fetch client details / orders when the user opens the modal.
+    // Avoids fetching these on mount (two modal instances were mounted in the parent)
+    // and prevents duplicate fetches if client/filter didn't change.
+    const lastFetchedFiltersRef = useRef<string | null>(null);
     useEffect(() => {
-        if (props.filters.clientCode) {
-            getClientDetails();
-            getClientOrders();
+        if (!isOpen) return; // only fetch when modal is open
+        if (!props.filters.clientCode) return;
+
+        const serializedFilters = JSON.stringify(props.filters);
+        // If we've already fetched for the same client and same filters, skip
+        if (
+            lastFetchedFiltersRef.current &&
+            lastFetchedFiltersRef.current === serializedFilters
+        ) {
+            return;
         }
-    }, [props.filters, getClientDetails, getClientOrders]);
+
+        getClientDetails();
+        getClientOrders();
+        lastFetchedFiltersRef.current = serializedFilters;
+    }, [isOpen, props.filters, getClientDetails, getClientOrders]);
 
     useEffect(() => {
         initFlowbite();
@@ -447,20 +462,16 @@ const Details: React.FC<DetailsProps> = props => {
         setVendor({ ...vendor, [e.target.name]: e.target.value });
     };
 
-    if (!clientDetails) {
-        return null;
-    }
-
-    if (!orders.length) {
-        return null;
-    }
+    // We no longer early-return so the Create Invoice button is always present.
+    // The button is disabled while loading or when client details are missing.
+    const canOpenModal = !loading && !!props.clientCode;
 
     console.log('filters-in-details-modal::: ', props.filters);
 
     return (
         <>
             <button
-                disabled={loading}
+                disabled={!canOpenModal || invoiceCreating}
                 onClick={() => setIsOpen(true)}
                 type="button"
                 className={cn(

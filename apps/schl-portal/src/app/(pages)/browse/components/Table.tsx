@@ -89,6 +89,7 @@ const Table: React.FC<{ clientsData: ClientDocument[] }> = props => {
                         headers: {
                             'Content-Type': 'application/json',
                         },
+
                         body: JSON.stringify({
                             // staleClient: true,
                             // regularClient: false,
@@ -106,6 +107,10 @@ const Table: React.FC<{ clientsData: ClientDocument[] }> = props => {
                     toastFetchError(response);
                 }
             } catch (error) {
+                if ((error as any).name === 'AbortError') {
+                    // request was aborted due to another request; no action required
+                    return;
+                }
                 console.error(error);
                 toast.error('An error occurred while retrieving orders data');
             } finally {
@@ -151,6 +156,10 @@ const Table: React.FC<{ clientsData: ClientDocument[] }> = props => {
                     toastFetchError(response);
                 }
             } catch (error) {
+                if ((error as any).name === 'AbortError') {
+                    // request was aborted due to another request; no action required
+                    return;
+                }
                 console.error(error);
                 toast.error('An error occurred while retrieving orders data');
             } finally {

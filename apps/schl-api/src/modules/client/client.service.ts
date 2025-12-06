@@ -5,6 +5,7 @@ import {
     HttpException,
     Injectable,
     InternalServerErrorException,
+    Logger,
     NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -38,6 +39,7 @@ type QueryShape = FilterQuery<Client>;
 
 @Injectable()
 export class ClientService {
+    private readonly logger = new Logger(ClientService.name);
     constructor(@InjectModel(Client.name) private clientModel: Model<Client>) {}
 
     async searchClients(
@@ -298,8 +300,11 @@ export class ClientService {
         }
 
         try {
+            // this.logger.debug(`Searching for client with code: ${client_code}`);
             const found = await this.clientModel
-                .findOne({ client_code })
+                .findOne({
+                    client_code: createRegexQuery(client_code, { exact: true }),
+                })
                 .exec();
             if (!found) {
                 throw new BadRequestException('Client not found');

@@ -180,3 +180,11 @@ OrderSchema.index({
     'progress.files_tracking.file_name': 1,
     'progress.files_tracking.status': 1,
 });
+
+// Add indexes commonly used in queries to improve performance for search and pagination
+OrderSchema.index({ client_code: 1 });
+OrderSchema.index({ download_date: 1 });
+OrderSchema.index({ status: 1, type: 1 });
+OrderSchema.index({ client_code: 1, download_date: 1 });
+// Support descending date sorts to make queries like .sort({ download_date: -1 })
+OrderSchema.index({ client_code: 1, download_date: -1 });

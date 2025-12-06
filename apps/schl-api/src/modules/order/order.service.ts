@@ -131,11 +131,20 @@ export class OrderService {
         // Regex fields: channel (exact), notice_no (exact), title (fuzzy)
         addIfDefined(query, 'folder', createRegexQuery(folder));
 
-        addIfDefined(
-            query,
-            'client_code',
-            createRegexQuery(clientCode, { exact: invFlag ?? false }),
-        );
+        if (clientCode) {
+            // When invoice flag is set we generally want exact client matches
+            // so use equality to utilize indexes instead of a regex.
+            if (invFlag ?? false) {
+                // Force a typed assignment for the equality match to avoid assigning a regex shape
+                (query as any).client_code = clientCode.trim();
+            } else {
+                addIfDefined(
+                    query,
+                    'client_code',
+                    createRegexQuery(clientCode, { exact: false }),
+                );
+            }
+        }
         // For tasks like "A+B+C" we want to match records containing all tokens in any order, possibly with extra tokens
         if (task && task.includes('+')) {
             addPlusSeparatedContainsAllField(query, 'task', task);
@@ -189,9 +198,9 @@ export class OrderService {
         }
 
         if (paginated) {
-            const count = await this.orderModel.countDocuments(
-                searchQuery as Record<string, unknown>,
-            );
+            // Use a single aggregation pipeline with $facet to get both count and items
+            // in one round-trip to MongoDB. This avoids running two queries (count + aggregate)
+            // which is expensive for large datasets.
             const pipeline: any[] = [
                 { $match: searchQuery },
                 {
@@ -258,12 +267,21 @@ export class OrderService {
                     },
                 },
                 { $sort: sortQuery },
-                { $skip: skip },
-                { $limit: itemsPerPage },
-                { $project: { customSortField: 0 } },
+                {
+                    $facet: {
+                        items: [
+                            { $skip: skip },
+                            { $limit: itemsPerPage },
+                            { $project: { customSortField: 0 } },
+                        ],
+                        count: [{ $count: 'total' }],
+                    },
+                },
             ];
 
-            const items = await this.orderModel.aggregate(pipeline).exec();
+            const aggResult = await this.orderModel.aggregate(pipeline).exec();
+            const items = aggResult?.[0]?.items || [];
+            const count = aggResult?.[0]?.count?.[0]?.total || 0;
             if (!items) {
                 throw new InternalServerErrorException(
                     'Unable to retrieve orders',
@@ -278,9 +296,30 @@ export class OrderService {
             };
         }
 
-        // Unpaginated path
+        // Unpaginated path - when requesting invoice-specific orders (invFlag true),
+        // only fetch minimal fields needed for the invoice to reduce network and IO cost.
+        const projection: Record<string, 1> | undefined = invFlag
+            ? {
+                  folder: 1,
+                  quantity: 1,
+                  rate: 1,
+                  createdAt: 1,
+                  download_date: 1,
+                  delivery_date: 1,
+                  task: 1,
+                  et: 1,
+                  production: 1,
+                  qc1: 1,
+                  qc2: 1,
+                  status: 1,
+                  comment: 1,
+                  client_code: 1,
+                  client_name: 1,
+              }
+            : undefined;
+
         const items = await this.orderModel
-            .find(searchQuery as Record<string, unknown>)
+            .find(searchQuery as Record<string, unknown>, projection)
             .sort({ download_date: 1 })
             .lean()
             .exec();
@@ -659,7 +698,8 @@ export class OrderService {
         const clientQuery: Record<string, any> = {};
         if (clientCode) {
             clientQuery.client_code = createRegexQuery(clientCode, {
-                exact: true,
+                exact: false,
+                flexible: true,
             });
         }
 
@@ -667,6 +707,7 @@ export class OrderService {
         const [clients, totalClients] = await Promise.all([
             this.clientModel
                 .find(clientQuery, { client_code: 1 })
+                .sort({ client_code: 1 })
                 .skip(skip)
                 .limit(itemsPerPage)
                 .lean(),
@@ -691,87 +732,125 @@ export class OrderService {
             .format('YYYY-MM-DD');
         const clientCodes = clients.map(c => c.client_code);
 
-        // Fetch relevant orders
-        const orders = await this.orderModel
-            .find({
-                client_code: { $in: clientCodes },
-                download_date: { $gte: startDate, $lte: endDate },
-            })
-            .lean()
-            .exec();
-
+        // Build last 12 month identifiers (YYYY-MM)
         const last12Months: string[] = [];
         for (let i = 11; i >= 0; i--) {
             last12Months.push(moment().subtract(i, 'months').format('YYYY-MM'));
         }
+        const last12MonthsSet = new Set(last12Months);
 
-        // Group orders by client and month
+        // Use aggregation to compute per-client, per-month order counts and file totals
+        const ordersAggPipeline: any[] = [
+            {
+                $match: {
+                    client_code: { $in: clientCodes },
+                    download_date: { $gte: startDate, $lte: endDate },
+                },
+            },
+            {
+                $project: {
+                    client_code: 1,
+                    quantity: 1,
+                    month: { $substrBytes: ['$download_date', 0, 7] },
+                },
+            },
+            {
+                $group: {
+                    _id: { client_code: '$client_code', month: '$month' },
+                    count: { $sum: 1 },
+                    totalFiles: { $sum: '$quantity' },
+                },
+            },
+        ];
+
+        const invoicesAggPipeline: any[] = [
+            {
+                $match: {
+                    client_code: { $in: clientCodes },
+                    'time_period.fromDate': { $gte: startDate },
+                    'time_period.toDate': { $lte: endDate },
+                },
+            },
+            {
+                $project: {
+                    client_code: 1,
+                    startMonth: {
+                        $substrBytes: ['$time_period.fromDate', 0, 7],
+                    },
+                    endMonth: {
+                        $substrBytes: ['$time_period.toDate', 0, 7],
+                    },
+                },
+            },
+            // Only keep invoices that are contained fully inside a single month
+            {
+                $match: {
+                    $expr: { $eq: ['$startMonth', '$endMonth'] },
+                },
+            },
+            {
+                $group: {
+                    _id: { client_code: '$client_code', month: '$startMonth' },
+                },
+            },
+        ];
+
+        const [ordersAgg, invoicesAgg] = await Promise.all([
+            this.orderModel.aggregate(ordersAggPipeline).exec(),
+            this.invoiceModel.aggregate(invoicesAggPipeline).exec(),
+        ]);
+
+        // Build maps for fast lookup
         type MonthAgg = { count: number; totalFiles: number };
         const ordersByClient: Record<string, Record<string, MonthAgg>> = {};
-        for (const order of orders as any[]) {
-            const monthYear = moment(String(order.download_date)).format(
-                'YYYY-MM',
-            );
-            const code = String(order.client_code);
+        for (const row of ordersAgg) {
+            const code = String(row._id.client_code);
+            const month = String(row._id.month);
             if (!ordersByClient[code]) ordersByClient[code] = {};
-            if (!ordersByClient[code][monthYear])
-                ordersByClient[code][monthYear] = { count: 0, totalFiles: 0 };
-            ordersByClient[code][monthYear].count += 1;
-            ordersByClient[code][monthYear].totalFiles +=
-                Number(order.quantity) || 0;
+            ordersByClient[code][month] = {
+                count: Number(row.count) || 0,
+                totalFiles: Number(row.totalFiles) || 0,
+            };
+        }
+
+        const invoiceMap = new Set<string>();
+        for (const row of invoicesAgg) {
+            const code = String(row._id.client_code);
+            const month = String(row._id.month);
+            if (!last12MonthsSet.has(month)) continue; // skip months outside our range
+            invoiceMap.add(`${code}_${month}`);
         }
 
         // Build final response per client with invoiced flag per month
-        const items = await Promise.all(
-            clients.map(async c => {
-                const ordersArr = await Promise.all(
-                    last12Months.map(async monthYear => {
-                        const formattedMonthYear = moment(
-                            monthYear,
-                            'YYYY-MM',
-                        ).format('MMMM YYYY');
-                        const clientMonthMap =
-                            ordersByClient[c.client_code] || {};
-                        const monthData =
-                            clientMonthMap[monthYear] ||
-                            ({ count: 0, totalFiles: 0 } as MonthAgg);
-
-                        let invoiced = false;
-                        if (monthData.count > 0) {
-                            // Compute month range
-                            const start = moment(monthYear, 'YYYY-MM')
-                                .startOf('month')
-                                .format('YYYY-MM-DD');
-                            const end = moment(monthYear, 'YYYY-MM')
-                                .endOf('month')
-                                .format('YYYY-MM-DD');
-                            const invoice = await this.invoiceModel
-                                .findOne({
-                                    client_code: c.client_code,
-                                    'time_period.fromDate': { $gte: start },
-                                    'time_period.toDate': { $lte: end },
-                                })
-                                .lean()
-                                .exec();
-                            invoiced = !!invoice;
-                        }
-
-                        return {
-                            [formattedMonthYear]: {
-                                count: monthData.count,
-                                totalFiles: monthData.totalFiles,
-                                invoiced,
-                            },
-                        };
-                    }),
+        const items = clients.map(c => {
+            const ordersArr = last12Months.map(monthYear => {
+                const formattedMonthYear = moment(monthYear, 'YYYY-MM').format(
+                    'MMMM YYYY',
                 );
+                const clientMonthMap = ordersByClient[c.client_code] || {};
+                const monthData =
+                    clientMonthMap[monthYear] ||
+                    ({ count: 0, totalFiles: 0 } as MonthAgg);
+
+                let invoiced = false;
+                if (monthData.count > 0) {
+                    invoiced = invoiceMap.has(`${c.client_code}_${monthYear}`);
+                }
 
                 return {
-                    client_code: c.client_code,
-                    orders: ordersArr,
+                    [formattedMonthYear]: {
+                        count: monthData.count,
+                        totalFiles: monthData.totalFiles,
+                        invoiced,
+                    },
                 };
-            }),
-        );
+            });
+
+            return {
+                client_code: c.client_code,
+                orders: ordersArr,
+            };
+        });
 
         return {
             pagination: {

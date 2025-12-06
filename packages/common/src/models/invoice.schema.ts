@@ -34,3 +34,17 @@ export class Invoice {
 }
 
 export const InvoiceSchema = SchemaFactory.createForClass(Invoice);
+
+// Indexes to improve queries filtering by client and time range
+// Queries often filter by client_code and time_period boundaries, so a
+// compound index helps the database perform these lookups quickly.
+InvoiceSchema.index({
+    client_code: 1,
+    'time_period.fromDate': 1,
+    'time_period.toDate': 1,
+});
+
+// For queries that filter only by start or to-date, a single-field index
+// on 'time_period.fromDate' can also help but the compound index above
+// should be sufficient for most cases.
+InvoiceSchema.index({ 'time_period.fromDate': 1 });

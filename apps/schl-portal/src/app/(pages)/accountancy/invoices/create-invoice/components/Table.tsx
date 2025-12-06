@@ -154,8 +154,16 @@ const Table: React.FC<{ clientsData: ClientDocument[] }> = props => {
 
     const handleSearch = useCallback(() => {
         setIsFiltered(true);
-        setPage(1);
-        setSearchVersion(v => v + 1);
+        // To avoid duplicate fetches: if we're already on page 1, trigger the
+        // search-version effect; otherwise change the page to 1 which will
+        // cause usePaginationManager to trigger the fetch.
+        setPage(prev => {
+            if (prev === 1) {
+                setSearchVersion(v => v + 1);
+                return prev;
+            }
+            return 1;
+        });
     }, [setIsFiltered, setPage]);
 
     return (
