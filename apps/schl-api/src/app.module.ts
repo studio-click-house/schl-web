@@ -11,6 +11,7 @@ import { ClientModule } from './modules/client/client.module';
 import { EmployeeModule } from './modules/employee/employee.module';
 import { FtpModule } from './modules/ftp/ftp.module';
 import { InvoiceModule } from './modules/invoice/invoice.module';
+import { JobModule } from './modules/job/job.module';
 import { NoticeModule } from './modules/notice/notice.module';
 import { OrderModule } from './modules/order/order.module';
 import { QnapModule } from './modules/qnap/qnap.module';
@@ -50,6 +51,7 @@ import { ValidatorModule } from './modules/validator/validator.module';
         NoticeModule,
         ApprovalModule,
         OrderModule,
+        JobModule,
         ValidatorModule,
     ],
     controllers: [AppController],

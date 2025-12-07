@@ -2,7 +2,6 @@ import {
     Body,
     Controller,
     Delete,
-    ForbiddenException,
     Get,
     Param,
     Post,
@@ -11,16 +10,12 @@ import {
     Req,
 } from '@nestjs/common';
 import { UserSession } from '@repo/common/types/user-session.type';
-import { hasPerm } from '@repo/common/utils/permission-check';
 import {
     ClientCodeParamDto,
     ClientCodeRequiredParamDto,
 } from '../../common/dto/client-code-param.dto';
 import { IdParamDto } from '../../common/dto/id-param.dto';
-import { AvailableFoldersQueryDto } from './dto/available-folders.dto';
 import { CreateOrderBodyDto } from './dto/create-order.dto';
-import { ListFilesQueryDto } from './dto/list-files.dto';
-import { NewJobBodyDto } from './dto/new-job.dto';
 import {
     OrdersByCountryParamDto,
     OrdersByCountryQueryDto,
@@ -155,50 +150,6 @@ export class OrderController {
     @Get('rework-orders')
     reworkOrders(@Req() req: Request & { user: UserSession }) {
         return this.orderService.reworkOrders(req.user);
-    }
-
-    @Get('available-folders')
-    availableFolders(
-        @Req() req: Request & { user: UserSession },
-        @Query() { jobType, clientCode }: AvailableFoldersQueryDto,
-    ) {
-        return this.orderService.availableFolders(
-            jobType,
-            req.user,
-            clientCode,
-        );
-    }
-
-    @Get('available-files')
-    availableFiles(
-        @Req() req: Request & { user: UserSession },
-        @Query()
-        { folderPath, jobType, fileCondition, qcStep }: ListFilesQueryDto,
-    ) {
-        if (!hasPerm('job:get_jobs', req.user.permissions)) {
-            throw new ForbiddenException(
-                "You don't have permission to view available jobs",
-            );
-        }
-        return this.orderService.availableFiles(
-            folderPath,
-            jobType,
-            fileCondition,
-            qcStep != null ? Number(qcStep) : 1,
-        );
-    }
-
-    @Post('new-job')
-    newJob(
-        @Req() req: Request & { user: UserSession },
-        @Body() body: NewJobBodyDto,
-    ) {
-        if (!hasPerm('job:get_jobs', req.user.permissions)) {
-            throw new ForbiddenException(
-                "You don't have permission to get new jobs",
-            );
-        }
-        return this.orderService.newJob(body, req.user);
     }
 
     @Get(':id')

@@ -94,7 +94,7 @@ const Form: React.FC<PropsType> = props => {
             try {
                 const response = await authedFetchApi<any[]>(
                     {
-                        path: '/v1/order/available-folders',
+                        path: '/v1/job/available-folders',
                         query: {
                             clientCode: clientCodeParam,
                             jobType: jobTypeParam,
@@ -169,7 +169,7 @@ const Form: React.FC<PropsType> = props => {
             try {
                 const resp = await authedFetchApi<string[]>(
                     {
-                        path: '/v1/order/available-files',
+                        path: '/v1/job/available-files',
                         query: {
                             folderPath: folderPathParam,
                             jobType: jobTypeParam,
@@ -282,7 +282,7 @@ const Form: React.FC<PropsType> = props => {
             }
 
             const response = await authedFetchApi(
-                { path: '/v1/order/new-job' },
+                { path: '/v1/job/new-job' },
                 {
                     method: 'POST',
                     headers: {
@@ -322,8 +322,6 @@ const Form: React.FC<PropsType> = props => {
             setLoading(false);
         }
     }
-
-    // console.log('Fetched available orders of the client', folders);
 
     return (
         <form onSubmit={handleSubmit(onSubmit)}>
