@@ -17,6 +17,7 @@ import {
 } from '@repo/common/constants/order.constant';
 import { Client } from '@repo/common/models/client.schema';
 import { Order } from '@repo/common/models/order.schema';
+import { User } from '@repo/common/models/user.schema';
 import { UserSession } from '@repo/common/types/user-session.type';
 import {
     addIfDefined,
@@ -29,6 +30,7 @@ import { NewJobBodyDto } from '../order/dto/new-job.dto';
 import { QnapService } from '../qnap/qnap.service';
 import {
     ACTIVE_FILE_STATUSES,
+    SearchJobsBodyDto,
     type ActiveFileStatus,
     type SearchJobsQueryDto,
 } from './dto/search-jobs.dto';
@@ -63,11 +65,6 @@ type SearchJobAggregateItem = {
     transferred_from?: mongoose.Types.ObjectId | null;
 };
 
-type SearchJobFacetResult = {
-    items: SearchJobAggregateItem[];
-    count: { total: number }[];
-};
-
 type SearchJobResponseItem = SearchJobAggregateItem & {
     job_type: JobSelectionType;
 };
@@ -78,9 +75,28 @@ export class JobService {
     constructor(
         @InjectModel(Order.name) private readonly orderModel: Model<Order>,
         @InjectModel(Client.name) private readonly clientModel: Model<Client>,
+        @InjectModel(User.name) private readonly userModel: Model<User>,
         private readonly configService: ConfigService,
         private readonly qnapService: QnapService,
     ) {}
+
+    // Resolve the employee ObjectId for the current user session
+    private async resolveEmployeeId(userSession: UserSession) {
+        const user = await this.userModel
+            .findById(userSession.db_id)
+            .select('employee')
+            .lean<{ employee?: mongoose.Types.ObjectId }>()
+            .exec();
+
+        if (!user) {
+            throw new NotFoundException('User not found');
+        }
+        if (!user.employee) {
+            throw new ForbiddenException('Employee not linked to user');
+        }
+
+        return new mongoose.Types.ObjectId(String(user.employee));
+    }
 
     // Portal: Add a new progress entry to existing order (identified by clientCode + folderPath)
     async newJob(payload: NewJobBodyDto, userSession: UserSession) {
@@ -89,6 +105,8 @@ export class JobService {
                 "You don't have permission to get new jobs",
             );
         }
+
+        const employeeId = await this.resolveEmployeeId(userSession);
 
         const clientCode = String(payload.clientCode || '').trim();
         if (!clientCode)
@@ -210,9 +228,7 @@ export class JobService {
             }));
 
             const progressEntry: Record<string, any> = {
-                employee: new mongoose.Types.ObjectId(
-                    String(userSession.db_id),
-                ),
+                employee: employeeId,
                 shift: payload.shift,
                 category: category,
                 is_qc: category === 'qc',
@@ -590,140 +606,158 @@ export class JobService {
         }
     }
 
-    async searchJobs(query: SearchJobsQueryDto, userSession: UserSession) {
+    async searchJobs(
+        filters: SearchJobsBodyDto,
+        pagination: SearchJobsQueryDto,
+        userSession: UserSession,
+    ) {
         if (!hasPerm('job:get_jobs', userSession.permissions)) {
             throw new ForbiddenException(
                 "You don't have permission to view available jobs",
             );
         }
 
-        const {
-            page = 1,
-            itemsPerPage = 30,
-            paginated = true,
-            folder,
-            folderPath,
-            fileStatus,
-            jobType,
-        } = query;
+        const { page, itemsPerPage, paginated } = pagination;
+        const { folder, folderPath, fileStatus, jobType } = filters;
 
-        const statusFilter: ActiveFileStatus[] = (
+        const employeeId = await this.resolveEmployeeId(userSession);
+
+        const fileStatusFilter: ActiveFileStatus[] = (
             fileStatus ? [fileStatus] : ACTIVE_FILE_STATUSES
         ) as ActiveFileStatus[];
 
-        const orderMatch: Record<string, any> = {};
-        addIfDefined(orderMatch, 'folder', createRegexQuery(folder));
-        addIfDefined(orderMatch, 'folder_path', createRegexQuery(folderPath));
+        const orderFilters: Record<string, any> = {};
+        addIfDefined(orderFilters, 'folder', createRegexQuery(folder));
+        addIfDefined(orderFilters, 'folder_path', createRegexQuery(folderPath));
 
-        const progressMatch: Record<string, any> = {
-            'progress.employee': new mongoose.Types.ObjectId(
-                String(userSession.db_id),
-            ),
+        const progressFilters: Record<string, any> = {
+            'progress.employee': employeeId,
         };
 
         const mappedJobType = mapJobTypeFilters(jobType);
         const { orderType, category, isQc } = mappedJobType;
         if (orderType) {
             const normalizedOrderType = String(orderType);
-            orderMatch.type = createRegexQuery(normalizedOrderType, {
+            orderFilters.type = createRegexQuery(normalizedOrderType, {
                 exact: true,
             });
         }
         if (category) {
-            progressMatch['progress.category'] = category;
+            progressFilters['progress.category'] = category;
         }
         if (isQc !== undefined) {
-            progressMatch['progress.is_qc'] = isQc;
+            progressFilters['progress.is_qc'] = isQc;
         }
 
-        const skip = (page - 1) * itemsPerPage;
+        const skipCount = (page - 1) * itemsPerPage;
 
-        const basePipeline: mongoose.PipelineStage[] = [
-            { $match: orderMatch },
+        const sharedMatchStages: mongoose.PipelineStage[] = [
+            { $match: orderFilters },
             { $unwind: '$progress' },
-            { $match: progressMatch },
+            { $match: progressFilters },
             { $unwind: '$progress.files_tracking' },
             {
                 $match: {
-                    'progress.files_tracking.status': { $in: statusFilter },
+                    'progress.files_tracking.status': { $in: fileStatusFilter },
                 },
             },
-            {
-                $project: {
-                    _id: 0,
-                    orderId: '$_id',
-                    client_code: 1,
-                    client_name: 1,
-                    folder: 1,
-                    folder_path: 1,
-                    order_type: '$type',
-                    order_status: '$status',
-                    progress_category: '$progress.category',
-                    progress_is_qc: '$progress.is_qc',
-                    progress_qc_step: '$progress.qc_step',
-                    progress_shift: '$progress.shift',
-                    file_name: '$progress.files_tracking.file_name',
-                    file_status: '$progress.files_tracking.status',
-                    start_timestamp: '$progress.files_tracking.start_timestamp',
-                    end_timestamp: '$progress.files_tracking.end_timestamp',
-                    pause_start_timestamp:
-                        '$progress.files_tracking.pause_start_timestamp',
-                    total_pause_duration:
-                        '$progress.files_tracking.total_pause_duration',
-                    transferred_from:
-                        '$progress.files_tracking.transferred_from',
-                },
-            },
-            { $sort: { start_timestamp: -1, orderId: 1 } },
         ];
 
-        if (paginated) {
-            const pipeline: mongoose.PipelineStage[] = [
+        const projectionStage: mongoose.PipelineStage = {
+            $project: {
+                _id: 0,
+                order_id: '$_id',
+                client_code: 1,
+                client_name: 1,
+                folder: 1,
+                folder_path: 1,
+                order_type: '$type',
+                order_task: '$task',
+                order_per_file_et: '$et',
+                order_status: '$status',
+                progress_category: '$progress.category',
+                progress_is_qc: '$progress.is_qc',
+                progress_qc_step: '$progress.qc_step',
+                progress_shift: '$progress.shift',
+                file_name: '$progress.files_tracking.file_name',
+                file_status: '$progress.files_tracking.status',
+                start_timestamp: '$progress.files_tracking.start_timestamp',
+                end_timestamp: '$progress.files_tracking.end_timestamp',
+                pause_start_timestamp:
+                    '$progress.files_tracking.pause_start_timestamp',
+                total_pause_duration:
+                    '$progress.files_tracking.total_pause_duration',
+                transferred_from: '$progress.files_tracking.transferred_from',
+            },
+        };
+
+        const sortStage: mongoose.PipelineStage = {
+            $sort: { start_timestamp: -1, order_id: 1 },
+        };
+
+        const basePipeline: mongoose.PipelineStage[] = [
+            ...sharedMatchStages,
+            projectionStage,
+            sortStage,
+        ];
+
+        try {
+            if (!paginated) {
+                const jobs = await this.orderModel
+                    .aggregate<SearchJobAggregateItem>(basePipeline)
+                    .exec();
+
+                return (jobs || []).map(job => ({
+                    ...job,
+                    job_type: deriveJobType(
+                        String(job.order_type || ''),
+                        String(job.progress_category || ''),
+                    ),
+                }));
+            }
+
+            const paginatedPipeline: mongoose.PipelineStage[] = [
                 ...basePipeline,
                 {
                     $facet: {
-                        items: [{ $skip: skip }, { $limit: itemsPerPage }],
+                        items: [{ $skip: skipCount }, { $limit: itemsPerPage }],
                         count: [{ $count: 'total' }],
                     },
                 },
             ];
 
-            const agg = await this.orderModel
-                .aggregate<SearchJobFacetResult>(pipeline)
+            const facetResult = await this.orderModel
+                .aggregate<{
+                    items: SearchJobAggregateItem[];
+                    count: { total: number }[];
+                }>(paginatedPipeline)
                 .exec();
-            const facet = agg?.[0] ?? { items: [], count: [] };
-            const count = facet.count?.[0]?.total ?? 0;
-            const decorated: SearchJobResponseItem[] = (facet.items || []).map(
-                item => ({
-                    ...item,
+
+            const pagedItems = facetResult?.[0]?.items ?? [];
+            const totalCount = facetResult?.[0]?.count?.[0]?.total ?? 0;
+
+            const decoratedJobs: SearchJobResponseItem[] = pagedItems.map(
+                job => ({
+                    ...job,
                     job_type: deriveJobType(
-                        String(item.order_type || ''),
-                        String(item.progress_category || ''),
+                        String(job.order_type || ''),
+                        String(job.progress_category || ''),
                     ),
                 }),
             );
 
             return {
                 pagination: {
-                    count,
-                    pageCount: Math.ceil(count / itemsPerPage) || 0,
+                    count: totalCount,
+                    pageCount: Math.ceil(totalCount / itemsPerPage) || 0,
                     page,
                     itemsPerPage,
                 },
-                items: decorated,
+                items: decoratedJobs,
             };
+        } catch (e) {
+            if (e instanceof HttpException) throw e;
+            throw new InternalServerErrorException('Unable to retrieve jobs');
         }
-
-        const items = await this.orderModel
-            .aggregate<SearchJobAggregateItem>(basePipeline)
-            .exec();
-        const decorated: SearchJobResponseItem[] = (items || []).map(item => ({
-            ...item,
-            job_type: deriveJobType(
-                String(item.order_type || ''),
-                String(item.progress_category || ''),
-            ),
-        }));
-        return decorated;
     }
 }

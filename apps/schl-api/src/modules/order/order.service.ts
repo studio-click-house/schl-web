@@ -4,9 +4,7 @@ import {
     HttpException,
     Injectable,
     InternalServerErrorException,
-    Logger,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { CLIENT_COMMON_COUNTRY } from '@repo/common/constants/client.constant';
 import { Client } from '@repo/common/models/client.schema';
@@ -24,7 +22,6 @@ import { calculateTimeDifference } from '@repo/common/utils/general-utils';
 import { hasAnyPerm, hasPerm } from '@repo/common/utils/permission-check';
 import moment from 'moment-timezone';
 import { Model } from 'mongoose';
-import { QnapService } from '../qnap/qnap.service';
 import { CreateOrderBodyDto } from './dto/create-order.dto';
 import { OrdersByCountryQueryDto } from './dto/orders-by-country.dto';
 import { OrdersByMonthQueryDto } from './dto/orders-by-month.dto';
@@ -38,14 +35,11 @@ import { OrderFactory } from './factories/order.factory';
 
 @Injectable()
 export class OrderService {
-    private readonly logger = new Logger(OrderService.name);
     constructor(
         @InjectModel(Order.name) private readonly orderModel: Model<Order>,
         @InjectModel(Client.name) private readonly clientModel: Model<Client>,
         @InjectModel(Invoice.name)
         private readonly invoiceModel: Model<Invoice>,
-        private readonly configService: ConfigService,
-        private readonly qnapService: QnapService,
     ) {}
 
     async searchOrders(

@@ -44,7 +44,9 @@ export class SearchJobsQueryDto {
     @Transform(({ value }) => toBoolean(value, true))
     @IsBoolean()
     paginated: boolean = true;
+}
 
+export class SearchJobsBodyDto {
     @Transform(emptyStringToUndefined)
     @IsOptional()
     @IsString()
