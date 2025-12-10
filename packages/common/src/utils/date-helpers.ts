@@ -1,5 +1,9 @@
 import moment from 'moment-timezone';
 
+export const getCurrentUtc = (): Date => {
+    return moment().utc().toDate();
+};
+
 export const getTodayDate = (): string => moment().format('YYYY-MM-DD');
 
 /**

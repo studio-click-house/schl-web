@@ -19,6 +19,7 @@ import { Client } from '@repo/common/models/client.schema';
 import { Order } from '@repo/common/models/order.schema';
 import { User } from '@repo/common/models/user.schema';
 import { UserSession } from '@repo/common/types/user-session.type';
+import { getCurrentUtc } from '@repo/common/utils/date-helpers';
 import {
     addIfDefined,
     createRegexQuery,
@@ -28,6 +29,7 @@ import { hasPerm } from '@repo/common/utils/permission-check';
 import mongoose, { Model } from 'mongoose';
 import { NewJobBodyDto } from '../order/dto/new-job.dto';
 import { QnapService } from '../qnap/qnap.service';
+import { FileActionDto } from './dto/file-action.dto';
 import {
     ACTIVE_FILE_STATUSES,
     SearchJobsBodyDto,
@@ -36,12 +38,14 @@ import {
 } from './dto/search-jobs.dto';
 import {
     deriveJobType,
+    ensureFolderExists,
     escapeRegex,
     getCandidateSuffix,
     joinPath,
     mapFolderPathToQnapPath,
     mapJobTypeFilters,
     moveFilesForNewJob,
+    sanitizePathSegment,
 } from './job.utils';
 
 type SearchJobAggregateItem = {
@@ -63,6 +67,7 @@ type SearchJobAggregateItem = {
     pause_start_timestamp?: Date | null;
     total_pause_duration?: number;
     transferred_from?: mongoose.Types.ObjectId | null;
+    time_elapsed_ms?: number;
 };
 
 type SearchJobResponseItem = SearchJobAggregateItem & {
@@ -96,6 +101,251 @@ export class JobService {
         }
 
         return new mongoose.Types.ObjectId(String(user.employee));
+    }
+
+    private computeTotalPauseDuration(file: any, now: Date) {
+        const accumulated = Number(file?.total_pause_duration || 0);
+        const isPaused = file?.status === 'paused';
+        const pauseStart = file?.pause_start_timestamp
+            ? new Date(file.pause_start_timestamp as string | number | Date)
+            : null;
+        if (isPaused && pauseStart) {
+            return (
+                accumulated + Math.max(0, now.getTime() - pauseStart.getTime())
+            );
+        }
+        return accumulated;
+    }
+
+    private async loadFileForEmployee(
+        orderId: string,
+        fileName: string,
+        employeeId: mongoose.Types.ObjectId,
+    ) {
+        const order = await this.orderModel.findById(orderId).lean().exec();
+
+        if (!order) throw new NotFoundException('Order not found');
+        if (!Array.isArray(order.progress) || order.progress.length === 0) {
+            throw new NotFoundException('Progress not found for order');
+        }
+
+        const progressIndex = order.progress.findIndex(
+            (p: any) =>
+                p && p.employee && String(p.employee) === String(employeeId),
+        );
+        if (progressIndex === -1) {
+            throw new ForbiddenException('You are not assigned to this order');
+        }
+
+        const progress = order.progress[progressIndex];
+        if (!progress || !Array.isArray(progress.files_tracking)) {
+            throw new NotFoundException(
+                'No files assigned to you for this order',
+            );
+        }
+
+        const fileIndex = progress.files_tracking.findIndex(
+            (f: any) => f && String(f.file_name) === String(fileName),
+        );
+        if (fileIndex === -1) {
+            throw new NotFoundException('File not found for this employee');
+        }
+
+        const file = progress.files_tracking[fileIndex];
+
+        if (!file) {
+            throw new NotFoundException('File not found for this employee');
+        }
+
+        return { order, progressIndex, fileIndex, file, progress };
+    }
+
+    async resumeFile(payload: FileActionDto, userSession: UserSession) {
+        const employeeId = await this.resolveEmployeeId(userSession);
+        const { order, file } = await this.loadFileForEmployee(
+            payload.orderId,
+            payload.fileName,
+            employeeId,
+        );
+
+        const now: Date = getCurrentUtc();
+
+        if (file.status === 'completed' || file.status === 'cancelled') {
+            throw new ConflictException('File is already closed');
+        }
+
+        const update: Record<string, any> = {};
+        const arrayFilters = [
+            { 'p.employee': employeeId },
+            { 'f.file_name': payload.fileName },
+        ];
+
+        if (file.status === 'paused') {
+            const totalPause = this.computeTotalPauseDuration(file, now);
+            update['progress.$[p].files_tracking.$[f].status'] = 'working';
+            update['progress.$[p].files_tracking.$[f].pause_start_timestamp'] =
+                null;
+            update['progress.$[p].files_tracking.$[f].total_pause_duration'] =
+                totalPause;
+        } else if (file.status === 'transferred') {
+            update['progress.$[p].files_tracking.$[f].status'] = 'working';
+            update['progress.$[p].files_tracking.$[f].start_timestamp'] = now;
+            update['progress.$[p].files_tracking.$[f].end_timestamp'] = null;
+            update['progress.$[p].files_tracking.$[f].pause_start_timestamp'] =
+                null;
+            update['progress.$[p].files_tracking.$[f].total_pause_duration'] =
+                0;
+        } else if (file.status === 'working') {
+            // No-op resume
+            throw new ConflictException('File is already in working status');
+        } else {
+            throw new ConflictException('Unsupported status for resume');
+        }
+
+        const updated = await this.orderModel
+            .updateOne({ _id: order._id }, { $set: update }, { arrayFilters })
+            .exec();
+
+        if (!updated?.modifiedCount) {
+            throw new InternalServerErrorException('Unable to resume file');
+        }
+
+        return { message: 'Resumed successfully' };
+    }
+
+    async pauseFile(payload: FileActionDto, userSession: UserSession) {
+        const employeeId = await this.resolveEmployeeId(userSession);
+        const { order, file } = await this.loadFileForEmployee(
+            payload.orderId,
+            payload.fileName,
+            employeeId,
+        );
+
+        if (file.status === 'completed' || file.status === 'cancelled') {
+            throw new ConflictException('File is already closed');
+        }
+        if (file.status === 'paused') {
+            throw new ConflictException('File is already paused');
+        }
+        if (file.status !== 'working' && file.status !== 'transferred') {
+            throw new ConflictException('Unsupported status for pause');
+        }
+
+        const now: Date = getCurrentUtc();
+
+        const update: Record<string, any> = {
+            'progress.$[p].files_tracking.$[f].status': 'paused',
+            'progress.$[p].files_tracking.$[f].pause_start_timestamp': now,
+        };
+        const arrayFilters = [
+            { 'p.employee': employeeId },
+            { 'f.file_name': payload.fileName },
+        ];
+
+        const result = await this.orderModel
+            .updateOne({ _id: order._id }, { $set: update }, { arrayFilters })
+            .exec();
+
+        if (!result?.modifiedCount) {
+            throw new InternalServerErrorException('Unable to pause file');
+        }
+
+        return { message: 'Paused successfully' };
+    }
+
+    private async closeFile(
+        payload: FileActionDto,
+        userSession: UserSession,
+        finalStatus: FileStatus,
+    ) {
+        const employeeId = await this.resolveEmployeeId(userSession);
+        const { order, file, progress } = await this.loadFileForEmployee(
+            payload.orderId,
+            payload.fileName,
+            employeeId,
+        );
+
+        if (file.status === 'completed' || file.status === 'cancelled') {
+            throw new ConflictException('File is already closed');
+        }
+
+        const now: Date = getCurrentUtc();
+        const totalPause = this.computeTotalPauseDuration(file, now);
+
+        // If cancelling, move the file to PARTIALLY DONE root (no employee subfolder)
+        if (finalStatus === 'cancelled') {
+            const baseQnapPath = mapFolderPathToQnapPath(
+                order.folder_path,
+                this.configService.get<string>('QNAP_DRIVE_MAP'),
+            );
+
+            if (baseQnapPath) {
+                const normalizedType = deriveJobType(
+                    String(order.type || ''),
+                    String(progress?.category || ''),
+                );
+                const destSuffix = getCandidateSuffix(
+                    normalizedType,
+                    'incomplete',
+                    Number(progress?.qc_step),
+                );
+                const destPath = joinPath(baseQnapPath, destSuffix);
+                const sourcePath = joinPath(
+                    destPath,
+                    sanitizePathSegment(userSession.real_name || 'employee'),
+                );
+
+                try {
+                    await ensureFolderExists(
+                        this.qnapService,
+                        destPath,
+                        this.logger,
+                    );
+                    await this.qnapService.move(
+                        sourcePath,
+                        [payload.fileName],
+                        destPath,
+                        1,
+                    );
+                } catch (err) {
+                    const msg =
+                        err instanceof Error ? err.message : String(err);
+                    throw new InternalServerErrorException(
+                        `File move failed: ${msg}`,
+                    );
+                }
+            }
+        }
+
+        const update: Record<string, any> = {
+            'progress.$[p].files_tracking.$[f].status': finalStatus,
+            'progress.$[p].files_tracking.$[f].end_timestamp': now,
+            'progress.$[p].files_tracking.$[f].pause_start_timestamp': null,
+            'progress.$[p].files_tracking.$[f].total_pause_duration':
+                totalPause,
+        };
+        const arrayFilters = [
+            { 'p.employee': employeeId },
+            { 'f.file_name': payload.fileName },
+        ];
+
+        const result = await this.orderModel
+            .updateOne({ _id: order._id }, { $set: update }, { arrayFilters })
+            .exec();
+
+        if (!result?.modifiedCount) {
+            throw new InternalServerErrorException('Unable to update file');
+        }
+
+        return { message: 'Updated successfully' };
+    }
+
+    async finishFile(payload: FileActionDto, userSession: UserSession) {
+        return this.closeFile(payload, userSession, 'completed');
+    }
+
+    async cancelFile(payload: FileActionDto, userSession: UserSession) {
+        return this.closeFile(payload, userSession, 'cancelled');
     }
 
     // Portal: Add a new progress entry to existing order (identified by clientCode + folderPath)
@@ -214,7 +464,7 @@ export class JobService {
                 );
             }
 
-            const now = new Date();
+            const now = getCurrentUtc();
             const fileStatus = payload.isActive ? 'working' : 'paused';
             const filesTracking = filteredFileNames.map(f => ({
                 file_name: f,
@@ -688,6 +938,71 @@ export class JobService {
                 total_pause_duration:
                     '$progress.files_tracking.total_pause_duration',
                 transferred_from: '$progress.files_tracking.transferred_from',
+                time_elapsed_ms: {
+                    $let: {
+                        vars: {
+                            effectiveEnd: {
+                                $ifNull: [
+                                    '$progress.files_tracking.end_timestamp',
+                                    '$$NOW',
+                                ],
+                            },
+                            currentPause: {
+                                $cond: [
+                                    {
+                                        $and: [
+                                            {
+                                                $eq: [
+                                                    '$progress.files_tracking.status',
+                                                    'paused',
+                                                ],
+                                            },
+                                            {
+                                                $ifNull: [
+                                                    '$progress.files_tracking.pause_start_timestamp',
+                                                    false,
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        $subtract: [
+                                            '$$NOW',
+                                            '$progress.files_tracking.pause_start_timestamp',
+                                        ],
+                                    },
+                                    0,
+                                ],
+                            },
+                        },
+                        in: {
+                            $max: [
+                                0,
+                                {
+                                    $subtract: [
+                                        {
+                                            $subtract: [
+                                                '$$effectiveEnd',
+                                                '$progress.files_tracking.start_timestamp',
+                                            ],
+                                        },
+                                        {
+                                            $add: [
+                                                {
+                                                    $ifNull: [
+                                                        '$progress.files_tracking.total_pause_duration',
+                                                        0,
+                                                    ],
+                                                },
+                                                '$$currentPause',
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    },
+                },
             },
         };
 

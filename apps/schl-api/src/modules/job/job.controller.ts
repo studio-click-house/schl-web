@@ -12,6 +12,7 @@ import { hasPerm } from '@repo/common/utils/permission-check';
 import { NewJobBodyDto } from '../order/dto/new-job.dto';
 import { AvailableFoldersQueryDto } from './dto/available-folders.dto';
 import { AvailableOrdersQueryDto } from './dto/available-orders.dto';
+import { FileActionDto } from './dto/file-action.dto';
 import { ListFilesQueryDto } from './dto/list-files.dto';
 import { SearchJobsQueryDto } from './dto/search-jobs.dto';
 import { JobService } from './job.service';
@@ -69,5 +70,37 @@ export class JobController {
         @Query() query: SearchJobsQueryDto,
     ) {
         return this.jobService.searchJobs(query, req.user);
+    }
+
+    @Post('resume')
+    resumeFile(
+        @Req() req: Request & { user: UserSession },
+        @Body() body: FileActionDto,
+    ) {
+        return this.jobService.resumeFile(body, req.user);
+    }
+
+    @Post('pause')
+    pauseFile(
+        @Req() req: Request & { user: UserSession },
+        @Body() body: FileActionDto,
+    ) {
+        return this.jobService.pauseFile(body, req.user);
+    }
+
+    @Post('finish')
+    finishFile(
+        @Req() req: Request & { user: UserSession },
+        @Body() body: FileActionDto,
+    ) {
+        return this.jobService.finishFile(body, req.user);
+    }
+
+    @Post('cancel')
+    cancelFile(
+        @Req() req: Request & { user: UserSession },
+        @Body() body: FileActionDto,
+    ) {
+        return this.jobService.cancelFile(body, req.user);
     }
 }
