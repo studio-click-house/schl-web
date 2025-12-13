@@ -51,7 +51,7 @@ import {
 } from './job.utils';
 
 type SearchJobAggregateItem = {
-    orderId: mongoose.Types.ObjectId;
+    order_id: mongoose.Types.ObjectId;
     client_code?: string;
     client_name?: string;
     folder?: string;
@@ -96,7 +96,7 @@ export class JobService {
             .exec();
 
         const name = user?.real_name ? String(user.real_name).trim() : '';
-        return name || 'employee';
+        return name;
     }
 
     // Resolve the employee ObjectId for the current user session
@@ -211,7 +211,7 @@ export class JobService {
             throw new InternalServerErrorException('Unable to resume file');
         }
 
-        return { message: 'Resumed successfully' };
+        return 'Resumed successfully';
     }
 
     async pauseFile(payload: FileActionDto, userSession: UserSession) {
@@ -256,7 +256,7 @@ export class JobService {
             throw new InternalServerErrorException('Unable to pause file');
         }
 
-        return { message: 'Paused successfully' };
+        return 'Paused successfully';
     }
 
     private async closeFile(
@@ -300,7 +300,7 @@ export class JobService {
                 const destPath = joinPath(baseQnapPath, destSuffix);
                 const sourcePath = joinPath(
                     destPath,
-                    sanitizePathSegment(userSession.real_name || 'employee'),
+                    sanitizePathSegment(userSession.real_name),
                 );
 
                 try {
@@ -339,7 +339,7 @@ export class JobService {
                 );
 
                 const employeeFolder = sanitizePathSegment(
-                    userSession.real_name || 'employee',
+                    userSession.real_name,
                 );
 
                 // Use “incomplete” to point to the PARTIALLY DONE stage where in-progress files live.
@@ -407,7 +407,7 @@ export class JobService {
             throw new InternalServerErrorException('Unable to update file');
         }
 
-        return { message: 'Updated successfully' };
+        return 'Updated successfully';
     }
 
     async finishFile(payload: FileActionDto, userSession: UserSession) {
@@ -463,9 +463,7 @@ export class JobService {
                 Number(progress?.qc_step),
             );
 
-            const sourceFolder = sanitizePathSegment(
-                userSession.real_name || 'employee',
-            );
+            const sourceFolder = sanitizePathSegment(userSession.real_name);
 
             const targetName = await this.resolveEmployeeName(targetEmployeeId);
 
@@ -512,7 +510,7 @@ export class JobService {
             files_tracking: Array.isArray(progress.files_tracking)
                 ? [...progress.files_tracking]
                 : [],
-        } as any;
+        };
 
         sourceProgress.files_tracking[fileIndex] = {
             ...file,
@@ -523,13 +521,13 @@ export class JobService {
         };
 
         let targetProgressIndex = progressList.findIndex(
-            (p: any) => p && String(p.employee) === String(targetEmployeeId),
+            p => p && String(p.employee) === String(targetEmployeeId),
         );
 
         if (targetProgressIndex === -1) {
             progressList.push({
                 employee: targetEmployeeId,
-                shift: sourceProgress.shift ?? null,
+                shift: sourceProgress.shift ?? 'morning',
                 category: sourceProgress.category,
                 is_qc: sourceProgress.is_qc,
                 qc_step: sourceProgress.qc_step ?? null,
@@ -538,16 +536,21 @@ export class JobService {
             targetProgressIndex = progressList.length - 1;
         }
 
-        const baseTargetProgress =
-            (progressList[targetProgressIndex] as any) ?? {};
-        const targetFiles = Array.isArray(baseTargetProgress.files_tracking)
+        const baseTargetProgress = progressList[targetProgressIndex];
+        const targetFiles = Array.isArray(baseTargetProgress?.files_tracking)
             ? [...baseTargetProgress.files_tracking]
             : [];
 
-        const targetProgress = {
-            ...baseTargetProgress,
-            files_tracking: targetFiles,
-        };
+        const targetProgress: (typeof progressList)[number] = baseTargetProgress
+            ? { ...baseTargetProgress, files_tracking: targetFiles }
+            : {
+                  employee: targetEmployeeId,
+                  shift: sourceProgress.shift ?? 'morning',
+                  category: sourceProgress.category,
+                  is_qc: sourceProgress.is_qc,
+                  qc_step: sourceProgress.qc_step ?? null,
+                  files_tracking: targetFiles,
+              };
 
         const existingTargetFile = targetFiles.find((f: any) => {
             return (
@@ -594,10 +597,9 @@ export class JobService {
             throw new InternalServerErrorException('Unable to transfer file');
         }
 
-        return { message: 'Transferred successfully' };
+        return 'Transferred successfully';
     }
 
-    // Portal: Add a new progress entry to existing order (identified by clientCode + folderPath)
     async newJob(payload: NewJobBodyDto, userSession: UserSession) {
         if (!hasPerm('job:get_jobs', userSession.permissions)) {
             throw new ForbiddenException(
@@ -606,14 +608,8 @@ export class JobService {
         }
 
         const employeeId = await this.resolveEmployeeId(userSession);
-
         const clientCode = String(payload.clientCode || '').trim();
-        if (!clientCode)
-            throw new BadRequestException('Client code is required');
-
         const folderPath = String(payload.folderPath || '').trim();
-        if (!folderPath)
-            throw new BadRequestException('Folder path is required');
 
         const fileNames = Array.isArray(payload.fileNames)
             ? payload.fileNames
@@ -757,7 +753,7 @@ export class JobService {
                     normalizedType,
                     normalizedCondition,
                     qcStep: payload.qcStep,
-                    employeeName: userSession.real_name || 'employee',
+                    employeeName: userSession.real_name,
                     fileNames: filteredFileNames,
                     driveMap: this.configService.get<string>('QNAP_DRIVE_MAP'),
                     qnapService: this.qnapService,
@@ -911,7 +907,7 @@ export class JobService {
                     _id: '$folder_path',
                     folder_name: { $first: '$folder' },
                     client_code: { $first: '$client_code' },
-                    orderId: { $first: '$_id' },
+                    order_id: { $first: '$_id' },
                     quantity: { $first: '$quantity' },
                     production: { $first: '$production' },
                 },
@@ -922,7 +918,7 @@ export class JobService {
                     folder_path: '$_id',
                     folder_name: 1,
                     client_code: 1,
-                    orderId: 1,
+                    order_id: 1,
                     quantity: 1,
                     production: 1,
                 },
@@ -933,7 +929,7 @@ export class JobService {
         const groups = (await this.orderModel
             .aggregate(pipeline)
             .exec()) as Array<Record<string, any>>;
-        const folders = (groups || []).map((g: Record<string, any>) => {
+        const folders = groups?.map((g: Record<string, any>) => {
             const { displayPath, folderKey } = normalizeFolderPath(
                 String(g.folder_path || ''),
             );
@@ -941,7 +937,7 @@ export class JobService {
                 folder_path: g.folder_path,
                 folder_name: g.folder_name,
                 client_code: g.client_code,
-                orderId: g.orderId,
+                order_id: g.order_id,
                 quantity: g.quantity,
                 production: g.production,
                 display_path: displayPath,
@@ -949,7 +945,7 @@ export class JobService {
             };
         });
 
-        return folders;
+        return folders || [];
     }
 
     async availableFiles(

@@ -22,8 +22,8 @@ class OrderFilesTracking {
     @Prop({ required: [true, 'File name is required'] })
     file_name: string;
 
-    @Prop({ required: [true, 'Start timestamp is required'], type: Date })
-    start_timestamp: Date;
+    @Prop({ type: Date, default: null })
+    start_timestamp: Date | null;
 
     @Prop({ default: null, type: Date })
     end_timestamp: Date | null;
