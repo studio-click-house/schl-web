@@ -187,6 +187,104 @@ export const sanitizePathSegment = (input: string): string => {
     return cleaned || 'employee';
 };
 
+/**
+ * QNAP listFolderContents responses vary (stringified JSON, raw objects, or nested under `data`).
+ * Normalize into a consistent payload for downstream parsing.
+ */
+export function normalizeQnapListPayload(resp: any): any {
+    if (typeof resp === 'string') {
+        try {
+            return JSON.parse(resp);
+        } catch {
+            return resp;
+        }
+    }
+    if (resp && typeof resp === 'object' && 'data' in resp) {
+        const maybeData = (resp as Record<string, unknown>).data;
+        if (maybeData !== undefined) return maybeData;
+    }
+    return resp;
+}
+
+export type QnapEntry = { name: string; isFolder: boolean };
+
+/**
+ * Extract file and folder entries from heterogeneous QNAP list responses.
+ */
+export function parseQnapEntries(resp: unknown): QnapEntry[] {
+    if (!resp) return [];
+
+    const candidates: unknown[] = [];
+    const collectArrays = (obj: unknown) => {
+        if (obj === null || obj === undefined) return;
+        if (Array.isArray(obj)) {
+            candidates.push(obj);
+            return;
+        }
+        if (typeof obj !== 'object') return;
+        const record = obj as Record<string, unknown>;
+        for (const value of Object.values(record)) {
+            collectArrays(value);
+        }
+    };
+    collectArrays(resp);
+
+    const getString = (obj: Record<string, unknown>, key: string) => {
+        const value = obj[key];
+        return typeof value === 'string' ? value : null;
+    };
+
+    const isFolderFlag = (obj: Record<string, unknown>) =>
+        ['isFolder', 'isfolder', 'IsFolder', 'is_dir'].some(key => {
+            const value = obj[key];
+            if (typeof value === 'boolean') return value;
+            if (typeof value === 'number') return value !== 0;
+            if (typeof value === 'string')
+                return value.toLowerCase() === 'true';
+            return false;
+        });
+
+    const entries: QnapEntry[] = [];
+
+    for (const arr of candidates) {
+        if (!Array.isArray(arr)) continue;
+        for (const e of arr) {
+            if (!e) continue;
+            if (typeof e === 'string') {
+                const n = e.trim();
+                if (!n) continue;
+                entries.push({ name: n, isFolder: false });
+                continue;
+            }
+            if (typeof e !== 'object') continue;
+            const asObj = e as Record<string, unknown>;
+            const name =
+                getString(asObj, 'name') ??
+                getString(asObj, 'FileName') ??
+                getString(asObj, 'fileName') ??
+                getString(asObj, 'filename') ??
+                getString(asObj, 'File');
+            const isFolder = isFolderFlag(asObj);
+
+            if (name && name.trim()) {
+                const clean = name.trim();
+                entries.push({ name: clean, isFolder });
+                continue;
+            }
+
+            const displayName = getString(asObj, 'displayname');
+            if (displayName) {
+                const clean = displayName.trim();
+                if (clean) {
+                    entries.push({ name: clean, isFolder });
+                }
+            }
+        }
+    }
+
+    return entries;
+}
+
 export function buildMovePlan(
     normalizedType: string,
 

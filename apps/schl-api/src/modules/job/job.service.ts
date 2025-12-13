@@ -47,7 +47,10 @@ import {
     mapFolderPathToQnapPath,
     mapJobTypeFilters,
     moveFilesForNewJob,
+    normalizeQnapListPayload,
+    parseQnapEntries,
     sanitizePathSegment,
+    type QnapEntry,
 } from './job.utils';
 
 type SearchJobAggregateItem = {
@@ -985,6 +988,32 @@ export class JobService {
             this.configService.get<string>('QNAP_DRIVE_MAP'),
         );
 
+        // Normalize slashes to avoid Mongo regex parsing backslash sequences (e.g., \P)
+        const safeRawCandidatePath = String(rawCandidatePath || '').replace(
+            /\\+/g,
+            '/',
+        );
+        const safeMappedCandidate = String(mappedCandidate || '').replace(
+            /\\+/g,
+            '/',
+        );
+
+        const regexClauses = [] as Array<Record<string, any>>;
+        if (safeMappedCandidate) {
+            regexClauses.push({
+                folder_path: {
+                    $regex: `^${escapeRegex(safeMappedCandidate)}/`,
+                },
+            });
+        }
+        if (safeRawCandidatePath) {
+            regexClauses.push({
+                folder_path: {
+                    $regex: `^${escapeRegex(safeRawCandidatePath)}/`,
+                },
+            });
+        }
+
         const occPipeline = [
             {
                 $match: {
@@ -992,16 +1021,7 @@ export class JobService {
                         { folder_path: { $in: [rawPath, rawCandidatePath] } },
                         { folder_path: { $in: [mappedBase, mappedCandidate] } },
                         // Match any subfolders under candidate path (for QC/Done employee folders)
-                        {
-                            folder_path: {
-                                $regex: `^${escapeRegex(mappedCandidate)}/`,
-                            },
-                        },
-                        {
-                            folder_path: {
-                                $regex: `^${escapeRegex(rawCandidatePath)}/`,
-                            },
-                        },
+                        ...regexClauses,
                     ],
                 },
             },
@@ -1030,49 +1050,6 @@ export class JobService {
         const occupiedSet = new Set<string>(occFiles);
 
         const filesSet = new Set<string>();
-        const parseQnapResponse = (
-            resp: any,
-        ): Array<{ name: string; isFolder?: boolean }> => {
-            if (!resp) return [];
-            const candidates: unknown[] = [];
-            const collectArrays = (obj: unknown) => {
-                if (obj === null || obj === undefined) return;
-                if (Array.isArray(obj)) {
-                    candidates.push(obj);
-                    return;
-                }
-                if (typeof obj !== 'object') return;
-                for (const k of Object.keys(obj as Record<string, any>)) {
-                    collectArrays((obj as Record<string, any>)[k]);
-                }
-            };
-            collectArrays(resp);
-            for (const arr of candidates) {
-                if (!Array.isArray(arr)) continue;
-                for (const e of arr) {
-                    if (!e) continue;
-                    if (typeof e === 'string') {
-                        const n = String(e || '').trim();
-                        if (!n) continue;
-                        filesSet.add(n);
-                        continue;
-                    }
-                    if (typeof e !== 'object') continue;
-                    const hasAttrs =
-                        e.name || e.FileName || e.fileName || e.File; // qnap's old format
-                    if (hasAttrs) {
-                        const name =
-                            e.name || e.FileName || e.fileName || e.File || '';
-                        // const isFolder = Boolean(e.isFolder || e.IsFolder || e.is_dir);
-                        if (typeof name === 'string') {
-                            filesSet.add(name);
-                            continue;
-                        }
-                    }
-                }
-            }
-            return [];
-        };
 
         const qnapBase = mapFolderPathToQnapPath(
             rawPath,
@@ -1085,15 +1062,47 @@ export class JobService {
                 normalizedType.startsWith('qc') &&
                 normalizedCondition === 'fresh'
             ) {
-                // ... rest omitted for brevity in commit
+                const donePath = targetPath;
+                this.logger.debug(`Calling QNAP path: ${donePath}`);
+                const doneResp = await this.qnapService.listFolderContents({
+                    path: donePath,
+                    limit: 20000,
+                });
+                const doneEntries: QnapEntry[] = parseQnapEntries(
+                    normalizeQnapListPayload(doneResp),
+                );
+                const subfolders = doneEntries
+                    .filter(entry => entry.isFolder)
+                    .map(entry => entry.name);
+                for (const sf of subfolders) {
+                    const subpath = joinPath(donePath, sf);
+                    this.logger.debug(`Calling QNAP path: ${subpath}`);
+                    const subResp = await this.qnapService.listFolderContents({
+                        path: subpath,
+                        limit: 20000,
+                    });
+                    const subEntries: QnapEntry[] = parseQnapEntries(
+                        normalizeQnapListPayload(subResp),
+                    );
+                    for (const se of subEntries) {
+                        if (se.isFolder) continue;
+                        if (occupiedSet.has(se.name)) continue;
+                        filesSet.add(se.name);
+                    }
+                }
+                return Array.from(filesSet);
             }
+
             // Generic path listing for others (or QC when condition == 'incomplete')
             this.logger.debug(`Calling QNAP path: ${targetPath}`);
             const resp = await this.qnapService.listFolderContents({
                 path: targetPath,
                 limit: 20000,
             });
-            const entries = parseQnapResponse(resp);
+
+            const entries: QnapEntry[] = parseQnapEntries(
+                normalizeQnapListPayload(resp),
+            );
             for (const e of entries) {
                 if (e.isFolder) continue;
                 const n = (e.name || '').replace(/\r|\n/g, '').trim();
