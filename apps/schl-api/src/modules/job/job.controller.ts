@@ -1,19 +1,10 @@
-import {
-    Body,
-    Controller,
-    ForbiddenException,
-    Get,
-    Post,
-    Query,
-    Req,
-} from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, Req } from '@nestjs/common';
 import { UserSession } from '@repo/common/types/user-session.type';
-import { hasPerm } from '@repo/common/utils/permission-check';
-import { NewJobBodyDto } from '../order/dto/new-job.dto';
 import { AvailableFoldersQueryDto } from './dto/available-folders.dto';
 import { AvailableOrdersQueryDto } from './dto/available-orders.dto';
 import { FileActionDto } from './dto/file-action.dto';
 import { ListFilesQueryDto } from './dto/list-files.dto';
+import { NewJobBodyDto } from './dto/new-job.dto';
 import { SearchJobsBodyDto, SearchJobsQueryDto } from './dto/search-jobs.dto';
 import { TransferFileDto } from './dto/transfer-file.dto';
 import { JobService } from './job.service';
@@ -27,11 +18,6 @@ export class JobController {
         @Req() req: Request & { user: UserSession },
         @Body() body: NewJobBodyDto,
     ) {
-        if (!hasPerm('job:get_jobs', req.user.permissions)) {
-            throw new ForbiddenException(
-                "You don't have permission to get new jobs",
-            );
-        }
         return this.jobService.newJob(body, req.user);
     }
 
@@ -61,11 +47,12 @@ export class JobController {
             folderPath,
             jobType,
             fileCondition,
-            qcStep != null ? Number(qcStep) : 1,
+            req.user,
+            qcStep,
         );
     }
 
-    @Get('search-jobs')
+    @Post('search-jobs')
     searchJobs(
         @Req() req: Request & { user: UserSession },
         @Query() query: SearchJobsQueryDto,

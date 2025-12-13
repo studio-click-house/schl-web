@@ -26,9 +26,9 @@ import {
 import { normalizeFolderPath } from '@repo/common/utils/general-utils';
 import { hasPerm } from '@repo/common/utils/permission-check';
 import mongoose, { Model } from 'mongoose';
-import { NewJobBodyDto } from '../order/dto/new-job.dto';
 import { QnapService } from '../qnap/qnap.service';
 import { FileActionDto } from './dto/file-action.dto';
+import { NewJobBodyDto } from './dto/new-job.dto';
 import {
     ACTIVE_FILE_STATUSES,
     SearchJobsBodyDto,
@@ -952,8 +952,15 @@ export class JobService {
         folderPath: string,
         jobType: JobSelectionType,
         fileCondition: FileCondition,
-        qcStep: number = 1,
+        userSession: UserSession,
+        qcStep?: number,
     ): Promise<string[]> {
+        if (!hasPerm('job:get_jobs', userSession.permissions)) {
+            throw new ForbiddenException(
+                "You don't have permission to view available jobs",
+            );
+        }
+
         const normalizedType = jobType.trim().toLowerCase();
         const normalizedCondition = fileCondition.trim().toLowerCase();
         const rawPath = String(folderPath || '').trim();
@@ -963,9 +970,9 @@ export class JobService {
 
         // Candidate suffix for the selected jobType and condition (path selection only, not DB status)
         const candidateSuffix = getCandidateSuffix(
-            String(normalizedType),
-            String(normalizedCondition),
-            Number(qcStep || 1),
+            normalizedType,
+            normalizedCondition,
+            qcStep,
         );
 
         const rawCandidatePath = joinPath(rawPath, candidateSuffix);
