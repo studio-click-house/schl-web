@@ -15,7 +15,10 @@ const nonEmptyString = (
 const currencyEnum = z.enum(['$', '€', '£', 'A$', 'C$', 'NOK', 'DKK', 'SEK']);
 
 export const validationSchema = z.object({
-    client_code: nonEmptyString('Client code'),
+    client_code: nonEmptyString('Client code').regex(
+        /^\d+_([A-Za-z]+([_-][A-Za-z]+)*)$/,
+        'Client code must be in the format "0000_XX" or "0000_XX-YY"',
+    ),
     client_name: nonEmptyString('Client name'),
     marketer: nonEmptyString('Marketer'),
     contact_person: nonEmptyString('Contact person'),

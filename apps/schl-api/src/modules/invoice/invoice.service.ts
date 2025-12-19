@@ -4,6 +4,7 @@ import {
     HttpException,
     Injectable,
     InternalServerErrorException,
+    Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Client } from '@repo/common/models/client.schema';
@@ -25,6 +26,7 @@ import { InvoiceFactory } from './factories/invoice.factory';
 
 @Injectable()
 export class InvoiceService {
+    private readonly logger = new Logger(InvoiceService.name);
     constructor(
         @InjectModel(Invoice.name)
         private readonly invoiceModel: Model<Invoice>,
@@ -77,7 +79,7 @@ export class InvoiceService {
             // Update client's last invoice number
             const updatedClient = await this.clientModel.findByIdAndUpdate(
                 body.clientId,
-                { last_invoice_number: Number(body.invoiceNumber) },
+                { last_invoice_number: body.invoiceNumber },
                 { session, new: true },
             );
 

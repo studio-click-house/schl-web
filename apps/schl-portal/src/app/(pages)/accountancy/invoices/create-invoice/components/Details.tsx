@@ -419,6 +419,7 @@ const Details: React.FC<DetailsProps> = props => {
 
     useEffect(() => {
         if (clientDetails) {
+            console.log('clientDetails::: ', clientDetails);
             setCustomer({
                 companyName: clientDetails.client_name ?? '',
                 companyAddress: clientDetails.address
@@ -433,7 +434,7 @@ const Details: React.FC<DetailsProps> = props => {
                     const lastInvoiceNumber =
                         clientDetails?.last_invoice_number;
                     const baseCode =
-                        clientDetails?.client_code?.split('_')?.[1] || '00XX';
+                        clientDetails?.client_code?.split('_')?.[1] || 'XX';
                     if (lastInvoiceNumber) {
                         const numericPart = lastInvoiceNumber.match(/\d+/)?.[0];
                         return numericPart
@@ -442,7 +443,7 @@ const Details: React.FC<DetailsProps> = props => {
                                   .padStart(4, '0')}`
                             : `${baseCode}0001`;
                     }
-                    return `${baseCode}00XX`;
+                    return `${baseCode}0001`;
                 })(),
                 currency: clientDetails.currency ?? '',
                 prices: clientDetails.prices ?? '',
