@@ -1003,10 +1003,14 @@ export class ReportService {
 
             console.log('Created client:', created);
 
-            // 3) Update corresponding report: find one non-lead with company_name == client_name
+            // 3) Update corresponding report.
             const updatedReport = await this.reportModel.findOneAndUpdate(
-                { company_name: body.clientName, is_lead: false },
-                { client_status: 'approved', onboard_date: getTodayDate() },
+                { _id: body.reportId, is_lead: false },
+                {
+                    client_status: 'approved',
+                    onboard_date: getTodayDate(),
+                    client_code: body.clientCode,
+                },
                 { new: true, session },
             );
 
@@ -1069,6 +1073,7 @@ export class ReportService {
     async markDuplicateClientRequest(
         userSession: UserSession,
         reportId: string,
+        clientCode: string,
     ) {
         if (!hasPerm('crm:check_client_request', userSession.permissions)) {
             throw new ForbiddenException(
@@ -1076,11 +1081,20 @@ export class ReportService {
             );
         }
 
+        const normalizedClientCode = clientCode?.trim();
+        if (!normalizedClientCode) {
+            throw new BadRequestException('Client code is required');
+        }
+
         try {
             const updated = await this.reportModel
                 .findByIdAndUpdate(
                     reportId,
-                    { client_status: 'approved', onboard_date: getTodayDate() },
+                    {
+                        client_status: 'approved',
+                        onboard_date: getTodayDate(),
+                        client_code: normalizedClientCode,
+                    },
                     { new: true },
                 )
                 .exec();
@@ -1229,7 +1243,7 @@ export class ReportService {
         try {
             const marketerRealName = userSession.real_name;
             // Step 1: mark the source report as a withdrawn lead
-            const leadData = (await this.reportModel
+            const leadData = await this.reportModel
                 .findByIdAndUpdate(
                     reportId,
                     {
@@ -1240,7 +1254,7 @@ export class ReportService {
                     { new: true },
                 )
                 .lean()
-                .exec()) as Report | null;
+                .exec();
 
             const isEmpty = (str?: string | null) => !str || str.trim() === '';
 

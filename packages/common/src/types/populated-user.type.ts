@@ -1,7 +1,9 @@
 import { UserDocument } from '../models/user.schema';
 import { type Permissions } from './permission.type';
-export interface PopulatedByEmployeeUser
-    extends Omit<UserDocument, 'employee'> {
+export interface PopulatedByEmployeeUser extends Omit<
+    UserDocument,
+    'employee'
+> {
     employee: {
         _id: string;
         e_id: string;
@@ -19,6 +21,7 @@ export interface PopulatedByRoleUser extends Omit<UserDocument, 'role'> {
 }
 
 export interface FullyPopulatedUser
-    extends Omit<UserDocument, 'employee' | 'role'>,
+    extends
+        Omit<UserDocument, 'employee' | 'role'>,
         Pick<PopulatedByEmployeeUser, 'employee'>,
         Pick<PopulatedByRoleUser, 'role'> {}

@@ -93,6 +93,9 @@ export class Report {
     @Prop({ default: null, type: String })
     lead_origin: string | null; // null for non-lead reports, string ("generated" | <marketer name>) for lead reports
 
+    @Prop({ default: null, type: String })
+    client_code: string | null; // null for non-client reports, string ("0000_XX") for client reports
+
     @Prop({ type: Date })
     readonly createdAt: Date;
 

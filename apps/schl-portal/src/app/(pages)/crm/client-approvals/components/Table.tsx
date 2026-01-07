@@ -185,7 +185,7 @@ const Table = () => {
     };
 
     // mark the request as duplicate as the client already exists
-    const markDuplicate = async (reportId: string) => {
+    const markDuplicate = async (reportId: string, clientCode: string) => {
         try {
             const response = await authedFetchApi(
                 {
@@ -196,6 +196,7 @@ const Table = () => {
                     headers: {
                         'Content-Type': 'application/json',
                     },
+                    body: JSON.stringify({ clientCode }),
                 },
             );
 
@@ -228,9 +229,17 @@ const Table = () => {
                 return;
             }
 
-            const { _id, createdAt, updatedAt, __v, ...rest } = parsed.data;
+            const {
+                _id: reportId,
+                createdAt,
+                updatedAt,
+                __v,
+                ...rest
+            } = parsed.data;
             const payload = Object.fromEntries(
-                Object.entries(rest).filter(([, value]) => value !== undefined),
+                Object.entries({ ...rest, reportId }).filter(
+                    ([, value]) => value !== undefined,
+                ),
             );
 
             const response = await authedFetchApi(

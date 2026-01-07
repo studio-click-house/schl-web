@@ -5,10 +5,12 @@ import React, { useState } from 'react';
 
 interface PropsType {
     reportData: { [key: string]: any };
-    submitHandler: (reportId: string) => Promise<void>;
+    submitHandler: (reportId: string, clientCode: string) => Promise<void>;
 }
 const DuplicateButton: React.FC<PropsType> = props => {
     const [isOpen, setIsOpen] = useState<boolean>(false);
+    const [clientCode, setClientCode] = useState<string>('');
+    const [error, setError] = useState<string>('');
 
     return (
         <>
@@ -44,6 +46,28 @@ const DuplicateButton: React.FC<PropsType> = props => {
                             Are you sure, you want to mark this request as
                             duplicate?
                         </p>
+
+                        <div className="mt-3">
+                            <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
+                                <span className="uppercase">Client Code*</span>
+                                {error ? (
+                                    <span className="text-red-700 text-wrap block text-xs">
+                                        {error}
+                                    </span>
+                                ) : null}
+                            </label>
+                            <input
+                                value={clientCode}
+                                onChange={e => {
+                                    setClientCode(e.target.value);
+                                    if (error) setError('');
+                                }}
+                                className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-2 px-3 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
+                                type="text"
+                                placeholder="Enter client code (e.g. 0000_XX)"
+                                required
+                            />
+                        </div>
                     </div>
                     <footer className="flex space-x-2 items-center px-4 py-2 border-t justify-end border-gray-200 rounded-b">
                         <button
@@ -55,7 +79,17 @@ const DuplicateButton: React.FC<PropsType> = props => {
                         </button>
                         <button
                             onClick={() => {
-                                props.submitHandler(props.reportData?._id);
+                                const normalized = clientCode.trim();
+                                if (!normalized) {
+                                    setError('Client code is required');
+                                    return;
+                                }
+                                props.submitHandler(
+                                    String(props.reportData?._id),
+                                    normalized,
+                                );
+                                setClientCode('');
+                                setError('');
                                 setIsOpen(false);
                             }}
                             className="rounded-md bg-blue-600 text-white  hover:opacity-90 hover:ring-2 hover:ring-blue-600 transition duration-200 delay-300 hover:text-opacity-100 px-4 py-1"

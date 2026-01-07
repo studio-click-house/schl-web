@@ -114,6 +114,7 @@ const EditButton: React.FC<PropsType> = props => {
                         className="overflow-x-hidden overflow-y-scroll max-h-[70vh] p-4 text-start"
                         onSubmit={handleSubmit(onSubmit)}
                     >
+                        {/* <input type="hidden" {...register('_id')} /> */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 mb-4 gap-y-4">
                             <div>
                                 <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
