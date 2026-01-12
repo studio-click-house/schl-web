@@ -3,7 +3,10 @@ import Pagination from '@/components/Pagination';
 import { usePaginationManager } from '@/hooks/usePaginationManager';
 import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import { ReportDocument } from '@repo/common/models/report.schema';
-import { YYYY_MM_DD_to_DD_MM_YY as convertToDDMMYYYY } from '@repo/common/utils/date-helpers';
+import {
+    YYYY_MM_DD_to_DD_MM_YY as convertToDDMMYYYY,
+    formatDate,
+} from '@repo/common/utils/date-helpers';
 import { hasPerm } from '@repo/common/utils/permission-check';
 import { useSession } from 'next-auth/react';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -18,7 +21,7 @@ type ClientsState = {
         count: number;
         pageCount: number;
     };
-    items: ReportDocument[];
+    items: Array<ReportDocument & { last_order_date?: string | null }>;
 };
 
 const Table = () => {
@@ -356,6 +359,7 @@ const Table = () => {
                                 <tr>
                                     <th>#</th>
                                     <th>Onboard Date</th>
+                                    <th>Last Order Date</th>
                                     <th>Country</th>
                                     <th>Company Name</th>
                                     <th>Contact Person</th>
@@ -375,9 +379,17 @@ const Table = () => {
 
                                             <td>
                                                 {client.onboard_date &&
-                                                    convertToDDMMYYYY(
+                                                    formatDate(
                                                         client.onboard_date,
                                                     )}
+                                            </td>
+
+                                            <td>
+                                                {client.last_order_date
+                                                    ? formatDate(
+                                                          client.last_order_date,
+                                                      )
+                                                    : ''}
                                             </td>
 
                                             <td>{client.country}</td>

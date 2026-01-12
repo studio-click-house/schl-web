@@ -84,7 +84,7 @@ export const formatTime = (time24?: string) => {
 export const formatDate = (dateString?: string | Date) => {
     if (!dateString) return '';
 
-    return moment(dateString).format("Do MMM. 'YY");
+    return moment(dateString).format('Do MMM. YYYY');
 };
 
 export function formatTimestamp(timestamp: string | Date) {

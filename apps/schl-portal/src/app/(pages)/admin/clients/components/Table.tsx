@@ -11,6 +11,10 @@ import Pagination from '@/components/Pagination';
 import { usePaginationManager } from '@/hooks/usePaginationManager';
 import { ClientDocument } from '@repo/common/models/client.schema';
 import type { EmployeeDocument } from '@repo/common/models/employee.schema';
+import {
+    YYYY_MM_DD_to_DD_MM_YY as convertToDDMMYYYY,
+    formatDate,
+} from '@repo/common/utils/date-helpers';
 import { CirclePlus } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'nextjs-toploader/app';
@@ -29,7 +33,7 @@ type ClientsState = {
         count: number;
         pageCount: number;
     };
-    items: ClientDocument[];
+    items: Array<ClientDocument & { last_order_date?: string | null }>;
 };
 
 const Table: React.FC = () => {
@@ -38,7 +42,9 @@ const Table: React.FC = () => {
             count: 0,
             pageCount: 0,
         },
-        items: [] as ClientDocument[],
+        items: [] as Array<
+            ClientDocument & { last_order_date?: string | null }
+        >,
     });
 
     const { data: session } = useSession();
@@ -386,6 +392,7 @@ const Table: React.FC = () => {
                                     <th>Contact Person</th>
                                     <th>Email</th>
                                     <th>Country</th>
+                                    <th>Last Order Date</th>
                                     <th>Prices</th>
                                     {hasPerm(
                                         'admin:manage_client',
@@ -422,6 +429,13 @@ const Table: React.FC = () => {
                                         </td>
                                         <td className="text-wrap">
                                             {client.country}
+                                        </td>
+                                        <td className="text-wrap">
+                                            {client.last_order_date
+                                                ? formatDate(
+                                                      client.last_order_date,
+                                                  )
+                                                : 'N/A'}
                                         </td>
                                         <ExtendableTd
                                             data={client.prices || ''}

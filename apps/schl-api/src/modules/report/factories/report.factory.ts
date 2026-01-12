@@ -34,6 +34,7 @@ export class ReportFactory {
             lead_withdrawn: false,
             client_status: dto.clientStatus ?? 'none',
             lead_origin: dto.leadOrigin ?? null,
+            client_code: null,
             test_given_date_history: dto.testJob ? [callingDate] : [],
             onboard_date: '',
         };
@@ -134,6 +135,7 @@ export class ReportFactory {
             followup_done: lead.followup_done || false,
             client_status: lead.client_status || 'none',
             lead_origin: lead.lead_origin || null,
+            client_code: null,
             test_given_date_history: [...lead.test_given_date_history],
             onboard_date: '',
             updated_by: updatedBy,

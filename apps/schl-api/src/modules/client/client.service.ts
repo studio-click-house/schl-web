@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Client } from '@repo/common/models/client.schema';
+import { Order } from '@repo/common/models/order.schema';
 import { UserSession } from '@repo/common/types/user-session.type';
 import {
     addIfDefined,
@@ -40,7 +41,57 @@ type QueryShape = FilterQuery<Client>;
 @Injectable()
 export class ClientService {
     private readonly logger = new Logger(ClientService.name);
-    constructor(@InjectModel(Client.name) private clientModel: Model<Client>) {}
+    constructor(
+        @InjectModel(Client.name) private clientModel: Model<Client>,
+        @InjectModel(Order.name) private readonly orderModel: Model<Order>,
+    ) {}
+
+    private async attachLastOrderDate<
+        T extends { client_code?: string | null },
+    >(items: T[]): Promise<Array<T & { last_order_date?: string | null }>> {
+        const clientCodes = Array.from(
+            new Set(
+                items
+                    .map(i => i?.client_code)
+                    .filter(
+                        (c): c is string =>
+                            typeof c === 'string' && c.length > 0,
+                    ),
+            ),
+        );
+
+        if (clientCodes.length === 0) return items;
+
+        const lastOrders = (await this.orderModel
+            .aggregate([
+                { $match: { client_code: { $in: clientCodes } } },
+                {
+                    $group: {
+                        _id: '$client_code',
+                        last_order_date: { $max: '$download_date' },
+                    },
+                },
+            ])
+            .exec()) as Array<{ _id: string; last_order_date?: string }>;
+
+        const lastOrderByClientCode: Record<string, string> = {};
+        for (const row of lastOrders) {
+            if (row?._id && row.last_order_date) {
+                lastOrderByClientCode[row._id] = row.last_order_date;
+            }
+        }
+
+        for (const item of items as Array<
+            T & { last_order_date?: string | null }
+        >) {
+            const code = item?.client_code;
+            if (typeof code === 'string' && code) {
+                item.last_order_date = lastOrderByClientCode[code] ?? null;
+            }
+        }
+
+        return items;
+    }
 
     async searchClients(
         filters: SearchClientsBodyDto,
@@ -146,6 +197,8 @@ export class ClientService {
             if (!items) {
                 throw new BadRequestException('Unable to retrieve clients');
             }
+
+            await this.attachLastOrderDate(items);
 
             if (!paginated) {
                 return items;
