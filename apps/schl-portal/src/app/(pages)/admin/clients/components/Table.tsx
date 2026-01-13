@@ -14,6 +14,7 @@ import type { EmployeeDocument } from '@repo/common/models/employee.schema';
 import {
     YYYY_MM_DD_to_DD_MM_YY as convertToDDMMYYYY,
     formatDate,
+    getRowColorByLastOrderDate,
 } from '@repo/common/utils/date-helpers';
 import { CirclePlus } from 'lucide-react';
 import { useSession } from 'next-auth/react';
@@ -33,7 +34,12 @@ type ClientsState = {
         count: number;
         pageCount: number;
     };
-    items: Array<ClientDocument & { last_order_date?: string | null }>;
+    items: Array<
+        ClientDocument & {
+            last_order_date?: string | null;
+            order_update?: string | null;
+        }
+    >;
 };
 
 const Table: React.FC = () => {
@@ -393,6 +399,7 @@ const Table: React.FC = () => {
                                     <th>Email</th>
                                     <th>Country</th>
                                     <th>Last Order Date</th>
+                                    <th>Order Update</th>
                                     <th>Prices</th>
                                     {hasPerm(
                                         'admin:manage_client',
@@ -401,82 +408,97 @@ const Table: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {clients?.items?.map((client, index) => (
-                                    <tr key={String(client._id)}>
-                                        <td>
-                                            {index +
-                                                1 +
-                                                itemPerPage * (page - 1)}
-                                        </td>
-                                        <td className="text-wrap">
-                                            {client.client_code}
-                                        </td>
-
-                                        <td className="text-wrap">
-                                            {client.client_name}
-                                        </td>
-                                        <td className="text-wrap">
-                                            {client.marketer}
-                                        </td>
-                                        <td className="text-wrap">
-                                            {client.category}
-                                        </td>
-                                        <td className="text-wrap">
-                                            {client.contact_person}
-                                        </td>
-                                        <td className="text-wrap">
-                                            {client.email}
-                                        </td>
-                                        <td className="text-wrap">
-                                            {client.country}
-                                        </td>
-                                        <td className="text-wrap">
-                                            {client.last_order_date
-                                                ? formatDate(
-                                                      client.last_order_date,
-                                                  )
-                                                : 'N/A'}
-                                        </td>
-                                        <ExtendableTd
-                                            data={client.prices || ''}
-                                        />
-                                        {hasPerm(
-                                            'admin:manage_client',
-                                            userPermissions,
-                                        ) && (
-                                            <td
-                                                className="text-center"
-                                                style={{
-                                                    verticalAlign: 'middle',
-                                                }}
-                                            >
-                                                <div className="inline-block">
-                                                    <div className="flex gap-2">
-                                                        <DeleteButton
-                                                            clientData={client}
-                                                            submitHandler={
-                                                                deleteClient
-                                                            }
-                                                        />
-
-                                                        <EditButton
-                                                            clientData={
-                                                                client as unknown as zod_ClientDataType
-                                                            }
-                                                            marketerNames={
-                                                                marketerNames
-                                                            }
-                                                            submitHandler={
-                                                                editClient
-                                                            }
-                                                            loading={loading}
-                                                        />
-                                                    </div>
-                                                </div>
+                                {clients?.items?.map((client, index) => {
+                                    const rowStyle = getRowColorByLastOrderDate(
+                                        client.last_order_date,
+                                    );
+                                    return (
+                                        <tr
+                                            key={String(client._id)}
+                                            style={rowStyle}
+                                        >
+                                            <td>
+                                                {index +
+                                                    1 +
+                                                    itemPerPage * (page - 1)}
                                             </td>
-                                        )}
-                                    </tr>
-                                ))}
+                                            <td className="text-wrap">
+                                                {client.client_code}
+                                            </td>
+
+                                            <td className="text-wrap">
+                                                {client.client_name}
+                                            </td>
+                                            <td className="text-wrap">
+                                                {client.marketer}
+                                            </td>
+                                            <td className="text-wrap">
+                                                {client.category}
+                                            </td>
+                                            <td className="text-wrap">
+                                                {client.contact_person}
+                                            </td>
+                                            <td className="text-wrap">
+                                                {client.email}
+                                            </td>
+                                            <td className="text-wrap">
+                                                {client.country}
+                                            </td>
+                                            <td className="text-wrap">
+                                                {client.last_order_date
+                                                    ? formatDate(
+                                                          client.last_order_date,
+                                                      )
+                                                    : 'N/A'}
+                                            </td>
+                                            <td className="text-wrap">
+                                                {client.order_update || 'N/A'}
+                                            </td>
+                                            <ExtendableTd
+                                                data={client.prices || ''}
+                                            />
+                                            {hasPerm(
+                                                'admin:manage_client',
+                                                userPermissions,
+                                            ) && (
+                                                <td
+                                                    className="text-center"
+                                                    style={{
+                                                        verticalAlign: 'middle',
+                                                    }}
+                                                >
+                                                    <div className="inline-block">
+                                                        <div className="flex gap-2">
+                                                            <DeleteButton
+                                                                clientData={
+                                                                    client
+                                                                }
+                                                                submitHandler={
+                                                                    deleteClient
+                                                                }
+                                                            />
+
+                                                            <EditButton
+                                                                clientData={
+                                                                    client as unknown as zod_ClientDataType
+                                                                }
+                                                                marketerNames={
+                                                                    marketerNames
+                                                                }
+                                                                submitHandler={
+                                                                    editClient
+                                                                }
+                                                                loading={
+                                                                    loading
+                                                                }
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                            )}
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     ) : (

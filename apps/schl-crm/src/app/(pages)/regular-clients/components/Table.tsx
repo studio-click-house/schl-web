@@ -6,6 +6,7 @@ import { ReportDocument } from '@repo/common/models/report.schema';
 import {
     YYYY_MM_DD_to_DD_MM_YY as convertToDDMMYYYY,
     formatDate,
+    getRowColorByLastOrderDate,
 } from '@repo/common/utils/date-helpers';
 import { hasPerm } from '@repo/common/utils/permission-check';
 import { useSession } from 'next-auth/react';
@@ -21,7 +22,12 @@ type ClientsState = {
         count: number;
         pageCount: number;
     };
-    items: Array<ReportDocument & { last_order_date?: string | null }>;
+    items: Array<
+        ReportDocument & {
+            last_order_date?: string | null;
+            order_update?: string | null;
+        }
+    >;
 };
 
 const Table = () => {
@@ -360,6 +366,7 @@ const Table = () => {
                                     <th>#</th>
                                     <th>Onboard Date</th>
                                     <th>Last Order Date</th>
+                                    <th>Order Update</th>
                                     <th>Country</th>
                                     <th>Company Name</th>
                                     <th>Contact Person</th>
@@ -369,8 +376,14 @@ const Table = () => {
                             </thead>
                             <tbody>
                                 {clients?.items?.map((client, index) => {
+                                    const rowStyle = getRowColorByLastOrderDate(
+                                        client.last_order_date,
+                                    );
                                     return (
-                                        <tr key={String(client._id)}>
+                                        <tr
+                                            key={String(client._id)}
+                                            style={rowStyle}
+                                        >
                                             <td>
                                                 {index +
                                                     1 +
@@ -378,10 +391,11 @@ const Table = () => {
                                             </td>
 
                                             <td>
-                                                {client.onboard_date &&
+                                                {(client.onboard_date &&
                                                     formatDate(
                                                         client.onboard_date,
-                                                    )}
+                                                    )) ||
+                                                    'N/A'}
                                             </td>
 
                                             <td>
@@ -389,7 +403,11 @@ const Table = () => {
                                                     ? formatDate(
                                                           client.last_order_date,
                                                       )
-                                                    : ''}
+                                                    : 'N/A'}
+                                            </td>
+
+                                            <td className="text-wrap">
+                                                {client.order_update || 'N/A'}
                                             </td>
 
                                             <td>{client.country}</td>
