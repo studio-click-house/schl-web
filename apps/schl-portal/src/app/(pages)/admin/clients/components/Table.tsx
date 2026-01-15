@@ -393,13 +393,12 @@ const Table: React.FC = () => {
                                     <th>S/N</th>
                                     <th>Client Code</th>
                                     <th>Client Name</th>
+                                    <th>Last Order</th>
                                     <th>Marketer</th>
                                     <th>Category</th>
                                     <th>Contact Person</th>
                                     <th>Email</th>
                                     <th>Country</th>
-                                    <th>Last Order Date</th>
-                                    <th>Order Update</th>
                                     <th>Prices</th>
                                     {hasPerm(
                                         'admin:manage_client',
@@ -430,6 +429,13 @@ const Table: React.FC = () => {
                                                 {client.client_name}
                                             </td>
                                             <td className="text-wrap">
+                                                {client.last_order_date
+                                                    ? formatDate(
+                                                          client.last_order_date,
+                                                      )
+                                                    : 'N/A'}
+                                            </td>
+                                            <td className="text-wrap">
                                                 {client.marketer}
                                             </td>
                                             <td className="text-wrap">
@@ -444,16 +450,7 @@ const Table: React.FC = () => {
                                             <td className="text-wrap">
                                                 {client.country}
                                             </td>
-                                            <td className="text-wrap">
-                                                {client.last_order_date
-                                                    ? formatDate(
-                                                          client.last_order_date,
-                                                      )
-                                                    : 'N/A'}
-                                            </td>
-                                            <td className="text-wrap">
-                                                {client.order_update || 'N/A'}
-                                            </td>
+
                                             <ExtendableTd
                                                 data={client.prices || ''}
                                             />
@@ -484,6 +481,10 @@ const Table: React.FC = () => {
                                                                 }
                                                                 marketerNames={
                                                                     marketerNames
+                                                                }
+                                                                orderUpdate={
+                                                                    client.order_update ||
+                                                                    ''
                                                                 }
                                                                 submitHandler={
                                                                     editClient

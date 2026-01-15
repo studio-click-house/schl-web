@@ -331,29 +331,17 @@ const EditButton: React.FC<PropsType> = props => {
 
                             <div>
                                 <label
-                                    className="uppercase tracking-wide text-gray-700 text-sm font-bold flex gap-2 mb-2"
-                                    htmlFor="grid-last-name"
+                                    className="block uppercase tracking-wide text-gray-700 text-sm font-bold mb-2"
+                                    htmlFor="grid-order-update"
                                 >
-                                    Calling Date History
-                                    <span className="cursor-pointer has-tooltip">
-                                        &#9432;
-                                        <span className="tooltip italic font-medium rounded-md text-xs shadow-lg p-1 px-2 bg-gray-100 ml-2">
-                                            Chan&apos;t change directly
-                                        </span>
-                                    </span>
+                                    Order Update
                                 </label>
                                 <textarea
-                                    rows={5}
+                                    rows={3}
                                     className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
-                                    name="calling_date_history"
-                                    value={editedData.calling_date_history
-                                        ?.map(
-                                            (date: string) =>
-                                                `${convertToDDMMYYYY(date)}`,
-                                        )
-                                        .join('\n')}
-                                    // onChange={handleChange}
-                                    disabled
+                                    name="order_update"
+                                    value={editedData.order_update || ''}
+                                    onChange={handleChange}
                                 />
                             </div>
 
@@ -375,22 +363,6 @@ const EditButton: React.FC<PropsType> = props => {
                                     type="text"
                                     name="linkedin"
                                     value={editedData.linkedin}
-                                    onChange={handleChange}
-                                />
-                            </div>
-
-                            <div>
-                                <label
-                                    className="block uppercase tracking-wide text-gray-700 text-sm font-bold mb-2"
-                                    htmlFor="grid-order-update"
-                                >
-                                    Order Update
-                                </label>
-                                <textarea
-                                    rows={3}
-                                    className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
-                                    name="order_update"
-                                    value={editedData.order_update || ''}
                                     onChange={handleChange}
                                 />
                             </div>
@@ -430,6 +402,34 @@ const EditButton: React.FC<PropsType> = props => {
                                     </select>
                                 </div>
                             )}
+
+                            <div>
+                                <label
+                                    className="uppercase tracking-wide text-gray-700 text-sm font-bold flex gap-2 mb-2"
+                                    htmlFor="grid-last-name"
+                                >
+                                    Calling Date History
+                                    <span className="cursor-pointer has-tooltip">
+                                        &#9432;
+                                        <span className="tooltip italic font-medium rounded-md text-xs shadow-lg p-1 px-2 bg-gray-100 ml-2">
+                                            Chan&apos;t change directly
+                                        </span>
+                                    </span>
+                                </label>
+                                <textarea
+                                    rows={5}
+                                    className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
+                                    name="calling_date_history"
+                                    value={editedData.calling_date_history
+                                        ?.map(
+                                            (date: string) =>
+                                                `${convertToDDMMYYYY(date)}`,
+                                        )
+                                        .join('\n')}
+                                    // onChange={handleChange}
+                                    disabled
+                                />
+                            </div>
                         </div>
 
                         <div className="checkboxes flex flex-col sm:flex-row gap-4 mt-4">

@@ -364,9 +364,8 @@ const Table = () => {
                             <thead className="table-dark">
                                 <tr>
                                     <th>#</th>
-                                    <th>Onboard Date</th>
-                                    <th>Last Order Date</th>
-                                    <th>Order Update</th>
+                                    <th>Onboarded</th>
+                                    <th>Last Order</th>
                                     <th>Country</th>
                                     <th>Company Name</th>
                                     <th>Contact Person</th>
@@ -404,10 +403,6 @@ const Table = () => {
                                                           client.last_order_date,
                                                       )
                                                     : 'N/A'}
-                                            </td>
-
-                                            <td className="text-wrap">
-                                                {client.order_update || 'N/A'}
                                             </td>
 
                                             <td>{client.country}</td>
