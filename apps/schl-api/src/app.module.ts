@@ -20,6 +20,7 @@ import { RoleModule } from './modules/role/role.module';
 import { ScheduleModule } from './modules/schedule/schedule.module';
 import { UserModule } from './modules/user/user.module';
 import { ValidatorModule } from './modules/validator/validator.module';
+import { TrackerModule } from './modules/tracker/tracker.module';
 
 @Module({
     imports: [
@@ -53,6 +54,7 @@ import { ValidatorModule } from './modules/validator/validator.module';
         OrderModule,
         JobModule,
         ValidatorModule,
+        TrackerModule,
     ],
     controllers: [AppController],
     providers: [
@@ -64,4 +66,4 @@ import { ValidatorModule } from './modules/validator/validator.module';
         },
     ],
 })
-export class AppModule {}
+export class AppModule { }
