@@ -1492,6 +1492,7 @@ export class ReportService {
             report.client_status = 'none';
             // report.onboard_date = ''; // keep onboard date intact for record/graph purposes
             report.updated_by = userSession.real_name;
+            report.client_code = '';
             await this.reportModel.findByIdAndUpdate(reportId, report).exec();
 
             return { message: 'Client removed from report' };
