@@ -33,7 +33,7 @@ export class WorkLogFile {
     pause_time: number;
 }
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'work_logs' })
 export class WorkLog {
     @Prop({ type: String, required: [true, 'Employee name is required'] })
     employee_name: string;
