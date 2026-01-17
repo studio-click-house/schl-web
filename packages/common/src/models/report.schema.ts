@@ -96,6 +96,9 @@ export class Report {
     @Prop({ default: null, type: String })
     client_code: string | null; // null for non-client reports, string ("0000_XX") for client reports
 
+    @Prop({ default: '', type: String })
+    order_update: string; // order update notes for regular clients
+
     @Prop({ type: Date })
     readonly createdAt: Date;
 

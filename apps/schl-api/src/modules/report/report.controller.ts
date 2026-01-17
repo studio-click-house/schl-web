@@ -11,8 +11,8 @@ import {
 import { UserSession } from '@repo/common/types/user-session.type';
 import { IdParamDto } from '../../common/dto/id-param.dto';
 import { ConvertToClientBodyDto } from './dto/convert-to-client.dto';
-import { MarkDuplicateClientRequestBodyDto } from './dto/mark-duplicate-client-request.dto';
 import { CreateReportBodyDto } from './dto/create-report.dto';
+import { MarkDuplicateClientRequestBodyDto } from './dto/mark-duplicate-client-request.dto';
 import { ReportStatusesQueryDto } from './dto/reports-status.dto';
 import {
     SearchReportsBodyDto,
@@ -117,7 +117,12 @@ export class ReportController {
         @Req() req: Request & { user: UserSession },
         @Body() body: ConvertToClientBodyDto,
     ) {
-        return this.reportService.convertToClient(req.user, body);
+        const { reportId, ...clientData } = body;
+        return this.reportService.convertToClient(
+            req.user,
+            clientData,
+            reportId,
+        );
     }
 
     @Post('reject-client-request/:id')

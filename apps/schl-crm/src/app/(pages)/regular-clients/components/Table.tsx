@@ -3,7 +3,11 @@ import Pagination from '@/components/Pagination';
 import { usePaginationManager } from '@/hooks/usePaginationManager';
 import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import { ReportDocument } from '@repo/common/models/report.schema';
-import { YYYY_MM_DD_to_DD_MM_YY as convertToDDMMYYYY } from '@repo/common/utils/date-helpers';
+import {
+    YYYY_MM_DD_to_DD_MM_YY as convertToDDMMYYYY,
+    formatDate,
+    getRowColorByLastOrderDate,
+} from '@repo/common/utils/date-helpers';
 import { hasPerm } from '@repo/common/utils/permission-check';
 import { useSession } from 'next-auth/react';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -18,7 +22,12 @@ type ClientsState = {
         count: number;
         pageCount: number;
     };
-    items: ReportDocument[];
+    items: Array<
+        ReportDocument & {
+            last_order_date?: string | null;
+            order_update?: string | null;
+        }
+    >;
 };
 
 const Table = () => {
@@ -355,7 +364,8 @@ const Table = () => {
                             <thead className="table-dark">
                                 <tr>
                                     <th>#</th>
-                                    <th>Onboard Date</th>
+                                    <th>Onboarded</th>
+                                    <th>Last Order</th>
                                     <th>Country</th>
                                     <th>Company Name</th>
                                     <th>Contact Person</th>
@@ -365,8 +375,14 @@ const Table = () => {
                             </thead>
                             <tbody>
                                 {clients?.items?.map((client, index) => {
+                                    const rowStyle = getRowColorByLastOrderDate(
+                                        client.last_order_date,
+                                    );
                                     return (
-                                        <tr key={String(client._id)}>
+                                        <tr
+                                            key={String(client._id)}
+                                            style={rowStyle}
+                                        >
                                             <td>
                                                 {index +
                                                     1 +
@@ -374,10 +390,19 @@ const Table = () => {
                                             </td>
 
                                             <td>
-                                                {client.onboard_date &&
-                                                    convertToDDMMYYYY(
+                                                {(client.onboard_date &&
+                                                    formatDate(
                                                         client.onboard_date,
-                                                    )}
+                                                    )) ||
+                                                    'N/A'}
+                                            </td>
+
+                                            <td>
+                                                {client.last_order_date
+                                                    ? formatDate(
+                                                          client.last_order_date,
+                                                      )
+                                                    : 'N/A'}
                                             </td>
 
                                             <td>{client.country}</td>

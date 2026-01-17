@@ -84,7 +84,7 @@ export const formatTime = (time24?: string) => {
 export const formatDate = (dateString?: string | Date) => {
     if (!dateString) return '';
 
-    return moment(dateString).format("Do MMM. 'YY");
+    return moment(dateString).format('Do MMM. YYYY');
 };
 
 export function formatTimestamp(timestamp: string | Date) {
@@ -170,6 +170,31 @@ export const getDaysSince = (date: Date | string): number => {
     const currentDate = moment();
     const inputDate = moment(date);
     return currentDate.diff(inputDate, 'days');
+};
+
+export type RowColorStyle = { backgroundColor?: string };
+
+/**
+ * Returns an inline style object for row background color based on how many days have passed
+ * since the last order date.
+ * - 0-14 days: green (#dcfce7)
+ * - 15-29 days: yellow (#fef9c3)
+ * - 30+ days or no date: red (#fee2e2)
+ */
+export const getRowColorByLastOrderDate = (
+    lastOrderDate: string | Date | null | undefined,
+): RowColorStyle => {
+    if (!lastOrderDate) return { backgroundColor: '#fee2e2' }; // red-100
+
+    const daysSince = getDaysSince(lastOrderDate);
+
+    if (daysSince >= 0 && daysSince <= 14) {
+        return { backgroundColor: '#dcfce7' }; // green-100
+    } else if (daysSince >= 15 && daysSince <= 29) {
+        return { backgroundColor: '#fef9c3' }; // yellow-100
+    }
+
+    return { backgroundColor: '#fee2e2' }; // red-100 for 30+ days
 };
 
 export function daysToYMD(days: number) {

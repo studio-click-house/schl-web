@@ -105,4 +105,12 @@ export class CreateReportBodyDto {
     @IsString()
     @IsIn(CLIENT_STATUSES)
     clientStatus: ClientStatus;
+
+    @IsOptional()
+    @IsString()
+    orderUpdate?: string;
+
+    @IsOptional()
+    @IsString()
+    clientCode?: string | null;
 }

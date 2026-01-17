@@ -10,6 +10,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Approval } from '@repo/common/models/approval.schema';
 import { Client } from '@repo/common/models/client.schema';
+import { Order } from '@repo/common/models/order.schema';
 import { Report } from '@repo/common/models/report.schema';
 import { User } from '@repo/common/models/user.schema';
 import { PopulatedByEmployeeUser } from '@repo/common/types/populated-user.type';
@@ -24,8 +25,8 @@ import {
 import { hasAnyPerm, hasPerm } from '@repo/common/utils/permission-check';
 import moment from 'moment-timezone';
 import { FilterQuery, Model } from 'mongoose';
+import { CreateClientBodyDto } from '../client/dto/create-client.dto';
 import { ClientFactory } from '../client/factories/client.factory';
-import { ConvertToClientBodyDto } from './dto/convert-to-client.dto';
 import { CreateReportBodyDto } from './dto/create-report.dto';
 import {
     SearchReportsBodyDto,
@@ -44,7 +45,55 @@ export class ReportService {
         private readonly clientModel: Model<Client>,
         @InjectModel(Approval.name)
         private readonly approvalModel: Model<Approval>,
+        @InjectModel(Order.name) private readonly orderModel: Model<Order>,
     ) {}
+
+    private async attachLastOrderDate<
+        T extends { client_code?: string | null },
+    >(items: T[]): Promise<Array<T & { last_order_date?: string | null }>> {
+        const clientCodes = Array.from(
+            new Set(
+                items
+                    .map(i => i?.client_code)
+                    .filter(
+                        (c): c is string =>
+                            typeof c === 'string' && c.length > 0,
+                    ),
+            ),
+        );
+
+        if (clientCodes.length === 0) return items;
+
+        const lastOrders = (await this.orderModel
+            .aggregate([
+                { $match: { client_code: { $in: clientCodes } } },
+                {
+                    $group: {
+                        _id: '$client_code',
+                        last_order_date: { $max: '$download_date' },
+                    },
+                },
+            ])
+            .exec()) as Array<{ _id: string; last_order_date?: string }>;
+
+        const lastOrderByClientCode: Record<string, string> = {};
+        for (const row of lastOrders) {
+            if (row?._id && row.last_order_date) {
+                lastOrderByClientCode[row._id] = row.last_order_date;
+            }
+        }
+
+        for (const item of items as Array<
+            T & { last_order_date?: string | null }
+        >) {
+            const code = item?.client_code;
+            if (typeof code === 'string' && code) {
+                item.last_order_date = lastOrderByClientCode[code] ?? null;
+            }
+        }
+
+        return items;
+    }
 
     async callReportsTrend(userSession: UserSession, marketerName?: string) {
         try {
@@ -833,6 +882,8 @@ export class ReportService {
                     'Unable to retrieve reports',
                 );
             }
+
+            await this.attachLastOrderDate(items);
             return {
                 pagination: {
                     count,
@@ -852,6 +903,8 @@ export class ReportService {
                 'Unable to retrieve reports',
             );
         }
+
+        await this.attachLastOrderDate(items as any[]);
         return items;
     }
 
@@ -963,7 +1016,8 @@ export class ReportService {
 
     async convertToClient(
         userSession: UserSession,
-        body: ConvertToClientBodyDto,
+        clientBody: CreateClientBodyDto,
+        reportId: string,
     ) {
         if (!hasPerm('crm:check_client_request', userSession.permissions)) {
             throw new ForbiddenException(
@@ -977,7 +1031,7 @@ export class ReportService {
         try {
             // 1) Ensure unique client_code
             const existingCount = await this.clientModel.countDocuments(
-                { client_code: body.clientCode },
+                { client_code: clientBody.clientCode },
                 { session },
             );
             if (existingCount > 0) {
@@ -989,7 +1043,10 @@ export class ReportService {
             }
 
             // 2) Create client
-            const clientData = ClientFactory.fromCreateDto(body, userSession);
+            const clientData = ClientFactory.fromCreateDto(
+                clientBody,
+                userSession,
+            );
             const created = await this.clientModel.create([clientData], {
                 session,
             });
@@ -1005,11 +1062,11 @@ export class ReportService {
 
             // 3) Update corresponding report.
             const updatedReport = await this.reportModel.findOneAndUpdate(
-                { _id: body.reportId, is_lead: false },
+                { _id: reportId, is_lead: false },
                 {
                     client_status: 'approved',
                     onboard_date: getTodayDate(),
-                    client_code: body.clientCode,
+                    client_code: clientBody.clientCode,
                 },
                 { new: true, session },
             );
@@ -1435,6 +1492,7 @@ export class ReportService {
             report.client_status = 'none';
             // report.onboard_date = ''; // keep onboard date intact for record/graph purposes
             report.updated_by = userSession.real_name;
+            report.client_code = '';
             await this.reportModel.findByIdAndUpdate(reportId, report).exec();
 
             return { message: 'Client removed from report' };

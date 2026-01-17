@@ -36,6 +36,8 @@ export class ReportFactory {
             lead_origin: dto.leadOrigin ?? null,
             test_given_date_history: dto.testJob ? [callingDate] : [],
             onboard_date: '',
+            order_update: (dto.orderUpdate ?? '').trim(),
+            client_code: null,
         };
     }
 
@@ -97,6 +99,11 @@ export class ReportFactory {
         if (dto.clientStatus !== undefined && dto.clientStatus !== null) {
             $set.client_status = dto.clientStatus;
         }
+        if (dto.clientCode !== undefined && dto.clientCode !== null) {
+            $set.client_code = dto.clientCode;
+        }
+        if (dto.orderUpdate !== undefined)
+            $set.order_update = (dto.orderUpdate ?? '').trim();
 
         const update: {
             $set: Record<string, any>;
@@ -136,6 +143,8 @@ export class ReportFactory {
             lead_origin: lead.lead_origin || null,
             test_given_date_history: [...lead.test_given_date_history],
             onboard_date: '',
+            client_code: null,
+            order_update: lead.order_update || '',
             updated_by: updatedBy,
         };
     }
