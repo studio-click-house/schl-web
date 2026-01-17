@@ -1,6 +1,4 @@
 import {
-    IsArray,
-    IsBoolean,
     IsDateString,
     IsNotEmpty,
     IsNumber,
@@ -12,11 +10,11 @@ import {
 export class SyncWorkLogDto {
     @IsString()
     @IsNotEmpty()
-    employee_name: string;
+    employeeName: string;
 
     @IsString()
     @IsOptional()
-    work_type?: string;
+    workType?: string;
 
     @IsString()
     @IsOptional()
@@ -24,30 +22,30 @@ export class SyncWorkLogDto {
 
     @IsString()
     @IsOptional()
-    client_code?: string;
+    clientCode?: string;
 
     @IsString()
     @IsOptional()
-    folder_path?: string;
+    folderPath?: string;
 
     @IsString()
     @IsNotEmpty()
-    file_name: string;
+    fileName: string;
 
     @IsNumber()
     @Min(0)
     @IsOptional()
-    time_spent?: number;
+    timeSpent?: number;
 
     @IsNumber()
     @Min(0)
     @IsOptional()
-    pause_count?: number;
+    pauseCount?: number;
 
     @IsNumber()
     @Min(0)
     @IsOptional()
-    pause_time?: number;
+    pauseTime?: number;
 
     @IsString()
     @IsOptional()
@@ -55,14 +53,13 @@ export class SyncWorkLogDto {
 
     @IsString()
     @IsNotEmpty()
-    file_status: string;
+    fileStatus: string;
 
     @IsDateString()
     @IsOptional()
-    started_at?: string;
+    startedAt?: string;
 
     @IsDateString()
     @IsOptional()
-    completed_at?: string;
+    completedAt?: string;
 }
-

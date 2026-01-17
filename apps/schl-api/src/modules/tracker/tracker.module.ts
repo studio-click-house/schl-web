@@ -1,18 +1,15 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import {
-    TrackerUser,
-    TrackerUserSchema,
-} from '@repo/common/models/tracker-user.schema';
-import { WorkLog, WorkLogSchema } from '@repo/common/models/work-log.schema';
+import { AppUser, AppUserSchema } from '@repo/common/models/app-user.schema';
 import { Order, OrderSchema } from '@repo/common/models/order.schema';
+import { WorkLog, WorkLogSchema } from '@repo/common/models/work-log.schema';
 import { TrackerController } from './tracker.controller';
 import { TrackerService } from './tracker.service';
 
 @Module({
     imports: [
         MongooseModule.forFeature([
-            { name: TrackerUser.name, schema: TrackerUserSchema },
+            { name: AppUser.name, schema: AppUserSchema },
             { name: WorkLog.name, schema: WorkLogSchema },
             { name: Order.name, schema: OrderSchema },
         ]),
@@ -20,4 +17,4 @@ import { TrackerService } from './tracker.service';
     controllers: [TrackerController],
     providers: [TrackerService],
 })
-export class TrackerModule { }
+export class TrackerModule {}
