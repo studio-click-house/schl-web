@@ -46,20 +46,6 @@ export const authorizedRoutes: AuthorizedRoute[] = [
         permissions: ['browse:edit_task'],
     },
 
-    // My Jobs
-    {
-        href: '/my-jobs',
-        label: 'My Jobs',
-        permissions: ['job:view_page', 'job:transfer_job'],
-        children: [
-            {
-                href: '/my-jobs/new-job',
-                label: 'New Job',
-                permissions: ['job:get_jobs'],
-            },
-        ],
-    },
-
     // Admin (with nested pages)
     {
         href: '/admin',

@@ -1,105 +1,15 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import mongoose, { HydratedDocument } from 'mongoose';
+import { HydratedDocument } from 'mongoose';
 import {
-    FILE_STATUSES,
-    JOB_SHIFTS,
     ORDER_PRIORITIES,
     ORDER_STATUSES,
     ORDER_TYPES,
-    WORK_CATEGORIES,
-    type FileStatus,
-    type JobShift,
     type OrderPriority,
     type OrderStatus,
     type OrderType,
-    type WorkCategory,
 } from '../constants/order.constant';
 
 export type OrderDocument = HydratedDocument<Order>;
-
-@Schema({ _id: false, timestamps: false })
-class OrderFilesTracking {
-    @Prop({ required: [true, 'File name is required'] })
-    file_name: string;
-
-    @Prop({ type: Date, default: null })
-    start_timestamp: Date | null;
-
-    @Prop({ default: null, type: Date })
-    end_timestamp: Date | null;
-
-    // REPLACED: is_paused, is_completed with a single status enum
-    // This makes queries like "Find all active files" much faster/easier
-    @Prop({
-        type: String,
-        enum: FILE_STATUSES,
-        default: 'working',
-        index: true, // Important for checking if a file is available to be picked up
-    })
-    status: FileStatus;
-
-    @Prop({ default: 0 })
-    total_pause_duration: number;
-
-    @Prop({ default: null, type: Date })
-    pause_start_timestamp: Date | null;
-
-    // New: Track if this file came from someone else
-    @Prop({
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Employee',
-        default: null,
-    })
-    transferred_from: mongoose.Types.ObjectId | null;
-}
-
-@Schema({ _id: false, timestamps: false })
-class OrderProgress {
-    @Prop({
-        required: [true, 'Employee has not been assigned'],
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Employee',
-    })
-    employee: mongoose.Types.ObjectId;
-
-    @Prop({ required: [true, 'Shift is required'], enum: JOB_SHIFTS })
-    shift: JobShift;
-
-    // This decouples the work history from the current Order Status.
-    // e.g., Order can be 'finished', but we know this specific entry was 'correction' work.
-    @Prop({ enum: WORK_CATEGORIES, default: 'production' })
-    category: WorkCategory;
-
-    @Prop({ default: false })
-    is_qc: boolean;
-
-    @Prop({
-        type: Number,
-        default: function (this: OrderProgress) {
-            // Leave undefined when QC is enabled so validation can ensure value > 0
-            return this && this.is_qc === true ? undefined : 0;
-        },
-        required: [
-            function (this: OrderProgress) {
-                return !!(this && this.is_qc);
-            },
-            'QC step is required when QC is enabled',
-        ],
-        validate: {
-            validator: function (this: OrderProgress, value: number | null) {
-                if (this.is_qc) {
-                    return value !== null && value > 0;
-                }
-                return true;
-            },
-            message: 'QC step must be greater than 0 when QC is enabled',
-        },
-    })
-    qc_step: number | null;
-
-    @Prop({ type: [OrderFilesTracking], default: [] })
-    files_tracking: OrderFilesTracking[];
-}
 
 @Schema({ timestamps: true })
 export class Order {
@@ -160,9 +70,6 @@ export class Order {
     @Prop({ default: 'medium', enum: ORDER_PRIORITIES })
     priority: OrderPriority;
 
-    @Prop({ type: [OrderProgress], default: [] })
-    progress: OrderProgress[];
-
     @Prop({ type: String, default: null })
     updated_by: string | null;
 
@@ -173,25 +80,11 @@ export class Order {
 
 export const OrderSchema = SchemaFactory.createForClass(Order);
 
-// Create a compound index to quickly find if a specific file in an order is currently locked/busy
-// This prevents two employees from selecting the same file
-OrderSchema.index({
-    _id: 1,
-    'progress.files_tracking.file_name': 1,
-    'progress.files_tracking.status': 1,
-});
-
 // Add indexes commonly used in queries to improve performance for search and pagination
 OrderSchema.index({ client_code: 1 });
 OrderSchema.index({ download_date: 1 });
 OrderSchema.index({ status: 1, type: 1 });
 OrderSchema.index({ client_code: 1, download_date: 1 });
-OrderSchema.index({
-    'progress.employee': 1,
-    'progress.files_tracking.status': 1,
-    folder_path: 1,
-    type: 1,
-    folder: 1,
-});
+
 // Support descending date sorts to make queries like .sort({ download_date: -1 })
 OrderSchema.index({ client_code: 1, download_date: -1 });

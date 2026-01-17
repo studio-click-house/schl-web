@@ -11,16 +11,14 @@ import { ClientModule } from './modules/client/client.module';
 import { EmployeeModule } from './modules/employee/employee.module';
 import { FtpModule } from './modules/ftp/ftp.module';
 import { InvoiceModule } from './modules/invoice/invoice.module';
-import { JobModule } from './modules/job/job.module';
 import { NoticeModule } from './modules/notice/notice.module';
 import { OrderModule } from './modules/order/order.module';
-import { QnapModule } from './modules/qnap/qnap.module';
 import { ReportModule } from './modules/report/report.module';
 import { RoleModule } from './modules/role/role.module';
 import { ScheduleModule } from './modules/schedule/schedule.module';
+import { TrackerModule } from './modules/tracker/tracker.module';
 import { UserModule } from './modules/user/user.module';
 import { ValidatorModule } from './modules/validator/validator.module';
-import { TrackerModule } from './modules/tracker/tracker.module';
 
 @Module({
     imports: [
@@ -40,7 +38,6 @@ import { TrackerModule } from './modules/tracker/tracker.module';
                 maxPoolSize: 10,
             }),
         }),
-        QnapModule,
         UserModule,
         RoleModule,
         ClientModule,
@@ -52,7 +49,6 @@ import { TrackerModule } from './modules/tracker/tracker.module';
         NoticeModule,
         ApprovalModule,
         OrderModule,
-        JobModule,
         ValidatorModule,
         TrackerModule,
     ],
@@ -66,4 +62,4 @@ import { TrackerModule } from './modules/tracker/tracker.module';
         },
     ],
 })
-export class AppModule { }
+export class AppModule {}

@@ -1,31 +1,3 @@
-/*
-ORDER_STATUSES is an order-level lifecycle enum (running, paused, finished, correction, etc.). It describes the status for the whole order (the order document level).
-
-WORK_CATEGORIES (production/qc/correction) is a progress-level enum describing the type of work or activity a particular progress entry (employee activity) is doing. It isn’t the same as the overall order status.
-
-FILE_STATUSES is a file-level runtime state (working/paused/completed/...), used to track a specific file's state inside files_tracking.
-
-Domain separation: Order status describes global/aggregate stage; work category describes what type of work an employee is doing; file status describes an individual file lifecycle.
-
-*/
-
-export const ORDER_STATUSES = [
-    'running',
-    'uploaded',
-    'paused',
-    'client-hold',
-    'finished',
-    'correction',
-] as const;
-
-export type OrderStatus = (typeof ORDER_STATUSES)[number];
-
-export const ORDER_TYPES = ['general', 'test'] as const;
-export type OrderType = (typeof ORDER_TYPES)[number];
-
-export const ORDER_PRIORITIES = ['low', 'medium', 'high', 'urgent'] as const;
-export type OrderPriority = (typeof ORDER_PRIORITIES)[number];
-
 export const statusOptions = [
     { value: 'running', label: 'Running' },
     { value: 'uploaded', label: 'Uploaded' },
@@ -34,20 +6,31 @@ export const statusOptions = [
     { value: 'correction', label: 'Correction' },
     { value: 'finished', label: 'Finished' },
 ];
-
-export const FILE_STATUSES = [
-    'working', // Currently active
-    'paused', // Paused by employee
-    'completed', // Done
-    'cancelled', // Walkout/Incomplete
-    'transferred', // Moved to another employee
+export const ORDER_STATUSES = [
+    'running',
+    'uploaded',
+    'paused',
+    'client-hold',
+    'finished',
+    'correction',
 ] as const;
+export type OrderStatus = (typeof ORDER_STATUSES)[number];
 
-export type FileStatus = (typeof FILE_STATUSES)[number];
+export const typeOptions = [
+    { value: 'general', label: 'General' },
+    { value: 'test', label: 'Test' },
+];
+export const ORDER_TYPES = ['general', 'test'] as const;
+export type OrderType = (typeof ORDER_TYPES)[number];
 
-// To handle General, QC, Correction explicitly in history
-export const WORK_CATEGORIES = ['production', 'qc', 'correction'] as const;
-export type WorkCategory = (typeof WORK_CATEGORIES)[number];
+export const priorityOptions = [
+    { value: 'low', label: 'Low' },
+    { value: 'medium', label: 'Medium' },
+    { value: 'high', label: 'High' },
+    { value: 'urgent', label: 'Urgent' },
+];
+export const ORDER_PRIORITIES = ['low', 'medium', 'high', 'urgent'] as const;
+export type OrderPriority = (typeof ORDER_PRIORITIES)[number];
 
 export const taskOptions = [
     { value: 'Ghost Mannequine', label: 'Ghost Mannequine' },
@@ -81,54 +64,4 @@ export const taskOptions = [
     { value: 'Background change', label: 'Background change' },
     { value: 'Transparent background', label: 'Transparent background' },
     { value: 'Others', label: 'Others' },
-];
-
-export const typeOptions = [
-    { value: 'general', label: 'General' },
-    { value: 'test', label: 'Test' },
-];
-export const priorityOptions = [
-    { value: 'low', label: 'Low' },
-    { value: 'medium', label: 'Medium' },
-    { value: 'high', label: 'High' },
-    { value: 'urgent', label: 'Urgent' },
-];
-export const JOB_SHIFTS = ['morning', 'evening'] as const;
-export type JobShift = (typeof JOB_SHIFTS)[number];
-
-export const jobShiftOptions = [
-    { value: 'morning', label: 'Morning' },
-    { value: 'evening', label: 'Evening' },
-];
-
-export const JOB_SELECTION_TYPES = [
-    'general',
-    'test',
-    'qc_general',
-    'qc_test',
-    'correction_general',
-    'correction_test',
-] as const;
-
-export type JobSelectionType = (typeof JOB_SELECTION_TYPES)[number];
-
-export const jobSelectionOptions = [
-    { value: 'general', label: 'General' },
-    { value: 'test', label: 'Test' },
-    { value: 'qc_general', label: 'QC - General' },
-    { value: 'qc_test', label: 'QC - Test' },
-    { value: 'correction_general', label: 'Correction - General' },
-    { value: 'correction_test', label: 'Correction - Test' },
-];
-
-export const FILE_CONDITIONS = ['fresh', 'incomplete'] as const;
-export type FileCondition = (typeof FILE_CONDITIONS)[number];
-export const fileConditionOptions = [
-    { value: 'fresh', label: 'Fresh' },
-    { value: 'incomplete', label: 'Incomplete' },
-];
-
-export const qcStepOptions = [
-    { value: 1, label: 'QC1' },
-    { value: 2, label: 'QC2' },
 ];

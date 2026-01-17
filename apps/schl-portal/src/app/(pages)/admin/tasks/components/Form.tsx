@@ -71,7 +71,6 @@ const Form: React.FC<PropsType> = props => {
             status: 'running',
             folder_path: '',
             priority: 'medium',
-            progress: [],
             updated_by: session?.user.real_name || '',
         },
     });

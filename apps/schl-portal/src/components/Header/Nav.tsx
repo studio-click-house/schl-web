@@ -73,64 +73,6 @@ const Nav: React.FC<PropsType> = props => {
 
                 <span
                     role="button"
-                    id="jobsDropdownButton"
-                    data-dropdown-toggle="jobsDropdown"
-                    data-dropdown-trigger="hover"
-                    className={cn(
-                        'py-3 px-5 select-none',
-                        pathname === '/my-jobs' ||
-                            pathname.startsWith('/my-jobs/')
-                            ? 'bg-primary'
-                            : 'hover:opacity-90',
-                        !has('job:view_page') && 'hidden',
-                    )}
-                >
-                    <span className="flex gap-1 items-center justify-between">
-                        <span>My Jobs</span>
-                        <ChevronDown size={17} />
-                    </span>
-                </span>
-
-                <div
-                    id="jobsDropdown"
-                    className="z-10 hidden bg-gray-900 divide-y divide-gray-100 rounded-md shadow w-44"
-                >
-                    <ul
-                        className="py-2 text-white"
-                        aria-labelledby="jobsDropdownButton"
-                    >
-                        <li
-                            className={cn(
-                                !hasAny([
-                                    'job:view_page',
-                                    'job:transfer_job',
-                                ]) && 'hidden',
-                            )}
-                        >
-                            <Link
-                                className={cn(
-                                    'block px-4 py-2 hover:bg-primary',
-                                )}
-                                href={'/my-jobs'}
-                            >
-                                Job Board
-                            </Link>
-                        </li>
-                        <li className={cn(!has('job:get_jobs') && 'hidden')}>
-                            <Link
-                                className={cn(
-                                    'block px-4 py-2 hover:bg-primary',
-                                )}
-                                href={'/my-jobs/new-job'}
-                            >
-                                New Job
-                            </Link>
-                        </li>
-                    </ul>
-                </div>
-
-                <span
-                    role="button"
                     id="adminDropdownButton"
                     data-dropdown-toggle="adminDropdown"
                     data-dropdown-trigger="hover"

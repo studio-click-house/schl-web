@@ -24,15 +24,6 @@ export const USER_PERMISSIONS = [
     },
 
     {
-        label: 'Job',
-        options: [
-            { value: 'job:view_page', label: 'View job page' },
-            { value: 'job:get_jobs', label: 'Get jobs' },
-            { value: 'job:transfer_job', label: 'Transfer job' },
-        ],
-    },
-
-    {
         label: 'Browse',
         options: [
             { value: 'browse:view_page', label: 'View browse page' },
@@ -48,6 +39,7 @@ export const USER_PERMISSIONS = [
             },
         ],
     },
+
     {
         label: 'Fileflow',
         options: [{ value: 'fileflow:view_page', label: 'View fileflow page' }],
