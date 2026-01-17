@@ -16,7 +16,7 @@ export class AppUser {
     password: string | null;
 
     @Prop({ type: Boolean, default: false })
-    isPasswordSet: boolean;
+    is_password_set: boolean;
 
     @Prop({ type: String, default: 'Employee' })
     role: string;

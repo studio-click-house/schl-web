@@ -39,7 +39,7 @@ export class TrackerService {
             return {
                 exists: true,
                 username: user.username,
-                passwordRequired: user.isPasswordSet,
+                passwordRequired: user.is_password_set,
                 role: (user.role ?? 'employee').toLowerCase(),
             };
         } catch (e) {
@@ -60,7 +60,7 @@ export class TrackerService {
             }
 
             // Check if password setup is required
-            if (!user.isPasswordSet) {
+            if (!user.is_password_set) {
                 return {
                     valid: false,
                     passwordSetupRequired: true,
@@ -92,12 +92,12 @@ export class TrackerService {
                 throw new UnauthorizedException('User not found');
             }
 
-            if (user.isPasswordSet) {
+            if (user.is_password_set) {
                 throw new BadRequestException('Password already set');
             }
 
             user.password = password;
-            user.isPasswordSet = true;
+            user.is_password_set = true;
             await user.save();
 
             return {
@@ -121,13 +121,13 @@ export class TrackerService {
                 : new Date().toISOString().split('T')[0];
 
             const filter = {
-                employeeName: payload.employeeName.toLowerCase(),
-                clientCode: (
+                employee_name: payload.employeeName.toLowerCase(),
+                client_code: (
                     payload.clientCode || 'unknown_client'
                 ).toLowerCase(),
                 shift: (payload.shift || 'unknown_shift').toLowerCase(),
-                workType: (payload.workType || 'employee').toLowerCase(),
-                dateToday: dateString,
+                work_type: (payload.workType || 'employee').toLowerCase(),
+                date_today: dateString,
             };
 
             // 1. Ensure the Daily Bucket exists
@@ -145,10 +145,10 @@ export class TrackerService {
             // Guard: Don't let pulses (working/paused) overwrite a 'done' status
             const updateFilter: Record<string, any> = {
                 ...filter,
-                'files.fileName': payload.fileName,
+                'files.file_name': payload.fileName,
             };
             if (!isFinishedStatus) {
-                updateFilter['files.fileStatus'] = {
+                updateFilter['files.file_status'] = {
                     $nin: ['done', 'walk_out'],
                 };
             }
@@ -169,7 +169,7 @@ export class TrackerService {
             if (updateResult.matchedCount === 0) {
                 const pushFilter = {
                     ...filter,
-                    'files.fileName': { $ne: payload.fileName },
+                    'files.file_name': { $ne: payload.fileName },
                 };
                 const newFile = TrackerFactory.fromSyncDto(payload);
 

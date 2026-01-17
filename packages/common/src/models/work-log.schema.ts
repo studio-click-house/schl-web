@@ -6,49 +6,49 @@ export type WorkLogDocument = HydratedDocument<WorkLog>;
 @Schema({ _id: false })
 export class WorkLogFile {
     @Prop({ type: String, required: [true, 'Folder path is required'] })
-    folderPath: string;
+    folder_path: string;
 
     @Prop({ type: String, required: [true, 'File name is required'] })
-    fileName: string;
+    file_name: string;
 
     @Prop({ type: Number, required: [true, 'Time spent is required'] })
-    timeSpent: number;
+    time_spent: number;
 
     @Prop({ type: Number, default: 0 })
-    pauseCount: number;
+    pause_count: number;
 
     @Prop({ type: String, default: '' })
     categories: string;
 
     @Prop({ type: String, required: [true, 'File status is required'] })
-    fileStatus: string;
+    file_status: string;
 
     @Prop({ type: Date, default: Date.now })
-    startedAt?: Date;
+    started_at?: Date;
 
     @Prop({ type: Date, default: null })
-    completedAt?: Date;
+    completed_at?: Date;
 
     @Prop({ type: Number, default: 0 })
-    pauseTime: number;
+    pause_time: number;
 }
 
 @Schema({ timestamps: true })
 export class WorkLog {
     @Prop({ type: String, required: [true, 'Employee name is required'] })
-    employeeName: string;
+    employee_name: string;
 
     @Prop({ type: String, required: [true, 'Client code is required'] })
-    clientCode: string;
+    client_code: string;
 
     @Prop({ type: String, required: [true, 'Shift is required'] })
     shift: string;
 
     @Prop({ type: String, required: [true, 'Work type is required'] })
-    workType: string;
+    work_type: string;
 
     @Prop({ type: String, required: [true, 'Date is required'] }) // YYYY-MM-DD
-    dateToday: string;
+    date_today: string;
 
     @Prop({ type: [WorkLogFile], default: [] })
     files: WorkLogFile[];
@@ -57,6 +57,6 @@ export class WorkLog {
 export const WorkLogSchema = SchemaFactory.createForClass(WorkLog);
 // Create compound index for the unique bucket key
 WorkLogSchema.index(
-    { employeeName: 1, clientCode: 1, shift: 1, workType: 1, dateToday: 1 },
+    { employee_name: 1, client_code: 1, shift: 1, work_type: 1, date_today: 1 },
     { unique: true },
 );
