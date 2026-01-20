@@ -159,22 +159,18 @@ const Sidebar: React.FC<PropsType> = props => {
                     </Link>
                     <hr />
                     {has('settings:view_page') && (
-                        <span
+                        <Link
+                            href="/my-account"
                             className={cn(
-                                'p-4 flex items-center justify-between',
+                                'p-4 flex items-center',
                                 pathname.includes('/my-account')
                                     ? 'bg-primary text-white'
                                     : 'hover:bg-gray-100',
                             )}
-                            aria-controls="dropdown-account"
-                            data-collapse-toggle="dropdown-account"
                         >
-                            <span className="flex items-center">
-                                <UserCog className="w-6 h-6 mr-2" />
-                                <span>Account</span>
-                            </span>
-                            <ChevronDown size={17} />
-                        </span>
+                            <UserCog className="w-6 h-6 mr-2" />
+                            <span>Account</span>
+                        </Link>
                     )}
 
                     {/* Logout */}

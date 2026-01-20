@@ -318,7 +318,7 @@ const Table = () => {
                         onClick={() =>
                             router.push(
                                 process.env.NEXT_PUBLIC_BASE_URL +
-                                    '/admin/notices/create-notice',
+                                    '/admin/notices',
                             )
                         }
                         className="flex justify-between items-center gap-2 rounded-md bg-primary hover:opacity-90 hover:ring-4 hover:ring-primary transition duration-200 delay-300 hover:text-opacity-100 text-white px-3 py-2"

@@ -1,7 +1,7 @@
 'use client';
 
 import 'moment-timezone';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Moment from 'react-moment';
 
 interface propsType {
@@ -10,9 +10,15 @@ interface propsType {
 }
 
 const Timecards: React.FC<propsType> = props => {
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
     return (
         <>
-            <div suppressHydrationWarning>
+            <div>
                 <ul className={`flex flex-row gap-2 ${props?.className}`}>
                     {props.timezones.map((timezone: string, index: number) => (
                         <li
@@ -27,12 +33,18 @@ const Timecards: React.FC<propsType> = props => {
                                     ?.replace('Riyadh', 'GULF')
                                     ?.replace('Canberra', 'Australia')}
                             </p>
-                            <Moment
-                                className="bg-white text-lg font-medium"
-                                format="hh:mm A"
-                                interval={1000}
-                                tz={timezone}
-                            />
+                            {mounted ? (
+                                <Moment
+                                    className="bg-white text-lg font-medium"
+                                    format="hh:mm A"
+                                    interval={1000}
+                                    tz={timezone}
+                                />
+                            ) : (
+                                <span className="bg-white text-lg font-medium">
+                                    --:-- --
+                                </span>
+                            )}
                         </li>
                     ))}
                 </ul>

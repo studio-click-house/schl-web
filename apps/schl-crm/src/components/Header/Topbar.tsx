@@ -31,6 +31,7 @@ const Topbar: React.FC = async () => {
                     alt="logo"
                     width={95}
                     height={95}
+                    style={{ height: 'auto' }}
                     unoptimized={true}
                 />
             </Link>

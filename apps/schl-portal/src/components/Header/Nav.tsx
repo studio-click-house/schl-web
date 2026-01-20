@@ -93,6 +93,7 @@ const Nav: React.FC<PropsType> = props => {
                 <div
                     id="adminDropdown"
                     className="z-10 hidden bg-gray-900 divide-y divide-gray-100 rounded-md shadow w-44"
+                    suppressHydrationWarning
                 >
                     <ul
                         className="py-2 text-white"
@@ -188,6 +189,7 @@ const Nav: React.FC<PropsType> = props => {
                             <div
                                 id="adminAccessDropdown"
                                 className="z-10 hidden bg-gray-900 divide-y divide-gray-100 rounded-md shadow w-44"
+                                suppressHydrationWarning
                             >
                                 <ul
                                     className="py-2 text-white"
@@ -275,6 +277,7 @@ const Nav: React.FC<PropsType> = props => {
                 <div
                     id="accountancyDropdown"
                     className="z-10 hidden bg-gray-900 divide-y divide-gray-100 rounded-md shadow w-44"
+                    suppressHydrationWarning
                 >
                     <ul
                         className="py-2 text-white"
@@ -319,6 +322,7 @@ const Nav: React.FC<PropsType> = props => {
                             <div
                                 id="accountancyInvoicesDropdown"
                                 className="z-10 hidden bg-gray-900 divide-y divide-gray-100 rounded-md shadow w-44"
+                                suppressHydrationWarning
                             >
                                 <ul
                                     className="py-2 text-white"
@@ -408,6 +412,7 @@ const Nav: React.FC<PropsType> = props => {
                 <div
                     id="crmDropdown"
                     className="z-10 hidden bg-gray-900 divide-y divide-gray-100 rounded-md shadow w-44"
+                    suppressHydrationWarning
                 >
                     <ul
                         className="py-2 text-white"
@@ -520,6 +525,7 @@ const Nav: React.FC<PropsType> = props => {
                 <div
                     id="scheduleDropdown"
                     className="z-10 hidden bg-gray-900 divide-y divide-gray-100 rounded-md shadow w-44"
+                    suppressHydrationWarning
                 >
                     <ul
                         className="py-2 text-white"

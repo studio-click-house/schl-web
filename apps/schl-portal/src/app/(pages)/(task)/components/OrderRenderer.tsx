@@ -11,7 +11,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 interface OrderRendererProps {
     order: OrderDocument;
     index: number;
-    key: string;
+    orderId: string;
 }
 
 const OrderRenderer: React.FC<OrderRendererProps> = props => {
@@ -75,7 +75,7 @@ const OrderRenderer: React.FC<OrderRendererProps> = props => {
     // rendering the order data
     return (
         <>
-            <tr key={props.key} className={statusColor}>
+            <tr key={props.orderId} className={statusColor}>
                 <td className="text-center">{props.index + 1}</td>
                 <td>
                     {hasPerm('browse:edit_task', userPermissions) ? (

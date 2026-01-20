@@ -80,6 +80,7 @@ function RunningTasks() {
                                     order={order}
                                     index={index}
                                     key={String(order._id)}
+                                    orderId={String(order._id)}
                                 />
                             ))}
                         </tbody>
