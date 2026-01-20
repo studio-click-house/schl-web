@@ -11,6 +11,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Client } from '@repo/common/models/client.schema';
 import { Order } from '@repo/common/models/order.schema';
+import { Report } from '@repo/common/models/report.schema';
 import { UserSession } from '@repo/common/types/user-session.type';
 import {
     addIfDefined,
@@ -44,6 +45,7 @@ export class ClientService {
     constructor(
         @InjectModel(Client.name) private clientModel: Model<Client>,
         @InjectModel(Order.name) private readonly orderModel: Model<Order>,
+        @InjectModel(Report.name) private readonly reportModel: Model<Report>,
     ) {}
 
     private async attachLastOrderDate<
@@ -87,6 +89,60 @@ export class ClientService {
             const code = item?.client_code;
             if (typeof code === 'string' && code) {
                 item.last_order_date = lastOrderByClientCode[code] ?? null;
+            }
+        }
+
+        return items;
+    }
+
+    private async attachOrderUpdate<T extends { client_code?: string | null }>(
+        items: T[],
+    ): Promise<Array<T & { order_update?: string | null }>> {
+        const clientCodes = Array.from(
+            new Set(
+                items
+                    .map(i => i?.client_code)
+                    .filter(
+                        (c): c is string =>
+                            typeof c === 'string' && c.length > 0,
+                    ),
+            ),
+        );
+
+        if (clientCodes.length === 0) return items;
+
+        // Fetch order_update from reports that are approved regular clients
+        const reports = (await this.reportModel
+            .aggregate([
+                {
+                    $match: {
+                        client_code: { $in: clientCodes },
+                        client_status: 'approved',
+                        is_lead: false,
+                    },
+                },
+                {
+                    $group: {
+                        _id: '$client_code',
+                        order_update: { $first: '$order_update' },
+                    },
+                },
+            ])
+            .exec()) as Array<{ _id: string; order_update?: string }>;
+
+        const orderUpdateByClientCode: Record<string, string> = {};
+        for (const row of reports) {
+            if (row?._id && row.order_update) {
+                orderUpdateByClientCode[row._id] = row.order_update;
+            }
+        }
+
+        for (const item of items as Array<
+            T & { order_update?: string | null }
+        >) {
+            const code = item?.client_code;
+            if (typeof code === 'string' && code) {
+                item.order_update = orderUpdateByClientCode[code] ?? null;
             }
         }
 
@@ -199,6 +255,7 @@ export class ClientService {
             }
 
             await this.attachLastOrderDate(items);
+            await this.attachOrderUpdate(items);
 
             if (!paginated) {
                 return items;
@@ -278,6 +335,19 @@ export class ClientService {
         const patch = ClientFactory.fromUpdateDto(clientData, userSession);
         if (Object.keys(patch).length === 0) {
             throw new BadRequestException('No update fields provided');
+        }
+
+        // If client_code is being changed, check for uniqueness
+        if (patch.client_code && patch.client_code !== existing.client_code) {
+            const duplicateCount = await this.clientModel.countDocuments({
+                _id: { $ne: clientId },
+                client_code: patch.client_code,
+            });
+            if (duplicateCount > 0) {
+                throw new ConflictException(
+                    'Client with the same code already exists',
+                );
+            }
         }
 
         try {

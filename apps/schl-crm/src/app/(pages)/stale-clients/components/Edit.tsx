@@ -121,6 +121,8 @@ const EditButton: React.FC<PropsType> = props => {
                 setEditedData(prevData => ({
                     ...prevData,
                     client_status: checked ? 'pending' : 'none',
+                    // Clear pending followup when requesting regular client
+                    ...(checked && { followup_done: true }),
                 }));
         } else {
             setEditedData(prevData => ({

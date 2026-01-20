@@ -1029,7 +1029,7 @@ export class ReportService {
         const session = await this.clientModel.db.startSession();
         session.startTransaction();
         try {
-            // 1) Ensure unique client_code
+            // 1) Ensure unique client_code in Client collection
             const existingCount = await this.clientModel.countDocuments(
                 { client_code: clientBody.clientCode },
                 { session },
@@ -1039,6 +1039,35 @@ export class ReportService {
                 await session.endSession();
                 throw new ConflictException(
                     'Client with the same code already exists',
+                );
+            }
+
+            // 1b) Get the report to check marketer name
+            const report = await this.reportModel
+                .findById(reportId, null, { session })
+                .exec();
+            if (!report) {
+                await session.abortTransaction();
+                await session.endSession();
+                throw new BadRequestException('Report not found');
+            }
+
+            // 1c) Ensure this marketer doesn't already have a regular client with this client_code
+            const existingMarketerClient =
+                await this.reportModel.countDocuments(
+                    {
+                        _id: { $ne: reportId },
+                        marketer_name: report.marketer_name,
+                        client_code: clientBody.clientCode,
+                        client_status: 'approved',
+                    },
+                    { session },
+                );
+            if (existingMarketerClient > 0) {
+                await session.abortTransaction();
+                await session.endSession();
+                throw new ConflictException(
+                    `This marketer already has a regular client with code ${clientBody.clientCode}`,
                 );
             }
 
@@ -1144,6 +1173,38 @@ export class ReportService {
         }
 
         try {
+            // 1) Verify the client code exists in the Client collection
+            const existingClient = await this.clientModel
+                .findOne({ client_code: normalizedClientCode })
+                .exec();
+            if (!existingClient) {
+                throw new BadRequestException(
+                    'Client with this code does not exist. Please use the correct client code.',
+                );
+            }
+
+            // 2) Get the report being marked as duplicate
+            const report = await this.reportModel.findById(reportId).exec();
+            if (!report) {
+                throw new BadRequestException('Report not found');
+            }
+
+            // 3) Check if this marketer already has a different regular client with this client_code
+            const existingRegularClient = await this.reportModel
+                .findOne({
+                    _id: { $ne: reportId },
+                    marketer_name: report.marketer_name,
+                    client_code: normalizedClientCode,
+                    client_status: 'approved',
+                })
+                .exec();
+
+            if (existingRegularClient) {
+                throw new ConflictException(
+                    `This marketer already has a regular client with code ${normalizedClientCode}`,
+                );
+            }
+
             const updated = await this.reportModel
                 .findByIdAndUpdate(
                     reportId,
