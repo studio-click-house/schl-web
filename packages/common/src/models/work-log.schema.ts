@@ -4,6 +4,15 @@ import { HydratedDocument } from 'mongoose';
 export type WorkLogDocument = HydratedDocument<WorkLog>;
 
 @Schema({ _id: false })
+export class PauseReason {
+    @Prop({ type: String, required: [true, 'Pause reason is required'] })
+    reason: string;
+
+    @Prop({ type: Number, required: [true, 'Pause duration is required'] })
+    duration: number;
+}
+
+@Schema({ _id: false })
 export class WorkLogFile {
     @Prop({ type: String, required: [true, 'Folder path is required'] })
     folder_path: string;
@@ -31,6 +40,9 @@ export class WorkLogFile {
 
     @Prop({ type: Number, default: 0 })
     pause_time: number;
+
+    @Prop({ type: [PauseReason], default: [] })
+    pause_reasons: PauseReason[];
 }
 
 @Schema({ timestamps: true, collection: 'work_logs' })
