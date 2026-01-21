@@ -46,3 +46,7 @@ export const EMPLOYEE_DEPARTMENTS = [
 ] as const;
 
 export type EmployeeDepartment = (typeof EMPLOYEE_DEPARTMENTS)[number];
+
+// Notice channels are the same as employee departments
+export const NOTICE_CHANNELS = EMPLOYEE_DEPARTMENTS;
+export type NoticeChannel = EmployeeDepartment;

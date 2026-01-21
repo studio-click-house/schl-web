@@ -1,3 +1,4 @@
+import type { EmployeeDepartment } from '@repo/common/constants/employee.constant';
 import type { Permissions } from '@repo/common/types/permission.type';
 import { FullyPopulatedUser } from '@repo/common/types/populated-user.type';
 import { fetchApi } from '@repo/common/utils/general-utils';
@@ -12,6 +13,7 @@ export interface UserSessionType {
     real_name: string;
     provided_name: string;
     e_id: string;
+    department: EmployeeDepartment;
 }
 
 async function getUser(
@@ -50,6 +52,7 @@ async function getUser(
             real_name: data.employee.real_name,
             provided_name: data.employee.company_provided_name,
             e_id: data.employee.e_id,
+            department: data.employee.department,
         };
     } catch (e) {
         console.error(e);

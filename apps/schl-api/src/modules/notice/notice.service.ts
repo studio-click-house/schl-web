@@ -35,21 +35,10 @@ export class NoticeService {
         noticeData: CreateNoticeBodyDto,
         userSession: UserSession,
     ) {
-        // Permission checks per channel
-        if (
-            noticeData.channel === 'production' &&
-            !hasPerm('notice:send_notice_production', userSession.permissions)
-        ) {
+        // Permission check - user must have permission to send notices
+        if (!hasPerm('notice:send_notice', userSession.permissions)) {
             throw new ForbiddenException(
-                "You don't have permission to send notices to production channel",
-            );
-        }
-        if (
-            noticeData.channel === 'marketers' &&
-            !hasPerm('notice:send_notice_marketers', userSession.permissions)
-        ) {
-            throw new ForbiddenException(
-                "You don't have permission to send notices to marketers channel",
+                "You don't have permission to send notices",
             );
         }
 
@@ -91,6 +80,15 @@ export class NoticeService {
             if (!notice) {
                 throw new NotFoundException('Notice not found');
             }
+            // Check if user has permission to send notices (admin) or if their department is in the notice channels
+            if (
+                !hasPerm('notice:send_notice', userSession.permissions) &&
+                !notice.channel.includes(userSession.department)
+            ) {
+                throw new ForbiddenException(
+                    'This notice is not for your department',
+                );
+            }
             return notice;
         } catch (e) {
             if (e instanceof HttpException) throw e;
@@ -112,6 +110,15 @@ export class NoticeService {
                 .exec();
             if (!notice) {
                 throw new NotFoundException('Notice not found');
+            }
+            // Check if user has permission to send notices (admin) or if their department is in the notice channels
+            if (
+                !hasPerm('notice:send_notice', userSession.permissions) &&
+                !notice.channel.includes(userSession.department)
+            ) {
+                throw new ForbiddenException(
+                    'This notice is not for your department',
+                );
             }
             return notice;
         } catch (e) {
@@ -140,7 +147,7 @@ export class NoticeService {
         const { channel, title, noticeNo, fromDate, toDate } = filters;
 
         type QueryShape = {
-            channel?: ReturnType<typeof createRegexQuery>;
+            channel?: { $in: string[] } | ReturnType<typeof createRegexQuery>;
             title?: ReturnType<typeof createRegexQuery>;
             notice_no?: ReturnType<typeof createRegexQuery>;
             createdAt?: { $gte?: Date; $lte?: Date };
@@ -151,12 +158,15 @@ export class NoticeService {
         // Date range over createdAt
         applyDateRange(query, 'createdAt', fromDate, toDate);
 
-        // Regex fields: channel (exact), notice_no (exact), title (fuzzy)
-        addIfDefined(
-            query,
-            'channel',
-            createRegexQuery(channel, { exact: true }),
-        );
+        // If user doesn't have send_notice permission, filter by their department
+        // This means they can only see notices for their department
+        if (!hasPerm('notice:send_notice', userSession.permissions)) {
+            query.channel = { $in: [userSession.department] };
+        } else if (channel) {
+            // Admin filtering by specific channel
+            query.channel = { $in: [channel] };
+        }
+
         addIfDefined(
             query,
             'notice_no',
@@ -230,21 +240,10 @@ export class NoticeService {
         noticeData: Partial<CreateNoticeBodyDto>,
         userSession: UserSession,
     ) {
-        // If channel is being changed/updated, ensure user has permission for that channel
-        if (
-            noticeData.channel === 'production' &&
-            !hasPerm('notice:send_notice_production', userSession.permissions)
-        ) {
+        // Only users with send_notice permission can update notices
+        if (!hasPerm('notice:send_notice', userSession.permissions)) {
             throw new ForbiddenException(
-                'You do not have permission to update notices for production channel',
-            );
-        }
-        if (
-            noticeData.channel === 'marketers' &&
-            !hasPerm('notice:send_notice_marketers', userSession.permissions)
-        ) {
-            throw new ForbiddenException(
-                'You do not have permission to update notices for marketers channel',
+                'You do not have permission to update notices',
             );
         }
 
@@ -269,25 +268,16 @@ export class NoticeService {
         }
     }
     async deleteNotice(noticeId: string, userSession: UserSession) {
+        // Only users with send_notice permission can delete notices
+        if (!hasPerm('notice:send_notice', userSession.permissions)) {
+            throw new ForbiddenException(
+                "You don't have permission to delete notices",
+            );
+        }
+
         const noticeDoc = await this.noticeModel.findById(noticeId).exec();
         if (!noticeDoc) {
             throw new NotFoundException('Notice not found');
-        }
-        if (
-            noticeDoc.channel === 'production' &&
-            !hasPerm('notice:send_notice_production', userSession.permissions)
-        ) {
-            throw new ForbiddenException(
-                "You don't have permission to delete production notices",
-            );
-        }
-        if (
-            noticeDoc.channel === 'marketers' &&
-            !hasPerm('notice:send_notice_marketers', userSession.permissions)
-        ) {
-            throw new ForbiddenException(
-                "You don't have permission to delete marketers notices",
-            );
         }
 
         try {

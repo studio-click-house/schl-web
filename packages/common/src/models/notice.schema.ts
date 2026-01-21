@@ -1,12 +1,18 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
+import type { EmployeeDepartment } from '../constants/employee.constant';
+import { EMPLOYEE_DEPARTMENTS } from '../constants/employee.constant';
 
 export type NoticeDocument = HydratedDocument<Notice>;
 
 @Schema({ timestamps: true })
 export class Notice {
-    @Prop({ required: [true, 'Channel is required'] })
-    channel: string;
+    @Prop({
+        required: [true, 'Channel is required'],
+        type: [String],
+        enum: EMPLOYEE_DEPARTMENTS,
+    })
+    channel: EmployeeDepartment[];
 
     @Prop({
         required: [true, 'Notice number is required'],

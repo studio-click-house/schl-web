@@ -1,3 +1,4 @@
+import type { EmployeeDepartment } from '../constants/employee.constant';
 import { UserDocument } from '../models/user.schema';
 import { type Permissions } from './permission.type';
 export interface PopulatedByEmployeeUser extends Omit<
@@ -9,6 +10,7 @@ export interface PopulatedByEmployeeUser extends Omit<
         e_id: string;
         real_name: string;
         company_provided_name: string;
+        department: EmployeeDepartment;
     };
 }
 

@@ -1,4 +1,5 @@
 import { fetchApiWithServerAuth } from '@/lib/api-server';
+import type { EmployeeDepartment } from '@repo/common/constants/employee.constant';
 import type { Permissions } from '@repo/common/types/permission.type';
 import { FullyPopulatedUser } from '@repo/common/types/populated-user.type';
 import NextAuth from 'next-auth';
@@ -11,6 +12,7 @@ export interface UserSessionType {
     permissions: Permissions[];
     real_name: string;
     e_id: string;
+    department: EmployeeDepartment;
 }
 
 async function getUser(
@@ -48,6 +50,7 @@ async function getUser(
             permissions: data.role.permissions || [],
             real_name: data.employee.real_name,
             e_id: data.employee.e_id,
+            department: data.employee.department,
         };
     } catch (e) {
         console.error(e);

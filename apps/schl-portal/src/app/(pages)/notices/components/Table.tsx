@@ -64,16 +64,8 @@ const Table = () => {
     const getAllNotices = useCallback(
         async (page: number, itemPerPage: number) => {
             try {
-                const baseFilters = hasPerm(
-                    'notice:send_notice_production',
-                    userPermissions,
-                )
-                    ? hasPerm('notice:send_notice_marketers', userPermissions)
-                        ? {}
-                        : { channel: 'production' }
-                    : hasPerm('notice:send_notice_marketers', userPermissions)
-                      ? { channel: 'marketers' }
-                      : { channel: 'production' };
+                // API will filter by user's department automatically if they don't have send_notice permission
+                const baseFilters = {};
 
                 const response = await authedFetchApi<NoticesState>(
                     {
@@ -296,24 +288,12 @@ const Table = () => {
             <div
                 className={cn(
                     'flex flex-col mb-4 gap-2',
-                    hasAnyPerm(
-                        [
-                            'notice:send_notice_marketers',
-                            'notice:send_notice_production',
-                        ],
-                        userPermissions,
-                    )
+                    hasPerm('notice:send_notice', userPermissions)
                         ? 'sm:flex-row sm:justify-between'
                         : 'sm:justify-end sm:flex-row',
                 )}
             >
-                {hasAnyPerm(
-                    [
-                        'notice:send_notice_marketers',
-                        'notice:send_notice_production',
-                    ],
-                    userPermissions,
-                ) && (
+                {hasPerm('notice:send_notice', userPermissions) && (
                     <button
                         onClick={() =>
                             router.push(
@@ -369,13 +349,10 @@ const Table = () => {
                                     <th>Date</th>
                                     <th>Notice No</th>
                                     <th>Title</th>
-                                    {hasAnyPerm(
-                                        [
-                                            'notice:send_notice_marketers',
-                                            'notice:send_notice_production',
-                                        ],
+                                    {hasPerm(
+                                        'notice:send_notice',
                                         userPermissions,
-                                    ) && <th>Channel</th>}
+                                    ) && <th>Departments</th>}
                                     <th>Manage</th>
                                 </tr>
                             </thead>
@@ -399,11 +376,8 @@ const Table = () => {
                                             <td className="text-wrap">
                                                 {notice.title}
                                             </td>
-                                            {hasAnyPerm(
-                                                [
-                                                    'notice:send_notice_marketers',
-                                                    'notice:send_notice_production',
-                                                ],
+                                            {hasPerm(
+                                                'notice:send_notice',
                                                 userPermissions,
                                             ) && (
                                                 <td
@@ -412,9 +386,28 @@ const Table = () => {
                                                         verticalAlign: 'middle',
                                                     }}
                                                 >
-                                                    <Badge
-                                                        value={notice.channel}
-                                                    />
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {Array.isArray(
+                                                            notice.channel,
+                                                        ) ? (
+                                                            notice.channel.map(
+                                                                (dept, i) => (
+                                                                    <Badge
+                                                                        key={i}
+                                                                        value={
+                                                                            dept
+                                                                        }
+                                                                    />
+                                                                ),
+                                                            )
+                                                        ) : (
+                                                            <Badge
+                                                                value={
+                                                                    notice.channel
+                                                                }
+                                                            />
+                                                        )}
+                                                    </div>
                                                 </td>
                                             )}
                                             <td
@@ -425,11 +418,8 @@ const Table = () => {
                                             >
                                                 <div className="inline-block">
                                                     <div className="flex gap-2">
-                                                        {hasAnyPerm(
-                                                            [
-                                                                'notice:send_notice_marketers',
-                                                                'notice:send_notice_production',
-                                                            ],
+                                                        {hasPerm(
+                                                            'notice:send_notice',
                                                             userPermissions,
                                                         ) && (
                                                             <>

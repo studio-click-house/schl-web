@@ -1,6 +1,7 @@
 'use client';
 
 import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
+import type { EmployeeDepartment } from '@repo/common/constants/employee.constant';
 import { ISO_to_DD_MM_YY as convertToDDMMYYYY } from '@repo/common/utils/date-helpers';
 import moment from 'moment-timezone';
 import { useRouter } from 'nextjs-toploader/app';
@@ -18,7 +19,7 @@ interface ViewNoticeProps {
 }
 
 interface Notice {
-    channel: string;
+    channel: EmployeeDepartment[];
     notice_no: string;
     title: string;
     description: string;
@@ -87,7 +88,7 @@ const ViewNotice: React.FC<ViewNoticeProps> = props => {
     const authedFetchApi = useAuthedFetchApi();
     const notice_no = decodeURIComponent(props.notice_no);
     const [notice, setNotice] = useState<Notice>({
-        channel: '',
+        channel: [],
         notice_no: '',
         title: '',
         description: '',
@@ -130,11 +131,8 @@ const ViewNotice: React.FC<ViewNoticeProps> = props => {
             );
 
             if (response.ok) {
+                // The API already handles department filtering, so if we get here the user has access
                 const data = response.data as Notice;
-                if (data?.channel != 'marketers') {
-                    toast.error("The notice doesn't belong to this channel");
-                    routerRef.current.replace('/');
-                }
                 setNotice(data);
             } else {
                 toastFetchError(response, 'Failed to retrieve the notice');

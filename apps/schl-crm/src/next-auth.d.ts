@@ -1,3 +1,4 @@
+import type { EmployeeDepartment } from '@repo/common/constants/employee.constant';
 import type { Permissions } from '@repo/common/types/permission.type';
 import { DefaultSession } from 'next-auth';
 import { UserSessionType } from './auth';
@@ -18,6 +19,7 @@ declare module 'next-auth' {
         real_name: string;
         provided_name: string;
         e_id: string;
+        department: EmployeeDepartment;
     }
 }
 
@@ -30,6 +32,7 @@ declare module 'next-auth/jwt' {
         real_name: string;
         provided_name: string;
         e_id: string;
+        department: EmployeeDepartment;
         accessToken?: string;
         accessTokenExpires?: number; // epoch ms
         error?: string;

@@ -1,5 +1,6 @@
 'use client';
 
+import { EMPLOYEE_DEPARTMENTS } from '@repo/common/constants/employee.constant';
 import { cn } from '@repo/common/utils/general-utils';
 import { hasPerm } from '@repo/common/utils/permission-check';
 import {
@@ -11,6 +12,12 @@ import { Filter, X } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import React, { useMemo, useRef, useState } from 'react';
 import Select from 'react-select';
+
+// Create channel options from EMPLOYEE_DEPARTMENTS
+const channelOptions = EMPLOYEE_DEPARTMENTS.map(dept => ({
+    value: dept,
+    label: dept,
+}));
 
 const baseZIndex = 50; // 52
 
@@ -40,28 +47,10 @@ const FilterButton: React.FC<PropsType> = props => {
         [session?.user.permissions],
     );
 
-    const allowedChannelOptions = useMemo(() => {
-        const opts: { value: 'marketers' | 'production'; label: string }[] = [];
-        if (hasPerm('notice:send_notice_marketers', userPermissions)) {
-            opts.push({ value: 'marketers', label: 'Marketers' });
-        }
-        if (hasPerm('notice:send_notice_production', userPermissions)) {
-            opts.push({ value: 'production', label: 'Production' });
-        }
-        return opts;
-    }, [userPermissions]);
-
-    const displayedChannelOptions = useMemo(() => {
-        const out = [...allowedChannelOptions];
-        if (filters.channel && !out.find(o => o.value === filters.channel)) {
-            const current = filters.channel as 'marketers' | 'production';
-            out.push({
-                value: current,
-                label: current.charAt(0).toUpperCase() + current.slice(1),
-            });
-        }
-        return out;
-    }, [allowedChannelOptions, filters.channel]);
+    const canSendNotice = useMemo(
+        () => hasPerm('notice:send_notice', userPermissions),
+        [userPermissions],
+    );
 
     const handleChange = (
         e: React.ChangeEvent<
@@ -141,40 +130,44 @@ const FilterButton: React.FC<PropsType> = props => {
                     </header>
                     <div className="overflow-y-scroll max-h-[70vh] p-4">
                         <div className="grid grid-cols-1 gap-x-3 gap-y-4">
-                            <div>
-                                <label className="block uppercase tracking-wide text-gray-700 text-sm font-bold mb-2">
-                                    Channel
-                                </label>
-                                <Select
-                                    {...setClassNameAndIsDisabled(isOpen)}
-                                    options={displayedChannelOptions}
-                                    closeMenuOnSelect={true}
-                                    classNamePrefix="react-select"
-                                    menuPortalTarget={setMenuPortalTarget}
-                                    menuPlacement="auto"
-                                    menuPosition="fixed" // Prevent clipping by parent containers
-                                    styles={setCalculatedZIndex(baseZIndex)}
-                                    value={
-                                        displayedChannelOptions.find(
-                                            (option: any) =>
-                                                option.value ===
-                                                filters.channel,
-                                        ) || null
-                                    }
-                                    onChange={selectedOption =>
-                                        setFilters(
-                                            (
-                                                prevFilters: PropsType['filters'],
-                                            ) => ({
-                                                ...prevFilters,
-                                                channel:
-                                                    selectedOption?.value || '',
-                                            }),
-                                        )
-                                    }
-                                    placeholder="Select channel"
-                                />
-                            </div>
+                            {canSendNotice && (
+                                <div>
+                                    <label className="block uppercase tracking-wide text-gray-700 text-sm font-bold mb-2">
+                                        Department
+                                    </label>
+                                    <Select
+                                        {...setClassNameAndIsDisabled(isOpen)}
+                                        options={channelOptions}
+                                        closeMenuOnSelect={true}
+                                        classNamePrefix="react-select"
+                                        menuPortalTarget={setMenuPortalTarget}
+                                        menuPlacement="auto"
+                                        menuPosition="fixed" // Prevent clipping by parent containers
+                                        styles={setCalculatedZIndex(baseZIndex)}
+                                        value={
+                                            channelOptions.find(
+                                                (option: any) =>
+                                                    option.value ===
+                                                    filters.channel,
+                                            ) || null
+                                        }
+                                        onChange={selectedOption =>
+                                            setFilters(
+                                                (
+                                                    prevFilters: PropsType['filters'],
+                                                ) => ({
+                                                    ...prevFilters,
+                                                    channel:
+                                                        selectedOption?.value ||
+                                                        '',
+                                                }),
+                                            )
+                                        }
+                                        placeholder="Select department"
+                                        isClearable
+                                    />
+                                </div>
+                            )}
 
                             <div>
                                 <label className="uppercase tracking-wide text-gray-700 text-sm font-bold block mb-2">

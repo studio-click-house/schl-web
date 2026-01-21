@@ -1,7 +1,9 @@
 'use client';
 
+import { MultiSelectWithAll } from '@/components/MultiSelectWithAll';
 import NoticeBodyEditor from '@/components/RichText/RichTextEditor';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { EMPLOYEE_DEPARTMENTS } from '@repo/common/constants/employee.constant';
 import { cn } from '@repo/common/utils/general-utils';
 import { hasPerm } from '@repo/common/utils/permission-check';
 import {
@@ -15,8 +17,13 @@ import { SquarePen, X } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import Select from 'react-select';
 import { NoticeDataType, validationSchema } from '../../admin/notices/schema';
+
+// Create channel options from EMPLOYEE_DEPARTMENTS
+const channelOptions = EMPLOYEE_DEPARTMENTS.map(dept => ({
+    value: dept,
+    label: dept,
+}));
 
 const baseZIndex = 50; // 52
 
@@ -64,42 +71,10 @@ const EditButton: React.FC<PropsType> = props => {
         [session?.user.permissions],
     );
 
-    const allowedChannelOptions = useMemo(() => {
-        const opts: {
-            value: 'marketers' | 'production';
-            label: string;
-            isDisabled?: boolean;
-        }[] = [];
-        if (hasPerm('notice:send_notice_marketers', userPermissions)) {
-            opts.push({ value: 'marketers', label: 'Marketers' });
-        }
-        if (hasPerm('notice:send_notice_production', userPermissions)) {
-            opts.push({ value: 'production', label: 'Production' });
-        }
-        return opts;
-    }, [userPermissions]);
-
-    // if current notice channel is not allowed for this user, include it as a disabled option
-    const displayedChannelOptions = useMemo(() => {
-        const out: {
-            value: 'marketers' | 'production';
-            label: string;
-            isDisabled?: boolean;
-        }[] = [...allowedChannelOptions];
-        const current = props.noticeData?.channel as
-            | 'marketers'
-            | 'production'
-            | undefined;
-        if (current && !out.find(o => o.value === current)) {
-            const isAllowed = out.find(o => o.value === current);
-            out.push({
-                value: current,
-                label: current.charAt(0).toUpperCase() + current.slice(1),
-                isDisabled: !isAllowed,
-            });
-        }
-        return out;
-    }, [allowedChannelOptions, props.noticeData]);
+    const canSendNotice = useMemo(
+        () => hasPerm('notice:send_notice', userPermissions),
+        [userPermissions],
+    );
 
     useEffect(() => {
         initFlowbite();
@@ -178,7 +153,9 @@ const EditButton: React.FC<PropsType> = props => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 mb-4 gap-y-4">
                             <div>
                                 <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
-                                    <span className="uppercase">Channel*</span>
+                                    <span className="uppercase">
+                                        Departments*
+                                    </span>
                                     <span className="text-red-700 text-wrap block text-xs">
                                         {errors.channel &&
                                             errors.channel.message}
@@ -189,14 +166,12 @@ const EditButton: React.FC<PropsType> = props => {
                                     name="channel"
                                     control={control}
                                     render={({ field }) => (
-                                        <Select
-                                            {...field}
+                                        <MultiSelectWithAll
                                             {...setClassNameAndIsDisabled(
                                                 isOpen,
                                             )}
-                                            options={displayedChannelOptions}
-                                            closeMenuOnSelect={true}
-                                            placeholder="Select type"
+                                            options={channelOptions}
+                                            placeholder="Select departments"
                                             classNamePrefix="react-select"
                                             menuPortalTarget={
                                                 setMenuPortalTarget
@@ -204,22 +179,9 @@ const EditButton: React.FC<PropsType> = props => {
                                             styles={setCalculatedZIndex(
                                                 baseZIndex,
                                             )}
-                                            value={
-                                                (
-                                                    displayedChannelOptions as any
-                                                ).find(
-                                                    (option: any) =>
-                                                        option.value ===
-                                                        field.value,
-                                                ) || null
-                                            }
-                                            onChange={(option: any) =>
-                                                field.onChange(
-                                                    option
-                                                        ? option.value
-                                                        : undefined,
-                                                )
-                                            }
+                                            value={field.value || []}
+                                            onChange={field.onChange}
+                                            selectAllLabel="All Departments"
                                         />
                                     )}
                                 />

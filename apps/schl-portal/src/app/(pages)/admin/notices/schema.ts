@@ -1,8 +1,11 @@
+import { EMPLOYEE_DEPARTMENTS } from '@repo/common/constants/employee.constant';
 import mongoose from 'mongoose';
 import { z } from 'zod';
 
 export const validationSchema = z.object({
-    channel: z.enum(['production', 'marketers']),
+    channel: z
+        .array(z.enum(EMPLOYEE_DEPARTMENTS))
+        .min(1, 'At least one department is required'),
     notice_no: z.string().min(1, 'Notice number is required'),
     title: z.string().min(1, 'Title is required'),
     description: z.string().min(1, 'Description is required'),

@@ -41,7 +41,7 @@ export class AuthService {
                     { path: 'role', select: '_id name permissions' },
                     {
                         path: 'employee',
-                        select: '_id e_id real_name company_provided_name',
+                        select: '_id e_id real_name company_provided_name department',
                     },
                 ])
                 .lean<FullyPopulatedUser>()

@@ -1,22 +1,27 @@
 'use client';
+import { MultiSelectWithAll } from '@/components/MultiSelectWithAll';
 import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import { zodResolver } from '@hookform/resolvers/zod';
+import {
+    EMPLOYEE_DEPARTMENTS,
+    type EmployeeDepartment,
+} from '@repo/common/constants/employee.constant';
 import { hasPerm } from '@repo/common/utils/permission-check';
 import { setMenuPortalTarget } from '@repo/common/utils/select-helpers';
 import { CheckCircle, CloudUpload, Loader2 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import Select from 'react-select';
 import { toast } from 'sonner';
 import { NoticeDataType, validationSchema } from '../schema';
 
 import NoticeBodyEditor from '@/components/RichText/RichTextEditor';
 
-export const channelOptions = [
-    { value: 'marketers', label: 'Marketers' },
-    { value: 'production', label: 'Production' },
-];
+// Create channel options from EMPLOYEE_DEPARTMENTS
+export const channelOptions = EMPLOYEE_DEPARTMENTS.map(dept => ({
+    value: dept,
+    label: dept,
+}));
 
 const Form: React.FC = () => {
     const authedFetchApi = useAuthedFetchApi();
@@ -37,7 +42,7 @@ const Form: React.FC = () => {
     } = useForm<Partial<NoticeDataType>>({
         resolver: zodResolver(validationSchema),
         defaultValues: {
-            channel: undefined,
+            channel: [],
             notice_no: '',
             title: '',
             description: '',
@@ -46,33 +51,16 @@ const Form: React.FC = () => {
         },
     });
 
-    // derive available channels from user permissions and hide channels
+    // Check if user has permission to send notices
     const userPermissions = useMemo(
         () => session?.user.permissions || [],
         [session?.user.permissions],
     );
 
-    const allowedChannelOptions = useMemo(() => {
-        const opts: { value: 'marketers' | 'production'; label: string }[] = [];
-        if (hasPerm('notice:send_notice_marketers', userPermissions)) {
-            opts.push({ value: 'marketers', label: 'Marketers' });
-        }
-        if (hasPerm('notice:send_notice_production', userPermissions)) {
-            opts.push({ value: 'production', label: 'Production' });
-        }
-        return opts;
-    }, [userPermissions]);
-
-    // set sensible default channel once permissions load
-    useEffect(() => {
-        if (!watch('channel') && allowedChannelOptions.length > 0) {
-            // prefer production when available, otherwise pick the first allowed
-            const defaultVal =
-                allowedChannelOptions.find(o => o.value === 'production')
-                    ?.value || allowedChannelOptions[0]!.value;
-            setValue('channel', defaultVal);
-        }
-    }, [allowedChannelOptions, setValue, watch]);
+    const canSendNotice = useMemo(
+        () => hasPerm('notice:send_notice', userPermissions),
+        [userPermissions],
+    );
 
     const constructFileName = (file: File, notice_no: string) => {
         const file_name = file.name;
@@ -218,7 +206,7 @@ const Form: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 mb-4 gap-y-4">
                 <div>
                     <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
-                        <span className="uppercase">Channel*</span>
+                        <span className="uppercase">Departments*</span>
                         <span className="text-red-700 text-wrap block text-xs">
                             {errors.channel && errors.channel.message}
                         </span>
@@ -228,22 +216,13 @@ const Form: React.FC = () => {
                         name="channel"
                         control={control}
                         render={({ field }) => (
-                            <Select
-                                options={allowedChannelOptions}
-                                closeMenuOnSelect={true}
-                                placeholder="Select type"
+                            <MultiSelectWithAll
+                                options={channelOptions}
+                                placeholder="Select departments"
                                 classNamePrefix="react-select"
                                 menuPortalTarget={setMenuPortalTarget}
-                                value={
-                                    allowedChannelOptions.find(
-                                        option => option.value === field.value,
-                                    ) || null
-                                }
-                                onChange={option =>
-                                    field.onChange(
-                                        option ? option.value : undefined,
-                                    )
-                                }
+                                value={field.value || []}
+                                onChange={field.onChange}
                             />
                         )}
                     />

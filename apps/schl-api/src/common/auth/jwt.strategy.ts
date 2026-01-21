@@ -71,6 +71,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
             db_id: payload.sub, // user ID
             permissions: payload.perms, // array of permission strings
             role_id: payload.role, // role ID
+            e_id: payload.e_id, // employee ID
+            department: payload.dept, // employee's department
         };
     }
 }

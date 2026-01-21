@@ -1,10 +1,11 @@
 'use client';
-import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
+import { toastFetchApi, useAuthedFetchApi } from '@/lib/api-client';
 
 import { formatDate } from '@repo/common/utils/date-helpers';
 import { constructFileName } from '@repo/common/utils/general-utils';
 
-import { hasAnyPerm } from '@repo/common/utils/permission-check';
+import type { EmployeeDepartment } from '@repo/common/constants/employee.constant';
+import { hasPerm } from '@repo/common/utils/permission-check';
 import DOMPurify from 'dompurify';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'nextjs-toploader/app';
@@ -28,7 +29,7 @@ interface ViewNoticeProps {
 }
 
 interface Notice {
-    channel: string;
+    channel: EmployeeDepartment[];
     notice_no: string;
     title: string;
     description: string;
@@ -98,7 +99,7 @@ const options: HTMLReactParserOptions = {
 const ViewNotice: React.FC<ViewNoticeProps> = props => {
     const notice_no = decodeURIComponent(props.notice_no);
     const [notice, setNotice] = useState<Notice>({
-        channel: '',
+        channel: [],
         notice_no: '',
         title: '',
         description: '',
@@ -122,6 +123,7 @@ const ViewNotice: React.FC<ViewNoticeProps> = props => {
         () => session?.user.permissions || [],
         [session?.user.permissions],
     );
+    const userDepartment = session?.user.department;
 
     const getNotice = useCallback(async () => {
         try {
@@ -155,33 +157,11 @@ const ViewNotice: React.FC<ViewNoticeProps> = props => {
                     return;
                 }
 
-                if (noticeData.channel !== 'production') {
-                    // currently acknowledging only "marketing" channel exists besides production
-                    if (
-                        !hasAnyPerm(
-                            ['notice:send_notice_marketers'],
-                            userPermissions,
-                        )
-                    ) {
-                        toast.error(
-                            "The notice doesn't belong to this channel",
-                            {
-                                id: 'notice-channel',
-                            },
-                        );
-                        routerRef.current.replace('/');
-                    } else {
-                        toast.info(
-                            `The notice belongs to ${noticeData.channel} channel`,
-                            {
-                                id: 'notice-channel',
-                            },
-                        );
-                    }
-                }
+                // The API already handles department filtering, so if we get here the user has access
                 setNotice(noticeData);
+                lastFetchedNotice.current = notice_no;
             } else {
-                toastFetchError(response, 'Failed to retrieve notice');
+                toastFetchApi(response, 'Failed to retrieve notice');
                 routerRef.current.replace(
                     process.env.NEXT_PUBLIC_BASE_URL + '/admin/notices',
                 );
@@ -195,7 +175,7 @@ const ViewNotice: React.FC<ViewNoticeProps> = props => {
         } finally {
             setIsLoading(false);
         }
-    }, [authedFetchApi, notice_no, userPermissions]);
+    }, [authedFetchApi, notice_no]);
 
     const handleFileDownload = async () => {
         try {

@@ -11,7 +11,12 @@ const ACCESS_TOKEN_REFRESH_BUFFER_SECONDS = 15 * 60; // 15 minutes
 function signAccessToken(
     payload: Pick<
         UserSessionType,
-        'real_name' | 'db_id' | 'db_role_id' | 'permissions'
+        | 'real_name'
+        | 'db_id'
+        | 'db_role_id'
+        | 'permissions'
+        | 'e_id'
+        | 'department'
     >,
 ) {
     const secret = process.env.AUTH_SECRET;
@@ -23,6 +28,8 @@ function signAccessToken(
             sub: payload.db_id,
             role: payload.db_role_id,
             perms: payload.permissions,
+            e_id: payload.e_id,
+            dept: payload.department,
         },
         secret,
         { expiresIn: ACCESS_TOKEN_TTL_SECONDS },
@@ -49,6 +56,7 @@ export const authConfig: NextAuthConfig = {
                 token.provided_name = user.provided_name;
                 token.permissions = user.permissions;
                 token.e_id = user.e_id;
+                token.department = user.department;
 
                 try {
                     token.accessToken = signAccessToken({
@@ -56,6 +64,8 @@ export const authConfig: NextAuthConfig = {
                         db_id: user.db_id as string,
                         db_role_id: user.db_role_id as string,
                         permissions: (user.permissions as Permissions[]) || [],
+                        e_id: user.e_id as string,
+                        department: user.department as any,
                     });
                     token.accessTokenExpires =
                         Date.now() + ACCESS_TOKEN_TTL_SECONDS * 1000;
@@ -79,6 +89,8 @@ export const authConfig: NextAuthConfig = {
                         db_id: token.db_id as string,
                         db_role_id: token.db_role_id as string,
                         permissions: (token.permissions as Permissions[]) || [],
+                        e_id: token.e_id as string,
+                        department: token.department as any,
                     });
                     token.accessTokenExpires =
                         Date.now() + ACCESS_TOKEN_TTL_SECONDS * 1000;
@@ -99,6 +111,7 @@ export const authConfig: NextAuthConfig = {
                     provided_name: token.provided_name,
                     permissions: token.permissions,
                     e_id: token.e_id,
+                    department: token.department,
                 };
                 session.accessToken = token.accessToken; // expose short-lived access token
                 session.accessTokenExpires = token.accessTokenExpires;
