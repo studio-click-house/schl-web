@@ -229,18 +229,14 @@ const Table = () => {
                 return;
             }
 
-            const {
-                _id: reportId,
-                createdAt,
-                updatedAt,
-                __v,
-                ...rest
-            } = parsed.data;
+            const { _id: reportId, ...rest } = parsed.data;
             const payload = Object.fromEntries(
                 Object.entries({ ...rest, reportId }).filter(
                     ([, value]) => value !== undefined,
                 ),
             );
+
+            // console.log('Payload to convert to client:', payload, reportId);
 
             const response = await authedFetchApi(
                 { path: '/v1/report/convert-to-client' },
@@ -451,6 +447,9 @@ const Table = () => {
                                                                         report.category,
                                                                     marketer:
                                                                         report.marketer_name,
+                                                                    _id: String(
+                                                                        report._id,
+                                                                    ),
                                                                 }}
                                                                 submitHandler={
                                                                     convertToClient

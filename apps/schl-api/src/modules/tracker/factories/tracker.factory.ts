@@ -16,7 +16,6 @@ export class TrackerFactory {
 
     static fromSyncDto(dto: SyncWorkLogDto) {
         return {
-            folder_path: dto.folderPath?.trim(),
             file_name: dto.fileName.trim(),
             file_status: dto.fileStatus.trim(),
             time_spent: dto.timeSpent || 0,
@@ -33,7 +32,6 @@ export class TrackerFactory {
         const patch: Record<string, unknown> = {};
 
         if (dto.fileStatus) patch.file_status = dto.fileStatus;
-        if (dto.folderPath) patch.folder_path = dto.folderPath;
         if (dto.timeSpent !== undefined) patch.time_spent = dto.timeSpent;
         if (dto.pauseCount !== undefined) patch.pause_count = dto.pauseCount;
         if (dto.pauseTime !== undefined) patch.pause_time = dto.pauseTime;

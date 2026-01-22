@@ -125,6 +125,7 @@ export class TrackerService {
                 client_code: (
                     payload.clientCode || 'unknown_client'
                 ).toLowerCase(),
+                folder_path: (payload.folderPath || 'unknown_folder').trim(),
                 shift: (payload.shift || 'unknown_shift').toLowerCase(),
                 work_type: (payload.workType || 'employee').toLowerCase(),
                 date_today: dateString,
