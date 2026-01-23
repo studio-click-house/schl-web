@@ -11,6 +11,7 @@ import { Order } from '@repo/common/models/order.schema';
 import { WorkLog } from '@repo/common/models/work-log.schema';
 import { Model } from 'mongoose';
 import { LoginTrackerDto } from './dto/login-tracker.dto';
+import { ResolveOrderDto } from './dto/resolve-order.dto';
 import { SyncWorkLogDto } from './dto/sync-work-log.dto';
 import { TrackerFactory } from './factories/tracker.factory';
 
@@ -186,53 +187,44 @@ export class TrackerService {
         }
     }
 
-    async resolveOrder(folderPath: string) {
-        if (!folderPath) {
+    async resolveOrder(dto: ResolveOrderDto) {
+        if (!dto || !dto.clientCode || !dto.folder) {
             return { found: false };
         }
 
         try {
-            // 1. Try exact match
-            let order = await this.orderModel
-                .findOne({ folder_path: folderPath })
+            const clientCode = dto.clientCode.trim();
+            const folder = dto.folder.trim();
+
+            const order = await this.orderModel
+                .findOne({
+                    client_code: {
+                        $regex: new RegExp(
+                            `^${clientCode.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`,
+                            'i',
+                        ),
+                    },
+                    folder: {
+                        $regex: new RegExp(
+                            `^${folder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`,
+                            'i',
+                        ),
+                    },
+                })
+                .sort({ updatedAt: -1, createdAt: -1 })
                 .select('task client_code')
                 .lean()
                 .exec();
 
-            // 2. Try slash-agnostic & case-insensitive match
             if (!order) {
-                const escapedPath = folderPath.replace(
-                    /[.*+?^${}()|[\]\\]/g,
-                    '\\$&',
-                );
-                const slashAgnosticPattern = escapedPath.replace(
-                    /(\\\/|\\\\)/g,
-                    '[\\\\\\/]',
-                );
-
-                order = await this.orderModel
-                    .findOne({
-                        folder_path: {
-                            $regex: new RegExp(
-                                `^${slashAgnosticPattern}$`,
-                                'i',
-                            ),
-                        },
-                    })
-                    .select('task client_code')
-                    .lean()
-                    .exec();
+                return { found: false };
             }
 
-            if (order) {
-                return {
-                    found: true,
-                    task: order.task,
-                    client: order.client_code,
-                };
-            }
-
-            return { found: false };
+            return {
+                found: true,
+                task: order.task,
+                client: order.client_code,
+            };
         } catch (e) {
             if (e instanceof HttpException) throw e;
             throw new InternalServerErrorException('Unable to resolve order');
