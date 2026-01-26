@@ -247,10 +247,7 @@ const Sidebar: React.FC<PropsType> = props => {
                                         </ul>
                                     </li>
                                 )}
-                                {hasAny([
-                                    'notice:send_notice_production',
-                                    'notice:send_notice_marketers',
-                                ]) && (
+                                {has('notice:send_notice') && (
                                     <li>
                                         <Link
                                             href="/admin/notices"

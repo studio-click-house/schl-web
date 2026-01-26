@@ -14,6 +14,22 @@ interface MultiSelectWithAllProps
     value: string[];
     onChange: (values: string[]) => void;
     selectAllLabel?: string;
+    /**
+     * When true, the "All" item will not be rendered as a tag/chip
+     * when all options are selected. Default: true
+     */
+    hideSelectAllTag?: boolean;
+    /**
+     * When true, a single "All selected" chip will be shown when all
+     * options are selected instead of rendering all individual chips.
+     * Default: false
+     */
+    showAllSelectedChip?: boolean;
+
+    /**
+     * Label to show for the single "all selected" chip. Default: "All selected"
+     */
+    allSelectedLabel?: string;
 }
 
 const SELECT_ALL_VALUE = '__SELECT_ALL__';
@@ -23,6 +39,9 @@ export const MultiSelectWithAll: React.FC<MultiSelectWithAllProps> = ({
     value,
     onChange,
     selectAllLabel = 'All',
+    hideSelectAllTag = true,
+    showAllSelectedChip = false,
+    allSelectedLabel = 'All selected',
     ...rest
 }) => {
     const allValues = useMemo(() => options.map(o => o.value), [options]);
@@ -66,16 +85,31 @@ export const MultiSelectWithAll: React.FC<MultiSelectWithAllProps> = ({
         onChange(selectedValues.filter(v => v !== SELECT_ALL_VALUE));
     };
 
-    // Include "Select All" in displayed value if all are selected
+    // Build the displayed value. When all options are selected we can optionally
+    // show a single "All selected" chip, hide the select-all tag entirely, or
+    // show the select-all tag followed by the selected chips.
     const displayedValue = useMemo(() => {
         if (allSelected) {
+            if (showAllSelectedChip) {
+                return [{ label: allSelectedLabel, value: SELECT_ALL_VALUE }];
+            }
+            if (hideSelectAllTag) {
+                return selectedOptions;
+            }
             return [
                 { label: selectAllLabel, value: SELECT_ALL_VALUE },
                 ...selectedOptions,
             ];
         }
         return selectedOptions;
-    }, [allSelected, selectedOptions, selectAllLabel]);
+    }, [
+        allSelected,
+        selectedOptions,
+        selectAllLabel,
+        hideSelectAllTag,
+        showAllSelectedChip,
+        allSelectedLabel,
+    ]);
 
     return (
         <Select<Option, true>

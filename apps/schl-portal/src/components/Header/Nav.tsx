@@ -236,10 +236,7 @@ const Nav: React.FC<PropsType> = props => {
 
                         <li
                             className={cn(
-                                !hasAny([
-                                    'notice:send_notice_production',
-                                    'notice:send_notice_marketers',
-                                ]) && 'hidden',
+                                !has('notice:send_notice') && 'hidden',
                             )}
                         >
                             <Link

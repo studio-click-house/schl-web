@@ -4,12 +4,12 @@ export class TrackerFactory {
     private static derivePauseReasons(dto: SyncWorkLogDto) {
         if (Array.isArray(dto.pauseReasons) && dto.pauseReasons.length) {
             return dto.pauseReasons
-                .filter((p) => p && typeof p.reason === 'string')
-                .map((p) => ({
+                .filter(p => p && typeof p.reason === 'string')
+                .map(p => ({
                     reason: p.reason.trim(),
                     duration: Number(p.duration) || 0,
                 }))
-                .filter((p) => p.reason);
+                .filter(p => p.reason);
         }
         return [];
     }

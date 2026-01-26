@@ -98,10 +98,7 @@ export const authorizedRoutes: AuthorizedRoute[] = [
             {
                 href: '/admin/notices',
                 label: 'Create Notice',
-                permissions: [
-                    'notice:send_notice_production',
-                    'notice:send_notice_marketers',
-                ],
+                permissions: ['notice:send_notice'],
             },
         ],
     },
@@ -109,11 +106,7 @@ export const authorizedRoutes: AuthorizedRoute[] = [
     {
         href: '/notices',
         label: 'Notices',
-        permissions: [
-            'notice:view_notice',
-            'notice:send_notice_production',
-            'notice:send_notice_marketers',
-        ],
+        permissions: ['notice:view_notice', 'notice:send_notice'],
     },
 
     // Accountancy

@@ -1,5 +1,5 @@
 'use client';
-import { toastFetchApi, useAuthedFetchApi } from '@/lib/api-client';
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 
 import { formatDate } from '@repo/common/utils/date-helpers';
 import { constructFileName } from '@repo/common/utils/general-utils';
@@ -161,7 +161,7 @@ const ViewNotice: React.FC<ViewNoticeProps> = props => {
                 setNotice(noticeData);
                 lastFetchedNotice.current = notice_no;
             } else {
-                toastFetchApi(response, 'Failed to retrieve notice');
+                toastFetchError(response, 'Failed to retrieve notice');
                 routerRef.current.replace(
                     process.env.NEXT_PUBLIC_BASE_URL + '/admin/notices',
                 );

@@ -50,12 +50,8 @@ export const USER_PERMISSIONS = [
         options: [
             { value: 'notice:view_notice', label: 'View notice page' },
             {
-                value: 'notice:send_notice_production',
-                label: 'Send notice to production',
-            },
-            {
-                value: 'notice:send_notice_marketers',
-                label: 'Send notice to marketers',
+                value: 'notice:send_notice',
+                label: 'Send notice',
             },
         ],
     },

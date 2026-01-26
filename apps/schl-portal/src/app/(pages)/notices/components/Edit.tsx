@@ -19,12 +19,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { NoticeDataType, validationSchema } from '../../admin/notices/schema';
 
-// Create channel options from EMPLOYEE_DEPARTMENTS
-const channelOptions = EMPLOYEE_DEPARTMENTS.map(dept => ({
-    value: dept,
-    label: dept,
-}));
-
 const baseZIndex = 50; // 52
 
 interface PropsType {
@@ -37,6 +31,11 @@ const EditButton: React.FC<PropsType> = props => {
     const [isOpen, setIsOpen] = useState<boolean>(false);
     const popupRef = useRef<HTMLElement>(null);
     const formRef = useRef<HTMLFormElement>(null);
+
+    const channelOptions = EMPLOYEE_DEPARTMENTS.map(dept => ({
+        value: dept,
+        label: dept,
+    }));
 
     const handleClickOutside = (e: React.MouseEvent<HTMLDivElement>) => {
         if (
@@ -172,6 +171,10 @@ const EditButton: React.FC<PropsType> = props => {
                                             )}
                                             options={channelOptions}
                                             placeholder="Select departments"
+                                            selectAllLabel="All departments"
+                                            allSelectedLabel="All departments"
+                                            hideSelectAllTag={true}
+                                            showAllSelectedChip={true}
                                             classNamePrefix="react-select"
                                             menuPortalTarget={
                                                 setMenuPortalTarget
@@ -181,7 +184,6 @@ const EditButton: React.FC<PropsType> = props => {
                                             )}
                                             value={field.value || []}
                                             onChange={field.onChange}
-                                            selectAllLabel="All Departments"
                                         />
                                     )}
                                 />

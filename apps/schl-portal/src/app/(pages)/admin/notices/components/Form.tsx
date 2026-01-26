@@ -76,6 +76,12 @@ const Form: React.FC = () => {
     async function createNotice(noticeData: NoticeDataType) {
         try {
             setLoading(true);
+
+            if (!canSendNotice) {
+                toast.error('You do not have permission to send notices.');
+                return;
+            }
+
             const parsed = validationSchema.safeParse(noticeData);
 
             if (!parsed.success) {
@@ -219,6 +225,10 @@ const Form: React.FC = () => {
                             <MultiSelectWithAll
                                 options={channelOptions}
                                 placeholder="Select departments"
+                                selectAllLabel="All departments"
+                                hideSelectAllTag={true}
+                                showAllSelectedChip={true}
+                                allSelectedLabel="All departments"
                                 classNamePrefix="react-select"
                                 menuPortalTarget={setMenuPortalTarget}
                                 value={field.value || []}
