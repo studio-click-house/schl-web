@@ -7,6 +7,11 @@ import {
     Min,
 } from 'class-validator';
 
+type PauseReasonDto = {
+    reason: string;
+    duration: number;
+};
+
 export class SyncWorkLogDto {
     @IsString()
     @IsNotEmpty()
@@ -46,6 +51,9 @@ export class SyncWorkLogDto {
     @Min(0)
     @IsOptional()
     pauseTime?: number;
+
+    @IsOptional()
+    pauseReasons?: PauseReasonDto[];
 
     @IsString()
     @IsOptional()

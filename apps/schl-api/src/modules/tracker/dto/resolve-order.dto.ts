@@ -3,5 +3,9 @@ import { IsNotEmpty, IsString } from 'class-validator';
 export class ResolveOrderDto {
     @IsNotEmpty()
     @IsString()
-    folderPath: string;
+    clientCode: string;
+
+    @IsNotEmpty()
+    @IsString()
+    folder: string;
 }

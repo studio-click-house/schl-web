@@ -4,9 +4,18 @@ import { HydratedDocument } from 'mongoose';
 export type WorkLogDocument = HydratedDocument<WorkLog>;
 
 @Schema({ _id: false })
+export class PauseReason {
+    @Prop({ type: String, required: [true, 'Pause reason is required'] })
+    reason: string;
+
+    @Prop({ type: Number, required: [true, 'Pause duration is required'] })
+    duration: number;
+}
+
+@Schema({ _id: false })
 export class WorkLogFile {
-    @Prop({ type: String, required: [true, 'Folder path is required'] })
-    folder_path: string;
+    @Prop({ type: String, default: '' })
+    folder_path?: string;
 
     @Prop({ type: String, required: [true, 'File name is required'] })
     file_name: string;
@@ -31,6 +40,9 @@ export class WorkLogFile {
 
     @Prop({ type: Number, default: 0 })
     pause_time: number;
+
+    @Prop({ type: [PauseReason], default: [] })
+    pause_reasons: PauseReason[];
 }
 
 @Schema({ timestamps: true, collection: 'work_logs' })
@@ -40,6 +52,9 @@ export class WorkLog {
 
     @Prop({ type: String, required: [true, 'Client code is required'] })
     client_code: string;
+
+    @Prop({ type: String, required: [true, 'Folder path is required'] })
+    folder_path: string;
 
     @Prop({ type: String, required: [true, 'Shift is required'] })
     shift: string;
@@ -57,6 +72,13 @@ export class WorkLog {
 export const WorkLogSchema = SchemaFactory.createForClass(WorkLog);
 // Create compound index for the unique bucket key
 WorkLogSchema.index(
-    { employee_name: 1, client_code: 1, shift: 1, work_type: 1, date_today: 1 },
+    {
+        employee_name: 1,
+        client_code: 1,
+        folder_path: 1,
+        shift: 1,
+        work_type: 1,
+        date_today: 1,
+    },
     { unique: true },
 );

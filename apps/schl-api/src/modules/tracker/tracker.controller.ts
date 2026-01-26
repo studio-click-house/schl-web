@@ -33,6 +33,6 @@ export class TrackerController {
 
     @Post('resolve-order')
     resolveOrder(@Body() dto: ResolveOrderDto) {
-        return this.trackerService.resolveOrder(dto.folderPath);
+        return this.trackerService.resolveOrder(dto);
     }
 }
