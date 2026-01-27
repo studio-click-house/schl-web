@@ -8,6 +8,7 @@ import { usePaginationManager } from '@/hooks/usePaginationManager';
 import { formatDate } from '@repo/common/utils/date-helpers';
 import { cn, constructFileName } from '@repo/common/utils/general-utils';
 
+import type { Permissions } from '@repo/common/types/permission.type';
 import { hasAnyPerm, hasPerm } from '@repo/common/utils/permission-check';
 import { CirclePlus, SquareArrowOutUpRight } from 'lucide-react';
 import { useSession } from 'next-auth/react';
@@ -42,6 +43,19 @@ const Table = () => {
     const userPermissions = useMemo(
         () => session?.user.permissions || [],
         [session?.user.permissions],
+    );
+
+    const canViewAllChannels = useMemo(
+        () =>
+            hasAnyPerm(
+                [
+                    'notice:send_notice',
+                    'notice:edit_notice',
+                    'notice:delete_notice',
+                ] as Permissions[],
+                userPermissions,
+            ),
+        [userPermissions],
     );
 
     const router = useRouter();
@@ -271,11 +285,16 @@ const Table = () => {
         triggerFetch: fetchNotices,
     });
 
+    // NOTE: Intentionally exclude `fetchNotices` from the dependency array below.
+    // Including it may cause the effect to re-run when `filters` changes (because
+    // `getAllNoticesFiltered` depends on `filters`), which would trigger a fetch
+    // on every filter change. We want fetching to happen only when the user
+    // explicitly clicks the Search button (which updates `searchVersion`/`isFiltered`).
     useEffect(() => {
         if (searchVersion > 0 && isFiltered && page === 1) {
             fetchNotices();
         }
-    }, [fetchNotices, isFiltered, page, searchVersion]);
+    }, [searchVersion, isFiltered, page]);
 
     const handleSearch = useCallback(() => {
         setIsFiltered(true);
@@ -288,7 +307,7 @@ const Table = () => {
             <div
                 className={cn(
                     'flex flex-col mb-4 gap-2',
-                    hasPerm('notice:send_notice', userPermissions)
+                    canViewAllChannels
                         ? 'sm:flex-row sm:justify-between'
                         : 'sm:justify-end sm:flex-row',
                 )}
@@ -349,10 +368,7 @@ const Table = () => {
                                     <th>Date</th>
                                     <th>Notice No</th>
                                     <th>Title</th>
-                                    {hasPerm(
-                                        'notice:send_notice',
-                                        userPermissions,
-                                    ) && <th>Departments</th>}
+                                    {canViewAllChannels && <th>Departments</th>}
                                     <th>Manage</th>
                                 </tr>
                             </thead>
@@ -376,10 +392,7 @@ const Table = () => {
                                             <td className="text-wrap">
                                                 {notice.title}
                                             </td>
-                                            {hasPerm(
-                                                'notice:send_notice',
-                                                userPermissions,
-                                            ) && (
+                                            {canViewAllChannels && (
                                                 <td
                                                     className="uppercase text-wrap"
                                                     style={{
@@ -419,30 +432,34 @@ const Table = () => {
                                                 <div className="inline-block">
                                                     <div className="flex gap-2">
                                                         {hasPerm(
-                                                            'notice:send_notice',
+                                                            'notice:delete_notice',
                                                             userPermissions,
                                                         ) && (
-                                                            <>
-                                                                <DeleteButton
-                                                                    noticeData={
-                                                                        notice
-                                                                    }
-                                                                    submitHandler={
-                                                                        deleteNotice
-                                                                    }
-                                                                />
-                                                                <EditButton
-                                                                    isLoading={
-                                                                        loading
-                                                                    }
-                                                                    submitHandler={
-                                                                        editNotice
-                                                                    }
-                                                                    noticeData={
-                                                                        notice
-                                                                    }
-                                                                />
-                                                            </>
+                                                            <DeleteButton
+                                                                noticeData={
+                                                                    notice
+                                                                }
+                                                                submitHandler={
+                                                                    deleteNotice
+                                                                }
+                                                            />
+                                                        )}
+
+                                                        {hasPerm(
+                                                            'notice:edit_notice',
+                                                            userPermissions,
+                                                        ) && (
+                                                            <EditButton
+                                                                isLoading={
+                                                                    loading
+                                                                }
+                                                                submitHandler={
+                                                                    editNotice
+                                                                }
+                                                                noticeData={
+                                                                    notice
+                                                                }
+                                                            />
                                                         )}
 
                                                         <button

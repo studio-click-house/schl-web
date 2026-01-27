@@ -53,6 +53,14 @@ export const USER_PERMISSIONS = [
                 value: 'notice:send_notice',
                 label: 'Send notice',
             },
+            {
+                value: 'notice:delete_notice',
+                label: 'Delete notice',
+            },
+            {
+                value: 'notice:edit_notice',
+                label: 'Edit notice',
+            },
         ],
     },
 

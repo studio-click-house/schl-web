@@ -2,7 +2,7 @@
 import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { hasPerm } from '@repo/common/utils/permission-check';
+import { hasAnyPerm, hasPerm } from '@repo/common/utils/permission-check';
 import { setMenuPortalTarget } from '@repo/common/utils/select-helpers';
 import { useSession } from 'next-auth/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -40,12 +40,13 @@ const Form: React.FC<PropsType> = props => {
         // If the current user can create users (directly or via approval), they should be
         // allowed to assign any role. However, roles that include the super-admin
         // permission must still be blocked unless the assigner also has that permission.
-        const canAssignAnyRole =
-            hasPerm('admin:create_user' as Permissions, userPermissions) ||
-            hasPerm(
-                'admin:create_user_approval' as Permissions,
-                userPermissions,
-            );
+        const canAssignAnyRole = hasAnyPerm(
+            [
+                'admin:create_user',
+                'admin:create_user_approval',
+            ] as Permissions[],
+            userPermissions,
+        );
 
         return (props.rolesData || []).filter(role => {
             const perms = role.permissions || [];

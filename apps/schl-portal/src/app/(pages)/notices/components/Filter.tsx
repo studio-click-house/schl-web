@@ -1,8 +1,9 @@
 'use client';
 
 import { EMPLOYEE_DEPARTMENTS } from '@repo/common/constants/employee.constant';
+import type { Permissions } from '@repo/common/types/permission.type';
 import { cn } from '@repo/common/utils/general-utils';
-import { hasPerm } from '@repo/common/utils/permission-check';
+import { hasAnyPerm, hasPerm } from '@repo/common/utils/permission-check';
 import {
     setCalculatedZIndex,
     setClassNameAndIsDisabled,
@@ -47,8 +48,16 @@ const FilterButton: React.FC<PropsType> = props => {
         [session?.user.permissions],
     );
 
-    const canSendNotice = useMemo(
-        () => hasPerm('notice:send_notice', userPermissions),
+    const canViewAllChannels = useMemo(
+        () =>
+            hasAnyPerm(
+                [
+                    'notice:send_notice',
+                    'notice:edit_notice',
+                    'notice:delete_notice',
+                ] as Permissions[],
+                userPermissions as Permissions[],
+            ),
         [userPermissions],
     );
 
@@ -130,7 +139,7 @@ const FilterButton: React.FC<PropsType> = props => {
                     </header>
                     <div className="overflow-y-scroll max-h-[70vh] p-4">
                         <div className="grid grid-cols-1 gap-x-3 gap-y-4">
-                            {canSendNotice && (
+                            {canViewAllChannels && (
                                 <div>
                                     <label className="block uppercase tracking-wide text-gray-700 text-sm font-bold mb-2">
                                         Department

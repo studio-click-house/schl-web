@@ -9,13 +9,14 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Notice } from '@repo/common/models/notice.schema';
+import type { Permissions } from '@repo/common/types/permission.type';
 import { UserSession } from '@repo/common/types/user-session.type';
 import { applyDateRange } from '@repo/common/utils/date-helpers';
 import {
     addIfDefined,
     createRegexQuery,
 } from '@repo/common/utils/filter-helpers';
-import { hasPerm } from '@repo/common/utils/permission-check';
+import { hasAnyPerm, hasPerm } from '@repo/common/utils/permission-check';
 import { Model } from 'mongoose';
 import { CreateNoticeBodyDto } from './dto/create-notice.dto';
 import {
@@ -36,7 +37,12 @@ export class NoticeService {
         userSession: UserSession,
     ) {
         // Permission check - user must have permission to send notices
-        if (!hasPerm('notice:send_notice', userSession.permissions)) {
+        if (
+            !hasPerm(
+                'notice:send_notice' as Permissions,
+                userSession.permissions,
+            )
+        ) {
             throw new ForbiddenException(
                 "You don't have permission to send notices",
             );
@@ -80,9 +86,23 @@ export class NoticeService {
             if (!notice) {
                 throw new NotFoundException('Notice not found');
             }
-            // Check if user has permission to send notices (admin) or if their department is in the notice channels
+            const canViewAllChannels =
+                hasPerm(
+                    'notice:send_notice' as Permissions,
+                    userSession.permissions,
+                ) ||
+                hasPerm(
+                    'notice:edit_notice' as Permissions,
+                    userSession.permissions,
+                ) ||
+                hasPerm(
+                    'notice:delete_notice' as Permissions,
+                    userSession.permissions,
+                );
+
+            // Check if user has permission to view across all channels (send/edit/delete) or if their department is in the notice channels
             if (
-                !hasPerm('notice:send_notice', userSession.permissions) &&
+                !canViewAllChannels &&
                 !notice.channel.includes(userSession.department)
             ) {
                 throw new ForbiddenException(
@@ -111,9 +131,23 @@ export class NoticeService {
             if (!notice) {
                 throw new NotFoundException('Notice not found');
             }
-            // Check if user has permission to send notices (admin) or if their department is in the notice channels
+            const canViewAllChannels =
+                hasPerm(
+                    'notice:send_notice' as Permissions,
+                    userSession.permissions,
+                ) ||
+                hasPerm(
+                    'notice:edit_notice' as Permissions,
+                    userSession.permissions,
+                ) ||
+                hasPerm(
+                    'notice:delete_notice' as Permissions,
+                    userSession.permissions,
+                );
+
+            // Check if user has permission to view across all channels (send/edit/delete) or if their department is in the notice channels
             if (
-                !hasPerm('notice:send_notice', userSession.permissions) &&
+                !canViewAllChannels &&
                 !notice.channel.includes(userSession.department)
             ) {
                 throw new ForbiddenException(
@@ -158,12 +192,25 @@ export class NoticeService {
         // Date range over createdAt
         applyDateRange(query, 'createdAt', fromDate, toDate);
 
-        // If user doesn't have send_notice permission, filter by their department
-        // This means they can only see notices for their department
-        if (!hasPerm('notice:send_notice', userSession.permissions)) {
-            query.channel = { $in: [userSession.department] };
+        const canViewAllChannels = hasAnyPerm(
+            [
+                'notice:send_notice',
+                'notice:edit_notice',
+                'notice:delete_notice',
+            ] as Permissions[],
+            userSession.permissions,
+        );
+
+        // If user doesn't have send/edit/delete permission, filter by their department
+        // Do NOT treat Marketing specially here — CRM should hardcode channel='Marketing' in its requests
+        if (!canViewAllChannels) {
+            if (channel && channel === userSession.department) {
+                query.channel = { $in: [channel] };
+            } else {
+                query.channel = { $in: [userSession.department] };
+            }
         } else if (channel) {
-            // Admin filtering by specific channel
+            // Users with send/edit/delete can filter by any channel
             query.channel = { $in: [channel] };
         }
 
@@ -240,8 +287,13 @@ export class NoticeService {
         noticeData: Partial<CreateNoticeBodyDto>,
         userSession: UserSession,
     ) {
-        // Only users with send_notice permission can update notices
-        if (!hasPerm('notice:send_notice', userSession.permissions)) {
+        // Only users with edit_notice permission can update notices
+        if (
+            !hasPerm(
+                'notice:edit_notice' as Permissions,
+                userSession.permissions,
+            )
+        ) {
             throw new ForbiddenException(
                 'You do not have permission to update notices',
             );
@@ -268,8 +320,13 @@ export class NoticeService {
         }
     }
     async deleteNotice(noticeId: string, userSession: UserSession) {
-        // Only users with send_notice permission can delete notices
-        if (!hasPerm('notice:send_notice', userSession.permissions)) {
+        // Only users with delete_notice permission can delete notices
+        if (
+            !hasPerm(
+                'notice:delete_notice' as Permissions,
+                userSession.permissions,
+            )
+        ) {
             throw new ForbiddenException(
                 "You don't have permission to delete notices",
             );

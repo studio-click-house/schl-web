@@ -4,10 +4,15 @@ import Pagination from '@/components/Pagination';
 import { usePaginationManager } from '@/hooks/usePaginationManager';
 import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import { ISO_to_DD_MM_YY as convertToDDMMYYYY } from '@repo/common/utils/date-helpers';
+import { hasPerm } from '@repo/common/utils/permission-check';
 import moment from 'moment-timezone';
+import { useSession } from 'next-auth/react';
 import { useRouter } from 'nextjs-toploader/app';
 import React, { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import type { NoticeDataType } from '../../admin/notices/schema';
+import DeleteButton from './Delete';
+import EditButton from './Edit';
 import FilterButton from './Filter';
 
 type NoticesState = {
@@ -37,6 +42,10 @@ const Table = () => {
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [searchVersion, setSearchVersion] = useState<number>(0);
 
+    const { data: session } = useSession();
+
+    const userPermissions = session?.user.permissions || [];
+
     const [filters, setFilters] = useState({
         fromDate: '',
         toDate: '',
@@ -61,7 +70,7 @@ const Table = () => {
                     {
                         headers: { 'Content-Type': 'application/json' },
                         method: 'POST',
-                        body: JSON.stringify({ channel: 'marketers' }),
+                        body: JSON.stringify({ channel: 'Marketing' }),
                     },
                 );
 
@@ -102,7 +111,7 @@ const Table = () => {
                         method: 'POST',
                         body: JSON.stringify({
                             ...filters,
-                            channel: 'marketers',
+                            channel: 'Marketing',
                         }),
                     },
                 );
@@ -134,6 +143,57 @@ const Table = () => {
         }
     }, [isFiltered, page, itemPerPage, getAllNotices, getAllNoticesFiltered]);
 
+    // Helper: delete a notice (used by Delete button)
+    const deleteNotice = useCallback(
+        async (notice: any) => {
+            const confirmed = confirm('Delete this notice?');
+            if (!confirmed) return;
+            try {
+                const delRes = await authedFetchApi<{ message: string }>(
+                    { path: `/v1/notice/delete-notice/${notice._id}` },
+                    { method: 'DELETE' },
+                );
+                if (delRes.ok) {
+                    toast.success('Deleted notice');
+                    await fetchNotices();
+                } else {
+                    toastFetchError(delRes);
+                }
+            } catch (e) {
+                console.error(e);
+                toast.error('An error occurred while deleting the notice');
+            }
+        },
+        [authedFetchApi, fetchNotices],
+    );
+
+    // Helper: quick edit (prompt) for notices (used by Edit button)
+    const editNotice = useCallback(
+        async (editedNotice: any) => {
+            try {
+                const { _id, ...payload } = editedNotice;
+                const putRes = await authedFetchApi(
+                    { path: `/v1/notice/update-notice/${_id}` },
+                    {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                    },
+                );
+                if (putRes.ok) {
+                    toast.success('Updated notice');
+                    await fetchNotices();
+                } else {
+                    toastFetchError(putRes);
+                }
+            } catch (e) {
+                console.error(e);
+                toast.error('An error occurred while updating the notice');
+            }
+        },
+        [authedFetchApi, fetchNotices],
+    );
+
     const handleSearch = useCallback(() => {
         setPage(1);
         setIsFiltered(true);
@@ -150,6 +210,11 @@ const Table = () => {
         searchVersion,
     });
 
+    // NOTE: Intentionally exclude `fetchNotices` from the dependency array below.
+    // Including it may cause the effect to re-run when `filters` changes (because
+    // `getAllNoticesFiltered` depends on `filters`), which would trigger a fetch
+    // on every filter change. We want fetching to happen only when the user
+    // explicitly clicks the Search button (which updates `searchVersion`/`isFiltered`).
     useEffect(() => {
         if (searchVersion > 0 && isFiltered && page === 1) {
             fetchNotices();
@@ -259,6 +324,41 @@ const Table = () => {
                                                         </svg>
                                                     </button>
                                                 </div>
+
+                                                {hasPerm(
+                                                    'notice:delete_notice',
+                                                    userPermissions,
+                                                ) && (
+                                                    <div className="inline-block  py-1">
+                                                        <DeleteButton
+                                                            noticeData={
+                                                                item as NoticeDataType
+                                                            }
+                                                            submitHandler={
+                                                                deleteNotice
+                                                            }
+                                                        />
+                                                    </div>
+                                                )}
+
+                                                {hasPerm(
+                                                    'notice:edit_notice',
+                                                    userPermissions,
+                                                ) && (
+                                                    <div className="inline-block  py-1">
+                                                        <EditButton
+                                                            isLoading={
+                                                                isLoading
+                                                            }
+                                                            noticeData={
+                                                                item as NoticeDataType
+                                                            }
+                                                            submitHandler={
+                                                                editNotice
+                                                            }
+                                                        />
+                                                    </div>
+                                                )}
                                             </td>
                                         </tr>
                                     );
