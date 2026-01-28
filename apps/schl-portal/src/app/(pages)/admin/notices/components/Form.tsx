@@ -6,11 +6,12 @@ import {
     EMPLOYEE_DEPARTMENTS,
     type EmployeeDepartment,
 } from '@repo/common/constants/employee.constant';
+import { isExemptDepartment as isExemptDept } from '@repo/common/utils/general-utils';
 import { hasPerm } from '@repo/common/utils/permission-check';
 import { setMenuPortalTarget } from '@repo/common/utils/select-helpers';
 import { CheckCircle, CloudUpload, Loader2 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { NoticeDataType, validationSchema } from '../schema';
@@ -27,6 +28,11 @@ const Form: React.FC = () => {
     const authedFetchApi = useAuthedFetchApi();
     const [loading, setLoading] = useState(false);
     const { data: session } = useSession();
+    const userDepartment = session?.user.department;
+    const isExemptDepartment = useMemo(
+        () => isExemptDept(userDepartment as any),
+        [userDepartment],
+    );
     const [file, setFile] = useState<File | null>(null);
     const [uploading, setUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -62,6 +68,13 @@ const Form: React.FC = () => {
         [userPermissions],
     );
 
+    // If user is not exempt, lock the channel selection to their department
+    useEffect(() => {
+        if (!isExemptDepartment) {
+            setValue('channel', userDepartment ? [userDepartment] : []);
+        }
+    }, [isExemptDepartment, setValue, userDepartment]);
+
     const constructFileName = (file: File, notice_no: string) => {
         const file_name = file.name;
         const file_ext = file_name.split('.').pop();
@@ -92,6 +105,11 @@ const Form: React.FC = () => {
 
             const { _id, createdAt, updatedAt, __v, updated_by, ...payload } =
                 parsed.data;
+
+            // Ensure non-exempt users can only send to their own department
+            if (!isExemptDepartment) {
+                payload.channel = userDepartment ? [userDepartment] : [];
+            }
 
             const response = await authedFetchApi(
                 { path: '/v1/notice/create-notice' },
@@ -231,8 +249,15 @@ const Form: React.FC = () => {
                                 allSelectedLabel="All departments"
                                 classNamePrefix="react-select"
                                 menuPortalTarget={setMenuPortalTarget}
-                                value={field.value || []}
+                                value={
+                                    !isExemptDepartment
+                                        ? userDepartment
+                                            ? [userDepartment]
+                                            : []
+                                        : field.value || []
+                                }
                                 onChange={field.onChange}
+                                isDisabled={!isExemptDepartment}
                             />
                         )}
                     />

@@ -16,6 +16,7 @@ import {
     addIfDefined,
     createRegexQuery,
 } from '@repo/common/utils/filter-helpers';
+import { isExemptDepartment as isExemptDept } from '@repo/common/utils/general-utils';
 import { hasAnyPerm, hasPerm } from '@repo/common/utils/permission-check';
 import { Model } from 'mongoose';
 import { CreateNoticeBodyDto } from './dto/create-notice.dto';
@@ -49,6 +50,23 @@ export class NoticeService {
         }
 
         try {
+            const isExemptDepartment = isExemptDept(
+                userSession.department as unknown as string,
+            );
+
+            // For non-exempt departments, ensure they can only send notices to their own department
+            if (!isExemptDepartment) {
+                if (
+                    !noticeData.channel ||
+                    noticeData.channel.length === 0 ||
+                    noticeData.channel.some(c => c !== userSession.department)
+                ) {
+                    throw new ForbiddenException(
+                        'You can only send notices to your own department',
+                    );
+                }
+            }
+
             // prevent duplicate notice number
             const exists = await this.noticeModel.countDocuments({
                 notice_no: createRegexQuery(noticeData.noticeNo, {
@@ -86,23 +104,13 @@ export class NoticeService {
             if (!notice) {
                 throw new NotFoundException('Notice not found');
             }
-            const canViewAllChannels =
-                hasPerm(
-                    'notice:send_notice' as Permissions,
-                    userSession.permissions,
-                ) ||
-                hasPerm(
-                    'notice:edit_notice' as Permissions,
-                    userSession.permissions,
-                ) ||
-                hasPerm(
-                    'notice:delete_notice' as Permissions,
-                    userSession.permissions,
-                );
+            const canViewAcrossDepartments = isExemptDept(
+                userSession.department as unknown as string,
+            );
 
-            // Check if user has permission to view across all channels (send/edit/delete) or if their department is in the notice channels
+            // Check if user is in an exempt department (HR/Admin/Management) or if their department is in the notice channels
             if (
-                !canViewAllChannels &&
+                !canViewAcrossDepartments &&
                 !notice.channel.includes(userSession.department)
             ) {
                 throw new ForbiddenException(
@@ -131,23 +139,13 @@ export class NoticeService {
             if (!notice) {
                 throw new NotFoundException('Notice not found');
             }
-            const canViewAllChannels =
-                hasPerm(
-                    'notice:send_notice' as Permissions,
-                    userSession.permissions,
-                ) ||
-                hasPerm(
-                    'notice:edit_notice' as Permissions,
-                    userSession.permissions,
-                ) ||
-                hasPerm(
-                    'notice:delete_notice' as Permissions,
-                    userSession.permissions,
-                );
+            const canViewAcrossDepartments = isExemptDept(
+                userSession.department as unknown as string,
+            );
 
-            // Check if user has permission to view across all channels (send/edit/delete) or if their department is in the notice channels
+            // Check if user is in an exempt department (HR/Admin/Management) or if their department is in the notice channels
             if (
-                !canViewAllChannels &&
+                !canViewAcrossDepartments &&
                 !notice.channel.includes(userSession.department)
             ) {
                 throw new ForbiddenException(
@@ -192,25 +190,21 @@ export class NoticeService {
         // Date range over createdAt
         applyDateRange(query, 'createdAt', fromDate, toDate);
 
-        const canViewAllChannels = hasAnyPerm(
-            [
-                'notice:send_notice',
-                'notice:edit_notice',
-                'notice:delete_notice',
-            ] as Permissions[],
-            userSession.permissions,
+        const canViewAcrossDepartments = isExemptDept(
+            userSession.department as unknown as string,
         );
 
-        // If user doesn't have send/edit/delete permission, filter by their department
+        // For non-exempt departments, restrict results to their own department regardless of permissions.
         // Do NOT treat Marketing specially here — CRM should hardcode channel='Marketing' in its requests
-        if (!canViewAllChannels) {
+        if (!canViewAcrossDepartments) {
+            // If a channel filter is provided and it matches the user's department, allow it; otherwise force user's department
             if (channel && channel === userSession.department) {
                 query.channel = { $in: [channel] };
             } else {
                 query.channel = { $in: [userSession.department] };
             }
         } else if (channel) {
-            // Users with send/edit/delete can filter by any channel
+            // Exempt departments can filter by any channel
             query.channel = { $in: [channel] };
         }
 
@@ -300,6 +294,36 @@ export class NoticeService {
         }
 
         try {
+            const existing = await this.noticeModel.findById(noticeId).exec();
+            if (!existing) {
+                throw new NotFoundException('Notice not found');
+            }
+
+            const isExemptDepartment = isExemptDept(
+                userSession.department as unknown as string,
+            );
+
+            // Non-exempt users can only edit notices for their own department
+            if (
+                !isExemptDepartment &&
+                !existing.channel.includes(userSession.department)
+            ) {
+                throw new ForbiddenException(
+                    'You can only edit notices for your own department',
+                );
+            }
+
+            // If attempting to change channels, non-exempt users may only set to their own department
+            if (
+                noticeData.channel &&
+                !isExemptDepartment &&
+                noticeData.channel.some(c => c !== userSession.department)
+            ) {
+                throw new ForbiddenException(
+                    'You cannot change notice channels outside your department',
+                );
+            }
+
             const patch = NoticeFactory.fromUpdateDto(noticeData);
             if (Object.keys(patch).length === 0) {
                 throw new BadRequestException('No update fields provided');
@@ -335,6 +359,19 @@ export class NoticeService {
         const noticeDoc = await this.noticeModel.findById(noticeId).exec();
         if (!noticeDoc) {
             throw new NotFoundException('Notice not found');
+        }
+
+        const isExemptDepartment = isExemptDept(
+            userSession.department as unknown as string,
+        );
+
+        if (
+            !isExemptDepartment &&
+            !noticeDoc.channel.includes(userSession.department)
+        ) {
+            throw new ForbiddenException(
+                'You can only delete notices for your own department',
+            );
         }
 
         try {

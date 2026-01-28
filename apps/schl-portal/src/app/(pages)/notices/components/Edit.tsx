@@ -4,7 +4,10 @@ import { MultiSelectWithAll } from '@/components/MultiSelectWithAll';
 import NoticeBodyEditor from '@/components/RichText/RichTextEditor';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { EMPLOYEE_DEPARTMENTS } from '@repo/common/constants/employee.constant';
-import { cn } from '@repo/common/utils/general-utils';
+import {
+    cn,
+    isExemptDepartment as isExemptDept,
+} from '@repo/common/utils/general-utils';
 import { hasPerm } from '@repo/common/utils/permission-check';
 import {
     setCalculatedZIndex,
@@ -70,6 +73,12 @@ const EditButton: React.FC<PropsType> = props => {
         [session?.user.permissions],
     );
 
+    const userDepartment = session?.user.department;
+    const isExemptDepartment = useMemo(
+        () => isExemptDept(userDepartment as any),
+        [userDepartment],
+    );
+
     const canSendNotice = useMemo(
         () => hasPerm('notice:send_notice', userPermissions),
         [userPermissions],
@@ -86,9 +95,20 @@ const EditButton: React.FC<PropsType> = props => {
     useEffect(() => {
         if (isOpen) {
             reset(props.noticeData);
+            if (!isExemptDepartment) {
+                // Ensure non-exempt users cannot change channels: lock to their department
+                setValue('channel', [userDepartment as any]);
+            }
         }
         console.log(props.noticeData);
-    }, [isOpen, reset, props.noticeData]);
+    }, [
+        isOpen,
+        reset,
+        props.noticeData,
+        isExemptDepartment,
+        setValue,
+        userDepartment,
+    ]);
 
     const customStyles = {
         control: (provided: any) => ({
@@ -182,8 +202,15 @@ const EditButton: React.FC<PropsType> = props => {
                                             styles={setCalculatedZIndex(
                                                 baseZIndex,
                                             )}
-                                            value={field.value || []}
+                                            value={
+                                                !isExemptDepartment
+                                                    ? userDepartment
+                                                        ? [userDepartment]
+                                                        : []
+                                                    : field.value || []
+                                            }
                                             onChange={field.onChange}
+                                            isDisabled={!isExemptDepartment}
                                         />
                                     )}
                                 />

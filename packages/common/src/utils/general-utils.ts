@@ -1,7 +1,15 @@
+import {
+    EXEMPT_DEPARTMENTS,
+    type ExemptDepartment,
+} from '@repo/common/constants/notice.constant';
 import { ClassValue, clsx } from 'clsx';
 import jwt from 'jsonwebtoken';
 import moment from 'moment-timezone';
 import { twMerge } from 'tailwind-merge';
+
+export const isExemptDepartment = (department?: string | null): boolean =>
+    Boolean(department) &&
+    EXEMPT_DEPARTMENTS.includes(department as ExemptDepartment);
 
 type CamelcaseKeysFn = (typeof import('camelcase-keys'))['default'];
 

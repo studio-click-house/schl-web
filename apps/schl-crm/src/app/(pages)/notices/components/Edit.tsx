@@ -4,7 +4,10 @@ import { MultiSelectWithAll } from '@/components/MultiSelectWithAll';
 import NoticeBodyEditor from '@/components/RichText/RichTextEditor';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { EMPLOYEE_DEPARTMENTS } from '@repo/common/constants/employee.constant';
-import { cn } from '@repo/common/utils/general-utils';
+import {
+    cn,
+    isExemptDepartment as isExemptDept,
+} from '@repo/common/utils/general-utils';
 import {
     setCalculatedZIndex,
     setClassNameAndIsDisabled,
@@ -66,6 +69,13 @@ const EditButton: React.FC<PropsType> = props => {
         initFlowbite();
     }, []);
 
+    const { data: session } = useSession();
+    const userDepartment = session?.user.department;
+    const isExemptDepartment = useMemo(
+        () => isExemptDept(userDepartment as any),
+        [userDepartment],
+    );
+
     const onSubmit = async (data: NoticeDataType) => {
         await props.submitHandler(data);
     };
@@ -73,8 +83,18 @@ const EditButton: React.FC<PropsType> = props => {
     useEffect(() => {
         if (isOpen) {
             reset(props.noticeData);
+            if (!isExemptDepartment) {
+                setValue('channel', [userDepartment as any]);
+            }
         }
-    }, [isOpen, reset, props.noticeData]);
+    }, [
+        isOpen,
+        reset,
+        props.noticeData,
+        isExemptDepartment,
+        setValue,
+        userDepartment,
+    ]);
 
     const customStyles = {
         control: (provided: any) => ({
@@ -168,8 +188,15 @@ const EditButton: React.FC<PropsType> = props => {
                                             styles={setCalculatedZIndex(
                                                 baseZIndex,
                                             )}
-                                            value={field.value || []}
+                                            value={
+                                                !isExemptDepartment
+                                                    ? userDepartment
+                                                        ? [userDepartment]
+                                                        : []
+                                                    : field.value || []
+                                            }
                                             onChange={field.onChange}
+                                            isDisabled={!isExemptDepartment}
                                         />
                                     )}
                                 />

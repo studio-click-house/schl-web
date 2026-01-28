@@ -9,6 +9,7 @@ import { formatDate } from '@repo/common/utils/date-helpers';
 import { cn, constructFileName } from '@repo/common/utils/general-utils';
 
 import type { Permissions } from '@repo/common/types/permission.type';
+import { isExemptDepartment as isExemptDept } from '@repo/common/utils/general-utils';
 import { hasAnyPerm, hasPerm } from '@repo/common/utils/permission-check';
 import { CirclePlus, SquareArrowOutUpRight } from 'lucide-react';
 import { useSession } from 'next-auth/react';
@@ -56,6 +57,12 @@ const Table = () => {
                 userPermissions,
             ),
         [userPermissions],
+    );
+
+    const userDepartment = session?.user.department;
+    const isExemptDepartment = useMemo(
+        () => isExemptDept(userDepartment as any),
+        [userDepartment],
     );
 
     const router = useRouter();
@@ -368,7 +375,7 @@ const Table = () => {
                                     <th>Date</th>
                                     <th>Notice No</th>
                                     <th>Title</th>
-                                    {canViewAllChannels && <th>Departments</th>}
+                                    {isExemptDepartment && <th>Departments</th>}
                                     <th>Manage</th>
                                 </tr>
                             </thead>
@@ -392,7 +399,7 @@ const Table = () => {
                                             <td className="text-wrap">
                                                 {notice.title}
                                             </td>
-                                            {canViewAllChannels && (
+                                            {isExemptDepartment && (
                                                 <td
                                                     className="uppercase text-wrap"
                                                     style={{
@@ -434,33 +441,47 @@ const Table = () => {
                                                         {hasPerm(
                                                             'notice:delete_notice',
                                                             userPermissions,
-                                                        ) && (
-                                                            <DeleteButton
-                                                                noticeData={
-                                                                    notice
-                                                                }
-                                                                submitHandler={
-                                                                    deleteNotice
-                                                                }
-                                                            />
-                                                        )}
+                                                        ) &&
+                                                            (isExemptDepartment ||
+                                                                (
+                                                                    notice.channel ||
+                                                                    []
+                                                                ).includes(
+                                                                    userDepartment as any,
+                                                                )) && (
+                                                                <DeleteButton
+                                                                    noticeData={
+                                                                        notice
+                                                                    }
+                                                                    submitHandler={
+                                                                        deleteNotice
+                                                                    }
+                                                                />
+                                                            )}
 
                                                         {hasPerm(
                                                             'notice:edit_notice',
                                                             userPermissions,
-                                                        ) && (
-                                                            <EditButton
-                                                                isLoading={
-                                                                    loading
-                                                                }
-                                                                submitHandler={
-                                                                    editNotice
-                                                                }
-                                                                noticeData={
-                                                                    notice
-                                                                }
-                                                            />
-                                                        )}
+                                                        ) &&
+                                                            (isExemptDepartment ||
+                                                                (
+                                                                    notice.channel ||
+                                                                    []
+                                                                ).includes(
+                                                                    userDepartment as any,
+                                                                )) && (
+                                                                <EditButton
+                                                                    isLoading={
+                                                                        loading
+                                                                    }
+                                                                    submitHandler={
+                                                                        editNotice
+                                                                    }
+                                                                    noticeData={
+                                                                        notice
+                                                                    }
+                                                                />
+                                                            )}
 
                                                         <button
                                                             onClick={() => {

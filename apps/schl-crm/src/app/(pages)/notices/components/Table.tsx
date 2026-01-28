@@ -4,6 +4,7 @@ import Pagination from '@/components/Pagination';
 import { usePaginationManager } from '@/hooks/usePaginationManager';
 import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import { ISO_to_DD_MM_YY as convertToDDMMYYYY } from '@repo/common/utils/date-helpers';
+import { isExemptDepartment as isExemptDept } from '@repo/common/utils/general-utils';
 import { hasPerm } from '@repo/common/utils/permission-check';
 import moment from 'moment-timezone';
 import { useSession } from 'next-auth/react';
@@ -45,6 +46,8 @@ const Table = () => {
     const { data: session } = useSession();
 
     const userPermissions = session?.user.permissions || [];
+    const userDepartment = session?.user.department;
+    const isExemptDepartment = isExemptDept(userDepartment as any);
 
     const [filters, setFilters] = useState({
         fromDate: '',
@@ -328,37 +331,49 @@ const Table = () => {
                                                 {hasPerm(
                                                     'notice:delete_notice',
                                                     userPermissions,
-                                                ) && (
-                                                    <div className="inline-block  py-1">
-                                                        <DeleteButton
-                                                            noticeData={
-                                                                item as NoticeDataType
-                                                            }
-                                                            submitHandler={
-                                                                deleteNotice
-                                                            }
-                                                        />
-                                                    </div>
-                                                )}
+                                                ) &&
+                                                    (isExemptDepartment ||
+                                                        (
+                                                            item.channel || []
+                                                        ).includes(
+                                                            userDepartment as any,
+                                                        )) && (
+                                                        <div className="inline-block  py-1">
+                                                            <DeleteButton
+                                                                noticeData={
+                                                                    item as NoticeDataType
+                                                                }
+                                                                submitHandler={
+                                                                    deleteNotice
+                                                                }
+                                                            />
+                                                        </div>
+                                                    )}
 
                                                 {hasPerm(
                                                     'notice:edit_notice',
                                                     userPermissions,
-                                                ) && (
-                                                    <div className="inline-block  py-1">
-                                                        <EditButton
-                                                            isLoading={
-                                                                isLoading
-                                                            }
-                                                            noticeData={
-                                                                item as NoticeDataType
-                                                            }
-                                                            submitHandler={
-                                                                editNotice
-                                                            }
-                                                        />
-                                                    </div>
-                                                )}
+                                                ) &&
+                                                    (isExemptDepartment ||
+                                                        (
+                                                            item.channel || []
+                                                        ).includes(
+                                                            userDepartment as any,
+                                                        )) && (
+                                                        <div className="inline-block  py-1">
+                                                            <EditButton
+                                                                isLoading={
+                                                                    isLoading
+                                                                }
+                                                                noticeData={
+                                                                    item as NoticeDataType
+                                                                }
+                                                                submitHandler={
+                                                                    editNotice
+                                                                }
+                                                            />
+                                                        </div>
+                                                    )}
                                             </td>
                                         </tr>
                                     );
