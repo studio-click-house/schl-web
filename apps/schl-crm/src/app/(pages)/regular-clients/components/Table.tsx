@@ -326,7 +326,32 @@ const Table = () => {
 
     return (
         <>
-            <div className="flex flex-col justify-center sm:flex-row sm:justify-end mb-4 gap-2">
+            <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-2">
+                <div className="mt-2 sm:mt-0">
+                    <div className="text-sm text-gray-800 flex gap-4 items-center font-semibold">
+                        <div className="flex items-center gap-2">
+                            <span
+                                className="w-3 h-3 inline-block rounded"
+                                style={{ backgroundColor: '#bbf7d0' }}
+                            />
+                            <span>0–14 days since last order</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <span
+                                className="w-3 h-3 inline-block rounded"
+                                style={{ backgroundColor: '#fde68a' }}
+                            />
+                            <span>15–29 days since last order</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <span
+                                className="w-3 h-3 inline-block rounded"
+                                style={{ backgroundColor: '#fecaca' }}
+                            />
+                            <span>30+ days or no orders</span>
+                        </div>
+                    </div>
+                </div>
                 <div className="items-center flex gap-2">
                     <Pagination
                         pageCount={pageCount}
