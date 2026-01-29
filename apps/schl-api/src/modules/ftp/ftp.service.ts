@@ -3,6 +3,7 @@ import {
     HttpException,
     Injectable,
     InternalServerErrorException,
+    Logger,
     NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -23,13 +24,34 @@ interface FtpConfig extends PromiseFtp.Options {
 export class FtpService {
     private readonly ftpConfig: FtpConfig;
 
+    private readonly logger = new Logger(FtpService.name);
+
     constructor(private readonly configService: ConfigService) {
+        const user =
+            this.configService.get<string>('FTP_USERNAME') || 'anonymous';
+
+        const password = this.configService.get<string>('FTP_PASSWORD') || '';
+
+        const port = Number(this.configService.get<number>('FTP_PORT') ?? 21);
+
+        const host = this.configService.get<string>('FTP_HOST') || 'localhost';
+
         this.ftpConfig = {
-            host: this.configService.get<string>('FTP_HOST') || 'localhost',
-            user: this.configService.get<string>('FTP_USER') || 'anonymous',
-            password: this.configService.get<string>('FTP_PASSWORD') || 'guest',
-            port: this.configService.get<number>('FTP_PORT') || 21,
+            host,
+            user,
+            password,
+            port,
         };
+
+        if (process.env.NODE_ENV !== 'production') {
+            this.logger.debug(
+                `FTP config ${JSON.stringify({
+                    host: this.ftpConfig.host,
+                    port: this.ftpConfig.port,
+                    user: this.ftpConfig.user,
+                })}`,
+            );
+        }
     }
 
     async deleteFile(fileName: string, folderName: string) {
