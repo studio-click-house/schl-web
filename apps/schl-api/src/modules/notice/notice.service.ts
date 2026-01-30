@@ -17,7 +17,7 @@ import {
     createRegexQuery,
 } from '@repo/common/utils/filter-helpers';
 import { isExemptDepartment as isExemptDept } from '@repo/common/utils/general-utils';
-import { hasAnyPerm, hasPerm } from '@repo/common/utils/permission-check';
+import { hasPerm } from '@repo/common/utils/permission-check';
 import { Model } from 'mongoose';
 import { CreateNoticeBodyDto } from './dto/create-notice.dto';
 import {

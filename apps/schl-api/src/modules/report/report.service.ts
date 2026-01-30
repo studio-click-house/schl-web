@@ -643,6 +643,7 @@ export class ReportService {
             show,
             freshLead,
             clientApprovalWaiting,
+            orderFrequency,
         } = filters;
 
         const query: QueryShape = {};
@@ -854,14 +855,19 @@ export class ReportService {
 
         const skip = (page - 1) * itemsPerPage;
         if (paginated) {
-            const count = await this.reportModel.countDocuments(
-                searchQuery as Record<string, unknown>,
-            );
-            console.log('Total count:', count, searchQuery);
             const pipeline: any[] = [
                 { $match: searchQuery },
                 {
+                    $lookup: {
+                        from: 'orders',
+                        localField: 'client_code',
+                        foreignField: 'client_code',
+                        as: 'orders',
+                    },
+                },
+                {
                     $addFields: {
+                        last_order_date: { $max: '$orders.download_date' },
                         hasFollowupDate: {
                             $cond: {
                                 if: { $eq: ['$followup_date', ''] },
@@ -871,19 +877,36 @@ export class ReportService {
                         },
                     },
                 },
+                { $project: { orders: 0 } },
                 { $sort: sortQuery },
-                { $skip: skip },
-                { $limit: itemsPerPage },
-                { $project: { hasFollowupDate: 0 } },
             ];
-            const items = await this.reportModel.aggregate(pipeline).exec();
-            if (!items) {
+            const allItems = await this.reportModel.aggregate(pipeline).exec();
+            if (!allItems) {
                 throw new InternalServerErrorException(
                     'Unable to retrieve reports',
                 );
             }
 
-            await this.attachLastOrderDate(items);
+            let filteredItems = allItems;
+            if (orderFrequency) {
+                const now = moment().tz('Asia/Dhaka');
+                filteredItems = allItems.filter((item: any) => {
+                    const lastOrderDateStr = item.last_order_date;
+                    if (!lastOrderDateStr) {
+                        return orderFrequency === 'irregular';
+                    }
+                    const lastOrderDate = moment(lastOrderDateStr);
+                    const daysSince = now.diff(lastOrderDate, 'days');
+                    if (orderFrequency === 'consistent') return daysSince <= 14;
+                    if (orderFrequency === 'regular')
+                        return daysSince >= 15 && daysSince <= 29;
+                    if (orderFrequency === 'irregular') return daysSince >= 30;
+                    return true;
+                });
+            }
+
+            const count = filteredItems.length;
+            const items = filteredItems.slice(skip, skip + itemsPerPage);
             return {
                 pagination: {
                     count,
@@ -894,7 +917,7 @@ export class ReportService {
         }
 
         // Unpaginated: simple find
-        const items = await this.reportModel
+        let items = await this.reportModel
             .find(searchQuery as Record<string, unknown>)
             .lean()
             .exec();
@@ -905,6 +928,23 @@ export class ReportService {
         }
 
         await this.attachLastOrderDate(items as any[]);
+
+        if (orderFrequency) {
+            const now = moment().tz('Asia/Dhaka');
+            items = items.filter((item: any) => {
+                const lastOrderDate = item.last_order_date;
+                if (!lastOrderDate) {
+                    return orderFrequency === 'irregular';
+                }
+                const daysSince = now.diff(moment(lastOrderDate), 'days');
+                if (orderFrequency === 'consistent') return daysSince <= 14;
+                if (orderFrequency === 'regular')
+                    return daysSince >= 15 && daysSince <= 29;
+                if (orderFrequency === 'irregular') return daysSince >= 30;
+                return true;
+            });
+        }
+
         return items;
     }
 
@@ -1042,10 +1082,14 @@ export class ReportService {
                 );
             }
 
-            // 1b) Get the report to check marketer name
-            const report = await this.reportModel
-                .findById(reportId, null, { session })
-                .exec();
+            // 2) Get the report being converted
+            const report = await this.reportModel.findById(reportId).exec();
+            if (!report) {
+                await session.abortTransaction();
+                await session.endSession();
+                throw new BadRequestException('Report not found');
+            }
+
             if (!report) {
                 await session.abortTransaction();
                 await session.endSession();

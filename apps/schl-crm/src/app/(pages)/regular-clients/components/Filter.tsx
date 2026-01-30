@@ -1,7 +1,9 @@
 'use client';
 
+import { orderFrequencyOptions } from '@repo/common/constants/client.constant';
 import { cn } from '@repo/common/utils/general-utils';
 import React, { useRef, useState } from 'react';
+import Select from 'react-select';
 
 interface PropsType {
     className?: string;
@@ -15,6 +17,7 @@ interface PropsType {
         test: boolean;
         generalSearchString: string;
         show: 'all' | 'mine' | 'others';
+        orderFrequency?: '' | 'consistent' | 'regular' | 'irregular';
     };
     setFilters: React.Dispatch<React.SetStateAction<any>>;
     isLoading: boolean;
@@ -55,6 +58,7 @@ const FilterButton: React.FC<PropsType> = props => {
             test: false,
             generalSearchString: '',
             show: 'mine',
+            orderFrequency: '',
         });
     };
     const handleClickOutside = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -187,6 +191,33 @@ const FilterButton: React.FC<PropsType> = props => {
                                         value={filters.companyName}
                                         onChange={handleChange}
                                         type="text"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block uppercase tracking-wide text-gray-700 text-sm font-bold mb-2">
+                                        Order Frequency
+                                    </label>
+                                    <Select
+                                        options={orderFrequencyOptions}
+                                        classNamePrefix="react-select"
+                                        value={
+                                            orderFrequencyOptions.find(
+                                                opt =>
+                                                    opt.value ===
+                                                    filters.orderFrequency,
+                                            ) || null
+                                        }
+                                        onChange={selectedOption =>
+                                            setFilters((prevData: {}) => ({
+                                                ...prevData,
+                                                orderFrequency:
+                                                    (selectedOption as any)
+                                                        ?.value || '',
+                                            }))
+                                        }
+                                        isClearable={true}
+                                        placeholder="Search by order frequency"
                                     />
                                 </div>
                             </div>

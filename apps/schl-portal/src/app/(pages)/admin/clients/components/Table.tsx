@@ -77,6 +77,7 @@ const Table: React.FC = () => {
         countryName: '',
         category: '',
         generalSearchString: '',
+        orderFrequency: '' as '' | 'consistent' | 'regular' | 'irregular',
     });
 
     const [marketerNames, setMarketerNames] = useState<string[]>([]);
@@ -333,8 +334,8 @@ const Table: React.FC = () => {
                 className={cn(
                     'flex flex-col mb-4 gap-2',
                     hasPerm('admin:create_client', userPermissions)
-                        ? 'sm:flex-row sm:justify-between'
-                        : 'sm:justify-end sm:flex-row',
+                        ? 'sm:flex-row sm:justify-between sm:items-center'
+                        : 'sm:justify-end sm:flex-row sm:items-center',
                 )}
             >
                 {hasPerm('admin:create_client', userPermissions) && (
@@ -351,6 +352,48 @@ const Table: React.FC = () => {
                         <CirclePlus size={18} />
                     </button>
                 )}
+
+                <div className="mb-2 sm:mb-0">
+                    <div
+                        aria-label="Row color legend"
+                        role="list"
+                        className="text-sm text-gray-800 font-semibold flex gap-4 items-center"
+                    >
+                        <div
+                            role="listitem"
+                            className="flex items-center gap-2"
+                        >
+                            <span
+                                className="w-4 h-4 inline-block rounded"
+                                style={{ backgroundColor: '#bbf7d0' }}
+                                aria-hidden
+                            />
+                            <span>0–14 days since last order</span>
+                        </div>
+                        <div
+                            role="listitem"
+                            className="flex items-center gap-2"
+                        >
+                            <span
+                                className="w-4 h-4 inline-block rounded"
+                                style={{ backgroundColor: '#fde68a' }}
+                                aria-hidden
+                            />
+                            <span>15–29 days since last order</span>
+                        </div>
+                        <div
+                            role="listitem"
+                            className="flex items-center gap-2"
+                        >
+                            <span
+                                className="w-4 h-4 inline-block rounded"
+                                style={{ backgroundColor: '#fecaca' }}
+                                aria-hidden
+                            />
+                            <span>30+ days or no orders</span>
+                        </div>
+                    </div>
+                </div>
 
                 <div className="items-center flex gap-2">
                     <Pagination

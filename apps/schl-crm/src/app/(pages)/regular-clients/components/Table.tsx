@@ -58,6 +58,7 @@ const Table = () => {
         test: false,
         generalSearchString: '',
         show: 'mine' as 'all' | 'mine' | 'others',
+        orderFrequency: '' as '' | 'consistent' | 'regular' | 'irregular',
     });
 
     const getAllClients = useCallback(
@@ -326,7 +327,7 @@ const Table = () => {
 
     return (
         <>
-            <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-2">
+            <div className="flex flex-col sm:flex-row justify-between mb-4 sm:items-center gap-2">
                 <div className="mt-2 sm:mt-0">
                     <div className="text-sm text-gray-800 flex gap-4 items-center font-semibold">
                         <div className="flex items-center gap-2">

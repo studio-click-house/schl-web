@@ -19,6 +19,7 @@ import {
     createRegexQuery,
 } from '@repo/common/utils/filter-helpers';
 import { hasPerm } from '@repo/common/utils/permission-check';
+import moment from 'moment-timezone';
 import { FilterQuery, Model } from 'mongoose';
 import { CreateClientBodyDto } from './dto/create-client.dto';
 import { SearchClientsBodyDto } from './dto/search-clients.dto';
@@ -171,6 +172,7 @@ export class ClientService {
             marketerName,
             category,
             generalSearchString,
+            orderFrequency,
         } = filters;
 
         const query: QueryShape = {};
@@ -205,13 +207,95 @@ export class ClientService {
 
         const skip = (page - 1) * itemsPerPage;
         let count = 0;
-        try {
-            count = await this.clientModel.countDocuments(
-                searchQuery as Record<string, unknown>,
-            );
-        } catch (e) {
-            if (e instanceof HttpException) throw e;
-            throw new InternalServerErrorException('Unable to count clients');
+        if (orderFrequency) {
+            const countPipeline = [
+                { $match: searchQuery },
+                {
+                    $lookup: {
+                        from: 'orders',
+                        localField: 'client_code',
+                        foreignField: 'client_code',
+                        as: 'orders',
+                    },
+                },
+                {
+                    $addFields: {
+                        last_order_date: {
+                            $cond: {
+                                if: { $gt: [{ $size: '$orders' }, 0] },
+                                then: {
+                                    $dateFromString: {
+                                        dateString: {
+                                            $max: '$orders.download_date',
+                                        },
+                                    },
+                                },
+                                else: null,
+                            },
+                        },
+                    },
+                },
+                { $project: { orders: 0 } },
+            ];
+
+            const now = moment().tz('Asia/Dhaka').toDate();
+            const consistentMaxDays = 14;
+            const regularMinDays = 15;
+            const regularMaxDays = 29;
+            let matchCondition: any;
+            if (orderFrequency === 'consistent') {
+                const minDate = new Date(
+                    now.getTime() - consistentMaxDays * 24 * 60 * 60 * 1000,
+                );
+                matchCondition = { last_order_date: { $gte: minDate } };
+            } else if (orderFrequency === 'regular') {
+                const minDate = new Date(
+                    now.getTime() - regularMaxDays * 24 * 60 * 60 * 1000,
+                );
+                const maxDate = new Date(
+                    now.getTime() - regularMinDays * 24 * 60 * 60 * 1000,
+                );
+                matchCondition = {
+                    last_order_date: { $gte: minDate, $lt: maxDate },
+                };
+            } else if (orderFrequency === 'irregular') {
+                const maxDate = new Date(
+                    now.getTime() - regularMaxDays * 24 * 60 * 60 * 1000,
+                );
+                matchCondition = {
+                    $or: [
+                        { last_order_date: { $lt: maxDate } },
+                        { last_order_date: null },
+                    ],
+                };
+            }
+            if (matchCondition) {
+                countPipeline.push({ $match: matchCondition });
+            }
+
+            try {
+                const countResult = await this.clientModel.aggregate([
+                    ...countPipeline,
+                    { $count: 'total' },
+                ]);
+                count = countResult[0]?.total || 0;
+            } catch (e) {
+                if (e instanceof HttpException) throw e;
+                throw new InternalServerErrorException(
+                    'Unable to count clients',
+                );
+            }
+        } else {
+            try {
+                count = await this.clientModel.countDocuments(
+                    searchQuery as Record<string, unknown>,
+                );
+            } catch (e) {
+                if (e instanceof HttpException) throw e;
+                throw new InternalServerErrorException(
+                    'Unable to count clients',
+                );
+            }
         }
 
         // Safer numeric extraction of <clientNumber> for sorting:
@@ -220,7 +304,16 @@ export class ClientService {
         const basePipeline: any[] = [
             { $match: searchQuery },
             {
+                $lookup: {
+                    from: 'orders',
+                    localField: 'client_code',
+                    foreignField: 'client_code',
+                    as: 'orders',
+                },
+            },
+            {
                 $addFields: {
+                    last_order_date: { $max: '$orders.download_date' },
                     clientNumber: {
                         $convert: {
                             input: {
@@ -236,31 +329,39 @@ export class ClientService {
                     },
                 },
             },
+            { $project: { orders: 0 } },
             { $sort: { clientNumber: 1 } },
+            { $unset: 'clientNumber' },
         ];
 
         if (paginated) {
-            basePipeline.push({ $skip: skip }, { $limit: itemsPerPage });
-        }
-
-        basePipeline.push({ $unset: 'clientNumber' });
-
-        try {
-            const items: Client[] = await this.clientModel
+            const allItems = await this.clientModel
                 .aggregate(basePipeline)
                 .exec();
-
-            if (!items) {
+            if (!allItems) {
                 throw new BadRequestException('Unable to retrieve clients');
             }
 
-            await this.attachLastOrderDate(items);
-            await this.attachOrderUpdate(items);
-
-            if (!paginated) {
-                return items;
+            let filteredItems = allItems;
+            if (orderFrequency) {
+                const now = moment().tz('Asia/Dhaka');
+                filteredItems = allItems.filter((item: any) => {
+                    const lastOrderDateStr = item.last_order_date;
+                    if (!lastOrderDateStr) {
+                        return orderFrequency === 'irregular';
+                    }
+                    const lastOrderDate = moment(lastOrderDateStr);
+                    const daysSince = now.diff(lastOrderDate, 'days');
+                    if (orderFrequency === 'consistent') return daysSince <= 14;
+                    if (orderFrequency === 'regular')
+                        return daysSince >= 15 && daysSince <= 29;
+                    if (orderFrequency === 'irregular') return daysSince >= 30;
+                    return true;
+                });
             }
 
+            const count = filteredItems.length;
+            const items = filteredItems.slice(skip, skip + itemsPerPage);
             return {
                 pagination: {
                     count,
@@ -268,11 +369,6 @@ export class ClientService {
                 },
                 items,
             };
-        } catch (e) {
-            if (e instanceof HttpException) throw e;
-            throw new InternalServerErrorException(
-                'Unable to retrieve clients',
-            );
         }
     }
 

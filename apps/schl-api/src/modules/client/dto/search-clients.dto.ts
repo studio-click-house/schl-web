@@ -1,10 +1,15 @@
 import {
+    ORDER_FREQUENCIES,
+    type OrderFrequency,
+} from '@repo/common/constants/client.constant';
+import {
     emptyStringToUndefined,
     toBoolean,
 } from '@repo/common/utils/transformers';
 import { Transform, Type } from 'class-transformer';
 import {
     IsBoolean,
+    IsEnum,
     IsInt,
     IsOptional,
     IsString,
@@ -69,4 +74,10 @@ export class SearchClientsBodyDto {
     @IsOptional()
     @IsString()
     generalSearchString?: string;
+
+    @Transform(emptyStringToUndefined)
+    @IsOptional()
+    @IsString()
+    @IsEnum(ORDER_FREQUENCIES)
+    orderFrequency?: OrderFrequency;
 }

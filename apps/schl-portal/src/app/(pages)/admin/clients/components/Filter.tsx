@@ -22,11 +22,13 @@ interface PropsType {
         countryName: string;
         category: string;
         generalSearchString: string;
+        orderFrequency?: '' | 'consistent' | 'regular' | 'irregular';
     };
     setFilters: React.Dispatch<React.SetStateAction<any>>;
     loading: boolean;
 }
 
+import { orderFrequencyOptions } from '@repo/common/constants/client.constant';
 import Select from 'react-select';
 
 const FilterButton: React.FC<PropsType> = props => {
@@ -67,6 +69,7 @@ const FilterButton: React.FC<PropsType> = props => {
             countryName: '',
             category: '',
             generalSearchString: '',
+            orderFrequency: '',
         });
     };
 
@@ -201,6 +204,42 @@ const FilterButton: React.FC<PropsType> = props => {
                                     onChange={handleChange}
                                     type="text"
                                     placeholder="Search by country name"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block uppercase tracking-wide text-gray-700 text-sm font-bold mb-2">
+                                    Order Frequency
+                                </label>
+                                <Select
+                                    {...setClassNameAndIsDisabled(isOpen)}
+                                    options={orderFrequencyOptions}
+                                    closeMenuOnSelect={true}
+                                    classNamePrefix="react-select"
+                                    menuPortalTarget={setMenuPortalTarget}
+                                    menuPlacement="auto"
+                                    menuPosition="fixed"
+                                    styles={setCalculatedZIndex(baseZIndex)}
+                                    value={
+                                        orderFrequencyOptions.find(
+                                            option =>
+                                                option.value ===
+                                                filters.orderFrequency,
+                                        ) || null
+                                    }
+                                    onChange={selectedOption =>
+                                        setFilters(
+                                            (
+                                                prevFilters: PropsType['filters'],
+                                            ) => ({
+                                                ...prevFilters,
+                                                orderFrequency:
+                                                    (selectedOption as any)
+                                                        ?.value || '',
+                                            }),
+                                        )
+                                    }
+                                    placeholder="Search by order frequency"
                                 />
                             </div>
                         </div>
