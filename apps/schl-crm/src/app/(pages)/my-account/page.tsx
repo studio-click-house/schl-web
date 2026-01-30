@@ -3,43 +3,34 @@ import { fetchApiWithServerAuth } from '@/lib/api-server';
 import { EmployeeDocument } from '@repo/common/models/employee.schema';
 import { generateAvatar, verifyCookie } from '@repo/common/utils/general-utils';
 
-import type { Session } from 'next-auth';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import React from 'react';
 import Profile from './components/Profile';
 
-const getEmployeeInfo = async (
-    session: Session | null,
-): Promise<EmployeeDocument | null> => {
-    if (!session?.user) {
-        return null;
-    }
-
-    const userId = session.user.db_id || session.user.e_id;
-
-    if (!userId) {
-        console.error('Session missing user identifiers');
-        return null;
-    }
-
+const getEmployeeInfo = async () => {
+    const session = await auth();
     try {
-        const response = await fetchApiWithServerAuth<EmployeeDocument>(
+        if (!session?.user.e_id) {
+            console.error('Employee ID is missing from session');
+            return null;
+        }
+
+        const response = await fetchApiWithServerAuth(
             {
-                path: `/v1/employee/get-employee/${encodeURIComponent(userId)}`,
+                path: `/v1/employee/get-employee/${encodeURIComponent(session.user.e_id)}`,
             },
             {
                 method: 'GET',
                 cache: 'no-store',
             },
         );
-
         if (response.ok) {
-            return response.data;
+            return response.data as EmployeeDocument;
+        } else {
+            console.error(response.data.message);
+            return null;
         }
-
-        console.error(response.data);
-        return null;
     } catch (e) {
         console.error(e);
         console.log('An error occurred while fetching employee data');
@@ -51,11 +42,11 @@ async function MyAccountPage() {
     console.log('My Account Page');
     const session = await auth();
     const avatarURI = await generateAvatar(session?.user.real_name || '');
-    const employeeInfo = await getEmployeeInfo(session);
+    const employeeInfo = await getEmployeeInfo();
 
     if (employeeInfo === null) {
         console.error('Employee info is null');
-        redirect('/');
+        redirect('/?error=Unable to find employee information');
     }
 
     const cookieStore = cookies();

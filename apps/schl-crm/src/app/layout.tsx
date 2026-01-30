@@ -1,6 +1,7 @@
 import '@/app/globals.css';
 import { auth } from '@/auth';
 import SessionProvider from '@/components/SessionProvider';
+import ToastHandler from '@/components/ToastHandler';
 import { cn } from '@repo/common/utils/general-utils';
 import type { Metadata } from 'next';
 import { Karla, Lato } from 'next/font/google';
@@ -35,6 +36,7 @@ export default async function RootLayout({
             >
                 <SessionProvider session={session}>
                     <NextTopLoader color="#7BA541" height={4} />
+                    <ToastHandler />
                     <noscript>
                         You need to enable JavaScript to run this app.
                     </noscript>

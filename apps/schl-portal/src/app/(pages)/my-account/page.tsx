@@ -6,6 +6,7 @@ import { generateAvatar, verifyCookie } from '@repo/common/utils/general-utils';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import React from 'react';
+import { toast } from 'sonner';
 import Profile from './components/Profile';
 
 const getEmployeeInfo = async () => {
@@ -46,7 +47,7 @@ async function MyAccountPage() {
 
     if (employeeInfo === null) {
         console.error('Employee info is null');
-        redirect('/');
+        redirect('/?error=Unable to find employee information');
     }
 
     const cookieStore = cookies();

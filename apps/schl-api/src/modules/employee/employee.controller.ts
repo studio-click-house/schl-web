@@ -62,8 +62,10 @@ export class EmployeeController {
         const isPotentialObjectId =
             value.length === 24 && /^[0-9a-fA-F]{24}$/.test(value);
         if (isPotentialObjectId) {
+            console.log('Fetching employee by db_id:', value);
             return this.employeeService.getEmployeeByDbId(value, req.user);
         }
+        console.log('Fetching employee by e_id:', value);
         return this.employeeService.getEmployeeById(value, req.user);
     }
 }

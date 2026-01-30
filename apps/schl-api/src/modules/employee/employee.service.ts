@@ -409,10 +409,11 @@ export class EmployeeService {
     }
 
     async getEmployeeById(e_id: string, userSession: UserSession) {
-        const canView = hasPerm(
-            'accountancy:manage_employee',
+        const canView = hasAnyPerm(
+            ['accountancy:manage_employee', 'settings:view_page'],
             userSession.permissions,
         );
+
         if (!canView) {
             throw new ForbiddenException(
                 "You don't have permission to view employee details",
@@ -422,6 +423,7 @@ export class EmployeeService {
         const id = e_id.trim();
         try {
             const found = await this.employeeModel.findOne({ e_id: id }).exec();
+            console.log('Found employee:', found);
             if (!found) {
                 throw new BadRequestException('Employee not found');
             }

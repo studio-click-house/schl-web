@@ -9,6 +9,7 @@ import {
 } from '@repo/common/utils/account-helpers';
 import { cn } from '@repo/common/utils/general-utils';
 import { hasPerm } from '@repo/common/utils/permission-check';
+import { capitalize } from 'lodash';
 import { Clock4, Coins, Mail } from 'lucide-react';
 import moment from 'moment-timezone';
 import { useSession } from 'next-auth/react';
@@ -128,7 +129,7 @@ const Profile: React.FC<ProfilePropsTypes> = props => {
                         Blood Group
                     </h2>
                     <p className="text-lg font-semibold">
-                        {employeeInfo.blood_group}
+                        {employeeInfo.blood_group.toUpperCase()}
                     </p>
                 </div>
                 <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
@@ -143,7 +144,7 @@ const Profile: React.FC<ProfilePropsTypes> = props => {
                                 : 'text-red-500',
                         )}
                     >
-                        {employeeInfo.status}
+                        {capitalize(employeeInfo.status)}
                     </p>
                 </div>
             </div>
