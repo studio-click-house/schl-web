@@ -369,6 +369,38 @@ export class ClientService {
                 },
                 items,
             };
+        } else {
+            // Unpaginated: simple find
+            let items = await this.clientModel
+                .find(searchQuery as Record<string, unknown>)
+                .lean()
+                .exec();
+            if (!items) {
+                throw new InternalServerErrorException(
+                    'Unable to retrieve clients',
+                );
+            }
+
+            await this.attachLastOrderDate(items as any[]);
+            await this.attachOrderUpdate(items);
+
+            if (orderFrequency) {
+                const now = moment().tz('Asia/Dhaka');
+                items = items.filter((item: any) => {
+                    const lastOrderDate = item.last_order_date;
+                    if (!lastOrderDate) {
+                        return orderFrequency === 'irregular';
+                    }
+                    const daysSince = now.diff(moment(lastOrderDate), 'days');
+                    if (orderFrequency === 'consistent') return daysSince <= 14;
+                    if (orderFrequency === 'regular')
+                        return daysSince >= 15 && daysSince <= 29;
+                    if (orderFrequency === 'irregular') return daysSince >= 30;
+                    return true;
+                });
+            }
+
+            return items;
         }
     }
 
