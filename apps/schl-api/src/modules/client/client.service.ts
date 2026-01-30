@@ -27,19 +27,6 @@ import { ClientFactory } from './factories/client.factory';
 
 type QueryShape = FilterQuery<Client>;
 
-// interface RegexQuery {
-//     $regex: string;
-//     $options: string;
-// }
-// interface QueryShape {
-//     client_code?: RegexQuery;
-//     country?: RegexQuery;
-//     contact_person?: RegexQuery;
-//     marketer?: RegexQuery;
-//     category?: RegexQuery;
-//     $or?: Record<string, RegexQuery>[];
-// }
-
 @Injectable()
 export class ClientService {
     private readonly logger = new Logger(ClientService.name);
@@ -48,53 +35,6 @@ export class ClientService {
         @InjectModel(Order.name) private readonly orderModel: Model<Order>,
         @InjectModel(Report.name) private readonly reportModel: Model<Report>,
     ) {}
-
-    private async attachLastOrderDate<
-        T extends { client_code?: string | null },
-    >(items: T[]): Promise<Array<T & { last_order_date?: string | null }>> {
-        const clientCodes = Array.from(
-            new Set(
-                items
-                    .map(i => i?.client_code)
-                    .filter(
-                        (c): c is string =>
-                            typeof c === 'string' && c.length > 0,
-                    ),
-            ),
-        );
-
-        if (clientCodes.length === 0) return items;
-
-        const lastOrders = (await this.orderModel
-            .aggregate([
-                { $match: { client_code: { $in: clientCodes } } },
-                {
-                    $group: {
-                        _id: '$client_code',
-                        last_order_date: { $max: '$download_date' },
-                    },
-                },
-            ])
-            .exec()) as Array<{ _id: string; last_order_date?: string }>;
-
-        const lastOrderByClientCode: Record<string, string> = {};
-        for (const row of lastOrders) {
-            if (row?._id && row.last_order_date) {
-                lastOrderByClientCode[row._id] = row.last_order_date;
-            }
-        }
-
-        for (const item of items as Array<
-            T & { last_order_date?: string | null }
-        >) {
-            const code = item?.client_code;
-            if (typeof code === 'string' && code) {
-                item.last_order_date = lastOrderByClientCode[code] ?? null;
-            }
-        }
-
-        return items;
-    }
 
     private async attachOrderUpdate<T extends { client_code?: string | null }>(
         items: T[],
@@ -150,6 +90,48 @@ export class ClientService {
         return items;
     }
 
+    private getOrderFrequencyMatch(orderFrequency: string | undefined): any {
+        if (!orderFrequency) return null;
+
+        const now = moment().tz('Asia/Dhaka');
+        const consistentMaxDays = 14;
+        const regularMinDays = 15;
+        const regularMaxDays = 29;
+        const irregularMinDays = 30;
+
+        if (orderFrequency === 'consistent') {
+            const minDate = now
+                .clone()
+                .subtract(consistentMaxDays, 'days')
+                .toISOString();
+            return { last_order_date: { $gte: minDate } };
+        } else if (orderFrequency === 'regular') {
+            const minDate = now
+                .clone()
+                .subtract(regularMaxDays, 'days')
+                .toISOString();
+            const maxDate = now
+                .clone()
+                .subtract(regularMinDays, 'days')
+                .toISOString();
+            return {
+                last_order_date: { $gte: minDate, $lte: maxDate },
+            };
+        } else if (orderFrequency === 'irregular') {
+            const maxDate = now
+                .clone()
+                .subtract(irregularMinDays, 'days')
+                .toISOString();
+            return {
+                $or: [
+                    { last_order_date: { $lte: maxDate } },
+                    { last_order_date: null },
+                ],
+            };
+        }
+        return null;
+    }
+
     async searchClients(
         filters: SearchClientsBodyDto,
         pagination: {
@@ -158,7 +140,7 @@ export class ClientService {
             // filtered: boolean;
             paginated: boolean;
         },
-    ) {
+    ): Promise<any> {
         const {
             page,
             itemsPerPage,
@@ -184,14 +166,6 @@ export class ClientService {
 
         const searchQuery: QueryShape = { ...query };
 
-        // if (
-        //     filtered &&
-        //     Object.keys(query).length === 0 &&
-        //     !generalSearchString
-        // ) {
-        //     throw new BadRequestException('No filter applied');
-        // }
-
         if (generalSearchString) {
             const or = buildOrRegex(generalSearchString, [
                 'client_code',
@@ -206,102 +180,45 @@ export class ClientService {
         }
 
         const skip = (page - 1) * itemsPerPage;
-        let count = 0;
-        if (orderFrequency) {
-            const countPipeline = [
-                { $match: searchQuery },
-                {
-                    $lookup: {
-                        from: 'orders',
-                        localField: 'client_code',
-                        foreignField: 'client_code',
-                        as: 'orders',
-                    },
-                },
-                {
-                    $addFields: {
-                        last_order_date: {
-                            $cond: {
-                                if: { $gt: [{ $size: '$orders' }, 0] },
-                                then: {
-                                    $dateFromString: {
-                                        dateString: {
-                                            $max: '$orders.download_date',
-                                        },
-                                    },
-                                },
-                                else: null,
-                            },
-                        },
-                    },
-                },
-                { $project: { orders: 0 } },
-            ];
+        const matchCondition = this.getOrderFrequencyMatch(orderFrequency);
 
-            const now = moment().tz('Asia/Dhaka').toDate();
-            const consistentMaxDays = 14;
-            const regularMinDays = 15;
-            const regularMaxDays = 29;
-            let matchCondition: any;
-            if (orderFrequency === 'consistent') {
-                const minDate = new Date(
-                    now.getTime() - consistentMaxDays * 24 * 60 * 60 * 1000,
-                );
-                matchCondition = { last_order_date: { $gte: minDate } };
-            } else if (orderFrequency === 'regular') {
-                const minDate = new Date(
-                    now.getTime() - regularMaxDays * 24 * 60 * 60 * 1000,
-                );
-                const maxDate = new Date(
-                    now.getTime() - regularMinDays * 24 * 60 * 60 * 1000,
-                );
-                matchCondition = {
-                    last_order_date: { $gte: minDate, $lt: maxDate },
-                };
-            } else if (orderFrequency === 'irregular') {
-                const maxDate = new Date(
-                    now.getTime() - regularMaxDays * 24 * 60 * 60 * 1000,
-                );
-                matchCondition = {
-                    $or: [
-                        { last_order_date: { $lt: maxDate } },
-                        { last_order_date: null },
-                    ],
-                };
-            }
-            if (matchCondition) {
-                countPipeline.push({ $match: matchCondition });
-            }
+        // Build count pipeline
+        const countPipeline: any[] = [
+            { $match: searchQuery },
+            {
+                $lookup: {
+                    from: 'orders',
+                    localField: 'client_code',
+                    foreignField: 'client_code',
+                    as: 'orders',
+                },
+            },
+            {
+                $addFields: {
+                    last_order_date: { $max: '$orders.download_date' },
+                },
+            },
+            { $project: { orders: 0 } },
+        ];
 
-            try {
-                const countResult = await this.clientModel.aggregate([
-                    ...countPipeline,
-                    { $count: 'total' },
-                ]);
-                count = countResult[0]?.total || 0;
-            } catch (e) {
-                if (e instanceof HttpException) throw e;
-                throw new InternalServerErrorException(
-                    'Unable to count clients',
-                );
-            }
-        } else {
-            try {
-                count = await this.clientModel.countDocuments(
-                    searchQuery as Record<string, unknown>,
-                );
-            } catch (e) {
-                if (e instanceof HttpException) throw e;
-                throw new InternalServerErrorException(
-                    'Unable to count clients',
-                );
-            }
+        if (matchCondition) {
+            countPipeline.push({ $match: matchCondition });
         }
 
-        // Safer numeric extraction of <clientNumber> for sorting:
-        // 1. Split on '_' to isolate the numeric prefix regardless of its length (e.g. 1234_XXXX, 7_ABC).
-        // 2. Convert first segment to int with graceful fallback (onError/onNull => 0).
-        const basePipeline: any[] = [
+        let count = 0;
+        try {
+            const countResult = await this.clientModel.aggregate([
+                ...countPipeline,
+                { $count: 'total' },
+            ]);
+            count = countResult[0]?.total || 0;
+        } catch (e) {
+            if (e instanceof HttpException) throw e;
+            throw new InternalServerErrorException('Unable to count clients');
+        }
+
+        // Build retrieval pipeline
+        const retrievalPipeline: any[] = [
             { $match: searchQuery },
             {
                 $lookup: {
@@ -330,38 +247,22 @@ export class ClientService {
                 },
             },
             { $project: { orders: 0 } },
-            { $sort: { clientNumber: 1 } },
-            { $unset: 'clientNumber' },
         ];
 
+        if (matchCondition) {
+            retrievalPipeline.push({ $match: matchCondition });
+        }
+
+        retrievalPipeline.push(
+            { $sort: { clientNumber: 1 } },
+            { $unset: 'clientNumber' },
+        );
+
         if (paginated) {
-            const allItems = await this.clientModel
-                .aggregate(basePipeline)
+            retrievalPipeline.push({ $skip: skip }, { $limit: itemsPerPage });
+            const items = await this.clientModel
+                .aggregate(retrievalPipeline)
                 .exec();
-            if (!allItems) {
-                throw new BadRequestException('Unable to retrieve clients');
-            }
-
-            let filteredItems = allItems;
-            if (orderFrequency) {
-                const now = moment().tz('Asia/Dhaka');
-                filteredItems = allItems.filter((item: any) => {
-                    const lastOrderDateStr = item.last_order_date;
-                    if (!lastOrderDateStr) {
-                        return orderFrequency === 'irregular';
-                    }
-                    const lastOrderDate = moment(lastOrderDateStr);
-                    const daysSince = now.diff(lastOrderDate, 'days');
-                    if (orderFrequency === 'consistent') return daysSince <= 14;
-                    if (orderFrequency === 'regular')
-                        return daysSince >= 15 && daysSince <= 29;
-                    if (orderFrequency === 'irregular') return daysSince >= 30;
-                    return true;
-                });
-            }
-
-            const count = filteredItems.length;
-            const items = filteredItems.slice(skip, skip + itemsPerPage);
             return {
                 pagination: {
                     count,
@@ -370,36 +271,10 @@ export class ClientService {
                 items,
             };
         } else {
-            // Unpaginated: simple find
-            let items = await this.clientModel
-                .find(searchQuery as Record<string, unknown>)
-                .lean()
+            const items = await this.clientModel
+                .aggregate(retrievalPipeline)
                 .exec();
-            if (!items) {
-                throw new InternalServerErrorException(
-                    'Unable to retrieve clients',
-                );
-            }
-
-            await this.attachLastOrderDate(items as any[]);
             await this.attachOrderUpdate(items);
-
-            if (orderFrequency) {
-                const now = moment().tz('Asia/Dhaka');
-                items = items.filter((item: any) => {
-                    const lastOrderDate = item.last_order_date;
-                    if (!lastOrderDate) {
-                        return orderFrequency === 'irregular';
-                    }
-                    const daysSince = now.diff(moment(lastOrderDate), 'days');
-                    if (orderFrequency === 'consistent') return daysSince <= 14;
-                    if (orderFrequency === 'regular')
-                        return daysSince >= 15 && daysSince <= 29;
-                    if (orderFrequency === 'irregular') return daysSince >= 30;
-                    return true;
-                });
-            }
-
             return items;
         }
     }
