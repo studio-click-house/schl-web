@@ -19,6 +19,7 @@ import { ScheduleModule } from './modules/schedule/schedule.module';
 import { TrackerModule } from './modules/tracker/tracker.module';
 import { UserModule } from './modules/user/user.module';
 import { ValidatorModule } from './modules/validator/validator.module';
+import { AttendanceModule } from './modules/attendance/attendance.module';
 
 @Module({
     imports: [
@@ -51,6 +52,7 @@ import { ValidatorModule } from './modules/validator/validator.module';
         OrderModule,
         ValidatorModule,
         TrackerModule,
+        AttendanceModule,
     ],
     controllers: [AppController],
     providers: [
