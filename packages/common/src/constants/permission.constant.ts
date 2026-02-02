@@ -168,6 +168,10 @@ export const USER_PERMISSIONS = [
                 value: 'admin:view_task_rate',
                 label: 'View task rate',
             },
+            { value: 'admin:view_device_user', label: 'View device user' },
+            { value: 'admin:create_device_user', label: 'Create device user' },
+            { value: 'admin:edit_device_user', label: 'Edit device user' },
+            { value: 'admin:delete_device_user', label: 'Delete device user' },
         ],
     },
 

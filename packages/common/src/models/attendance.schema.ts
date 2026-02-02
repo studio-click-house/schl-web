@@ -1,4 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import * as mongoose from 'mongoose';
 import { HydratedDocument } from 'mongoose';
 import {
     type AttendanceStatus,
@@ -39,6 +40,19 @@ export class Attendance {
 
     @Prop({ required: false, type: String })
     received_at: string; // this is the time when the record was received by the parser service, stored for debugging purposes
+
+    @Prop({
+        required: [true, 'Employee is required'],
+        ref: 'Employee',
+        type: mongoose.Schema.Types.ObjectId,
+    })
+    employee: mongoose.Types.ObjectId; // reference to employee document, resolved from device-user mapping
+
+    @Prop({ type: Date })
+    readonly createdAt: Date;
+
+    @Prop({ type: Date })
+    readonly updatedAt: Date;
 }
 
 export const AttendanceSchema = SchemaFactory.createForClass(Attendance);
