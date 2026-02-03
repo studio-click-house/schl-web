@@ -10,10 +10,19 @@ import {
 
 export type AttendanceDocument = HydratedDocument<Attendance>;
 
-@Schema({})
+@Schema()
 export class Attendance {
-    @Prop({ required: [true, 'Timestamp is required'], type: String })
-    timestamp: string; // this is the time when the attendance event occurred
+    @Prop({required: [true, 'In-time is required'], type: Date, index: true})
+    in_time: Date;
+
+    @Prop({ required: false, type: String, default: '' })
+    in_remark: string;
+    
+    @Prop({ required: false, type: Date, default: null })
+    out_time: Date | null;
+    
+    @Prop({ required: false, type: String, default: '' })
+    out_remark: string;
 
     @Prop({ required: [true, 'Device ID is required'], type: String })
     device_id: string; // ID of the device that recorded the attendance, stored for auditing & security purposes
@@ -38,8 +47,8 @@ export class Attendance {
     @Prop({ required: [true, 'Source IP is required'], type: String })
     source_ip: string; // IP address of the device that recorded the attendance, stored for auditing & security purposes
 
-    @Prop({ required: false, type: String })
-    received_at: string; // this is the time when the record was received by the parser service, stored for debugging purposes
+    @Prop({ required: false, type: Date, default: null })
+    received_at: Date | null; // this is the time when the record was received by the parser service, stored for debugging purposes
 
     @Prop({
         required: [true, 'Employee is required'],
@@ -56,3 +65,13 @@ export class Attendance {
 }
 
 export const AttendanceSchema = SchemaFactory.createForClass(Attendance);
+
+// Enforce only one open session per user at the database level
+// Partial unique index ensures only one document with out_time: null per user
+AttendanceSchema.index(
+    { user_id: 1 },
+    {
+        unique: true,
+        partialFilterExpression: { out_time: null },
+    },
+);

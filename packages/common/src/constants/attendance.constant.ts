@@ -16,16 +16,10 @@ export type VerifyMode = (typeof VERIFY_MODES)[number];
 
 
 /*
-Technically, ZKTeco always sends "check-in" status for all attendance events,
-but we define additional statuses here for potential future use and better clarity, or maybe just for fun :)
+In practice, ZKTeco always sends "check-in" status for all attendance events, So there's no point in having other statuses
+Check-in and Check-out are handled in API
 */
 export const ATTENDANCE_STATUSES = [
     'check-in',
-    'check-out',
-    'break-out',
-    'break-in',
-    'overtime-in',
-    'overtime-out',
-    'unspecified',
 ] as const;
 export type AttendanceStatus = (typeof ATTENDANCE_STATUSES)[number];
