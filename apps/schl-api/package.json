@@ -4,7 +4,7 @@
     "private": true,
     "scripts": {
         "build": "nest build",
-        "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+        "format": "prettier --write \"src/**/*.ts\"",
         "start": "nest start --port 3000",
         "dev": "cross-env NODE_ENV=development nest start --watch --port 3000",
         "debug": "nest start --debug --watch --port 3000",
