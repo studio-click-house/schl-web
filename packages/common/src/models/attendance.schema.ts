@@ -12,15 +12,15 @@ export type AttendanceDocument = HydratedDocument<Attendance>;
 
 @Schema()
 export class Attendance {
-    @Prop({required: [true, 'In-time is required'], type: Date, index: true})
+    @Prop({ required: [true, 'In-time is required'], type: Date, index: true })
     in_time: Date;
 
     @Prop({ required: false, type: String, default: '' })
     in_remark: string;
-    
+
     @Prop({ required: false, type: Date, default: null })
     out_time: Date | null;
-    
+
     @Prop({ required: false, type: String, default: '' })
     out_remark: string;
 

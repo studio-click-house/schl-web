@@ -4,6 +4,7 @@ import {
     DeviceUser,
     DeviceUserSchema,
 } from '@repo/common/models/device-user.schema';
+import { Employee, EmployeeSchema } from '@repo/common/models/employee.schema';
 import { DeviceUserController } from './device-user.controller';
 import { DeviceUserService } from './device-user.service';
 
@@ -11,6 +12,7 @@ import { DeviceUserService } from './device-user.service';
     imports: [
         MongooseModule.forFeature([
             { name: DeviceUser.name, schema: DeviceUserSchema },
+            { name: Employee.name, schema: EmployeeSchema },
         ]),
     ],
     controllers: [DeviceUserController],

@@ -11,7 +11,13 @@ export class DeviceUser {
     user_id: string;
 
     // Optional credential
-    @Prop({ required: false, unique: true, sparse: true, index: true, default: null })
+    @Prop({
+        required: false,
+        unique: true,
+        sparse: true,
+        index: true,
+        default: null,
+    })
     card_number?: string | null;
 
     // Single source of truth reference
@@ -23,9 +29,7 @@ export class DeviceUser {
     })
     employee: mongoose.Types.ObjectId;
 
-    @Prop(
-        { required: false, type: String, default: '' }
-    )
+    @Prop({ required: false, type: String, default: '' })
     comment: string;
 
     @Prop()

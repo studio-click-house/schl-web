@@ -8,8 +8,10 @@ export interface Option {
     value: string;
 }
 
-interface MultiSelectWithAllProps
-    extends Omit<SelectProps<Option, true>, 'isMulti' | 'onChange' | 'value'> {
+interface MultiSelectWithAllProps extends Omit<
+    SelectProps<Option, true>,
+    'isMulti' | 'onChange' | 'value'
+> {
     options: Option[];
     value: string[];
     onChange: (values: string[]) => void;

@@ -6,12 +6,17 @@ import {
     Param,
     Post,
     Put,
+    Query,
     Req,
 } from '@nestjs/common';
 import { UserSession } from '@repo/common/types/user-session.type';
 import { IdParamDto } from '../../common/dto/id-param.dto';
 import { DeviceUserService } from './device-user.service';
 import { CreateDeviceUserBodyDto } from './dto/create-device-user.dto';
+import {
+    SearchDeviceUsersBodyDto,
+    SearchDeviceUsersQueryDto,
+} from './dto/search-device-users.dto';
 
 @Controller('device-user')
 export class DeviceUserController {
@@ -23,6 +28,11 @@ export class DeviceUserController {
         @Req() req: Request & { user: UserSession },
     ) {
         return this.deviceUserService.createDeviceUser(body, req.user);
+    }
+
+    @Get('get-all')
+    getAllDeviceUsers(@Req() req: Request & { user: UserSession }) {
+        return this.deviceUserService.getAllDeviceUsers(req.user);
     }
 
     @Put('update-user/:id')
@@ -46,6 +56,25 @@ export class DeviceUserController {
             return this.deviceUserService.getDeviceUser(value, req.user);
         }
         return this.deviceUserService.getDeviceUserByUserId(value, req.user);
+    }
+
+    @Post('search')
+    searchDeviceUsers(
+        @Query() query: SearchDeviceUsersQueryDto,
+        @Body() body: SearchDeviceUsersBodyDto,
+        @Req() req: Request & { user: UserSession },
+    ) {
+        const pagination = {
+            page: query.page,
+            itemsPerPage: query.itemsPerPage,
+            paginated: query.paginated,
+        };
+
+        return this.deviceUserService.searchDeviceUsers(
+            body,
+            pagination,
+            req.user,
+        );
     }
 
     @Delete('delete-user/:id')

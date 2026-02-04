@@ -187,6 +187,7 @@ const Sidebar: React.FC<PropsType> = props => {
                                     'admin:delete_role',
                                     'admin:edit_user',
                                     'admin:delete_user_approval',
+                                    'admin:view_device_user',
                                 ]) && (
                                     <li>
                                         <span
@@ -197,6 +198,9 @@ const Sidebar: React.FC<PropsType> = props => {
                                                 ) ||
                                                     pathname.includes(
                                                         '/admin/roles',
+                                                    ) ||
+                                                    pathname.includes(
+                                                        '/admin/device-users',
                                                     )
                                                     ? 'bg-lime-100'
                                                     : 'hover:bg-gray-100',
@@ -241,6 +245,17 @@ const Sidebar: React.FC<PropsType> = props => {
                                                     >
                                                         <Shield className="w-6 h-6 mr-2" />
                                                         Roles
+                                                    </Link>
+                                                </li>
+                                            )}
+                                            {has('admin:view_device_user') && (
+                                                <li>
+                                                    <Link
+                                                        href="/admin/device-users"
+                                                        className="flex items-center w-full p-2 text-gray-900 transition duration-75 pl-20 group2 hover:bg-gray-100"
+                                                    >
+                                                        <UserCog className="w-6 h-6 mr-2" />
+                                                        Device Users
                                                     </Link>
                                                 </li>
                                             )}

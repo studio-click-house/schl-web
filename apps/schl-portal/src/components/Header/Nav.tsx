@@ -169,6 +169,7 @@ const Nav: React.FC<PropsType> = props => {
                                     'admin:delete_role',
                                     'admin:edit_user',
                                     'admin:delete_user_approval',
+                                    'admin:view_device_user',
                                 ]) && 'hidden',
                             )}
                         >
@@ -195,7 +196,6 @@ const Nav: React.FC<PropsType> = props => {
                                     className="py-2 text-white"
                                     aria-labelledby="adminAccessDropdownButton"
                                 >
-                                    {/* Per-link guards added below */}
                                     <li
                                         className={cn(
                                             !hasAny([
@@ -228,6 +228,21 @@ const Nav: React.FC<PropsType> = props => {
                                             href={'/admin/roles'}
                                         >
                                             Roles
+                                        </Link>
+                                    </li>
+                                    <li
+                                        className={cn(
+                                            !has('admin:view_device_user') &&
+                                                'hidden',
+                                        )}
+                                    >
+                                        <Link
+                                            className={cn(
+                                                'block px-4 py-2 hover:bg-primary',
+                                            )}
+                                            href={'/admin/device-users'}
+                                        >
+                                            Device Users
                                         </Link>
                                     </li>
                                 </ul>

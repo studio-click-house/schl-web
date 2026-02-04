@@ -7,7 +7,9 @@ import { AppService } from './app.service';
 import { JwtAuthGuard } from './common/auth/jwt-auth.guard';
 import { JwtStrategy } from './common/auth/jwt.strategy';
 import { ApprovalModule } from './modules/approval/approval.module';
+import { AttendanceModule } from './modules/attendance/attendance.module';
 import { ClientModule } from './modules/client/client.module';
+import { DeviceUserModule } from './modules/device-user/device-user.module';
 import { EmployeeModule } from './modules/employee/employee.module';
 import { FtpModule } from './modules/ftp/ftp.module';
 import { InvoiceModule } from './modules/invoice/invoice.module';
@@ -19,7 +21,6 @@ import { ScheduleModule } from './modules/schedule/schedule.module';
 import { TrackerModule } from './modules/tracker/tracker.module';
 import { UserModule } from './modules/user/user.module';
 import { ValidatorModule } from './modules/validator/validator.module';
-import { AttendanceModule } from './modules/attendance/attendance.module';
 
 @Module({
     imports: [
@@ -53,6 +54,7 @@ import { AttendanceModule } from './modules/attendance/attendance.module';
         ValidatorModule,
         TrackerModule,
         AttendanceModule,
+        DeviceUserModule,
     ],
     controllers: [AppController],
     providers: [
