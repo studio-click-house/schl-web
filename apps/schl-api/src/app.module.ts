@@ -9,15 +9,18 @@ import { JwtStrategy } from './common/auth/jwt.strategy';
 import { ApprovalModule } from './modules/approval/approval.module';
 import { AttendanceModule } from './modules/attendance/attendance.module';
 import { ClientModule } from './modules/client/client.module';
+import { DepartmentConfigModule } from './modules/department-config/department-config.module';
 import { DeviceUserModule } from './modules/device-user/device-user.module';
 import { EmployeeModule } from './modules/employee/employee.module';
 import { FtpModule } from './modules/ftp/ftp.module';
+import { HolidayModule } from './modules/holiday/holiday.module';
 import { InvoiceModule } from './modules/invoice/invoice.module';
 import { NoticeModule } from './modules/notice/notice.module';
 import { OrderModule } from './modules/order/order.module';
 import { ReportModule } from './modules/report/report.module';
 import { RoleModule } from './modules/role/role.module';
 import { ScheduleModule } from './modules/schedule/schedule.module';
+import { ShiftModule } from './modules/shift/shift.module';
 import { TrackerModule } from './modules/tracker/tracker.module';
 import { UserModule } from './modules/user/user.module';
 import { ValidatorModule } from './modules/validator/validator.module';
@@ -55,6 +58,9 @@ import { ValidatorModule } from './modules/validator/validator.module';
         TrackerModule,
         AttendanceModule,
         DeviceUserModule,
+        ShiftModule,
+        HolidayModule,
+        DepartmentConfigModule,
     ],
     controllers: [AppController],
     providers: [

@@ -1,5 +1,6 @@
 import { Attendance } from '@repo/common/models/attendance.schema';
 import * as moment from 'moment-timezone';
+import mongoose from 'mongoose';
 import { CreateAttendanceBodyDto } from '../dto/create-attendance.dto';
 import { MarkEmployeeDto } from '../dto/mark-employee.dto';
 
@@ -7,6 +8,7 @@ export class AttendanceFactory {
     static fromMarkDto(
         dto: MarkEmployeeDto,
         inTime: Date,
+        employeeId: mongoose.Types.ObjectId,
     ): Partial<Attendance> {
         return {
             in_time: inTime,
@@ -17,6 +19,7 @@ export class AttendanceFactory {
             source_ip: dto.sourceIp.trim(),
             received_at:
                 moment.tz(dto.receivedAt, 'Asia/Dhaka').toDate() || null,
+            employee: employeeId,
         } as Partial<Attendance>;
     }
 

@@ -273,6 +273,62 @@ const Sidebar: React.FC<PropsType> = props => {
                                         </Link>
                                     </li>
                                 )}
+                                {has('admin:manage_shifts') && (
+                                    <li>
+                                        <span
+                                            className={cn(
+                                                'flex items-center justify-between w-full p-2 text-gray-900 transition duration-75 pl-11 group',
+                                                pathname.includes(
+                                                    '/admin/shifts',
+                                                )
+                                                    ? 'bg-lime-100'
+                                                    : 'hover:bg-gray-100',
+                                            )}
+                                            aria-controls="dropdown-1-shifts"
+                                            data-collapse-toggle="dropdown-1-shifts"
+                                        >
+                                            <span className="flex items-center">
+                                                <CalendarClock className="w-6 h-6 mr-2" />
+                                                <span>Shifts</span>
+                                            </span>
+                                            <ChevronDown size={17} />
+                                        </span>
+                                        <ul
+                                            id="dropdown-1-shifts"
+                                            className="hidden pb-2 space-y-1"
+                                        >
+                                            <li>
+                                                <Link
+                                                    href="/admin/shifts"
+                                                    className="flex items-center w-full p-2 text-gray-900 transition duration-75 pl-20 group2 hover:bg-gray-100"
+                                                >
+                                                    <CalendarClock className="w-6 h-6 mr-2" />
+                                                    Shift Config
+                                                </Link>
+                                            </li>
+                                            <li>
+                                                <Link
+                                                    href="/admin/shifts/schedules"
+                                                    className="flex items-center w-full p-2 text-gray-900 transition duration-75 pl-20 group2 hover:bg-gray-100"
+                                                >
+                                                    <CalendarRange className="w-6 h-6 mr-2" />
+                                                    Schedules
+                                                </Link>
+                                            </li>
+                                        </ul>
+                                    </li>
+                                )}
+                                {has('admin:manage_holidays') && (
+                                    <li>
+                                        <Link
+                                            href="/admin/holidays"
+                                            className="flex items-center w-full p-2 text-gray-900 transition duration-75 pl-11 group2 hover:bg-gray-100"
+                                        >
+                                            <CalendarRange className="w-6 h-6 mr-2" />
+                                            Holidays
+                                        </Link>
+                                    </li>
+                                )}
                             </ul>
                         </>
                     )}

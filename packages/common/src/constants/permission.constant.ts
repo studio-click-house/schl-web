@@ -172,6 +172,14 @@ export const USER_PERMISSIONS = [
             { value: 'admin:create_device_user', label: 'Create device user' },
             { value: 'admin:edit_device_user', label: 'Edit device user' },
             { value: 'admin:delete_device_user', label: 'Delete device user' },
+            {
+                value: 'admin:manage_shifts',
+                label: 'Manage shifts & schedules',
+            },
+            {
+                value: 'admin:manage_holidays',
+                label: 'Manage holidays & leaves',
+            },
         ],
     },
 

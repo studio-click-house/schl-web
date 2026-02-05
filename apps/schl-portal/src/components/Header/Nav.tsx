@@ -263,6 +263,73 @@ const Nav: React.FC<PropsType> = props => {
                                 Notice
                             </Link>
                         </li>
+
+                        <li
+                            className={cn(
+                                !has('admin:manage_shifts') && 'hidden',
+                            )}
+                        >
+                            <span
+                                role="button"
+                                id="adminShiftsDropdownButton"
+                                data-dropdown-toggle="adminShiftsDropdown"
+                                data-dropdown-trigger="hover"
+                                data-dropdown-placement="right-start"
+                                className="block px-4 py-2 hover:bg-primary"
+                            >
+                                <span className="flex gap-1 items-end text-wrap align-bottom justify-between">
+                                    <span>Shifts</span>
+                                    <ChevronRight size={17} />
+                                </span>
+                            </span>
+
+                            <div
+                                id="adminShiftsDropdown"
+                                className="z-10 hidden bg-gray-900 divide-y divide-gray-100 rounded-md shadow w-44"
+                                suppressHydrationWarning
+                            >
+                                <ul
+                                    className="py-2 text-white"
+                                    aria-labelledby="adminShiftsDropdownButton"
+                                >
+                                    <li>
+                                        <Link
+                                            className={cn(
+                                                'block px-4 py-2 hover:bg-primary',
+                                            )}
+                                            href={'/admin/shifts'}
+                                        >
+                                            Shift Config
+                                        </Link>
+                                    </li>
+                                    <li>
+                                        <Link
+                                            className={cn(
+                                                'block px-4 py-2 hover:bg-primary',
+                                            )}
+                                            href={'/admin/shifts/schedules'}
+                                        >
+                                            Schedules
+                                        </Link>
+                                    </li>
+                                </ul>
+                            </div>
+                        </li>
+
+                        <li
+                            className={cn(
+                                !has('admin:manage_holidays') && 'hidden',
+                            )}
+                        >
+                            <Link
+                                className={cn(
+                                    'block px-4 py-2 hover:bg-primary',
+                                )}
+                                href={'/admin/holidays'}
+                            >
+                                Holidays
+                            </Link>
+                        </li>
                     </ul>
                 </div>
 
