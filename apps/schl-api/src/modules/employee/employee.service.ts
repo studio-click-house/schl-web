@@ -104,9 +104,14 @@ export class EmployeeService {
             provident_fund: existing.provident_fund || 0,
             pf_history: existing.pf_history || [],
             pf_start_date: existing.pf_start_date,
+            status: existing.status,
         } as Pick<
             Employee,
-            'gross_salary' | 'provident_fund' | 'pf_history' | 'pf_start_date'
+            | 'gross_salary'
+            | 'provident_fund'
+            | 'pf_history'
+            | 'pf_start_date'
+            | 'status'
         >;
 
         if (
@@ -134,6 +139,30 @@ export class EmployeeService {
         const pfChanged =
             employeeData.providentFund !== undefined &&
             employeeData.providentFund !== original.provident_fund;
+        const statusChanged =
+            employeeData.status !== undefined &&
+            employeeData.status !== original.status;
+
+        // Handle status changes - record in status_history
+        if (statusChanged) {
+            if (!Array.isArray(existing.status_history)) {
+                existing.status_history = [];
+            }
+            // Auto-generate meaningful note for audit trail
+            let statusChangeNote = `Status changed from ${original.status} to ${employeeData.status}.`;
+            if (
+                employeeData.statusChangeNote &&
+                employeeData.statusChangeNote.trim()
+            ) {
+                statusChangeNote += ` Reason: ${employeeData.statusChangeNote.trim()}`;
+            }
+            existing.status_history.push({
+                date: getTodayDate(),
+                from_status: original.status,
+                to_status: employeeData.status!,
+                note: statusChangeNote,
+            });
+        }
 
         // If either changed, append pf_history record based on ORIGINAL values
         if (grossChanged || pfChanged) {

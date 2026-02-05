@@ -15,7 +15,7 @@ import { hasPerm } from '@repo/common/utils/permission-check';
 import * as moment from 'moment-timezone';
 import { Model } from 'mongoose';
 import { CreateAttendanceBodyDto } from './dto/create-attendance.dto';
-import { MarkEmployeeDto } from './dto/mark-employee.dto';
+import { MarkAttendanceDto } from './dto/mark-attendance.dto';
 import { AttendanceFactory } from './factories/attendance.factory';
 
 @Injectable()
@@ -53,7 +53,7 @@ export class AttendanceService {
         return parsedTime.toDate();
     }
 
-    async markAttendance(body: MarkEmployeeDto) {
+    async markAttendance(body: MarkAttendanceDto) {
         // lookup employee reference from device-user mapping
         const deviceUserMapping = await this.deviceUserModel
             .findOne({ user_id: body.userId })
@@ -111,7 +111,7 @@ export class AttendanceService {
         userSession: UserSession,
     ) {
         const canCreate = hasPerm(
-            'admin:create_device_user',
+            'admin:create_attendance',
             userSession.permissions,
         );
         if (!canCreate) {
@@ -146,7 +146,7 @@ export class AttendanceService {
         userSession: UserSession,
     ) {
         const canManage = hasPerm(
-            'admin:edit_device_user',
+            'admin:edit_attendance',
             userSession.permissions,
         );
 
@@ -188,7 +188,7 @@ export class AttendanceService {
 
     async deleteAttendance(attendanceId: string, userSession: UserSession) {
         const canDelete = hasPerm(
-            'admin:delete_device_user',
+            'admin:delete_attendance',
             userSession.permissions,
         );
 
@@ -213,6 +213,68 @@ export class AttendanceService {
             this.logger.error('Failed to delete attendance record', err);
             throw new InternalServerErrorException(
                 'Unable to delete attendance record at this time',
+            );
+        }
+    }
+
+    async searchAttendance(
+        employeeId: string,
+        pagination: {
+            page: number;
+            itemsPerPage: number;
+            paginated: boolean;
+        },
+        userSession: UserSession,
+    ) {
+        const canView = hasPerm(
+            'accountancy:manage_employee',
+            userSession.permissions,
+        );
+
+        if (!canView) {
+            throw new ForbiddenException(
+                "You don't have permission to view attendance records",
+            );
+        }
+
+        try {
+            const query = { employee: employeeId };
+
+            if (!pagination.paginated) {
+                const records = await this.attendanceModel
+                    .find(query)
+                    .sort({ in_time: -1 })
+                    .exec();
+                return records;
+            }
+
+            const skip = (pagination.page - 1) * pagination.itemsPerPage;
+            const limit = pagination.itemsPerPage;
+
+            const [items, count] = await Promise.all([
+                this.attendanceModel
+                    .find(query)
+                    .sort({ in_time: -1 })
+                    .skip(skip)
+                    .limit(limit)
+                    .exec(),
+                this.attendanceModel.countDocuments(query),
+            ]);
+
+            const pageCount = Math.ceil(count / limit);
+
+            return {
+                pagination: {
+                    count,
+                    pageCount,
+                },
+                items,
+            };
+        } catch (err) {
+            if (err instanceof HttpException) throw err;
+            this.logger.error('Failed to search attendance records', err);
+            throw new InternalServerErrorException(
+                'Unable to search attendance records at this time',
             );
         }
     }

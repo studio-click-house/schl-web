@@ -76,8 +76,12 @@ export const getTodayDate_DD_MM_YYYY = () => {
     return moment().format('DD-MM-YYYY');
 };
 
-export const formatTime = (time24?: string) => {
+export const formatTime = (time24?: string | Date) => {
     if (!time24) return '';
+
+    if (time24 instanceof Date) {
+        return moment(time24).format('hh:mm A');
+    }
     return moment(time24, 'HH:mm').format('hh:mm A');
 };
 

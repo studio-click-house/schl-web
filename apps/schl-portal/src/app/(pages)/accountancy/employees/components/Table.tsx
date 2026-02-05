@@ -14,7 +14,7 @@ import HiddenText from '@/components/HiddenText';
 import NoData, { Type } from '@/components/NoData';
 import { EmployeeDocument } from '@repo/common/models/employee.schema';
 import { formatDate } from '@repo/common/utils/date-helpers';
-import { CirclePlus } from 'lucide-react';
+import { Calendar, CirclePlus } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { useRouter } from 'nextjs-toploader/app';
@@ -402,6 +402,19 @@ const Table = () => {
                                                                 editEmployee
                                                             }
                                                         />
+                                                        <button
+                                                            onClick={() =>
+                                                                router.push(
+                                                                    `/accountancy/employees/attendance/?employeeId=${employee._id}`,
+                                                                )
+                                                            }
+                                                            className="px-3 py-1 rounded-md bg-orange-500 hover:bg-orange-600 text-white text-sm transition-colors"
+                                                            title="View Attendance"
+                                                        >
+                                                            <Calendar
+                                                                size={18}
+                                                            />
+                                                        </button>
                                                     </div>
                                                 </div>
                                             </td>

@@ -5,6 +5,7 @@ import {
     Param,
     Post,
     Put,
+    Query,
     Req,
 } from '@nestjs/common';
 import { UserSession } from '@repo/common/types/user-session.type';
@@ -12,15 +13,16 @@ import { Public } from '../../common/auth/public.decorator';
 import { IdParamDto } from '../../common/dto/id-param.dto';
 import { AttendanceService } from './attendance.service';
 import { CreateAttendanceBodyDto } from './dto/create-attendance.dto';
-import { MarkEmployeeDto } from './dto/mark-employee.dto';
+import { MarkAttendanceDto } from './dto/mark-attendance.dto';
+import { SearchAttendanceQueryDto } from './dto/search-attendance.dto';
 
 @Controller('attendance')
 export class AttendanceController {
     constructor(private readonly attendanceService: AttendanceService) {}
 
     @Public()
-    @Post('mark')
-    async markAttendance(@Body() body: MarkEmployeeDto) {
+    @Post('mark-attendance')
+    async markAttendance(@Body() body: MarkAttendanceDto) {
         return await this.attendanceService.markAttendance(body);
     }
 
@@ -51,5 +53,23 @@ export class AttendanceController {
         @Req() req: Request & { user: UserSession },
     ) {
         return await this.attendanceService.deleteAttendance(id, req.user);
+    }
+
+    @Post('search-attendance')
+    async searchAttendance(
+        @Query() query: SearchAttendanceQueryDto,
+        @Body() body: { employeeId: string },
+        @Req() req: Request & { user: UserSession },
+    ) {
+        const pagination = {
+            page: query.page,
+            itemsPerPage: query.itemsPerPage,
+            paginated: query.paginated,
+        };
+        return await this.attendanceService.searchAttendance(
+            body.employeeId,
+            pagination,
+            req.user,
+        );
     }
 }

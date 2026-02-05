@@ -68,6 +68,17 @@ const EditButton: React.FC<PropsType> = props => {
         initFlowbite();
     }, []);
 
+    const watchedStatus = watch('status');
+    const NON_EARNING_STATUSES = [
+        'inactive',
+        'fired',
+        'terminated',
+        'resigned',
+        'retired',
+    ];
+    const isChangingToNonEarning =
+        watchedStatus && NON_EARNING_STATUSES.includes(watchedStatus as string);
+
     const onSubmit = async (data: EmployeeDataType) => {
         await props.submitHandler(data, props.employeeData);
     };
@@ -377,6 +388,27 @@ const EditButton: React.FC<PropsType> = props => {
                                     )}
                                 />
                             </div>
+
+                            {isChangingToNonEarning && (
+                                <div>
+                                    <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
+                                        <span className="uppercase">
+                                            Reason for Status Change
+                                        </span>
+                                        <span className="text-red-700 text-wrap block text-xs">
+                                            {errors.status_change_note &&
+                                                errors.status_change_note
+                                                    .message}
+                                        </span>
+                                    </label>
+                                    <textarea
+                                        {...register('status_change_note')}
+                                        className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 mb-3 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
+                                        placeholder="e.g., Medical leave approved, Fired for policy violation, Resigned due to personal reasons etc."
+                                        rows={1}
+                                    />
+                                </div>
+                            )}
 
                             <div>
                                 <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">

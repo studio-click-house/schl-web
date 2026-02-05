@@ -6,7 +6,7 @@ import {
 } from '@repo/common/constants/attendance.constant';
 import { IsIn, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
-export class MarkEmployeeDto {
+export class MarkAttendanceDto {
     /** Device serial number or identifier */
     @IsString()
     @IsNotEmpty()

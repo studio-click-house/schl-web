@@ -1,11 +1,11 @@
 import { Attendance } from '@repo/common/models/attendance.schema';
 import * as moment from 'moment-timezone';
 import { CreateAttendanceBodyDto } from '../dto/create-attendance.dto';
-import { MarkEmployeeDto } from '../dto/mark-employee.dto';
+import { MarkAttendanceDto } from '../dto/mark-attendance.dto';
 
 export class AttendanceFactory {
     static fromMarkDto(
-        dto: MarkEmployeeDto,
+        dto: MarkAttendanceDto,
         inTime: Date,
     ): Partial<Attendance> {
         return {

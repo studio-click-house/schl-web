@@ -11,6 +11,8 @@ import {
 
 export type EmployeeDocument = HydratedDocument<Employee>;
 
+export type { ProvidentFundHistory, StatusHistory };
+
 @Schema({ _id: false })
 class ProvidentFundHistory {
     @Prop({ required: [true, 'PF: Date is required'] })
@@ -30,6 +32,27 @@ class ProvidentFundHistory {
 
     @Prop({ required: [true, 'PF: Note is required'] })
     note: string; // what got changed. Ex. Value: "Gross salary was updated."
+}
+
+@Schema({ _id: false })
+class StatusHistory {
+    @Prop({ required: [true, 'Status: Date is required'] })
+    date: string; // YYYY-MM-DD format, date when status changed
+
+    @Prop({
+        required: [true, 'Status: From status is required'],
+        enum: EMPLOYEE_STATUSES,
+    })
+    from_status: EmployeeStatus; // previous status
+
+    @Prop({
+        required: [true, 'Status: To status is required'],
+        enum: EMPLOYEE_STATUSES,
+    })
+    to_status: EmployeeStatus; // new status
+
+    @Prop({ default: '' })
+    note: string; // reason for change (e.g., "Medical leave", "End of sabbatical")
 }
 
 @Schema({ timestamps: true })
@@ -94,6 +117,9 @@ export class Employee {
 
     @Prop({ type: [ProvidentFundHistory], default: [] })
     pf_history: ProvidentFundHistory[];
+
+    @Prop({ type: [StatusHistory], default: [] })
+    status_history: StatusHistory[]; // tracks all status changes with timestamps
 
     @Prop({ default: '' })
     branch: string;

@@ -73,6 +73,10 @@ export class CreateEmployeeBodyDto {
     status: EmployeeStatus;
 
     @IsOptional()
+    @IsString()
+    statusChangeNote?: string; // reason for changing to non-earning status
+
+    @IsOptional()
     @IsNumber()
     @Min(0)
     providentFund?: number;

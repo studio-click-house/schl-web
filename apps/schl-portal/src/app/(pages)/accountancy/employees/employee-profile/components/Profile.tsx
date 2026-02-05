@@ -8,7 +8,8 @@ import {
     SalaryStructureType,
 } from '@repo/common/utils/account-helpers';
 import { cn } from '@repo/common/utils/general-utils';
-import { Clock4, Coins, Mail } from 'lucide-react';
+import { capitalize } from 'lodash';
+import { Briefcase, Clock4, Coins, Mail } from 'lucide-react';
 import moment from 'moment-timezone';
 import Image from 'next/image';
 import React, { useEffect, useState } from 'react';
@@ -50,7 +51,7 @@ const Profile: React.FC<ProfilePropsTypes> = props => {
         <>
             {/* Header Section */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                <div className="flex items-center gap-4">
+                <div className="flex items-start gap-4">
                     <Image
                         className="w-16 h-16 rounded-full flex items-center justify-center border"
                         priority={false}
@@ -60,22 +61,21 @@ const Profile: React.FC<ProfilePropsTypes> = props => {
                         alt="avatar"
                     />
                     <div>
-                        <h1 className="text-2xl font-semibold flex items-center gap-2">
+                        <h1 className="text-2xl font-semibold">
                             {employeeInfo.real_name}
-
-                            <span className="text-sm text-gray-500">
-                                ({employeeInfo.e_id})
-                            </span>
                         </h1>
-                        <div className="flex items-center gap-2 text-gray-600">
-                            <Mail size={18} />
-                            <span className="text-sm">
-                                {employeeInfo.email}
-                            </span>
-                        </div>
-                        <p className="text-gray-600">
-                            {employeeInfo.designation}
-                        </p>
+                        <p className="text-gray-500">{employeeInfo.e_id}</p>
+                    </div>
+                </div>
+
+                <div className="flex flex-col items-end gap-2">
+                    <div className="flex items-center gap-2 text-gray-600">
+                        <Mail size={18} />
+                        <span className="text-sm">{employeeInfo.email}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-gray-600">
+                        <Briefcase size={18} />
+                        <p className="text-sm">{employeeInfo.designation}</p>
                     </div>
                 </div>
             </div>
@@ -113,7 +113,7 @@ const Profile: React.FC<ProfilePropsTypes> = props => {
                         Blood Group
                     </h2>
                     <p className="text-lg font-semibold">
-                        {employeeInfo.blood_group}
+                        {employeeInfo.blood_group.toUpperCase()}
                     </p>
                 </div>
                 <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
@@ -128,7 +128,7 @@ const Profile: React.FC<ProfilePropsTypes> = props => {
                                 : 'text-red-500',
                         )}
                     >
-                        {employeeInfo.status}
+                        {capitalize(employeeInfo.status)}
                     </p>
                 </div>
             </div>
@@ -207,36 +207,54 @@ const Profile: React.FC<ProfilePropsTypes> = props => {
                             <Coins size={20} className="mr-2 text-blue-500" />
                             Provident Fund (PF)
                         </h3>
-                        <div className="space-y-2">
-                            <div className="flex justify-between items-center bg-gray-50 p-2 rounded">
-                                <span className="text-gray-600">
-                                    Employee&apos;s Part:
-                                </span>
-                                <HiddenText>
-                                    <span className="font-medium">
-                                        {employeeInfo?.pf_start_date
-                                            ? employeeInfo.provident_fund
-                                                ? `${pfAmount.toLocaleString('en-US')}  BDT`
-                                                : 'N/A'
-                                            : 'N/A'}
-                                    </span>
-                                </HiddenText>
+                        {[
+                            'inactive',
+                            'fired',
+                            'terminated',
+                            'resigned',
+                            'retired',
+                        ].includes(employeeInfo.status) ? (
+                            <div className="bg-yellow-50 p-3 rounded border border-yellow-200">
+                                <p className="text-sm text-yellow-800 font-medium">
+                                    PF calculation paused
+                                </p>
+                                <p className="text-xs text-yellow-700 mt-1">
+                                    Employee is currently {employeeInfo.status}.
+                                    PF does not accrue for non-earning statuses.
+                                </p>
                             </div>
-                            <div className="flex justify-between items-center bg-gray-50 p-2 rounded">
-                                <span className="text-gray-600">
-                                    Company&apos;s Part:
-                                </span>
-                                <HiddenText>
-                                    <span className="font-medium">
-                                        {employeeInfo?.pf_start_date
-                                            ? employeeInfo.provident_fund
-                                                ? `${pfAmount.toLocaleString('en-US')}  BDT`
-                                                : 'N/A'
-                                            : 'N/A'}
+                        ) : (
+                            <div className="space-y-2">
+                                <div className="flex justify-between items-center bg-gray-50 p-2 rounded">
+                                    <span className="text-gray-600">
+                                        Employee&apos;s Part:
                                     </span>
-                                </HiddenText>
+                                    <HiddenText>
+                                        <span className="font-medium">
+                                            {employeeInfo?.pf_start_date
+                                                ? employeeInfo.provident_fund
+                                                    ? `${pfAmount.toLocaleString('en-US')}  BDT`
+                                                    : 'N/A'
+                                                : 'N/A'}
+                                        </span>
+                                    </HiddenText>
+                                </div>
+                                <div className="flex justify-between items-center bg-gray-50 p-2 rounded">
+                                    <span className="text-gray-600">
+                                        Company&apos;s Part:
+                                    </span>
+                                    <HiddenText>
+                                        <span className="font-medium">
+                                            {employeeInfo?.pf_start_date
+                                                ? employeeInfo.provident_fund
+                                                    ? `${pfAmount.toLocaleString('en-US')}  BDT`
+                                                    : 'N/A'
+                                                : 'N/A'}
+                                        </span>
+                                    </HiddenText>
+                                </div>
                             </div>
-                        </div>
+                        )}
                     </div>
                     {/* Over Time */}
                     <div className="p-4">

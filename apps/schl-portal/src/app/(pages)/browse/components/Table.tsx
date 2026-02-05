@@ -74,7 +74,7 @@ const Table: React.FC<{ clientsData: ClientDocument[] }> = props => {
             try {
                 // setLoading(true);
 
-                const response = await authedFetchApi(
+                const response = await authedFetchApi<OrdersState>(
                     {
                         path: '/v1/order/search-orders',
                         query: {
@@ -99,10 +99,8 @@ const Table: React.FC<{ clientsData: ClientDocument[] }> = props => {
                 );
 
                 if (response.ok) {
-                    setOrders(response.data as OrdersState);
-                    setPageCount(
-                        (response.data as OrdersState).pagination.pageCount,
-                    );
+                    setOrders(response.data);
+                    setPageCount(response.data.pagination.pageCount);
                 } else {
                     toastFetchError(response);
                 }

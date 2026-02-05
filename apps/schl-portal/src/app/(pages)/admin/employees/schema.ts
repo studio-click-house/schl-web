@@ -27,6 +27,7 @@ export const validationSchema = z
         bonus_eid_ul_fitr: z.optional(z.number()).default(0),
         bonus_eid_ul_adha: z.optional(z.number()).default(0),
         status: z.enum(EMPLOYEE_STATUSES),
+        status_change_note: z.optional(z.string()).default(''), // optional note when changing to non-earning status
         provident_fund: z.number({
             invalid_type_error: 'Provident Fund is required.',
         }),
