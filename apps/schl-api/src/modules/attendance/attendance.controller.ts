@@ -2,6 +2,7 @@ import {
     Body,
     Controller,
     Delete,
+    Get,
     Param,
     Post,
     Put,
@@ -14,7 +15,10 @@ import { IdParamDto } from '../../common/dto/id-param.dto';
 import { AttendanceService } from './attendance.service';
 import { CreateAttendanceBodyDto } from './dto/create-attendance.dto';
 import { MarkAttendanceDto } from './dto/mark-attendance.dto';
-import { SearchAttendanceQueryDto } from './dto/search-attendance.dto';
+import {
+    SearchAttendanceBodyDto,
+    SearchAttendanceQueryDto,
+} from './dto/search-attendance.dto';
 
 @Controller('attendance')
 export class AttendanceController {
@@ -58,7 +62,7 @@ export class AttendanceController {
     @Post('search-attendance')
     async searchAttendance(
         @Query() query: SearchAttendanceQueryDto,
-        @Body() body: { employeeId: string },
+        @Body() body: SearchAttendanceBodyDto,
         @Req() req: Request & { user: UserSession },
     ) {
         const pagination = {
@@ -67,8 +71,19 @@ export class AttendanceController {
             paginated: query.paginated,
         };
         return await this.attendanceService.searchAttendance(
-            body.employeeId,
+            body,
             pagination,
+            req.user,
+        );
+    }
+
+    @Get('employee-device-user/:employeeId')
+    async getEmployeeDeviceUser(
+        @Param('employeeId') employeeId: string,
+        @Req() req: Request & { user: UserSession },
+    ) {
+        return await this.attendanceService.getEmployeeDeviceUser(
+            employeeId,
             req.user,
         );
     }

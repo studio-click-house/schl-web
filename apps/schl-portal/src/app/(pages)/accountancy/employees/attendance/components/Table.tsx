@@ -5,15 +5,18 @@ import NoData, { Type } from '@/components/NoData';
 import Pagination from '@/components/Pagination';
 import { usePaginationManager } from '@/hooks/usePaginationManager';
 import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
-import { Attendance } from '@repo/common/models/attendance.schema';
+import { AttendanceDocument } from '@repo/common/models/attendance.schema';
 import { formatDate, formatTime } from '@repo/common/utils/date-helpers';
 import { cn } from '@repo/common/utils/general-utils';
+import { hasPerm } from '@repo/common/utils/permission-check';
 import { CirclePlus, Undo2 } from 'lucide-react';
 import moment from 'moment-timezone';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import DeleteButton from './Delete';
 import FilterButton from './Filter';
 
 interface AttendanceTableProps {
@@ -25,14 +28,20 @@ type AttendanceResponse = {
         count: number;
         pageCount: number;
     };
-    items: Attendance[];
+    items: AttendanceDocument[];
 };
 
 const Table = ({ employeeId }: AttendanceTableProps) => {
-    const [attendanceData, setAttendanceData] = useState<Attendance[]>([]);
+    const [attendanceData, setAttendanceData] = useState<AttendanceDocument[]>(
+        [],
+    );
     const [pageCount, setPageCount] = useState<number>(0);
-
     const { data: session } = useSession();
+    const userPermissions = useMemo(
+        () => session?.user.permissions || [],
+        [session?.user.permissions],
+    );
+    const router = useRouter();
     const authedFetchApi = useAuthedFetchApi();
 
     const [loading, setLoading] = useState<boolean>(true);
@@ -124,10 +133,45 @@ const Table = ({ employeeId }: AttendanceTableProps) => {
         });
     }, [setPage]);
 
-    const getFormattedTime = (date: Date) => {
+    const deleteAttendance = useCallback(
+        async (attendance: AttendanceDocument) => {
+            try {
+                const response = await authedFetchApi<{ message: string }>(
+                    {
+                        path: `/v1/attendance/delete-attendance/${attendance._id}`,
+                    },
+                    {
+                        method: 'DELETE',
+                    },
+                );
+
+                if (response.ok) {
+                    toast.success('Deleted attendance record successfully');
+                    await getAllAttendance();
+                } else {
+                    toastFetchError(response);
+                }
+            } catch (error) {
+                console.error(error);
+                toast.error('An error occurred while deleting attendance');
+            }
+        },
+        [authedFetchApi, getAllAttendance],
+    );
+
+    const formatAttendanceTime = (date?: Date | null) => {
         if (!date) return '-';
         try {
-            return formatTime(date);
+            return moment.tz(date, 'Asia/Dhaka').format('hh:mm A');
+        } catch {
+            return '-';
+        }
+    };
+
+    const formatAttendanceDate = (date?: Date | null) => {
+        if (!date) return '-';
+        try {
+            return moment.tz(date, 'Asia/Dhaka').format('Do MMM. YYYY');
         } catch {
             return '-';
         }
@@ -136,11 +180,11 @@ const Table = ({ employeeId }: AttendanceTableProps) => {
     const calculateWorkingHours = (inTime: Date, outTime: Date | null) => {
         if (!inTime || !outTime) return '0:0';
         try {
-            const in_date = new Date(inTime);
-            const out_date = new Date(outTime);
-            const diff = out_date.getTime() - in_date.getTime();
-            const hours = Math.floor(diff / (1000 * 60 * 60));
-            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const start = moment.tz(inTime, 'Asia/Dhaka');
+            const end = moment.tz(outTime, 'Asia/Dhaka');
+            const diffMinutes = end.diff(start, 'minutes');
+            const hours = Math.floor(diffMinutes / 60);
+            const minutes = Math.max(diffMinutes % 60, 0);
             return `${hours}:${minutes < 10 ? '0' : ''}${minutes}`;
         } catch {
             return '0:0';
@@ -150,9 +194,7 @@ const Table = ({ employeeId }: AttendanceTableProps) => {
     const getDayOfWeek = (date: Date) => {
         if (!date) return '';
         try {
-            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-            const dayIndex = moment.tz(date, 'Asia/Dhaka').day();
-            return days[dayIndex];
+            return moment.tz(date, 'Asia/Dhaka').format('ddd');
         } catch {
             return '';
         }
@@ -160,9 +202,15 @@ const Table = ({ employeeId }: AttendanceTableProps) => {
 
     return (
         <>
-            {/* Pagination Controls - Top */}
-            <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center gap-2 mb-4">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+            <div
+                className={cn(
+                    'flex flex-col mb-4 gap-2',
+                    hasPerm('admin:create_task', userPermissions)
+                        ? 'sm:flex-row sm:justify-between'
+                        : 'sm:justify-end sm:flex-row',
+                )}
+            >
+                <div className="flex flex-col sm:flex-row items- sm:items-center gap-2">
                     <Link
                         href="/accountancy/employees"
                         className="flex justify-between items-center gap-2 rounded-md bg-blue-600 hover:opacity-90 hover:ring-4 hover:ring-blue-600 transition duration-200 delay-300 hover:text-opacity-100 text-white px-3 py-2"
@@ -170,16 +218,25 @@ const Table = ({ employeeId }: AttendanceTableProps) => {
                         Show all employees
                         <Undo2 size={18} />
                     </Link>
-                    <Link
-                        href={`/accountancy/employees/attendance/create-attendance?employeeId=${encodeURIComponent(employeeId)}`}
-                        className="flex justify-between items-center gap-2 rounded-md bg-primary hover:opacity-90 hover:ring-4 hover:ring-primary transition duration-200 delay-300 hover:text-opacity-100 text-white px-3 py-2"
-                    >
-                        Add attendance
-                        <CirclePlus size={18} />
-                    </Link>
+
+                    {hasPerm('admin:create_attendance', userPermissions) && (
+                        <button
+                            onClick={() =>
+                                router.push(
+                                    process.env.NEXT_PUBLIC_BASE_URL +
+                                        '/accountancy/employees/attendance/add-attendance?employeeId=' +
+                                        encodeURIComponent(employeeId),
+                                )
+                            }
+                            className="flex justify-between items-center gap-2 rounded-md bg-primary hover:opacity-90 hover:ring-4 hover:ring-primary transition duration-200 delay-300 hover:text-opacity-100 text-white px-3 py-2"
+                        >
+                            Add attendance
+                            <CirclePlus size={18} />
+                        </button>
+                    )}
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="items-center flex gap-2">
                     <Pagination
                         page={page}
                         pageCount={pageCount}
@@ -226,6 +283,10 @@ const Table = ({ employeeId }: AttendanceTableProps) => {
                                         <th>Out Time</th>
                                         <th>Out Remarks</th>
                                         <th>Hours</th>
+                                        {hasPerm(
+                                            'admin:delete_attendance',
+                                            userPermissions,
+                                        ) && <th>Action</th>}
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -242,7 +303,7 @@ const Table = ({ employeeId }: AttendanceTableProps) => {
                                                         1}
                                                 </td>
                                                 <td className="text-wrap">
-                                                    {formatDate(
+                                                    {formatAttendanceDate(
                                                         attendance.in_time,
                                                     )}
                                                 </td>
@@ -261,7 +322,7 @@ const Table = ({ employeeId }: AttendanceTableProps) => {
                                                     />
                                                 </td>
                                                 <td className="text-wrap">
-                                                    {getFormattedTime(
+                                                    {formatAttendanceTime(
                                                         attendance.in_time,
                                                     )}
                                                 </td>
@@ -271,13 +332,11 @@ const Table = ({ employeeId }: AttendanceTableProps) => {
                                                 </td>
                                                 <td className="text-wrap">
                                                     {attendance.out_time
-                                                        ? formatDate(
+                                                        ? `${formatAttendanceDate(
                                                               attendance.out_time,
-                                                          ) +
-                                                          ', ' +
-                                                          getFormattedTime(
+                                                          )}, ${formatAttendanceTime(
                                                               attendance.out_time,
-                                                          )
+                                                          )}`
                                                         : '-'}
                                                 </td>
                                                 <td className="text-wrap">
@@ -290,6 +349,29 @@ const Table = ({ employeeId }: AttendanceTableProps) => {
                                                         attendance.out_time,
                                                     )}
                                                 </td>
+                                                {hasPerm(
+                                                    'admin:delete_attendance',
+                                                    userPermissions,
+                                                ) && (
+                                                    <td
+                                                        className="text-center"
+                                                        style={{
+                                                            verticalAlign:
+                                                                'middle',
+                                                        }}
+                                                    >
+                                                        <div className="inline-block">
+                                                            <DeleteButton
+                                                                attendanceData={
+                                                                    attendance
+                                                                }
+                                                                submitHandler={
+                                                                    deleteAttendance
+                                                                }
+                                                            />
+                                                        </div>
+                                                    </td>
+                                                )}
                                             </tr>
                                         ),
                                     )}

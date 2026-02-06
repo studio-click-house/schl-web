@@ -1,6 +1,14 @@
 import { toBoolean } from '@repo/common/utils/transformers';
 import { Transform, Type } from 'class-transformer';
-import { IsBoolean, IsInt, IsOptional, Max, Min } from 'class-validator';
+import {
+    IsBoolean,
+    IsInt,
+    IsNotEmpty,
+    IsOptional,
+    IsString,
+    Max,
+    Min,
+} from 'class-validator';
 
 export class SearchAttendanceQueryDto {
     @IsOptional()
@@ -20,4 +28,18 @@ export class SearchAttendanceQueryDto {
     @Transform(({ value }) => toBoolean(value, true))
     @IsBoolean()
     paginated: boolean = true;
+}
+
+export class SearchAttendanceBodyDto {
+    @IsString()
+    @IsNotEmpty()
+    employeeId: string;
+
+    @IsOptional()
+    @IsString()
+    fromDate?: string;
+
+    @IsOptional()
+    @IsString()
+    toDate?: string;
 }

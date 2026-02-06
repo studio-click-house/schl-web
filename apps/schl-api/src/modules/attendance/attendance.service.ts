@@ -8,6 +8,10 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose/dist/common/mongoose.decorators';
+import {
+    DEFAULT_DEVICE_ID,
+    DEFAULT_SOURCE_IP,
+} from '@repo/common/constants/attendance.constant';
 import { Attendance } from '@repo/common/models/attendance.schema';
 import { DeviceUser } from '@repo/common/models/device-user.schema';
 import { UserSession } from '@repo/common/types/user-session.type';
@@ -16,6 +20,7 @@ import * as moment from 'moment-timezone';
 import { Model } from 'mongoose';
 import { CreateAttendanceBodyDto } from './dto/create-attendance.dto';
 import { MarkAttendanceDto } from './dto/mark-attendance.dto';
+import { SearchAttendanceBodyDto } from './dto/search-attendance.dto';
 import { AttendanceFactory } from './factories/attendance.factory';
 
 @Injectable()
@@ -54,15 +59,23 @@ export class AttendanceService {
     }
 
     async markAttendance(body: MarkAttendanceDto) {
+        const deviceId = body.deviceId?.trim() || DEFAULT_DEVICE_ID;
+        const sourceIp = body.sourceIp?.trim() || DEFAULT_SOURCE_IP;
+        const normalizedBody: MarkAttendanceDto = {
+            ...body,
+            deviceId,
+            sourceIp,
+        };
+
         // lookup employee reference from device-user mapping
         const deviceUserMapping = await this.deviceUserModel
-            .findOne({ user_id: body.userId })
+            .findOne({ user_id: normalizedBody.userId })
             .select('employee')
             .exec();
 
         if (!deviceUserMapping || !deviceUserMapping.employee) {
             throw new InternalServerErrorException(
-                `User ID ${body.userId} is not mapped to any employee in the system`,
+                `User ID ${normalizedBody.userId} is not mapped to any employee in the system`,
             );
         }
 
@@ -74,7 +87,7 @@ export class AttendanceService {
             // findOneAndUpdate is atomic and avoids ambiguity of separate read
             const closed = await this.attendanceModel.findOneAndUpdate(
                 {
-                    user_id: body.userId,
+                    user_id: normalizedBody.userId,
                     out_time: null,
                 },
                 {
@@ -88,7 +101,10 @@ export class AttendanceService {
             }
 
             // No open session found, create new check-in
-            const payload = AttendanceFactory.fromMarkDto(body, currentTime);
+            const payload = AttendanceFactory.fromMarkDto(
+                normalizedBody,
+                currentTime,
+            );
             (payload as any).employee = deviceUserMapping.employee;
             const created = await this.attendanceModel.create(payload);
             if (!created) {
@@ -120,7 +136,37 @@ export class AttendanceService {
             );
         }
 
-        const payload = AttendanceFactory.fromCreateDto(attendanceData);
+        const deviceUser = await this.deviceUserModel
+            .findOne({ employee: attendanceData.employeeId })
+            .select('user_id')
+            .exec();
+
+        if (!deviceUser?.user_id) {
+            throw new BadRequestException(
+                'No device user mapping found for the selected employee',
+            );
+        }
+
+        const lastAttendance = await this.attendanceModel
+            .findOne({
+                employee: attendanceData.employeeId,
+                device_id: { $ne: '' },
+            })
+            .sort({ in_time: -1 })
+            .select('device_id source_ip')
+            .lean()
+            .exec();
+
+        const resolvedDeviceId =
+            lastAttendance?.device_id?.trim() || DEFAULT_DEVICE_ID;
+        const resolvedSourceIp =
+            lastAttendance?.source_ip?.trim() || DEFAULT_SOURCE_IP;
+
+        const payload = AttendanceFactory.fromCreateDto(attendanceData, {
+            deviceId: resolvedDeviceId,
+            userId: deviceUser.user_id,
+            sourceIp: resolvedSourceIp,
+        });
         payload.employee = attendanceData.employeeId as any;
 
         try {
@@ -136,6 +182,42 @@ export class AttendanceService {
             this.logger.error('Failed to create attendance record', err);
             throw new InternalServerErrorException(
                 'Unable to create attendance record at this time',
+            );
+        }
+    }
+
+    async getEmployeeDeviceUser(employeeId: string, userSession: UserSession) {
+        const canCreate = hasPerm(
+            'admin:create_attendance',
+            userSession.permissions,
+        );
+        if (!canCreate) {
+            throw new ForbiddenException(
+                "You don't have permission to view device users",
+            );
+        }
+
+        try {
+            const deviceUser = await this.deviceUserModel
+                .findOne({ employee: employeeId })
+                .select('user_id employee')
+                .exec();
+
+            if (!deviceUser?.user_id) {
+                throw new NotFoundException(
+                    'No device user mapping found for the selected employee',
+                );
+            }
+
+            return {
+                employeeId: deviceUser.employee?.toString() || employeeId,
+                userId: deviceUser.user_id,
+            };
+        } catch (err) {
+            if (err instanceof HttpException) throw err;
+            this.logger.error('Failed to resolve device user by employee', err);
+            throw new InternalServerErrorException(
+                'Unable to resolve device user for the employee',
             );
         }
     }
@@ -218,7 +300,7 @@ export class AttendanceService {
     }
 
     async searchAttendance(
-        employeeId: string,
+        filters: SearchAttendanceBodyDto,
         pagination: {
             page: number;
             itemsPerPage: number;
@@ -238,7 +320,26 @@ export class AttendanceService {
         }
 
         try {
-            const query = { employee: employeeId };
+            const query: Record<string, unknown> = {
+                employee: filters.employeeId,
+            };
+
+            if (filters.fromDate || filters.toDate) {
+                const from = filters.fromDate
+                    ? moment.tz(filters.fromDate, 'Asia/Dhaka').startOf('day')
+                    : null;
+                const to = filters.toDate
+                    ? moment.tz(filters.toDate, 'Asia/Dhaka').endOf('day')
+                    : null;
+
+                const range: Record<string, Date> = {};
+                if (from?.isValid()) range.$gte = from.toDate();
+                if (to?.isValid()) range.$lte = to.toDate();
+
+                if (Object.keys(range).length > 0) {
+                    query.in_time = range;
+                }
+            }
 
             if (!pagination.paginated) {
                 const records = await this.attendanceModel

@@ -9,8 +9,8 @@ import { IsIn, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 export class MarkAttendanceDto {
     /** Device serial number or identifier */
     @IsString()
-    @IsNotEmpty()
-    deviceId: string;
+    @IsOptional()
+    deviceId?: string;
 
     /** User PIN/ID from the device */
     @IsString()
@@ -44,8 +44,8 @@ export class MarkAttendanceDto {
 
     /** Source IP of the device */
     @IsString()
-    @IsNotEmpty()
-    sourceIp: string;
+    @IsOptional()
+    sourceIp?: string;
 
     /** Reception timestamp */
     @IsString()

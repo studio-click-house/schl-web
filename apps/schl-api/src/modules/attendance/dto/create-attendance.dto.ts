@@ -34,13 +34,13 @@ export class CreateAttendanceBodyDto {
 
     /** Device ID that recorded the attendance */
     @IsString()
-    @IsNotEmpty()
-    deviceId: string;
+    @IsOptional()
+    deviceId?: string;
 
     /** User PIN/ID from the device */
     @IsString()
-    @IsNotEmpty()
-    userId: string;
+    @IsOptional()
+    userId?: string;
 
     /** Verification mode (fingerprint, card, password, face, etc.) */
     @IsNotEmpty()
@@ -54,6 +54,6 @@ export class CreateAttendanceBodyDto {
 
     /** Source IP of the device */
     @IsString()
-    @IsNotEmpty()
-    sourceIp: string;
+    @IsOptional()
+    sourceIp?: string;
 }
