@@ -14,8 +14,10 @@ import {
 } from '@repo/common/constants/attendance.constant';
 import { Attendance } from '@repo/common/models/attendance.schema';
 import { DeviceUser } from '@repo/common/models/device-user.schema';
+import { ShiftPlan } from '@repo/common/models/shift-plan.schema';
 import { UserSession } from '@repo/common/types/user-session.type';
 import { hasPerm } from '@repo/common/utils/permission-check';
+import { determineShiftDate } from '@repo/common/utils/ot-calculation';
 import * as moment from 'moment-timezone';
 import { Model } from 'mongoose';
 import { CreateAttendanceBodyDto } from './dto/create-attendance.dto';
@@ -31,6 +33,8 @@ export class AttendanceService {
         private attendanceModel: Model<Attendance>,
         @InjectModel(DeviceUser.name)
         private deviceUserModel: Model<DeviceUser>,
+        @InjectModel(ShiftPlan.name)
+        private shiftPlanModel: Model<ShiftPlan>,
     ) {}
 
     private validateTimestamp(timestamp: string): Date {
@@ -82,37 +86,80 @@ export class AttendanceService {
         // Validate and normalize timestamp
         const currentTime = this.validateTimestamp(body.timestamp);
 
+        // Fetch shift plan for the employee to determine shift_date
+        // Look at today and yesterday's shift plans to handle midnight crossings
+        const estimatedShiftDate = moment
+            .tz(currentTime, 'Asia/Dhaka')
+            .startOf('day')
+            .toDate();
+        const shiftPlan = await this.shiftPlanModel
+            .findOne({
+                employee: deviceUserMapping.employee,
+                shift_date: {
+                    $gte: moment
+                        .tz(estimatedShiftDate, 'Asia/Dhaka')
+                        .subtract(1, 'day')
+                        .toDate(),
+                    $lte: estimatedShiftDate,
+                },
+            })
+            .sort({ shift_date: -1 })
+            .exec();
+
+        // Determine which business day (shift_date) this attendance belongs to
+        const shiftDate = determineShiftDate(
+            currentTime,
+            shiftPlan
+                ? {
+                      shift_start: shiftPlan.shift_start,
+                      crosses_midnight: shiftPlan.crosses_midnight,
+                  }
+                : undefined,
+        );
+
         try {
-            // Atomic update-first approach: try to close existing open attendance
-            // findOneAndUpdate is atomic and avoids ambiguity of separate read
-            const closed = await this.attendanceModel.findOneAndUpdate(
-                {
-                    user_id: normalizedBody.userId,
-                    out_time: null,
-                },
-                {
-                    $set: { out_time: currentTime },
-                },
-                { new: true }, // return updated document
-            );
+            // Find existing attendance for this user on this shift_date
+            const existingAttendance = await this.attendanceModel.findOne({
+                user_id: normalizedBody.userId,
+                shift_date: shiftDate,
+            });
 
-            if (closed) {
-                return closed;
-            }
-
-            // No open session found, create new check-in
-            const payload = AttendanceFactory.fromMarkDto(
-                normalizedBody,
-                currentTime,
-            );
-            (payload as any).employee = deviceUserMapping.employee;
-            const created = await this.attendanceModel.create(payload);
-            if (!created) {
-                throw new InternalServerErrorException(
-                    'Failed to mark attendance',
+            if (!existingAttendance) {
+                // First check-in of the shift - create new attendance record
+                const payload = AttendanceFactory.fromMarkDto(
+                    normalizedBody,
+                    currentTime,
                 );
+                (payload as any).employee = deviceUserMapping.employee;
+                (payload as any).shift_date = shiftDate;
+
+                const created = await this.attendanceModel.create(payload);
+                if (!created) {
+                    throw new InternalServerErrorException(
+                        'Failed to mark attendance',
+                    );
+                }
+                return created;
             }
-            return created;
+
+            // Existing attendance found - this is a subsequent check-in (update out_time)
+            // Prevent accidental duplicate scans within 2 minutes
+            const lastScanTime =
+                existingAttendance.out_time || existingAttendance.in_time;
+            const diffMinutes = moment
+                .tz(currentTime, 'Asia/Dhaka')
+                .diff(moment.tz(lastScanTime, 'Asia/Dhaka'), 'minutes');
+
+            if (diffMinutes < 2) {
+                this.logger.warn(
+                    `Ignoring duplicate scan within 2 minutes for user ${normalizedBody.userId}`,
+                );
+                return existingAttendance;
+            }
+
+            // Update out_time (second, third, ... check-ins all update out_time)
+            existingAttendance.out_time = currentTime;
+            return await existingAttendance.save();
         } catch (err) {
             if (err instanceof HttpException) throw err;
             this.logger.error('Failed to mark attendance', err as Error);
@@ -168,6 +215,37 @@ export class AttendanceService {
             sourceIp: resolvedSourceIp,
         });
         payload.employee = attendanceData.employeeId as any;
+
+        // Calculate shift_date based on in_time
+        const inTime = new Date(attendanceData.inTime);
+        const estimatedShiftDate = moment
+            .tz(inTime, 'Asia/Dhaka')
+            .startOf('day')
+            .toDate();
+        const shiftPlan = await this.shiftPlanModel
+            .findOne({
+                employee: attendanceData.employeeId,
+                shift_date: {
+                    $gte: moment
+                        .tz(estimatedShiftDate, 'Asia/Dhaka')
+                        .subtract(1, 'day')
+                        .toDate(),
+                    $lte: estimatedShiftDate,
+                },
+            })
+            .sort({ shift_date: -1 })
+            .exec();
+
+        const shiftDate = determineShiftDate(
+            inTime,
+            shiftPlan
+                ? {
+                      shift_start: shiftPlan.shift_start,
+                      crosses_midnight: shiftPlan.crosses_midnight,
+                  }
+                : undefined,
+        );
+        (payload as any).shift_date = shiftDate;
 
         try {
             const created = await this.attendanceModel.create(payload);

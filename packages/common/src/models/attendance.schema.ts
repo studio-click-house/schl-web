@@ -57,6 +57,9 @@ export class Attendance {
     })
     employee: mongoose.Types.ObjectId; // reference to employee document, resolved from device-user mapping
 
+    @Prop({ required: [true, 'Shift date is required'], type: Date, index: true })
+    shift_date: Date; // Business day this attendance belongs to (e.g., 2026-02-07 even if checkout is 2026-02-08 01:30)
+
     @Prop({ type: Date })
     readonly createdAt: Date;
 
@@ -66,10 +69,10 @@ export class Attendance {
 
 export const AttendanceSchema = SchemaFactory.createForClass(Attendance);
 
-// Enforce only one open session per user at the database level
-// Partial unique index ensures only one document with out_time: null per user
+// Enforce only one open session per user per shift date at the database level
+// Partial unique index ensures only one document with out_time: null per user per shift_date
 AttendanceSchema.index(
-    { user_id: 1 },
+    { user_id: 1, shift_date: 1 },
     {
         unique: true,
         partialFilterExpression: { out_time: null },
