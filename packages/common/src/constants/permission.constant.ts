@@ -184,6 +184,18 @@ export const USER_PERMISSIONS = [
                 value: 'admin:delete_attendance',
                 label: 'Delete attendance',
             },
+            {
+                value: 'admin:create_shift_plan',
+                label: 'Create shift plan',
+            },
+            {
+                value: 'admin:edit_shift_plan',
+                label: 'Edit shift plan',
+            },
+            {
+                value: 'admin:view_shift_plan',
+                label: 'View shift plans',
+            },
         ],
     },
 

@@ -251,6 +251,100 @@ const Nav: React.FC<PropsType> = props => {
 
                         <li
                             className={cn(
+                                !has('admin:view_shift_plan') && 'hidden',
+                            )}
+                        >
+                            <span
+                                role="button"
+                                id="adminShiftDropdownButton"
+                                data-dropdown-toggle="adminShiftDropdown"
+                                data-dropdown-trigger="hover"
+                                data-dropdown-placement="right-start"
+                                className="block px-4 py-2 hover:bg-primary"
+                            >
+                                <span className="flex gap-1 items-end text-wrap align-bottom justify-between">
+                                    <span>Shift & Attendance</span>
+                                    <ChevronRight size={17} />
+                                </span>
+                            </span>
+
+                            <div
+                                id="adminShiftDropdown"
+                                className="z-10 hidden bg-gray-900 divide-y divide-gray-100 rounded-md shadow w-44"
+                                suppressHydrationWarning
+                            >
+                                <ul
+                                    className="py-2 text-white"
+                                    aria-labelledby="adminShiftDropdownButton"
+                                >
+                                    <li>
+                                        <Link
+                                            className={cn(
+                                                'block px-4 py-2 hover:bg-primary',
+                                            )}
+                                            href={'/admin/shift-plans'}
+                                        >
+                                            Shift Plans
+                                        </Link>
+                                    </li>
+                                    <li>
+                                        <Link
+                                            className={cn(
+                                                'block px-4 py-2 hover:bg-primary',
+                                            )}
+                                            href={
+                                                '/admin/shift-plans/overrides'
+                                            }
+                                        >
+                                            Overrides
+                                        </Link>
+                                    </li>
+                                    <li>
+                                        <Link
+                                            className={cn(
+                                                'block px-4 py-2 hover:bg-primary',
+                                            )}
+                                            href={'/admin/leaves'}
+                                        >
+                                            Leaves
+                                        </Link>
+                                    </li>
+                                    <li>
+                                        <Link
+                                            className={cn(
+                                                'block px-4 py-2 hover:bg-primary',
+                                            )}
+                                            href={'/admin/holidays'}
+                                        >
+                                            Holidays
+                                        </Link>
+                                    </li>
+                                    <li>
+                                        <Link
+                                            className={cn(
+                                                'block px-4 py-2 hover:bg-primary',
+                                            )}
+                                            href={'/admin/attendance-flags'}
+                                        >
+                                            Attendance Flags
+                                        </Link>
+                                    </li>
+                                    <li>
+                                        <Link
+                                            className={cn(
+                                                'block px-4 py-2 hover:bg-primary',
+                                            )}
+                                            href={'/admin/departments'}
+                                        >
+                                            Departments
+                                        </Link>
+                                    </li>
+                                </ul>
+                            </div>
+                        </li>
+
+                        <li
+                            className={cn(
                                 !has('notice:send_notice') && 'hidden',
                             )}
                         >
@@ -307,6 +401,25 @@ const Nav: React.FC<PropsType> = props => {
                                 href={'/accountancy/employees'}
                             >
                                 Employees
+                            </Link>
+                        </li>
+
+                        <li
+                            className={cn(
+                                !hasAny([
+                                    'admin:create_attendance',
+                                    'admin:edit_attendance',
+                                    'admin:delete_attendance',
+                                ]) && 'hidden',
+                            )}
+                        >
+                            <Link
+                                className={cn(
+                                    'block px-4 py-2 hover:bg-primary',
+                                )}
+                                href={'/accountancy/employees/attendance'}
+                            >
+                                Attendance
                             </Link>
                         </li>
 

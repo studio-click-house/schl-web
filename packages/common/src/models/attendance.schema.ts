@@ -38,6 +38,16 @@ export class Attendance {
     verify_mode: VerifyMode;
 
     @Prop({
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'AttendanceFlag',
+        required: false,
+    })
+    flag?: mongoose.Types.ObjectId;
+
+    @Prop({ required: false, type: Number, default: 0 })
+    late_minutes: number;
+
+    @Prop({
         required: [true, 'Status is required'],
         type: String,
         enum: ATTENDANCE_STATUSES,
@@ -50,6 +60,9 @@ export class Attendance {
     @Prop({ required: false, type: Date, default: null })
     received_at: Date | null; // this is the time when the record was received by the parser service, stored for debugging purposes
 
+    @Prop({ required: false, type: Number, default: 1 })
+    total_checkins: number; // Number of check-in/check-out events for this attendance (1st = in, 2nd+ = out updates)
+
     @Prop({
         required: [true, 'Employee is required'],
         ref: 'Employee',
@@ -57,8 +70,15 @@ export class Attendance {
     })
     employee: mongoose.Types.ObjectId; // reference to employee document, resolved from device-user mapping
 
-    @Prop({ required: [true, 'Shift date is required'], type: Date, index: true })
+    @Prop({
+        required: [true, 'Shift date is required'],
+        type: Date,
+        index: true,
+    })
     shift_date: Date; // Business day this attendance belongs to (e.g., 2026-02-07 even if checkout is 2026-02-08 01:30)
+
+    @Prop({ required: false, type: Number, default: 0 })
+    ot_minutes: number; // Calculated overtime in minutes (cached for performance)
 
     @Prop({ type: Date })
     readonly createdAt: Date;

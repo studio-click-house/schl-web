@@ -12,6 +12,7 @@
     },
     "dependencies": {
         "@hookform/resolvers": "^3.10.0",
+        "@nestjs/schedule": "^6.1.1",
         "@repo/common": "workspace:*",
         "@tiptap/extension-code": "^2.26.1",
         "@tiptap/extension-document": "^2.26.1",

@@ -12,12 +12,23 @@ import {
     DEFAULT_DEVICE_ID,
     DEFAULT_SOURCE_IP,
 } from '@repo/common/constants/attendance.constant';
+import {
+    AttendanceFlag,
+    AttendanceFlagDocument,
+} from '@repo/common/models/attendance-flag.schema';
 import { Attendance } from '@repo/common/models/attendance.schema';
 import { DeviceUser } from '@repo/common/models/device-user.schema';
-import { ShiftPlan } from '@repo/common/models/shift-plan.schema';
+import { Holiday, HolidayDocument } from '@repo/common/models/holiday.schema';
+import { Leave, LeaveDocument } from '@repo/common/models/leave.schema';
+import { ShiftOverride } from '@repo/common/models/shift-override.schema';
+import { ShiftResolved } from '@repo/common/models/shift-resolved.schema';
+import { ShiftTemplate } from '@repo/common/models/shift-template.schema';
 import { UserSession } from '@repo/common/types/user-session.type';
+import {
+    calculateOT,
+    determineShiftDate,
+} from '@repo/common/utils/ot-calculation';
 import { hasPerm } from '@repo/common/utils/permission-check';
-import { determineShiftDate } from '@repo/common/utils/ot-calculation';
 import * as moment from 'moment-timezone';
 import { Model } from 'mongoose';
 import { CreateAttendanceBodyDto } from './dto/create-attendance.dto';
@@ -33,9 +44,246 @@ export class AttendanceService {
         private attendanceModel: Model<Attendance>,
         @InjectModel(DeviceUser.name)
         private deviceUserModel: Model<DeviceUser>,
-        @InjectModel(ShiftPlan.name)
-        private shiftPlanModel: Model<ShiftPlan>,
+        @InjectModel(ShiftTemplate.name)
+        private shiftTemplateModel: Model<ShiftTemplate>,
+        @InjectModel(ShiftOverride.name)
+        private shiftOverrideModel: Model<ShiftOverride>,
+        @InjectModel(ShiftResolved.name)
+        private shiftResolvedModel: Model<ShiftResolved>,
+        @InjectModel(Leave.name)
+        private leaveModel: Model<LeaveDocument>,
+        @InjectModel(Holiday.name)
+        private holidayModel: Model<HolidayDocument>,
+        @InjectModel(AttendanceFlag.name)
+        private attendanceFlagModel: Model<AttendanceFlagDocument>,
     ) {}
+
+    public async resolveShiftForDate(
+        employeeId: any,
+        date: Date,
+    ): Promise<ShiftResolved | null> {
+        const shiftDate = moment.tz(date, 'Asia/Dhaka').startOf('day').toDate();
+
+        const cached = await this.shiftResolvedModel.findOne({
+            employee: employeeId,
+            shift_date: shiftDate,
+        });
+        if (cached) return cached;
+
+        const override = await this.shiftOverrideModel.findOne({
+            employee: employeeId,
+            shift_date: shiftDate,
+        });
+
+        if (override) {
+            if (override.override_type === 'cancel') {
+                return null;
+            }
+
+            return await this.shiftResolvedModel.findOneAndUpdate(
+                { employee: employeeId, shift_date: shiftDate },
+                {
+                    $set: {
+                        employee: employeeId,
+                        shift_date: shiftDate,
+                        shift_type: override.shift_type,
+                        shift_start: override.shift_start,
+                        shift_end: override.shift_end,
+                        crosses_midnight: override.crosses_midnight,
+                        source: 'override',
+                        override_id: override._id,
+                        resolved_at: new Date(),
+                    },
+                },
+                { new: true, upsert: true },
+            );
+        }
+
+        // Check for Holidays
+        const holiday = await this.holidayModel.findOne({
+            date: shiftDate,
+        });
+        if (holiday) {
+            return await this.shiftResolvedModel.findOneAndUpdate(
+                { employee: employeeId, shift_date: shiftDate },
+                {
+                    $set: {
+                        employee: employeeId,
+                        shift_date: shiftDate,
+                        shift_type: 'morning', // default
+                        shift_start: '09:00', // default
+                        shift_end: '17:00', // default
+                        crosses_midnight: false,
+                        source: 'holiday',
+                        resolved_at: new Date(),
+                    },
+                },
+                { new: true, upsert: true },
+            );
+        }
+
+        // Check for Approved Leaves
+        const leave = await this.leaveModel.findOne({
+            employee: employeeId,
+            status: 'approved',
+            start_date: { $lte: shiftDate },
+            end_date: { $gte: shiftDate },
+        });
+        if (leave) {
+            return await this.shiftResolvedModel.findOneAndUpdate(
+                { employee: employeeId, shift_date: shiftDate },
+                {
+                    $set: {
+                        employee: employeeId,
+                        shift_date: shiftDate,
+                        shift_type: 'morning', // default
+                        shift_start: '09:00', // default
+                        shift_end: '17:00', // default
+                        crosses_midnight: false,
+                        source: 'leave',
+                        resolved_at: new Date(),
+                    },
+                },
+                { new: true, upsert: true },
+            );
+        }
+
+        const template = await this.shiftTemplateModel.findOne({
+            employee: employeeId,
+            active: true,
+            effective_from: { $lte: shiftDate },
+            effective_to: { $gte: shiftDate },
+        });
+
+        if (!template) return null;
+
+        return await this.shiftResolvedModel.findOneAndUpdate(
+            { employee: employeeId, shift_date: shiftDate },
+            {
+                $set: {
+                    employee: employeeId,
+                    shift_date: shiftDate,
+                    shift_type: template.shift_type,
+                    shift_start: template.shift_start,
+                    shift_end: template.shift_end,
+                    crosses_midnight: template.crosses_midnight,
+                    source: 'template',
+                    template_id: template._id,
+                    resolved_at: new Date(),
+                },
+            },
+            { new: true, upsert: true },
+        );
+    }
+
+    private async evaluateAttendance(
+        attendance: Partial<Attendance> | Attendance,
+        shift: ShiftResolved,
+        employeeId: any,
+    ) {
+        // 1. Holiday Logic
+        if (shift.source === 'holiday') {
+            const holiday = await this.holidayModel
+                .findOne({ date: shift.shift_date })
+                .lean();
+            if (holiday) {
+                // We use the ID directly from the holiday record
+                (attendance as any).flag = holiday.flag;
+                (attendance as any).late_minutes = 0;
+            }
+            return;
+        }
+
+        // 2. Leave Logic
+        if (shift.source === 'leave') {
+            const leave = await this.leaveModel
+                .findOne({
+                    employee: employeeId,
+                    status: 'approved',
+                    start_date: { $lte: shift.shift_date },
+                    end_date: { $gte: shift.shift_date },
+                })
+                .lean();
+            if (leave) {
+                (attendance as any).flag = leave.flag;
+                (attendance as any).late_minutes = 0;
+            }
+            return;
+        }
+
+        // 3. Regular Shift / Override Logic
+        const shiftStartStr = `${moment
+            .tz(shift.shift_date, 'Asia/Dhaka')
+            .format('YYYY-MM-DD')} ${shift.shift_start}`;
+        const shiftStart = moment.tz(
+            shiftStartStr,
+            'YYYY-MM-DD HH:mm',
+            'Asia/Dhaka',
+        );
+
+        if (!(attendance as any).in_time) return;
+
+        const inTime = moment.tz((attendance as any).in_time, 'Asia/Dhaka');
+        const diffMinutes = inTime.diff(shiftStart, 'minutes');
+        const lateMinutes = Math.max(0, diffMinutes);
+
+        (attendance as any).late_minutes = lateMinutes;
+
+        // Fetch flags
+        // TODO: optimize by caching or fetching all at once
+        const extremeDelay = await this.attendanceFlagModel
+            .findOne({ code: 'E' })
+            .lean();
+        const delay = await this.attendanceFlagModel
+            .findOne({ code: 'D' })
+            .lean();
+        const present = await this.attendanceFlagModel
+            .findOne({ code: 'P' })
+            .lean();
+
+        // 4. Assign Flag
+        if (lateMinutes > 120 && extremeDelay) {
+            (attendance as any).flag = extremeDelay._id;
+        } else if (lateMinutes > 15 && delay) {
+            (attendance as any).flag = delay._id;
+        } else if (present) {
+            (attendance as any).flag = present._id;
+        }
+    }
+
+    private async resolveShiftForTimestamp(employeeId: any, time: Date) {
+        const today = moment.tz(time, 'Asia/Dhaka').startOf('day').toDate();
+        const yesterday = moment
+            .tz(today, 'Asia/Dhaka')
+            .subtract(1, 'day')
+            .toDate();
+
+        const shiftToday = await this.resolveShiftForDate(employeeId, today);
+        if (shiftToday) {
+            const shiftDate = determineShiftDate(time, {
+                shift_start: shiftToday.shift_start,
+                crosses_midnight: shiftToday.crosses_midnight,
+            });
+            return { shift: shiftToday, shiftDate };
+        }
+
+        const shiftYesterday = await this.resolveShiftForDate(
+            employeeId,
+            yesterday,
+        );
+        if (shiftYesterday) {
+            const shiftDate = determineShiftDate(time, {
+                shift_start: shiftYesterday.shift_start,
+                crosses_midnight: shiftYesterday.crosses_midnight,
+            });
+            return { shift: shiftYesterday, shiftDate };
+        }
+
+        return {
+            shift: null,
+            shiftDate: moment.tz(time, 'Asia/Dhaka').startOf('day').toDate(),
+        };
+    }
 
     private validateTimestamp(timestamp: string): Date {
         const parsedTime = moment.tz(timestamp, 'Asia/Dhaka');
@@ -62,6 +310,45 @@ export class AttendanceService {
         return parsedTime.toDate();
     }
 
+    /**
+     * Calculate OT for an attendance record
+     */
+    private async calculateAttendanceOT(
+        attendance: Attendance,
+        shiftDate: Date,
+        employeeId: any,
+    ): Promise<number> {
+        if (!attendance.out_time) {
+            return 0;
+        }
+
+        try {
+            const resolved = await this.resolveShiftForDate(
+                employeeId,
+                shiftDate,
+            );
+
+            if (!resolved) {
+                // No shift plan found, cannot calculate OT
+                return 0;
+            }
+
+            const otMinutes = calculateOT({
+                in_time: attendance.in_time,
+                out_time: attendance.out_time,
+                shift_start: resolved.shift_start,
+                shift_end: resolved.shift_end,
+                shift_date: shiftDate,
+                crosses_midnight: resolved.crosses_midnight,
+            });
+
+            return otMinutes;
+        } catch (err) {
+            this.logger.error('Error calculating OT', err as Error);
+            return 0;
+        }
+    }
+
     async markAttendance(body: MarkAttendanceDto) {
         const deviceId = body.deviceId?.trim() || DEFAULT_DEVICE_ID;
         const sourceIp = body.sourceIp?.trim() || DEFAULT_SOURCE_IP;
@@ -86,36 +373,11 @@ export class AttendanceService {
         // Validate and normalize timestamp
         const currentTime = this.validateTimestamp(body.timestamp);
 
-        // Fetch shift plan for the employee to determine shift_date
-        // Look at today and yesterday's shift plans to handle midnight crossings
-        const estimatedShiftDate = moment
-            .tz(currentTime, 'Asia/Dhaka')
-            .startOf('day')
-            .toDate();
-        const shiftPlan = await this.shiftPlanModel
-            .findOne({
-                employee: deviceUserMapping.employee,
-                shift_date: {
-                    $gte: moment
-                        .tz(estimatedShiftDate, 'Asia/Dhaka')
-                        .subtract(1, 'day')
-                        .toDate(),
-                    $lte: estimatedShiftDate,
-                },
-            })
-            .sort({ shift_date: -1 })
-            .exec();
-
-        // Determine which business day (shift_date) this attendance belongs to
-        const shiftDate = determineShiftDate(
+        const resolved = await this.resolveShiftForTimestamp(
+            deviceUserMapping.employee,
             currentTime,
-            shiftPlan
-                ? {
-                      shift_start: shiftPlan.shift_start,
-                      crosses_midnight: shiftPlan.crosses_midnight,
-                  }
-                : undefined,
         );
+        const shiftDate = resolved.shiftDate;
 
         try {
             // Find existing attendance for this user on this shift_date
@@ -132,6 +394,15 @@ export class AttendanceService {
                 );
                 (payload as any).employee = deviceUserMapping.employee;
                 (payload as any).shift_date = shiftDate;
+
+                // Evaluate Lateness and Flags
+                if (resolved.shift) {
+                    await this.evaluateAttendance(
+                        payload,
+                        resolved.shift,
+                        deviceUserMapping.employee,
+                    );
+                }
 
                 const created = await this.attendanceModel.create(payload);
                 if (!created) {
@@ -159,6 +430,17 @@ export class AttendanceService {
 
             // Update out_time (second, third, ... check-ins all update out_time)
             existingAttendance.out_time = currentTime;
+            existingAttendance.total_checkins =
+                (existingAttendance.total_checkins || 1) + 1;
+
+            // Calculate and update OT
+            const otMinutes = await this.calculateAttendanceOT(
+                existingAttendance,
+                existingAttendance.shift_date,
+                deviceUserMapping.employee,
+            );
+            existingAttendance.ot_minutes = otMinutes;
+
             return await existingAttendance.save();
         } catch (err) {
             if (err instanceof HttpException) throw err;
@@ -218,33 +500,11 @@ export class AttendanceService {
 
         // Calculate shift_date based on in_time
         const inTime = new Date(attendanceData.inTime);
-        const estimatedShiftDate = moment
-            .tz(inTime, 'Asia/Dhaka')
-            .startOf('day')
-            .toDate();
-        const shiftPlan = await this.shiftPlanModel
-            .findOne({
-                employee: attendanceData.employeeId,
-                shift_date: {
-                    $gte: moment
-                        .tz(estimatedShiftDate, 'Asia/Dhaka')
-                        .subtract(1, 'day')
-                        .toDate(),
-                    $lte: estimatedShiftDate,
-                },
-            })
-            .sort({ shift_date: -1 })
-            .exec();
-
-        const shiftDate = determineShiftDate(
+        const resolved = await this.resolveShiftForTimestamp(
+            attendanceData.employeeId,
             inTime,
-            shiftPlan
-                ? {
-                      shift_start: shiftPlan.shift_start,
-                      crosses_midnight: shiftPlan.crosses_midnight,
-                  }
-                : undefined,
         );
+        const shiftDate = resolved.shiftDate;
         (payload as any).shift_date = shiftDate;
 
         try {
@@ -254,6 +514,18 @@ export class AttendanceService {
                     'Failed to create attendance record',
                 );
             }
+
+            // Calculate and update OT if out_time is provided
+            if (attendanceData.outTime) {
+                const otMinutes = await this.calculateAttendanceOT(
+                    created,
+                    shiftDate,
+                    attendanceData.employeeId,
+                );
+                created.ot_minutes = otMinutes;
+                await created.save();
+            }
+
             return created;
         } catch (err: any) {
             if (err instanceof HttpException) throw err;
@@ -326,16 +598,26 @@ export class AttendanceService {
         const patch = AttendanceFactory.fromUpdateDto(attendanceData);
 
         try {
-            const updated = await this.attendanceModel.findByIdAndUpdate(
-                attendanceId,
-                { $set: patch },
-                { new: true },
-            );
+            const updated = await this.attendanceModel
+                .findByIdAndUpdate(attendanceId, { $set: patch }, { new: true })
+                .exec();
             if (!updated) {
                 throw new InternalServerErrorException(
                     'Failed to update attendance record',
                 );
             }
+
+            // Recalculate OT if times were updated
+            if (attendanceData.inTime || attendanceData.outTime) {
+                const otMinutes = await this.calculateAttendanceOT(
+                    updated,
+                    updated.shift_date,
+                    updated.employee,
+                );
+                updated.ot_minutes = otMinutes;
+                await updated.save();
+            }
+
             return updated;
         } catch (err) {
             if (err instanceof HttpException) throw err;
@@ -422,6 +704,7 @@ export class AttendanceService {
             if (!pagination.paginated) {
                 const records = await this.attendanceModel
                     .find(query)
+                    .populate('flag')
                     .sort({ in_time: -1 })
                     .exec();
                 return records;
@@ -433,6 +716,7 @@ export class AttendanceService {
             const [items, count] = await Promise.all([
                 this.attendanceModel
                     .find(query)
+                    .populate('flag')
                     .sort({ in_time: -1 })
                     .skip(skip)
                     .limit(limit)

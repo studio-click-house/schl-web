@@ -18,6 +18,7 @@ import {
     FilePlus,
     FilePlus2,
     FileSliders,
+    Flag,
     FlaskConical,
     FolderTree,
     KeyRound,
@@ -262,6 +263,87 @@ const Sidebar: React.FC<PropsType> = props => {
                                         </ul>
                                     </li>
                                 )}
+                                {has('admin:view_shift_plan') && (
+                                    <li>
+                                        <span
+                                            className={cn(
+                                                'flex items-center justify-between w-full p-2 text-gray-900 transition duration-75 pl-11 group',
+                                                pathname.includes(
+                                                    '/admin/shift-plans',
+                                                )
+                                                    ? 'bg-lime-100'
+                                                    : 'hover:bg-gray-100',
+                                            )}
+                                            aria-controls="dropdown-1-2"
+                                            data-collapse-toggle="dropdown-1-2"
+                                        >
+                                            <span className="flex items-center">
+                                                <CalendarClock className="w-6 h-6 mr-2" />
+                                                <span>Shift & Attendance</span>
+                                            </span>
+                                            <ChevronDown size={17} />
+                                        </span>
+                                        <ul
+                                            id="dropdown-1-2"
+                                            className="hidden pb-2 space-y-1"
+                                        >
+                                            <li>
+                                                <Link
+                                                    href="/admin/shift-plans"
+                                                    className="flex items-center w-full p-2 text-gray-900 transition duration-75 pl-20 group hover:bg-gray-100"
+                                                >
+                                                    <CalendarRange className="w-5 h-5 mr-2" />
+                                                    Shift Plans
+                                                </Link>
+                                            </li>
+                                            <li>
+                                                <Link
+                                                    href="/admin/shift-plans/overrides"
+                                                    className="flex items-center w-full p-2 text-gray-900 transition duration-75 pl-20 group hover:bg-gray-100"
+                                                >
+                                                    <FileSliders className="w-5 h-5 mr-2" />
+                                                    Overrides
+                                                </Link>
+                                            </li>
+                                            <li>
+                                                <Link
+                                                    href="/admin/leaves"
+                                                    className="flex items-center w-full p-2 text-gray-900 transition duration-75 pl-20 group hover:bg-gray-100"
+                                                >
+                                                    <CalendarPlus className="w-5 h-5 mr-2" />
+                                                    Leaves
+                                                </Link>
+                                            </li>
+                                            <li>
+                                                <Link
+                                                    href="/admin/holidays"
+                                                    className="flex items-center w-full p-2 text-gray-900 transition duration-75 pl-20 group hover:bg-gray-100"
+                                                >
+                                                    <Building2 className="w-5 h-5 mr-2" />
+                                                    Holidays
+                                                </Link>
+                                            </li>
+                                            <li>
+                                                <Link
+                                                    href="/admin/attendance-flags"
+                                                    className="flex items-center w-full p-2 text-gray-900 transition duration-75 pl-20 group hover:bg-gray-100"
+                                                >
+                                                    <Flag className="w-5 h-5 mr-2" />
+                                                    Attendance Flags
+                                                </Link>
+                                            </li>
+                                            <li>
+                                                <Link
+                                                    href="/admin/departments"
+                                                    className="flex items-center w-full p-2 text-gray-900 transition duration-75 pl-20 group hover:bg-gray-100"
+                                                >
+                                                    <Building2 className="w-5 h-5 mr-2" />
+                                                    Departments
+                                                </Link>
+                                            </li>
+                                        </ul>
+                                    </li>
+                                )}
                                 {has('notice:send_notice') && (
                                     <li>
                                         <Link
@@ -307,6 +389,21 @@ const Sidebar: React.FC<PropsType> = props => {
                                         >
                                             <Building2 className="w-6 h-6 mr-2" />
                                             Employees
+                                        </Link>
+                                    </li>
+                                )}
+                                {hasAny([
+                                    'admin:create_attendance',
+                                    'admin:edit_attendance',
+                                    'admin:delete_attendance',
+                                ]) && (
+                                    <li>
+                                        <Link
+                                            href="/accountancy/employees/attendance"
+                                            className="flex items-center w-full p-2 text-gray-900 transition duration-75 pl-11 group hover:bg-gray-100"
+                                        >
+                                            <ClipboardList className="w-6 h-6 mr-2" />
+                                            Attendance
                                         </Link>
                                     </li>
                                 )}

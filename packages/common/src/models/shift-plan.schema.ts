@@ -4,7 +4,7 @@ import { HydratedDocument } from 'mongoose';
 
 export type ShiftPlanDocument = HydratedDocument<ShiftPlan>;
 
-export const SHIFT_TYPES = ['morning', 'evening', 'custom'] as const;
+export const SHIFT_TYPES = ['morning', 'evening', 'night', 'custom'] as const;
 export type ShiftType = (typeof SHIFT_TYPES)[number];
 
 @Schema({ timestamps: true })
@@ -17,7 +17,11 @@ export class ShiftPlan {
     })
     employee: mongoose.Types.ObjectId;
 
-    @Prop({ required: [true, 'Shift date is required'], type: Date, index: true })
+    @Prop({
+        required: [true, 'Shift date is required'],
+        type: Date,
+        index: true,
+    })
     shift_date: Date; // The business day this shift belongs to
 
     @Prop({
@@ -33,11 +37,17 @@ export class ShiftPlan {
     @Prop({ required: [true, 'Shift end time is required'], type: String })
     shift_end: string; // Format: "HH:mm" (e.g., "23:00" for 11 PM)
 
-    @Prop({ required: false, type: Number, default: 0 })
-    grace_period_minutes: number; // Late in-time tolerance (e.g., 15 mins)
+    @Prop({ required: false, type: Number, default: 10 })
+    grace_period_minutes: number; // Late in-time tolerance (default: 10 mins). Does not affect OT calculation.
 
     @Prop({ required: false, type: Boolean, default: false })
     crosses_midnight: boolean; // True if shift_end < shift_start (e.g., 15:00-01:00)
+
+    @Prop({ required: false, type: String, default: null })
+    updated_by: string | null; // User ID who last updated this shift plan
+
+    @Prop({ required: false, type: String, default: null })
+    change_reason: string | null; // Reason for schedule change (e.g., "Christmas special", "Eid break")
 
     @Prop({ type: Date })
     readonly createdAt: Date;

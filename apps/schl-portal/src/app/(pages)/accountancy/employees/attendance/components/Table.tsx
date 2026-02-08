@@ -16,6 +16,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { formatOT } from '../utils/ot-helpers';
 import DeleteButton from './Delete';
 import FilterButton from './Filter';
 
@@ -177,8 +178,14 @@ const Table = ({ employeeId }: AttendanceTableProps) => {
         }
     };
 
-    const calculateWorkingHours = (inTime: Date, outTime: Date | null) => {
+    const calculateWorkingHours = (
+        inTime: Date,
+        outTime: Date | null,
+        flag?: any,
+    ) => {
         if (!inTime || !outTime) return '0:0';
+        // If flag says ignore hours, return 0:0
+        if (flag && flag.ignore_attendance_hours) return '0:0';
         try {
             const start = moment.tz(inTime, 'Asia/Dhaka');
             const end = moment.tz(outTime, 'Asia/Dhaka');
@@ -277,12 +284,13 @@ const Table = ({ employeeId }: AttendanceTableProps) => {
                                         <th>S/N</th>
                                         <th>Date</th>
                                         <th>Day</th>
-                                        <th>Status</th>
+                                        <th>Flag</th>
                                         <th>In Time</th>
                                         <th>In Remarks</th>
                                         <th>Out Time</th>
                                         <th>Out Remarks</th>
                                         <th>Hours</th>
+                                        <th>OT</th>
                                         {hasPerm(
                                             'admin:delete_attendance',
                                             userPermissions,
@@ -313,13 +321,41 @@ const Table = ({ employeeId }: AttendanceTableProps) => {
                                                     )}
                                                 </td>
                                                 <td className="text-wrap uppercase">
-                                                    <Badge
-                                                        value={
-                                                            attendance.status ||
-                                                            'N/A'
-                                                        }
-                                                        className="bg-blue-100 text-blue-800 border-blue-400"
-                                                    />
+                                                    {(attendance as any)
+                                                        .flag ? (
+                                                        <Badge
+                                                            value={
+                                                                (
+                                                                    attendance as any
+                                                                ).flag.code
+                                                            }
+                                                            className="border"
+                                                            style={{
+                                                                backgroundColor:
+                                                                    (
+                                                                        attendance as any
+                                                                    ).flag
+                                                                        .color ||
+                                                                    '#e5e7eb',
+                                                                color: '#ffffff',
+                                                                borderColor:
+                                                                    (
+                                                                        attendance as any
+                                                                    ).flag
+                                                                        .color ||
+                                                                    '#e5e7eb',
+                                                            }}
+                                                        />
+                                                    ) : (
+                                                        // Fallback to Status if no flag
+                                                        <Badge
+                                                            value={
+                                                                attendance.status ||
+                                                                'N/A'
+                                                            }
+                                                            className="bg-gray-100 text-gray-800 border-gray-400"
+                                                        />
+                                                    )}
                                                 </td>
                                                 <td className="text-wrap">
                                                     {formatAttendanceTime(
@@ -347,6 +383,13 @@ const Table = ({ employeeId }: AttendanceTableProps) => {
                                                     {calculateWorkingHours(
                                                         attendance.in_time,
                                                         attendance.out_time,
+                                                        (attendance as any)
+                                                            .flag,
+                                                    )}
+                                                </td>
+                                                <td className="text-wrap font-semibold text-green-600">
+                                                    {formatOT(
+                                                        attendance.ot_minutes,
                                                     )}
                                                 </td>
                                                 {hasPerm(

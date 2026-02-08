@@ -19,6 +19,7 @@
         "@nestjs/mongoose": "^11.0.3",
         "@nestjs/passport": "^11.0.5",
         "@nestjs/platform-express": "^11.0.1",
+        "@nestjs/schedule": "^6.1.1",
         "@repo/common": "workspace:*",
         "@zerobounce/zero-bounce-sdk": "^1.1.2",
         "axios": "^1.13.2",

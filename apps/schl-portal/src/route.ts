@@ -96,6 +96,16 @@ export const authorizedRoutes: AuthorizedRoute[] = [
                 permissions: ['admin:create_role', 'admin:delete_role'],
             },
             {
+                href: '/admin/device-users',
+                label: 'Device Users',
+                permissions: ['admin:view_device_user'],
+            },
+            {
+                href: '/admin/shift-plans',
+                label: 'Shift Plans',
+                permissions: ['admin:view_shift_plan'],
+            },
+            {
                 href: '/admin/notices',
                 label: 'Create Notice',
                 permissions: ['notice:send_notice'],
@@ -124,6 +134,15 @@ export const authorizedRoutes: AuthorizedRoute[] = [
                 href: '/accountancy/employees/employee-profile',
                 label: 'Employee Profile',
                 permissions: ['accountancy:manage_employee'],
+            },
+            {
+                href: '/accountancy/employees/attendance',
+                label: 'Attendance',
+                permissions: [
+                    'admin:create_attendance',
+                    'admin:edit_attendance',
+                    'admin:delete_attendance',
+                ],
             },
             {
                 href: '/accountancy/invoices/create-invoice',
