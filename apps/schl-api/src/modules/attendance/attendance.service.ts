@@ -223,7 +223,8 @@ export class AttendanceService {
 
         if (!(attendance as any).in_time) return;
 
-        const inTime = moment.tz((attendance as any).in_time, 'Asia/Dhaka');
+        const inTimeRaw = (attendance as any).in_time as string | Date;
+        const inTime = moment.tz(inTimeRaw, 'Asia/Dhaka');
         const diffMinutes = inTime.diff(shiftStart, 'minutes');
         const lateMinutes = Math.max(0, diffMinutes);
 
@@ -242,9 +243,12 @@ export class AttendanceService {
             .lean();
 
         // 4. Assign Flag
-        if (lateMinutes > 120 && extremeDelay) {
+        const grace = (shift as any).grace_period_minutes ?? 10; // default grace
+
+        // D: late when after grace and up to 30 minutes, E: after 30 minutes
+        if (lateMinutes > 30 && extremeDelay) {
             (attendance as any).flag = extremeDelay._id;
-        } else if (lateMinutes > 15 && delay) {
+        } else if (lateMinutes > grace && delay) {
             (attendance as any).flag = delay._id;
         } else if (present) {
             (attendance as any).flag = present._id;

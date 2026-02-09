@@ -1,7 +1,6 @@
 import {
     IsBoolean,
     IsHexColor,
-    IsIn,
     IsNotEmpty,
     IsNumber,
     IsOptional,
@@ -26,10 +25,6 @@ export class CreateAttendanceFlagDto {
     @IsOptional()
     @IsString()
     description?: string;
-
-    @IsOptional()
-    @IsIn(['system', 'user'])
-    type?: 'system' | 'user';
 
     @IsOptional()
     @IsBoolean()

@@ -2,8 +2,10 @@
 import { MultiSelectWithAll } from '@/components/MultiSelectWithAll';
 import { useAuthedFetchApi } from '@/lib/api-client';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { EMPLOYEE_DEPARTMENTS } from '@repo/common/constants/employee.constant';
 import React, { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
+import Select from 'react-select';
 import { toast } from 'sonner';
 import { DepartmentData, departmentSchema } from '../schema';
 
@@ -23,6 +25,11 @@ const WEEK_DAYS = [
     { label: 'Friday', value: '5' },
     { label: 'Saturday', value: '6' },
 ];
+
+const DEPARTMENT_OPTIONS = EMPLOYEE_DEPARTMENTS.map(d => ({
+    label: d,
+    value: d,
+}));
 
 const DepartmentModal: React.FC<ModalProps> = ({
     isOpen,
@@ -67,8 +74,8 @@ const DepartmentModal: React.FC<ModalProps> = ({
     const onSubmit = async (data: DepartmentData) => {
         try {
             const url = isEdit
-                ? `/departments/${editData._id}`
-                : '/departments';
+                ? `/v1/departments/${editData._id}`
+                : '/v1/departments';
             const method = isEdit ? 'PUT' : 'POST';
 
             const response = await authedFetchApi(
@@ -81,12 +88,19 @@ const DepartmentModal: React.FC<ModalProps> = ({
             );
 
             if (!response.ok) {
+                // Check if validation error (400) or other
+                if (response.status === 400 && response.data.message) {
+                    // Log details for debugging specifically if needed
+                    console.error('Validation Errors:', response.data.message);
+                }
                 const msg = response.data.message;
-                toast.error(
-                    Array.isArray(msg)
-                        ? msg.join(', ')
-                        : msg || 'Failed to save department',
-                );
+
+                // Show a generic message or specific one if simple string
+                if (Array.isArray(msg)) {
+                    toast.error('Please check your input fields');
+                } else {
+                    toast.error(msg || 'Failed to save department');
+                }
                 return;
             }
 
@@ -123,11 +137,21 @@ const DepartmentModal: React.FC<ModalProps> = ({
                         <label className="block text-sm font-medium text-gray-700">
                             Name
                         </label>
-                        <input
-                            type="text"
-                            {...register('name')}
-                            className="mt-1 block w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="e.g. Marketing"
+                        <Controller
+                            control={control}
+                            name="name"
+                            render={({ field: { onChange, value } }) => (
+                                <Select
+                                    options={DEPARTMENT_OPTIONS}
+                                    value={DEPARTMENT_OPTIONS.find(
+                                        c => c.value === value,
+                                    )}
+                                    onChange={val => onChange(val?.value)}
+                                    placeholder="Select Department"
+                                    className="mt-1 block w-full"
+                                    classNamePrefix="react-select"
+                                />
+                            )}
                         />
                         {errors.name && (
                             <p className="text-red-500 text-xs mt-1">

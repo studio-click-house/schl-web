@@ -96,6 +96,26 @@ export class AttendanceGeneratorService {
             `Processing ${employees.length} employees for date ${yyyymmdd}`,
         );
 
+        // Counters for reporting
+        type Counts = {
+            L: number;
+            H: number;
+            W: number;
+            A: number;
+            created: number;
+            updated: number;
+            skipped: number;
+        };
+        const counts: Counts = {
+            L: 0,
+            H: 0,
+            W: 0,
+            A: 0,
+            created: 0,
+            updated: 0,
+            skipped: 0,
+        };
+
         for (const emp of employees) {
             try {
                 // Check if attendance already exists
@@ -105,7 +125,12 @@ export class AttendanceGeneratorService {
                 });
 
                 if (existing) {
-                    continue; // Already has attendance (manual or device punch)
+                    // If an attendance exists and it was NOT auto-generated, preserve it.
+                    // If it was auto-generated previously (verify_mode === 'auto'), we'll update it.
+                    if ((existing as any).verify_mode !== 'auto') {
+                        counts.skipped++;
+                        continue; // Preserve manual/device-generated attendance
+                    }
                 }
 
                 // Resolve Shift for times
@@ -128,6 +153,7 @@ export class AttendanceGeneratorService {
                 if (leave) {
                     flagCode = 'L';
                     remarks = 'Auto-generated Leave';
+                    counts.L++;
                 } else {
                     // B. Check Holidays
                     const holiday = await this.holidayModel.findOne({
@@ -138,6 +164,7 @@ export class AttendanceGeneratorService {
                     if (holiday) {
                         flagCode = 'H';
                         remarks = holiday.name || 'Holiday';
+                        counts.H++;
                     } else {
                         // C. Check Weekend
                         const deptName = emp.department
@@ -150,11 +177,13 @@ export class AttendanceGeneratorService {
                         if (isWeekend) {
                             flagCode = 'W';
                             remarks = 'Weekend';
+                            counts.W++;
                         } else {
                             // D. Absent (If nothing else)
                             // "A is assigned auto when a employee didn't come office... unless H, W, L"
                             flagCode = 'A';
                             remarks = 'Absent (Auto-generated)';
+                            counts.A++;
                         }
                     }
                 }
@@ -195,10 +224,10 @@ export class AttendanceGeneratorService {
                     ? deviceUser.user_id
                     : `SYS_${emp.e_id}`;
 
-                // Create Attendance Record
+                // Create or Update Attendance Record
                 const flagId = flagMap.get(flagCode);
 
-                await this.attendanceModel.create({
+                const payload: Partial<Attendance> = {
                     in_time: inTimeDate,
                     out_time: outTimeDate,
                     shift_date: startOfDay,
@@ -206,17 +235,32 @@ export class AttendanceGeneratorService {
                     user_id: userId,
                     device_id: DEFAULT_DEVICE_ID,
                     source_ip: DEFAULT_SOURCE_IP,
-                    verify_mode: 'manual', // or 'auto'? Schema enum: 'manual' exists in constants
+                    verify_mode: 'auto', // Mark as auto-generated
                     status: 'check-in',
                     flag: flagId,
                     out_remark: remarks,
                     in_remark: remarks,
-                });
+                };
+
+                if (existing) {
+                    await this.attendanceModel.findByIdAndUpdate(existing._id, {
+                        $set: payload,
+                    });
+                    counts.updated++;
+                } else {
+                    await this.attendanceModel.create(payload);
+                    counts.created++;
+                }
             } catch (err: any) {
                 this.logger.error(
                     `Failed to generate attendance for emp ${emp._id.toString()}: ${err.message}`,
                 );
             }
         }
+
+        // Final summary log
+        this.logger.log(
+            `Daily generation summary for ${yyyymmdd}: created=${counts.created}, updated=${counts.updated}, skipped=${counts.skipped}, L=${counts.L}, H=${counts.H}, W=${counts.W}, A=${counts.A}`,
+        );
     }
 }

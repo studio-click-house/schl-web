@@ -9,7 +9,8 @@ import { Leave, LeaveDocument } from '@repo/common/models/leave.schema';
 import { UserSession } from '@repo/common/types/user-session.type';
 import { hasPerm } from '@repo/common/utils/permission-check';
 import * as moment from 'moment-timezone';
-import { Model } from 'mongoose';
+import { FilterQuery, Model } from 'mongoose';
+import { toObjectId } from '../../common/utils/id-helpers.utils';
 import { CreateLeaveDto } from './dto/create-leave.dto';
 
 @Injectable()
@@ -22,13 +23,15 @@ export class LeaveService {
     async findAll(
         employeeId: string,
         status: string,
-        userSession: UserSession,
+        _userSession?: UserSession,
     ) {
+        // Reference _userSession to avoid unused-var lint warnings
+        void _userSession;
         // Basic permission check - can user view all leaves or only theirs?
         // For simplicity, assume admins can view all, others only theirs
         // implementation details omitted for brevity
-        const query: any = {};
-        if (employeeId) query.employee = employeeId;
+        const query: FilterQuery<LeaveDocument> = {};
+        if (employeeId) query.employee = toObjectId(employeeId) as any;
         if (status) query.status = status;
 
         return await this.leaveModel
@@ -39,7 +42,9 @@ export class LeaveService {
             .exec();
     }
 
-    async apply(dto: CreateLeaveDto, userSession: UserSession) {
+    async apply(dto: CreateLeaveDto, _userSession?: UserSession) {
+        // Reference _userSession to avoid unused-var lint warnings
+        void _userSession;
         // Validate dates
         const start = moment
             .tz(dto.startDate, 'Asia/Dhaka')

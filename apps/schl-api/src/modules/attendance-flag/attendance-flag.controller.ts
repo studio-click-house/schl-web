@@ -7,7 +7,6 @@ import {
     Post,
     Put,
     Req,
-    UseGuards,
 } from '@nestjs/common';
 import { UserSession } from '@repo/common/types/user-session.type';
 import { AttendanceFlagService } from './attendance-flag.service';
@@ -53,10 +52,5 @@ export class AttendanceFlagController {
         @Req() req: Request & { user: UserSession },
     ) {
         return await this.service.delete(id, req.user);
-    }
-
-    @Post('seed')
-    async seed(@Req() req: Request & { user: UserSession }) {
-        return await this.service.seedDefaults(req.user);
     }
 }

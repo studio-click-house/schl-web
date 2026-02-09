@@ -10,15 +10,6 @@ export interface SalaryStructureType {
     grossSalary: number;
 }
 
-// Statuses where PF should NOT accrue
-const NON_EARNING_STATUSES = [
-    'inactive',
-    'terminated',
-    'resigned',
-    'retired',
-    'fired',
-] as const;
-
 // Statuses where PF SHOULD accrue (on-leave continues to accrue PF)
 const EARNING_STATUSES = ['active', 'on-leave'] as const;
 
@@ -154,7 +145,6 @@ export const getPFMoneyAmount = (
 
     // Build earning periods since accrualStartDate
     const now = new Date();
-    let currentEarningStartDate: Date | null = null;
     let totalEarningMonths = 0;
 
     // Sort status history by date

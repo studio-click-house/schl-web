@@ -14,7 +14,8 @@ import { ShiftTemplate } from '@repo/common/models/shift-template.schema';
 import { UserSession } from '@repo/common/types/user-session.type';
 import { hasPerm } from '@repo/common/utils/permission-check';
 import * as moment from 'moment-timezone';
-import { FilterQuery, Model } from 'mongoose';
+import { FilterQuery, Model, Types } from 'mongoose';
+import { toObjectId } from '../../common/utils/id-helpers.utils';
 import { CreateShiftOverrideBodyDto } from './dto/create-shift-override.dto';
 import { CreateShiftTemplateBodyDto } from './dto/create-shift-template.dto';
 import { SearchShiftPlansBodyDto } from './dto/search-shift-plan.dto';
@@ -81,7 +82,7 @@ export class ShiftPlanService {
                 .toDate();
 
             const payload: Partial<ShiftOverride> = {
-                employee: dto.employeeId as any,
+                employee: new Types.ObjectId(dto.employeeId),
                 shift_date: shiftDate,
                 override_type: dto.overrideType,
                 shift_type: dto.shiftType,
@@ -93,7 +94,10 @@ export class ShiftPlanService {
             };
 
             const created = await this.shiftOverrideModel.findOneAndUpdate(
-                { employee: dto.employeeId, shift_date: shiftDate },
+                {
+                    employee: new Types.ObjectId(dto.employeeId),
+                    shift_date: shiftDate,
+                },
                 { $set: payload },
                 { new: true, upsert: true },
             );
@@ -175,11 +179,11 @@ export class ShiftPlanService {
             const templates: Partial<ShiftTemplate>[] = [];
             for (const employeeId of dto.employeeIds) {
                 const overlap = await this.shiftTemplateModel.findOne({
-                    employee: employeeId,
+                    employee: toObjectId(employeeId) as Types.ObjectId,
                     active: true,
                     effective_from: { $lte: toDate.toDate() },
                     effective_to: { $gte: fromDate.toDate() },
-                });
+                } as FilterQuery<ShiftTemplate>);
 
                 if (overlap) {
                     throw new BadRequestException(
@@ -188,7 +192,7 @@ export class ShiftPlanService {
                 }
 
                 templates.push({
-                    employee: employeeId as any,
+                    employee: toObjectId(employeeId) as Types.ObjectId,
                     effective_from: fromDate.toDate(),
                     effective_to: toDate.toDate(),
                     shift_type: dto.shiftType,
@@ -198,7 +202,7 @@ export class ShiftPlanService {
                     active: true,
                     updated_by: userSession.db_id,
                     change_reason: dto.changeReason || null,
-                });
+                } as Partial<ShiftTemplate>);
             }
 
             const result = await this.shiftTemplateModel.insertMany(templates, {
@@ -252,10 +256,12 @@ export class ShiftPlanService {
         toDate?: string,
     ) {
         try {
-            const query: QueryShape = { employee: employeeId as any };
+            const query: QueryShape = {
+                employee: new Types.ObjectId(employeeId),
+            } as QueryShape;
 
             if (fromDate || toDate) {
-                const range: any = {};
+                const range: { $gte?: Date; $lte?: Date } = {};
                 if (fromDate) {
                     range.$gte = moment
                         .tz(fromDate, 'YYYY-MM-DD', 'Asia/Dhaka')
@@ -421,7 +427,7 @@ export class ShiftPlanService {
             const query: QueryShape = {};
 
             if (filters.employeeId) {
-                query.employee = filters.employeeId as any;
+                query.employee = filters.employeeId;
             }
 
             if (filters.fromDate || filters.toDate) {
@@ -506,7 +512,7 @@ export class ShiftPlanService {
         toDate: Date,
     ) {
         await this.shiftResolvedModel.deleteMany({
-            employee: employeeId as any,
+            employee: toObjectId(employeeId) as Types.ObjectId,
             shift_date: {
                 $gte: moment.tz(fromDate, 'Asia/Dhaka').startOf('day').toDate(),
                 $lte: moment.tz(toDate, 'Asia/Dhaka').endOf('day').toDate(),
@@ -521,15 +527,15 @@ export class ShiftPlanService {
         const shiftDate = moment.tz(date, 'Asia/Dhaka').startOf('day').toDate();
 
         const cached = await this.shiftResolvedModel.findOne({
-            employee: employeeId as any,
+            employee: toObjectId(employeeId) as Types.ObjectId,
             shift_date: shiftDate,
         });
         if (cached) return cached;
 
         const override = await this.shiftOverrideModel.findOne({
-            employee: employeeId as any,
+            employee: toObjectId(employeeId) as Types.ObjectId,
             shift_date: shiftDate,
-        });
+        } as FilterQuery<ShiftOverride>);
 
         if (override) {
             if (override.override_type === 'cancel') {
@@ -537,10 +543,13 @@ export class ShiftPlanService {
             }
 
             const resolved = await this.shiftResolvedModel.findOneAndUpdate(
-                { employee: employeeId as any, shift_date: shiftDate },
+                {
+                    employee: toObjectId(employeeId) as Types.ObjectId,
+                    shift_date: shiftDate,
+                } as FilterQuery<ShiftResolved>,
                 {
                     $set: {
-                        employee: employeeId as any,
+                        employee: new Types.ObjectId(employeeId),
                         shift_date: shiftDate,
                         shift_type: override.shift_type,
                         shift_start: override.shift_start,
@@ -558,7 +567,7 @@ export class ShiftPlanService {
         }
 
         const template = await this.shiftTemplateModel.findOne({
-            employee: employeeId as any,
+            employee: toObjectId(employeeId) as Types.ObjectId,
             active: true,
             effective_from: { $lte: shiftDate },
             effective_to: { $gte: shiftDate },
@@ -567,10 +576,13 @@ export class ShiftPlanService {
         if (!template) return null;
 
         const resolved = await this.shiftResolvedModel.findOneAndUpdate(
-            { employee: employeeId as any, shift_date: shiftDate },
+            {
+                employee: toObjectId(employeeId) as Types.ObjectId,
+                shift_date: shiftDate,
+            },
             {
                 $set: {
-                    employee: employeeId as any,
+                    employee: toObjectId(employeeId) as Types.ObjectId,
                     shift_date: shiftDate,
                     shift_type: template.shift_type,
                     shift_start: template.shift_start,
@@ -646,7 +658,7 @@ export class ShiftPlanService {
         }
 
         try {
-            const query: any = {};
+            const query: FilterQuery<ShiftOverride> = {};
 
             if (filters.employeeId) {
                 query.employee = filters.employeeId;

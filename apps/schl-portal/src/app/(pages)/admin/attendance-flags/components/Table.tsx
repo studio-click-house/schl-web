@@ -7,7 +7,6 @@ import { AttendanceFlagData } from '../schema';
 
 interface AttendanceFlag extends AttendanceFlagData {
     _id: string;
-    type: 'system' | 'user';
 }
 
 const Table: React.FC = () => {
@@ -44,31 +43,7 @@ const Table: React.FC = () => {
         fetchFlags();
     }, [fetchFlags]);
 
-    const handleSeed = async () => {
-        setLoading(true);
-        try {
-            const response = await authedFetchApi(
-                { path: '/v1/attendance-flags/seed' },
-                { method: 'POST' },
-            );
-            if (response.ok) {
-                toast.success('System flags seeded successfully');
-                fetchFlags();
-            } else {
-                const msg = response.data.message;
-                toast.error(
-                    Array.isArray(msg)
-                        ? msg.join(', ')
-                        : msg || 'Failed to seed flags',
-                );
-            }
-        } catch (err) {
-            console.error(err);
-            toast.error('Network error');
-        } finally {
-            setLoading(false);
-        }
-    };
+
 
     if (loading) return <div className="p-4 text-center">Loading flags...</div>;
 
@@ -76,14 +51,7 @@ const Table: React.FC = () => {
         <div className="space-y-4">
             <div className="flex justify-between items-center">
                 <h2 className="text-xl font-bold">Attendance Flags</h2>
-                {flags.length === 0 && (
-                    <button
-                        onClick={handleSeed}
-                        className="px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
-                    >
-                        Seed Defaults
-                    </button>
-                )}
+
             </div>
 
             <div className="overflow-x-auto border rounded-lg shadow-sm">
@@ -95,8 +63,7 @@ const Table: React.FC = () => {
                             <th className="px-4 py-3 font-semibold">
                                 Description
                             </th>
-                            <th className="px-4 py-3 font-semibold">Color</th>
-                            <th className="px-4 py-3 font-semibold">Type</th>
+                            <th className="px-4 py-3 font-semibold">Color Code</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y">
@@ -110,23 +77,7 @@ const Table: React.FC = () => {
                                     {flag.description}
                                 </td>
                                 <td className="px-4 py-3">
-                                    <span
-                                        className="inline-block w-6 h-6 rounded-full border shadow-sm align-middle mr-2"
-                                        style={{ backgroundColor: flag.color }}
-                                    ></span>
-                                    {flag.color}
-                                </td>
-                                <td className="px-4 py-3">
-                                    <span
-                                        className={cn(
-                                            'px-2 py-1 rounded-full text-xs font-medium',
-                                            flag.type === 'system'
-                                                ? 'bg-purple-100 text-purple-800'
-                                                : 'bg-green-100 text-green-800',
-                                        )}
-                                    >
-                                        {flag.type}
-                                    </span>
+                                    <div className="inline-block w-14 h-6 rounded-full border shadow-sm align-middle mr-2" style={{ backgroundColor: flag.color }} />
                                 </td>
                             </tr>
                         ))}
@@ -136,8 +87,7 @@ const Table: React.FC = () => {
                                     colSpan={5}
                                     className="px-4 py-8 text-center text-gray-500"
                                 >
-                                    No flags found. Ask an administrator to seed
-                                    the system flags.
+                                    No flags found. Ask an administrator to add the system flags.
                                 </td>
                             </tr>
                         )}

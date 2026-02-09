@@ -1,5 +1,7 @@
 import { ShiftPlan } from '@repo/common/models/shift-plan.schema';
 import * as moment from 'moment-timezone';
+import { Types } from 'mongoose';
+import { toObjectId } from '../../../common/utils/id-helpers.utils';
 import { CreateShiftPlanBodyDto } from '../dto/create-shift-plan.dto';
 
 export class ShiftPlanFactory {
@@ -28,8 +30,8 @@ export class ShiftPlanFactory {
             crossesMidnight = endTotalMins < startTotalMins;
         }
 
-        return {
-            employee: dto.employeeId as any,
+        const result: Partial<ShiftPlan> = {
+            employee: toObjectId(dto.employeeId) as Types.ObjectId,
             shift_date: moment
                 .tz(dto.shiftDate, 'YYYY-MM-DD', 'Asia/Dhaka')
                 .toDate(),
@@ -41,6 +43,8 @@ export class ShiftPlanFactory {
             updated_by: userId,
             change_reason: dto.changeReason || null,
         };
+
+        return result as unknown as Partial<ShiftPlan>;
     }
 
     /**
@@ -50,7 +54,7 @@ export class ShiftPlanFactory {
         dto: Partial<CreateShiftPlanBodyDto>,
         userId: string,
     ): Partial<ShiftPlan> {
-        const update: any = {};
+        const update: Partial<ShiftPlan> = {};
 
         if (dto.shiftType !== undefined) {
             update.shift_type = dto.shiftType;

@@ -32,7 +32,7 @@ const Table: React.FC = () => {
         setLoading(true);
         try {
             const response = await authedFetchApi<Department[]>(
-                { path: '/departments' },
+                { path: '/v1/departments' },
                 { method: 'GET' },
             );
             if (response.ok) {
@@ -72,7 +72,7 @@ const Table: React.FC = () => {
             return;
         try {
             const response = await authedFetchApi(
-                { path: `/departments/${id}` },
+                { path: `/v1/departments/${id}` },
                 { method: 'DELETE' },
             );
             if (response.ok) {

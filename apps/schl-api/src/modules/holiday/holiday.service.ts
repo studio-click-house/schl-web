@@ -2,14 +2,13 @@ import {
     BadRequestException,
     ForbiddenException,
     Injectable,
-    NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Holiday, HolidayDocument } from '@repo/common/models/holiday.schema';
 import { UserSession } from '@repo/common/types/user-session.type';
 import { hasPerm } from '@repo/common/utils/permission-check';
 import moment from 'moment-timezone';
-import { Model } from 'mongoose';
+import { FilterQuery, Model } from 'mongoose';
 import { CreateHolidayDto, UpdateHolidayDto } from './dto/create-holiday.dto';
 
 @Injectable()
@@ -20,7 +19,7 @@ export class HolidayService {
     ) {}
 
     async findAll(year?: number) {
-        const query: any = {};
+        const query: FilterQuery<HolidayDocument> = {};
         if (year) {
             const start = moment().year(year).startOf('year').toDate();
             const end = moment().year(year).endOf('year').toDate();

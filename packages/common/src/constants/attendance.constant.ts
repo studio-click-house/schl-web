@@ -12,6 +12,7 @@ export const VERIFY_MODES = [
     'password',
     'card',
     'manual',
+    'auto',
 ] as const;
 export type VerifyMode = (typeof VERIFY_MODES)[number];
 export const verifyModeOptions = VERIFY_MODES.map(mode => ({

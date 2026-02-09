@@ -8,7 +8,6 @@ import {
     Put,
     Query,
     Req,
-    UseGuards,
 } from '@nestjs/common';
 import { UserSession } from '@repo/common/types/user-session.type';
 import { CreateHolidayDto, UpdateHolidayDto } from './dto/create-holiday.dto';

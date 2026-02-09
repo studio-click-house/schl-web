@@ -26,7 +26,11 @@ export class DepartmentService {
         if (existing) {
             throw new BadRequestException('Department already exists');
         }
-        return await this.departmentModel.create(dto);
+        const { weekendDays, ...rest } = dto;
+        return await this.departmentModel.create({
+            ...rest,
+            weekend_days: weekendDays,
+        });
     }
 
     async findAll() {
@@ -50,8 +54,16 @@ export class DepartmentService {
             }
         }
 
+        const updatePayload: Partial<Department> = {
+            ...dto,
+        } as Partial<Department>;
+        if (dto.weekendDays) {
+            updatePayload.weekend_days = dto.weekendDays;
+            delete (updatePayload as any).weekendDays;
+        }
+
         const updated = await this.departmentModel
-            .findByIdAndUpdate(id, dto, { new: true })
+            .findByIdAndUpdate(id, updatePayload, { new: true })
             .lean();
         if (!updated) throw new NotFoundException('Department not found');
         return updated;

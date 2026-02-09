@@ -11,9 +11,7 @@ interface FlagModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSuccess: () => void;
-    editData?:
-        | (AttendanceFlagData & { _id: string; type: 'system' | 'user' })
-        | null;
+    editData?: (AttendanceFlagData & { _id: string }) | null;
 }
 
 const FlagModal: React.FC<FlagModalProps> = ({
@@ -103,8 +101,7 @@ const FlagModal: React.FC<FlagModalProps> = ({
             <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-6">
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-xl font-bold">
-                        {isEdit ? 'Edit Flag' : 'Create Flag'} -{' '}
-                        {editData?.type === 'system' ? '(System)' : ''}
+    {isEdit ? 'Edit Flag' : 'Create Flag'}
                     </h2>
                     <button
                         onClick={onClose}

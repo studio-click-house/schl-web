@@ -17,14 +17,6 @@ export class AttendanceFlag {
     @Prop({ required: false, type: String })
     description?: string;
 
-    @Prop({
-        required: true,
-        type: String,
-        enum: ['system', 'user'],
-        default: 'user',
-    })
-    type: 'system' | 'user';
-
     @Prop({ default: false })
     ignore_attendance_hours: boolean; // If true, working hours are 0 regardless of implementation (for Holidays/Weekends)
 

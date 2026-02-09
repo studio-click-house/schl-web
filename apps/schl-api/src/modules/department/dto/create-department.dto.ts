@@ -19,7 +19,7 @@ export class CreateDepartmentDto {
     @IsInt({ each: true })
     @Min(0, { each: true })
     @Max(6, { each: true })
-    weekend_days: number[];
+    weekendDays: number[];
 
     @IsOptional()
     @IsString()
@@ -37,7 +37,7 @@ export class UpdateDepartmentDto {
     @IsInt({ each: true })
     @Min(0, { each: true })
     @Max(6, { each: true })
-    weekend_days?: number[];
+    weekendDays?: number[];
 
     @IsOptional()
     @IsString()
