@@ -15,6 +15,6 @@ import { AttendanceFlagService } from './attendance-flag.service';
     ],
     controllers: [AttendanceFlagController],
     providers: [AttendanceFlagService],
-    exports: [AttendanceFlagService],
+    exports: [AttendanceFlagService, MongooseModule],
 })
 export class AttendanceFlagModule {}

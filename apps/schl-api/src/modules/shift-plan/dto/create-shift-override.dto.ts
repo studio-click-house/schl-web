@@ -20,7 +20,7 @@ export class CreateShiftOverrideBodyDto {
 
     @IsNotEmpty({ message: 'Override type is required' })
     @IsString()
-    overrideType: 'replace' | 'cancel';
+    overrideType: 'replace' | 'cancel' | 'off_day';
 
     @IsOptional()
     @IsString()

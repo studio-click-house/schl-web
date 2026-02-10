@@ -61,6 +61,9 @@ export class ShiftPlanService {
             }
         }
 
+        // 'off_day' overrides represent off-day overtime entries; shift times are optional and will not be
+        // used to mark the day as a regular work shift. Admins can optionally provide a suggested window.
+
         let crossesMidnight = false;
         if (dto.shiftStart && dto.shiftEnd) {
             const startParts = dto.shiftStart.split(':');

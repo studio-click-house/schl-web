@@ -4,6 +4,10 @@ import {
     Injectable,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
+import {
+    AttendanceFlag,
+    AttendanceFlagDocument,
+} from '@repo/common/models/attendance-flag.schema';
 import { Holiday, HolidayDocument } from '@repo/common/models/holiday.schema';
 import { UserSession } from '@repo/common/types/user-session.type';
 import { hasPerm } from '@repo/common/utils/permission-check';
@@ -16,15 +20,35 @@ export class HolidayService {
     constructor(
         @InjectModel(Holiday.name)
         private holidayModel: Model<HolidayDocument>,
+        @InjectModel(AttendanceFlag.name)
+        private flagModel: Model<AttendanceFlagDocument>,
     ) {}
 
-    async findAll(year?: number) {
+    async findAll(fromDate?: string, toDate?: string, name?: string) {
         const query: FilterQuery<HolidayDocument> = {};
-        if (year) {
-            const start = moment().year(year).startOf('year').toDate();
-            const end = moment().year(year).endOf('year').toDate();
-            query.date = { $gte: start, $lte: end };
+
+        if (fromDate || toDate) {
+            const start = fromDate
+                ? moment
+                      .tz(fromDate, 'YYYY-MM-DD', 'Asia/Dhaka')
+                      .startOf('day')
+                      .toDate()
+                : undefined;
+            const end = toDate
+                ? moment
+                      .tz(toDate, 'YYYY-MM-DD', 'Asia/Dhaka')
+                      .endOf('day')
+                      .toDate()
+                : undefined;
+            if (start && end) query.date = { $gte: start, $lte: end };
+            else if (start) query.date = { $gte: start };
+            else if (end) query.date = { $lte: end };
         }
+
+        if (name) {
+            query.name = { $regex: name, $options: 'i' } as any;
+        }
+
         return await this.holidayModel
             .find(query)
             .populate('flag')
@@ -51,10 +75,25 @@ export class HolidayService {
             );
         }
 
+        // Determine flag: prefer provided flagId, else pick the flag with code 'H'
+        let flagId = dto.flagId;
+        if (!flagId) {
+            const holidayFlag = await this.flagModel
+                .findOne({ code: 'H' })
+                .lean()
+                .exec();
+            if (!holidayFlag) {
+                throw new BadRequestException(
+                    "Attendance Flag with code 'H' (Holiday) not found. Please create it before adding holidays.",
+                );
+            }
+            flagId = holidayFlag._id.toString();
+        }
+
         return await this.holidayModel.create({
             ...dto,
             date: date,
-            flag: dto.flagId,
+            flag: flagId,
         });
     }
 
@@ -64,15 +103,18 @@ export class HolidayService {
         }
 
         const date = moment.tz(dto.date, 'Asia/Dhaka').startOf('day').toDate();
-        return await this.holidayModel.findByIdAndUpdate(
-            id,
-            {
-                ...dto,
-                date: date,
-                flag: dto.flagId,
-            },
-            { new: true },
-        );
+
+        const patch: Partial<Holiday> = {
+            ...dto,
+            date: date,
+        } as Partial<Holiday>;
+
+        // Only update flag if provided (we removed flag selection from UI)
+        if (dto.flagId) patch.flag = dto.flagId as any;
+
+        return await this.holidayModel.findByIdAndUpdate(id, patch, {
+            new: true,
+        });
     }
 
     async delete(id: string, userSession: UserSession) {

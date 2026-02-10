@@ -19,8 +19,7 @@ export class Holiday {
     })
     flag: mongoose.Types.ObjectId; // E.g., The 'H' flag
 
-    @Prop({ type: Boolean, default: true })
-    recurring: boolean; // Does this happen every year? (Complex to handle lunar calendars, but good for simple ones)
+
 }
 
 export const HolidaySchema = SchemaFactory.createForClass(Holiday);

@@ -285,6 +285,7 @@ const OverrideForm = () => {
                         className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
                     >
                         <option value="replace">Replace (set new shift)</option>
+                        <option value="off_day">Off Day (mark as OT)</option>
                         <option value="cancel">Cancel (no shift)</option>
                     </select>
                 </div>

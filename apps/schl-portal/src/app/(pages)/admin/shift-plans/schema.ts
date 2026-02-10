@@ -60,7 +60,7 @@ export const shiftOverrideSchema = z
                 /^\d{4}-\d{2}-\d{2}$/,
                 'Shift date must be in YYYY-MM-DD format',
             ),
-        overrideType: z.enum(['replace', 'cancel'], {
+        overrideType: z.enum(['replace', 'cancel', 'off_day'], {
             errorMap: () => ({ message: 'Override type is required' }),
         }),
         shiftType: z.enum(['morning', 'evening', 'night', 'custom']).optional(),
@@ -76,8 +76,11 @@ export const shiftOverrideSchema = z
     })
     .refine(
         data => {
-            if (data.overrideType === 'cancel') return true;
-            return Boolean(data.shiftType && data.shiftStart && data.shiftEnd);
+            // For 'replace' overrides we require shift details; 'cancel' and 'off_day' do not require them
+            if (data.overrideType === 'replace') {
+                return Boolean(data.shiftType && data.shiftStart && data.shiftEnd);
+            }
+            return true;
         },
         {
             message:

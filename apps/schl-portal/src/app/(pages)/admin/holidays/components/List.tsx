@@ -5,6 +5,7 @@ import { Pencil, Plus, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { HolidayData } from '../schema';
+import FilterButton from './Filter';
 import HolidayModal from './HolidayModal';
 
 interface Holiday extends HolidayData {
@@ -32,15 +33,32 @@ const List: React.FC = () => {
     const [loading, setLoading] = useState<boolean>(true);
     const authedFetchApi = useAuthedFetchApi();
 
+    const currentYear = new Date().getFullYear();
+    const defaultFrom = `${currentYear}-01-01`;
+    const defaultTo = `${currentYear}-12-31`;
+
+    const [filters, setFilters] = useState<{ name: string; fromDate: string; toDate: string }>({
+        name: '',
+        fromDate: defaultFrom,
+        toDate: defaultTo,
+    });
+
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingHoliday, setEditingHoliday] = useState<Holiday | null>(null);
 
     const fetchData = useCallback(async () => {
         setLoading(true);
         try {
+            // Build holiday query path using filters
+            const params = new URLSearchParams();
+            if (filters.fromDate) params.append('fromDate', filters.fromDate);
+            if (filters.toDate) params.append('toDate', filters.toDate);
+            if (filters.name) params.append('name', filters.name);
+            const path = `/v1/holidays${params.toString() ? `?${params.toString()}` : ''}`;
+
             // Fetch Holidays
             const holidaysRes = await authedFetchApi<Holiday[]>(
-                { path: '/v1/holidays' },
+                { path, },
                 { method: 'GET' },
             );
 
@@ -62,7 +80,7 @@ const List: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    }, [authedFetchApi]);
+    }, [authedFetchApi, filters]);
 
     useEffect(() => {
         fetchData();
@@ -118,7 +136,7 @@ const List: React.FC = () => {
 
     return (
         <div className="container mx-auto px-4 py-8">
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-800 uppercase underline underline-offset-4">
                         Holidays
@@ -128,12 +146,22 @@ const List: React.FC = () => {
                     </p>
                 </div>
 
-                <button
-                    onClick={handleCreate}
-                    className="px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-2"
-                >
-                    <Plus size={16} /> Add Holiday
-                </button>
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                    <FilterButton
+                        submitHandler={() => fetchData()}
+                        filters={filters}
+                        setFilters={setFilters}
+                        isLoading={loading}
+                        className=""
+                    />
+
+                    <button
+                        onClick={handleCreate}
+                        className="px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-2 ml-2"
+                    >
+                        <Plus size={16} /> Add Holiday
+                    </button>
+                </div>
             </div>
 
             <div className="overflow-x-auto border rounded-lg shadow-sm">
@@ -149,9 +177,7 @@ const List: React.FC = () => {
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Type (Flag)
                             </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Recurring
-                            </th>
+
                             <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Actions
                             </th>
@@ -161,7 +187,7 @@ const List: React.FC = () => {
                         {holidays.length === 0 ? (
                             <tr>
                                 <td
-                                    colSpan={5}
+                                    colSpan={4}
                                     className="px-6 py-4 text-center text-gray-500"
                                 >
                                     No holidays found.
@@ -170,7 +196,7 @@ const List: React.FC = () => {
                         ) : (
                             holidays.map(holiday => {
                                 const flag = getFlagDetails(
-                                    holiday.flagId || (holiday as any).flag,
+                                    (holiday as any).flag || undefined,
                                 );
                                 return (
                                     <tr
@@ -203,9 +229,7 @@ const List: React.FC = () => {
                                                 '-'
                                             )}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            {holiday.recurring ? 'Yes' : 'No'}
-                                        </td>
+
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <div className="flex justify-end gap-2">
                                                 <button
@@ -241,7 +265,6 @@ const List: React.FC = () => {
                 onClose={() => setIsModalOpen(false)}
                 onSuccess={fetchData}
                 editData={editingHoliday}
-                flags={flags}
             />
         </div>
     );

@@ -26,6 +26,7 @@ import { ShiftTemplate } from '@repo/common/models/shift-template.schema';
 import { UserSession } from '@repo/common/types/user-session.type';
 import {
     calculateOT,
+    calculateOTFromMinutes,
     determineShiftDate,
 } from '@repo/common/utils/ot-calculation';
 import { hasPerm } from '@repo/common/utils/permission-check';
@@ -99,12 +100,15 @@ export class AttendanceService {
                     $set: {
                         employee: employeeId,
                         shift_date: shiftDate,
-                        shift_type: override.shift_type,
-                        shift_start: override.shift_start,
-                        shift_end: override.shift_end,
+                        shift_type: override.shift_type || 'custom',
+                        shift_start: override.shift_start || '09:00',
+                        shift_end: override.shift_end || '17:00',
                         crosses_midnight: override.crosses_midnight,
                         source: 'override',
                         override_id: override._id,
+                        // New: mark off-day overtime preference
+                        is_off_day_overtime:
+                            override.override_type === 'off_day',
                         resolved_at: new Date(),
                     },
                 },
@@ -341,6 +345,16 @@ export class AttendanceService {
             if (!resolved) {
                 // No shift plan found, cannot calculate OT
                 return 0;
+            }
+
+            // If this shift is marked as an off-day OT (admin chose 'off_day'), treat full worked minutes as OT
+            if ((resolved as any).is_off_day_overtime) {
+                const actualIn = moment.tz(attendance.in_time, 'Asia/Dhaka');
+                const actualOut = moment.tz(attendance.out_time, 'Asia/Dhaka');
+                const workedMinutes = actualOut.diff(actualIn, 'minutes');
+                if (workedMinutes <= 0) return 0;
+                const otMinutes = calculateOTFromMinutes(workedMinutes);
+                return otMinutes;
             }
 
             const otMinutes = calculateOT({

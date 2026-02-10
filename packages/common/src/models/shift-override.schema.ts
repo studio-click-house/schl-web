@@ -4,7 +4,7 @@ import { HydratedDocument } from 'mongoose';
 
 export type ShiftOverrideDocument = HydratedDocument<ShiftOverride>;
 
-export const SHIFT_OVERRIDE_TYPES = ['replace', 'cancel'] as const;
+export const SHIFT_OVERRIDE_TYPES = ['replace', 'cancel', 'off_day'] as const;
 export type ShiftOverrideType = (typeof SHIFT_OVERRIDE_TYPES)[number];
 
 export const SHIFT_TYPES = ['morning', 'evening', 'night', 'custom'] as const;

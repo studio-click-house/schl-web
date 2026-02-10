@@ -16,13 +16,9 @@ export class CreateHolidayDto {
     @IsNotEmpty()
     date: string;
 
-    @IsMongoId()
-    @IsNotEmpty()
-    flagId: string; // The AttendanceFlag ID
-
     @IsOptional()
-    @IsBoolean()
-    recurring?: boolean;
+    @IsMongoId()
+    flagId?: string; // Optional: The AttendanceFlag ID (defaults to flag with code 'H' if omitted)
 }
 
 export class UpdateHolidayDto extends CreateHolidayDto {}

@@ -114,6 +114,16 @@ export function getOTInHours(otMinutes: number): number {
 }
 
 /**
+ * Calculate OT directly from worked minutes (useful for off-day OT where full worked time is considered extra)
+ */
+export function calculateOTFromMinutes(minutes: number): number {
+    if (minutes <= 0) return 0;
+    if (minutes < 60) return calculateShortOT(minutes);
+    if (minutes <= 480) return Math.max(60, Math.round(minutes * 0.8125));
+    return calculateFullDayOT(minutes);
+} 
+
+/**
  * Determine which shift date an attendance timestamp belongs to
  *
  * Logic:

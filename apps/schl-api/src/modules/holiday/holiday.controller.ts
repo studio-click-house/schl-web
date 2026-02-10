@@ -18,8 +18,12 @@ export class HolidayController {
     constructor(private readonly service: HolidayService) {}
 
     @Get()
-    async findAll(@Query('year') year?: string) {
-        return await this.service.findAll(year ? parseInt(year) : undefined);
+    async findAll(
+        @Query('fromDate') fromDate?: string,
+        @Query('toDate') toDate?: string,
+        @Query('name') name?: string,
+    ) {
+        return await this.service.findAll(fromDate, toDate, name);
     }
 
     @Post()

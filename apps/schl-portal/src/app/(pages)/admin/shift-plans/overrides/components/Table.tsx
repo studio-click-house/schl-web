@@ -246,6 +246,13 @@ const Table: React.FC = () => {
                                                 : {item.shift_start} -{' '}
                                                 {item.shift_end}
                                             </div>
+                                        ) : item.override_type === 'off_day' ? (
+                                            <div>
+                                                <span className="font-medium">Off Day (OT)</span>
+                                                {item.shift_start && (
+                                                    <span>: {item.shift_start} - {item.shift_end}</span>
+                                                )}
+                                            </div>
                                         ) : (
                                             <span>OFF DAY</span>
                                         )}

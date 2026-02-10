@@ -19,7 +19,6 @@ interface HolidayModalProps {
     onClose: () => void;
     onSuccess: () => void;
     editData?: (HolidayData & { _id: string }) | null;
-    flags: AttendanceFlag[];
 }
 
 const HolidayModal: React.FC<HolidayModalProps> = ({
@@ -27,7 +26,6 @@ const HolidayModal: React.FC<HolidayModalProps> = ({
     onClose,
     onSuccess,
     editData,
-    flags,
 }) => {
     const authedFetchApi = useAuthedFetchApi();
     const isEdit = !!editData;
@@ -42,8 +40,6 @@ const HolidayModal: React.FC<HolidayModalProps> = ({
         defaultValues: {
             name: '',
             date: new Date().toISOString().split('T')[0],
-            flagId: '',
-            recurring: false,
         },
     });
 
@@ -53,18 +49,14 @@ const HolidayModal: React.FC<HolidayModalProps> = ({
                 name: editData.name,
                 // Ensure date is YYYY-MM-DD
                 date: new Date(editData.date).toISOString().split('T')[0],
-                flagId: editData.flagId,
-                recurring: editData.recurring,
             });
         } else if (isOpen) {
             reset({
                 name: '',
                 date: new Date().toISOString().split('T')[0],
-                flagId: flags && flags.length > 0 ? flags[0]!._id : '',
-                recurring: false,
             });
         }
-    }, [isOpen, editData, reset, flags]);
+    }, [isOpen, editData, reset]);
 
     const onSubmit = async (data: HolidayData) => {
         try {
@@ -153,42 +145,9 @@ const HolidayModal: React.FC<HolidayModalProps> = ({
                         )}
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">
-                            Attendance Flag (Effect)
-                        </label>
-                        <select
-                            {...register('flagId')}
-                            className="mt-1 block w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                        >
-                            <option value="">Select a flag...</option>
-                            {flags.map(flag => (
-                                <option key={flag._id} value={flag._id}>
-                                    {flag.name} ({flag.code})
-                                </option>
-                            ))}
-                        </select>
-                        {errors.flagId && (
-                            <p className="text-red-500 text-xs mt-1">
-                                {errors.flagId.message}
-                            </p>
-                        )}
-                    </div>
 
-                    <div className="flex items-center gap-2">
-                        <input
-                            type="checkbox"
-                            id="recurring"
-                            {...register('recurring')}
-                            className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                        />
-                        <label
-                            htmlFor="recurring"
-                            className="text-sm font-medium text-gray-700"
-                        >
-                            Repeats Annually?
-                        </label>
-                    </div>
+
+
 
                     <div className="flex justify-end gap-2 pt-4">
                         <button

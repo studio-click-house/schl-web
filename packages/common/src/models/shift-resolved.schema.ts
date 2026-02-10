@@ -48,6 +48,10 @@ export class ShiftResolved {
     @Prop({ required: false, type: Boolean, default: false })
     crosses_midnight: boolean;
 
+    @Prop({ required: false, type: Boolean, default: false })
+    is_off_day_overtime?: boolean; // If true, treat any work on this day as overtime (off-day OT)
+
+
     @Prop({
         required: [true, 'Resolved source is required'],
         type: String,
