@@ -21,10 +21,10 @@ export const verifyModeOptions = VERIFY_MODES.map(mode => ({
 }));
 
 /*
-In practice, ZKTeco always sends "check-in" status for all attendance events, So there's no point in having other statuses
-Check-in and Check-out are handled in API
+In practice, ZKTeco devices send "check-in" for events and the API handles check-in/check-out logic.
+We add a secondary status, `system-generated`, to mark auto-generated records (for leaves, holidays, weekends, absent auto-fill) so they are clearly identifiable in reports and audits.
 */
-export const ATTENDANCE_STATUSES = ['check-in'] as const;
+export const ATTENDANCE_STATUSES = ['check-in', 'system-generated'] as const;
 export type AttendanceStatus = (typeof ATTENDANCE_STATUSES)[number];
 export const attendanceStatusOptions = ATTENDANCE_STATUSES.map(status => ({
     label: status.charAt(0).toUpperCase() + status.slice(1), // Capitalize first letter

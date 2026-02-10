@@ -139,7 +139,6 @@ export const authorizedRoutes: AuthorizedRoute[] = [
                 href: '/accountancy/employees/attendance',
                 label: 'Attendance',
                 permissions: [
-                    'admin:create_attendance',
                     'admin:edit_attendance',
                     'admin:delete_attendance',
                 ],

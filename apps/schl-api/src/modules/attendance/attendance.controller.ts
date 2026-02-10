@@ -13,6 +13,7 @@ import { UserSession } from '@repo/common/types/user-session.type';
 import { Public } from '../../common/auth/public.decorator';
 import { IdParamDto } from '../../common/dto/id-param.dto';
 import { AttendanceService } from './attendance.service';
+
 import { CreateAttendanceBodyDto } from './dto/create-attendance.dto';
 import { MarkAttendanceDto } from './dto/mark-attendance.dto';
 import {
@@ -28,14 +29,6 @@ export class AttendanceController {
     @Post('mark-attendance')
     async markAttendance(@Body() body: MarkAttendanceDto) {
         return await this.attendanceService.markAttendance(body);
-    }
-
-    @Post('create-attendance')
-    async createAttendance(
-        @Body() body: CreateAttendanceBodyDto,
-        @Req() req: Request & { user: UserSession },
-    ) {
-        return await this.attendanceService.createAttendance(body, req.user);
     }
 
     @Put('update-attendance/:id')
@@ -73,17 +66,6 @@ export class AttendanceController {
         return await this.attendanceService.searchAttendance(
             body,
             pagination,
-            req.user,
-        );
-    }
-
-    @Get('employee-device-user/:employeeId')
-    async getEmployeeDeviceUser(
-        @Param('employeeId') employeeId: string,
-        @Req() req: Request & { user: UserSession },
-    ) {
-        return await this.attendanceService.getEmployeeDeviceUser(
-            employeeId,
             req.user,
         );
     }

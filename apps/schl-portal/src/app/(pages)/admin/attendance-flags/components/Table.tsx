@@ -43,15 +43,12 @@ const Table: React.FC = () => {
         fetchFlags();
     }, [fetchFlags]);
 
-
-
     if (loading) return <div className="p-4 text-center">Loading flags...</div>;
 
     return (
         <div className="space-y-4">
             <div className="flex justify-between items-center">
                 <h2 className="text-xl font-bold">Attendance Flags</h2>
-
             </div>
 
             <div className="overflow-x-auto border rounded-lg shadow-sm">
@@ -63,7 +60,9 @@ const Table: React.FC = () => {
                             <th className="px-4 py-3 font-semibold">
                                 Description
                             </th>
-                            <th className="px-4 py-3 font-semibold">Color Code</th>
+                            <th className="px-4 py-3 font-semibold">
+                                Color Code
+                            </th>
                         </tr>
                     </thead>
                     <tbody className="divide-y">
@@ -77,7 +76,10 @@ const Table: React.FC = () => {
                                     {flag.description}
                                 </td>
                                 <td className="px-4 py-3">
-                                    <div className="inline-block w-14 h-6 rounded-full border shadow-sm align-middle mr-2" style={{ backgroundColor: flag.color }} />
+                                    <div
+                                        className="inline-block w-14 h-6 rounded-full border shadow-sm align-middle mr-2"
+                                        style={{ backgroundColor: flag.color }}
+                                    />
                                 </td>
                             </tr>
                         ))}
@@ -87,7 +89,8 @@ const Table: React.FC = () => {
                                     colSpan={5}
                                     className="px-4 py-8 text-center text-gray-500"
                                 >
-                                    No flags found. Ask an administrator to add the system flags.
+                                    No flags found. Ask an administrator to add
+                                    the system flags.
                                 </td>
                             </tr>
                         )}

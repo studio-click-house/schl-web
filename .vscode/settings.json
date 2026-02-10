@@ -1,16 +1,16 @@
 {
     "eslint.workingDirectories": [
-        {
-            "mode": "auto",
-            "files.eol": "\r\n"
-        }
+        { "mode": "auto" }
     ],
+
     "editor.formatOnSave": false,
     "editor.defaultFormatter": "dbaeumer.vscode-eslint",
     "prettier.enable": false,
+
     "editor.codeActionsOnSave": {
         "source.fixAll.eslint": "always"
     },
+
     "[typescript]": {
         "editor.defaultFormatter": "dbaeumer.vscode-eslint"
     },
@@ -22,5 +22,28 @@
     },
     "[javascriptreact]": {
         "editor.defaultFormatter": "dbaeumer.vscode-eslint"
-    }
+    },
+
+    // ===== performance settings for large monorepos =====
+
+    "files.watcherExclude": {
+        "**/node_modules/**": true,
+        "**/.next/**": true,
+        "**/dist/**": true,
+        "**/build/**": true,
+        "**/.turbo/**": true,
+        "**/.git/**": true
+    },
+
+    "search.exclude": {
+        "**/node_modules": true,
+        "**/.next": true,
+        "**/dist": true,
+        "**/.turbo": true
+    },
+
+    "typescript.disableAutomaticTypeAcquisition": true,
+    "typescript.tsserver.maxTsServerMemory": 4096,
+
+    "eslint.run": "onSave"
 }

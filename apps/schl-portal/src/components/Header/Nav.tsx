@@ -407,7 +407,6 @@ const Nav: React.FC<PropsType> = props => {
                         <li
                             className={cn(
                                 !hasAny([
-                                    'admin:create_attendance',
                                     'admin:edit_attendance',
                                     'admin:delete_attendance',
                                 ]) && 'hidden',

@@ -393,7 +393,6 @@ const Sidebar: React.FC<PropsType> = props => {
                                     </li>
                                 )}
                                 {hasAny([
-                                    'admin:create_attendance',
                                     'admin:edit_attendance',
                                     'admin:delete_attendance',
                                 ]) && (

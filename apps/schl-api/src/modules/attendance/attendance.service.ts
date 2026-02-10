@@ -58,6 +58,19 @@ export class AttendanceService {
         private attendanceFlagModel: Model<AttendanceFlagDocument>,
     ) {}
 
+    // Cache for frequently used attendance flags
+    private flagCache: Record<string, any> = {};
+
+    private async getFlagByCode(code: string) {
+        if (!this.flagCache[code]) {
+            this.flagCache[code] = await this.attendanceFlagModel
+                .findOne({ code })
+                .lean()
+                .exec();
+        }
+        return this.flagCache[code];
+    }
+
     public async resolveShiftForDate(
         employeeId: any,
         date: Date,
@@ -230,17 +243,10 @@ export class AttendanceService {
 
         (attendance as any).late_minutes = lateMinutes;
 
-        // Fetch flags
-        // TODO: optimize by caching or fetching all at once
-        const extremeDelay = await this.attendanceFlagModel
-            .findOne({ code: 'E' })
-            .lean();
-        const delay = await this.attendanceFlagModel
-            .findOne({ code: 'D' })
-            .lean();
-        const present = await this.attendanceFlagModel
-            .findOne({ code: 'P' })
-            .lean();
+        // Fetch flags (cached)
+        const extremeDelay = await this.getFlagByCode('E');
+        const delay = await this.getFlagByCode('D');
+        const present = await this.getFlagByCode('P');
 
         // 4. Assign Flag
         const grace = (shift as any).grace_period_minutes ?? 10; // default grace
@@ -451,127 +457,6 @@ export class AttendanceService {
             this.logger.error('Failed to mark attendance', err as Error);
             throw new InternalServerErrorException(
                 'Unable to mark attendance at this time',
-            );
-        }
-    }
-
-    async createAttendance(
-        attendanceData: CreateAttendanceBodyDto,
-        userSession: UserSession,
-    ) {
-        const canCreate = hasPerm(
-            'admin:create_attendance',
-            userSession.permissions,
-        );
-        if (!canCreate) {
-            throw new ForbiddenException(
-                "You don't have permission to create attendance records",
-            );
-        }
-
-        const deviceUser = await this.deviceUserModel
-            .findOne({ employee: attendanceData.employeeId })
-            .select('user_id')
-            .exec();
-
-        if (!deviceUser?.user_id) {
-            throw new BadRequestException(
-                'No device user mapping found for the selected employee',
-            );
-        }
-
-        const lastAttendance = await this.attendanceModel
-            .findOne({
-                employee: attendanceData.employeeId,
-                device_id: { $ne: '' },
-            })
-            .sort({ in_time: -1 })
-            .select('device_id source_ip')
-            .lean()
-            .exec();
-
-        const resolvedDeviceId =
-            lastAttendance?.device_id?.trim() || DEFAULT_DEVICE_ID;
-        const resolvedSourceIp =
-            lastAttendance?.source_ip?.trim() || DEFAULT_SOURCE_IP;
-
-        const payload = AttendanceFactory.fromCreateDto(attendanceData, {
-            deviceId: resolvedDeviceId,
-            userId: deviceUser.user_id,
-            sourceIp: resolvedSourceIp,
-        });
-        payload.employee = attendanceData.employeeId as any;
-
-        // Calculate shift_date based on in_time
-        const inTime = new Date(attendanceData.inTime);
-        const resolved = await this.resolveShiftForTimestamp(
-            attendanceData.employeeId,
-            inTime,
-        );
-        const shiftDate = resolved.shiftDate;
-        (payload as any).shift_date = shiftDate;
-
-        try {
-            const created = await this.attendanceModel.create(payload);
-            if (!created) {
-                throw new InternalServerErrorException(
-                    'Failed to create attendance record',
-                );
-            }
-
-            // Calculate and update OT if out_time is provided
-            if (attendanceData.outTime) {
-                const otMinutes = await this.calculateAttendanceOT(
-                    created,
-                    shiftDate,
-                    attendanceData.employeeId,
-                );
-                created.ot_minutes = otMinutes;
-                await created.save();
-            }
-
-            return created;
-        } catch (err: any) {
-            if (err instanceof HttpException) throw err;
-            this.logger.error('Failed to create attendance record', err);
-            throw new InternalServerErrorException(
-                'Unable to create attendance record at this time',
-            );
-        }
-    }
-
-    async getEmployeeDeviceUser(employeeId: string, userSession: UserSession) {
-        const canCreate = hasPerm(
-            'admin:create_attendance',
-            userSession.permissions,
-        );
-        if (!canCreate) {
-            throw new ForbiddenException(
-                "You don't have permission to view device users",
-            );
-        }
-
-        try {
-            const deviceUser = await this.deviceUserModel
-                .findOne({ employee: employeeId })
-                .select('user_id employee')
-                .exec();
-
-            if (!deviceUser?.user_id) {
-                throw new NotFoundException(
-                    'No device user mapping found for the selected employee',
-                );
-            }
-
-            return {
-                employeeId: deviceUser.employee?.toString() || employeeId,
-                userId: deviceUser.user_id,
-            };
-        } catch (err) {
-            if (err instanceof HttpException) throw err;
-            this.logger.error('Failed to resolve device user by employee', err);
-            throw new InternalServerErrorException(
-                'Unable to resolve device user for the employee',
             );
         }
     }

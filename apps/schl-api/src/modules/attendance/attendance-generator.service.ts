@@ -1,7 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Cron } from '@nestjs/schedule';
+import type { AttendanceStatus } from '@repo/common/constants/attendance.constant';
 import {
+    ATTENDANCE_STATUSES,
     DEFAULT_DEVICE_ID,
     DEFAULT_SOURCE_IP,
 } from '@repo/common/constants/attendance.constant';
@@ -27,6 +29,10 @@ import {
 } from '@repo/common/models/employee.schema';
 import { Holiday, HolidayDocument } from '@repo/common/models/holiday.schema';
 import { Leave, LeaveDocument } from '@repo/common/models/leave.schema';
+import {
+    ShiftOverride,
+    ShiftOverrideDocument,
+} from '@repo/common/models/shift-override.schema';
 import moment from 'moment-timezone';
 import { Model, Types } from 'mongoose';
 import { AttendanceService } from './attendance.service';
@@ -50,6 +56,8 @@ export class AttendanceGeneratorService {
         private attendanceFlagModel: Model<AttendanceFlagDocument>,
         @InjectModel(DeviceUser.name)
         private deviceUserModel: Model<DeviceUserDocument>,
+        @InjectModel(ShiftOverride.name)
+        private shiftOverrideModel: Model<ShiftOverrideDocument>,
         private attendanceService: AttendanceService,
     ) {}
 
@@ -70,7 +78,10 @@ export class AttendanceGeneratorService {
             .tz('Asia/Dhaka')
             .startOf('day')
             .toDate();
-        const yyyymmdd = moment(date).tz('Asia/Dhaka').format('YYYY-MM-DD');
+        const endOfDay = moment(date).tz('Asia/Dhaka').endOf('day').toDate();
+        const yyyymmdd = moment(startOfDay)
+            .tz('Asia/Dhaka')
+            .format('YYYY-MM-DD');
         const dayOfWeek = moment(date).tz('Asia/Dhaka').day(); // 0-6
 
         // 1. Fetch Flags Code -> ID Map
@@ -143,11 +154,12 @@ export class AttendanceGeneratorService {
                 let remarks = '';
 
                 // A. Check Leaves
+                let holiday: HolidayDocument | null = null;
                 const leave = await this.leaveModel.findOne({
                     employee: emp._id,
                     status: 'approved',
-                    start_date: { $lte: yyyymmdd },
-                    end_date: { $gte: yyyymmdd },
+                    start_date: { $lte: endOfDay },
+                    end_date: { $gte: startOfDay },
                 });
 
                 if (leave) {
@@ -156,9 +168,8 @@ export class AttendanceGeneratorService {
                     counts.L++;
                 } else {
                     // B. Check Holidays
-                    const holiday = await this.holidayModel.findOne({
-                        start_date: { $lte: yyyymmdd },
-                        end_date: { $gte: yyyymmdd },
+                    holiday = await this.holidayModel.findOne({
+                        date: { $gte: startOfDay, $lte: endOfDay },
                     });
 
                     if (holiday) {
@@ -185,6 +196,91 @@ export class AttendanceGeneratorService {
                             remarks = 'Absent (Auto-generated)';
                             counts.A++;
                         }
+                    }
+                }
+
+                // If there's an explicit override to cancel the shift, handle it.
+                const override = await this.shiftOverrideModel
+                    .findOne({ employee: emp._id, shift_date: startOfDay })
+                    .lean()
+                    .exec();
+
+                if (override && override.override_type === 'cancel') {
+                    if (flagCode === 'A') {
+                        // A cancelled shift without Leave/Holiday/Weekend means treat it as a paid leave.
+                        // Ensure there is an approved Leave record for that day; create one if missing.
+                        let effectiveLeave = await this.leaveModel.findOne({
+                            employee: emp._id,
+                            status: 'approved',
+                            start_date: { $lte: endOfDay },
+                            end_date: { $gte: startOfDay },
+                        });
+
+                        const defaultLeaveFlag = flagMap.get('L');
+
+                        if (!effectiveLeave) {
+                            try {
+                                effectiveLeave = await this.leaveModel.create({
+                                    employee: emp._id,
+                                    flag: defaultLeaveFlag,
+                                    start_date: startOfDay,
+                                    end_date: startOfDay,
+                                    reason: 'Auto-approved paid leave due to shift cancellation',
+                                    status: 'approved',
+                                } as any);
+                                this.logger.log(
+                                    `Auto-created approved leave for emp=${emp._id.toString()} date=${yyyymmdd} due to cancel override`,
+                                );
+                            } catch (err: any) {
+                                this.logger.error(
+                                    `Failed to auto-create leave for emp=${emp._id.toString()} date=${yyyymmdd}: ${err.message}`,
+                                );
+                            }
+                        }
+
+                        // Convert this day to Leave
+                        counts.A = Math.max(0, counts.A - 1);
+                        counts.L++;
+                        flagCode = 'L';
+                        remarks =
+                            'Paid Leave (Auto-created due to shift cancellation)';
+
+                        // If an auto-generated attendance already exists, update it to reflect the leave
+                        if (existing) {
+                            if ((existing as any).verify_mode === 'auto') {
+                                const newFlagId =
+                                    (effectiveLeave as any)?.flag ||
+                                    defaultLeaveFlag;
+                                await this.attendanceModel.findByIdAndUpdate(
+                                    existing._id,
+                                    {
+                                        $set: {
+                                            flag: newFlagId,
+                                            in_remark: remarks,
+                                            out_remark: remarks,
+                                            late_minutes: 0,
+                                            verify_mode: 'auto',
+                                            status: (ATTENDANCE_STATUSES.find(
+                                                s =>
+                                                    (s as string) ===
+                                                    'system-generated',
+                                            ) ??
+                                                ATTENDANCE_STATUSES[0]) as AttendanceStatus,
+                                        },
+                                    },
+                                );
+                                counts.updated++;
+                                continue; // Updated existing record; no need to create
+                            } else {
+                                // Preserve manual/device-generated attendance
+                                counts.skipped++;
+                                continue;
+                            }
+                        }
+
+                        // If no existing attendance, fall through to create a system-generated Leave attendance below
+                    } else {
+                        // If it's already L/H/W, preserve existing behavior (no special action)
                     }
                 }
 
@@ -225,7 +321,31 @@ export class AttendanceGeneratorService {
                     : `SYS_${emp.e_id}`;
 
                 // Create or Update Attendance Record
-                const flagId = flagMap.get(flagCode);
+                let flagId = undefined as Types.ObjectId | undefined;
+                if (leave) {
+                    flagId = (leave as any).flag || flagMap.get('L');
+                } else if (typeof holiday !== 'undefined' && holiday) {
+                    flagId = (holiday as any).flag || flagMap.get('H');
+                } else if (flagCode === 'W') {
+                    flagId = flagMap.get('W');
+                } else if (flagCode === 'A') {
+                    flagId = flagMap.get('A');
+                } else if (flagCode === 'L') {
+                    flagId = flagMap.get('L');
+                } else if (flagCode === 'H') {
+                    flagId = flagMap.get('H');
+                }
+
+                if (!flagId) {
+                    this.logger.warn(
+                        `No attendance flag resolved for code='${flagCode}' employee='${emp._id.toString()}' date=${yyyymmdd}`,
+                    );
+                }
+
+                const systemStatus =
+                    ATTENDANCE_STATUSES.find(
+                        s => (s as string) === 'system-generated',
+                    ) ?? ATTENDANCE_STATUSES[0];
 
                 const payload: Partial<Attendance> = {
                     in_time: inTimeDate,
@@ -236,8 +356,9 @@ export class AttendanceGeneratorService {
                     device_id: DEFAULT_DEVICE_ID,
                     source_ip: DEFAULT_SOURCE_IP,
                     verify_mode: 'auto', // Mark as auto-generated
-                    status: 'check-in',
+                    status: systemStatus,
                     flag: flagId,
+                    late_minutes: 0,
                     out_remark: remarks,
                     in_remark: remarks,
                 };

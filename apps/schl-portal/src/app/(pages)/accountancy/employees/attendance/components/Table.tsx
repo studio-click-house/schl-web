@@ -9,7 +9,7 @@ import { AttendanceDocument } from '@repo/common/models/attendance.schema';
 import { formatDate, formatTime } from '@repo/common/utils/date-helpers';
 import { cn } from '@repo/common/utils/general-utils';
 import { hasPerm } from '@repo/common/utils/permission-check';
-import { CirclePlus, Undo2 } from 'lucide-react';
+import { Undo2 } from 'lucide-react';
 import moment from 'moment-timezone';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
@@ -225,22 +225,6 @@ const Table = ({ employeeId }: AttendanceTableProps) => {
                         Show all employees
                         <Undo2 size={18} />
                     </Link>
-
-                    {hasPerm('admin:create_attendance', userPermissions) && (
-                        <button
-                            onClick={() =>
-                                router.push(
-                                    process.env.NEXT_PUBLIC_BASE_URL +
-                                        '/accountancy/employees/attendance/add-attendance?employeeId=' +
-                                        encodeURIComponent(employeeId),
-                                )
-                            }
-                            className="flex justify-between items-center gap-2 rounded-md bg-primary hover:opacity-90 hover:ring-4 hover:ring-primary transition duration-200 delay-300 hover:text-opacity-100 text-white px-3 py-2"
-                        >
-                            Add attendance
-                            <CirclePlus size={18} />
-                        </button>
-                    )}
                 </div>
 
                 <div className="items-center flex gap-2">
