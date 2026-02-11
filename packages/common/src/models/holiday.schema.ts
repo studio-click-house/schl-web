@@ -10,7 +10,13 @@ export class Holiday {
     name: string; // e.g., "Eid-ul-Fitr"
 
     @Prop({ required: true, type: Date })
-    date: Date; // The specific date
+    dateFrom: Date; // Start date of the holiday (inclusive)
+
+    @Prop({ required: true, type: Date })
+    dateTo: Date; // End date of the holiday (inclusive). Same as dateFrom for single-day holidays.
+
+    @Prop({ type: String })
+    comment?: string; // Optional note or description for the holiday
 
     @Prop({
         required: true,
@@ -18,7 +24,6 @@ export class Holiday {
         type: mongoose.Schema.Types.ObjectId,
     })
     flag: mongoose.Types.ObjectId; // E.g., The 'H' flag
-
 
 }
 

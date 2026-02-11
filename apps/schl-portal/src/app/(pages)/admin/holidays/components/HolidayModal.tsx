@@ -37,9 +37,12 @@ const HolidayModal: React.FC<HolidayModalProps> = ({
         formState: { errors, isSubmitting },
     } = useForm<HolidayData>({
         resolver: zodResolver(holidaySchema),
+        mode: 'onBlur', // Validate on blur to provide timely client-side feedback
         defaultValues: {
             name: '',
-            date: new Date().toISOString().split('T')[0],
+            dateFrom: new Date().toISOString().split('T')[0],
+            dateTo: '',
+            comment: '',
         },
     });
 
@@ -47,13 +50,17 @@ const HolidayModal: React.FC<HolidayModalProps> = ({
         if (isOpen && editData) {
             reset({
                 name: editData.name,
-                // Ensure date is YYYY-MM-DD
-                date: new Date(editData.date).toISOString().split('T')[0],
+                // Ensure dates are YYYY-MM-DD
+                dateFrom: new Date((editData as any).dateFrom || editData.dateFrom).toISOString().split('T')[0],
+                dateTo: (editData as any).dateTo ? new Date((editData as any).dateTo).toISOString().split('T')[0] : '',
+                comment: (editData as any).comment || '',
             });
         } else if (isOpen) {
             reset({
                 name: '',
-                date: new Date().toISOString().split('T')[0],
+                dateFrom: new Date().toISOString().split('T')[0],
+                dateTo: '',
+                comment: '',
             });
         }
     }, [isOpen, editData, reset]);
@@ -65,12 +72,17 @@ const HolidayModal: React.FC<HolidayModalProps> = ({
                 : '/v1/holidays';
             const method = isEdit ? 'PUT' : 'POST';
 
+            // Don't send empty string for optional fields - omit them so backend @IsOptional passes
+            const payload: any = { name: data.name, dateFrom: data.dateFrom };
+            if (data.dateTo && data.dateTo.trim() !== '') payload.dateTo = data.dateTo;
+            if (data.comment && data.comment.trim() !== '') payload.comment = data.comment.trim();
+
             const response = await authedFetchApi(
                 { path: url },
                 {
                     method,
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data),
+                    body: JSON.stringify(payload),
                 },
             );
 
@@ -112,7 +124,7 @@ const HolidayModal: React.FC<HolidayModalProps> = ({
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" autoComplete="off">
                     <div>
                         <label className="block text-sm font-medium text-gray-700">
                             Name
@@ -120,6 +132,7 @@ const HolidayModal: React.FC<HolidayModalProps> = ({
                         <input
                             type="text"
                             {...register('name')}
+                            autoComplete="off"
                             className="mt-1 block w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500"
                         />
                         {errors.name && (
@@ -131,16 +144,51 @@ const HolidayModal: React.FC<HolidayModalProps> = ({
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700">
-                            Date
+                            Start Date
                         </label>
                         <input
                             type="date"
-                            {...register('date')}
+                            {...register('dateFrom')}
+                            autoComplete="off"
                             className="mt-1 block w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500"
                         />
-                        {errors.date && (
+                        {errors.dateFrom && (
                             <p className="text-red-500 text-xs mt-1">
-                                {errors.date.message}
+                                {errors.dateFrom.message}
+                            </p>
+                        )}
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700">
+                            End Date (optional)
+                        </label>
+                        <input
+                            type="date"
+                            {...register('dateTo')}
+                            autoComplete="off"
+                            className="mt-1 block w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                        />
+                        {errors.dateTo && (
+                            <p className="text-red-500 text-xs mt-1">
+                                {errors.dateTo.message}
+                            </p>
+                        )}
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700">
+                            Comment (optional)
+                        </label>
+                        <textarea
+                            {...register('comment')}
+                            autoComplete="off"
+                            rows={3}
+                            className="mt-1 block w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                        />
+                        {errors.comment && (
+                            <p className="text-red-500 text-xs mt-1">
+                                {errors.comment.message}
                             </p>
                         )}
                     </div>

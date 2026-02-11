@@ -21,17 +21,27 @@ const FilterButton: React.FC<PropsType> = props => {
     const [isOpen, setIsOpen] = useState<boolean>(false);
     const { filters, setFilters } = props;
     const popupRef = useRef<HTMLElement>(null);
+    const [localFilters, setLocalFilters] = useState(filters);
+
+    // When popup opens, initialize local copy from parent
+    React.useEffect(() => {
+        if (isOpen) setLocalFilters(filters);
+    }, [isOpen, filters]);
 
     const handleChange = (
         e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
     ) => {
         const { name, value } = e.target;
-        setFilters((prev: any) => ({ ...prev, [name]: value }));
+        setLocalFilters((prev: any) => ({ ...prev, [name]: value }));
     };
 
     const handleResetFilters = () => {
         const currentYear = new Date().getFullYear();
-        setFilters({ name: '', fromDate: `${currentYear}-01-01`, toDate: `${currentYear}-12-31` });
+        const reset = { name: '', fromDate: `${currentYear}-01-01`, toDate: `${currentYear}-12-31` };
+        setLocalFilters(reset);
+        // Apply reset immediately as before
+        setFilters(reset);
+        props.submitHandler();
     };
 
     const handleClickOutside = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -85,7 +95,7 @@ const FilterButton: React.FC<PropsType> = props => {
                                 <input
                                     className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
                                     name="name"
-                                    value={filters.name}
+                                    value={localFilters.name}
                                     onChange={handleChange}
                                     type="text"
                                     placeholder="Search by name"
@@ -98,7 +108,7 @@ const FilterButton: React.FC<PropsType> = props => {
                                     <input
                                         className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded-s-md py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
                                         name="fromDate"
-                                        value={filters.fromDate}
+                                        value={localFilters.fromDate}
                                         onChange={handleChange}
                                         type="date"
                                     />
@@ -108,7 +118,7 @@ const FilterButton: React.FC<PropsType> = props => {
                                     <input
                                         className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded-e-md py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
                                         name="toDate"
-                                        value={filters.toDate}
+                                        value={localFilters.toDate}
                                         onChange={handleChange}
                                         type="date"
                                     />
@@ -119,7 +129,7 @@ const FilterButton: React.FC<PropsType> = props => {
 
                     <footer className="flex space-x-2 items-center px-4 py-2 border-t justify-end border-gray-200 rounded-b">
                         <button
-                            onClick={() => { handleResetFilters(); props.submitHandler(); setIsOpen(false); }}
+                            onClick={() => { handleResetFilters(); setIsOpen(false); }}
                             className="rounded-md bg-gray-600 text-white  hover:opacity-90 hover:ring-2 hover:ring-gray-600 transition duration-200 delay-300 hover:text-opacity-100 px-8 py-2 uppercase"
                             type="button"
                             disabled={props.isLoading}
@@ -127,7 +137,7 @@ const FilterButton: React.FC<PropsType> = props => {
                             Reset
                         </button>
                         <button
-                            onClick={() => { props.submitHandler(); setIsOpen(false); }}
+                            onClick={() => { setFilters(localFilters); props.submitHandler(); setIsOpen(false); }}
                             className="rounded-md bg-blue-600 text-white   hover:opacity-90 hover:ring-2 hover:ring-blue-600 transition duration-200 delay-300 hover:text-opacity-100 px-8 py-2 uppercase"
                             type="button"
                             disabled={props.isLoading}

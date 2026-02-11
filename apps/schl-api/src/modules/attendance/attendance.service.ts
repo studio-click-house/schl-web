@@ -116,9 +116,12 @@ export class AttendanceService {
             );
         }
 
-        // Check for Holidays
+        // Check for Holidays (date range intersection)
         const holiday = await this.holidayModel.findOne({
-            date: shiftDate,
+            $or: [
+                { dateFrom: { $lte: shiftDate }, dateTo: { $gte: shiftDate } },
+                { date: shiftDate },
+            ],
         });
         if (holiday) {
             return await this.shiftResolvedModel.findOneAndUpdate(
@@ -201,7 +204,10 @@ export class AttendanceService {
         // 1. Holiday Logic
         if (shift.source === 'holiday') {
             const holiday = await this.holidayModel
-                .findOne({ date: shift.shift_date })
+                .findOne({
+                    dateFrom: { $lte: shift.shift_date },
+                    dateTo: { $gte: shift.shift_date },
+                })
                 .lean();
             if (holiday) {
                 // We use the ID directly from the holiday record

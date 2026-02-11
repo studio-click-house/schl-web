@@ -14,11 +14,19 @@ export class CreateHolidayDto {
 
     @IsDateString()
     @IsNotEmpty()
-    date: string;
+    dateFrom: string;
+
+    @IsOptional()
+    @IsDateString()
+    dateTo?: string;
 
     @IsOptional()
     @IsMongoId()
     flagId?: string; // Optional: The AttendanceFlag ID (defaults to flag with code 'H' if omitted)
+
+    @IsOptional()
+    @IsString()
+    comment?: string;
 }
 
 export class UpdateHolidayDto extends CreateHolidayDto {}

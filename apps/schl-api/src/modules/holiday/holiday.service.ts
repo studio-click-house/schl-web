@@ -40,9 +40,22 @@ export class HolidayService {
                       .endOf('day')
                       .toDate()
                 : undefined;
-            if (start && end) query.date = { $gte: start, $lte: end };
-            else if (start) query.date = { $gte: start };
-            else if (end) query.date = { $lte: end };
+
+            // We want holidays that intersect with the requested range.
+            // Intersection logic: holiday.start <= end && holiday.end >= start
+            if (start && end) {
+                query.$or = [
+                    { dateFrom: { $gte: start, $lte: end } },
+                    { dateTo: { $gte: start, $lte: end } },
+                    { dateFrom: { $lte: start }, dateTo: { $gte: end } },
+                ] as any;
+            } else if (start) {
+                // Holidays that end on/after start
+                query.dateTo = { $gte: start } as any;
+            } else if (end) {
+                // Holidays that start on/before end
+                query.dateFrom = { $lte: end } as any;
+            }
         }
 
         if (name) {
@@ -52,7 +65,7 @@ export class HolidayService {
         return await this.holidayModel
             .find(query)
             .populate('flag')
-            .sort({ date: 1 })
+            .sort({ dateFrom: 1 })
             .exec();
     }
 
@@ -65,13 +78,22 @@ export class HolidayService {
             }
         }
 
-        const date = moment.tz(dto.date, 'Asia/Dhaka').startOf('day').toDate();
-        const existing = await this.holidayModel.findOne({ date: date });
+        const from = moment
+            .tz(dto.dateFrom, 'Asia/Dhaka')
+            .startOf('day')
+            .toDate();
+        const to = dto.dateTo
+            ? moment.tz(dto.dateTo, 'Asia/Dhaka').endOf('day').toDate()
+            : from; // Single-day holiday if dateTo omitted
 
-        // We might allow multiple holidays on same day? Probably not.
-        if (existing) {
+        // Check for overlapping holidays
+        const overlapping = await this.holidayModel.findOne({
+            $or: [{ dateFrom: { $lte: to }, dateTo: { $gte: from } }],
+        });
+
+        if (overlapping) {
             throw new BadRequestException(
-                'A holiday already exists on this date',
+                'A holiday already exists in the specified date range',
             );
         }
 
@@ -91,8 +113,10 @@ export class HolidayService {
         }
 
         return await this.holidayModel.create({
-            ...dto,
-            date: date,
+            name: dto.name,
+            dateFrom: from,
+            dateTo: to,
+            comment: dto.comment?.trim(),
             flag: flagId,
         });
     }
@@ -102,15 +126,34 @@ export class HolidayService {
             throw new ForbiddenException('Permission denied');
         }
 
-        const date = moment.tz(dto.date, 'Asia/Dhaka').startOf('day').toDate();
+        const from = moment
+            .tz(dto.dateFrom, 'Asia/Dhaka')
+            .startOf('day')
+            .toDate();
+        const to = dto.dateTo
+            ? moment.tz(dto.dateTo, 'Asia/Dhaka').endOf('day').toDate()
+            : from;
 
         const patch: Partial<Holiday> = {
-            ...dto,
-            date: date,
+            name: dto.name,
+            dateFrom: from,
+            dateTo: to,
+            comment: dto.comment?.trim(),
         } as Partial<Holiday>;
 
         // Only update flag if provided (we removed flag selection from UI)
         if (dto.flagId) patch.flag = dto.flagId as any;
+
+        // Check for overlapping other holidays
+        const overlapping = await this.holidayModel.findOne({
+            _id: { $ne: id },
+            $or: [{ dateFrom: { $lte: to }, dateTo: { $gte: from } }],
+        });
+        if (overlapping) {
+            throw new BadRequestException(
+                'Another holiday exists in the specified date range',
+            );
+        }
 
         return await this.holidayModel.findByIdAndUpdate(id, patch, {
             new: true,

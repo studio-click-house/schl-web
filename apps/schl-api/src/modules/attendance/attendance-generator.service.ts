@@ -167,9 +167,10 @@ export class AttendanceGeneratorService {
                     remarks = 'Auto-generated Leave';
                     counts.L++;
                 } else {
-                    // B. Check Holidays
+                    // B. Check Holidays (range intersection)
                     holiday = await this.holidayModel.findOne({
-                        date: { $gte: startOfDay, $lte: endOfDay },
+                        dateFrom: { $lte: endOfDay },
+                        dateTo: { $gte: startOfDay },
                     });
 
                     if (holiday) {
@@ -260,12 +261,12 @@ export class AttendanceGeneratorService {
                                             out_remark: remarks,
                                             late_minutes: 0,
                                             verify_mode: 'auto',
-                                            status: (ATTENDANCE_STATUSES.find(
-                                                s =>
-                                                    (s as string) ===
-                                                    'system-generated',
-                                            ) ??
-                                                ATTENDANCE_STATUSES[0]) as AttendanceStatus,
+                                            status:
+                                                ATTENDANCE_STATUSES.find(
+                                                    s =>
+                                                        (s as string) ===
+                                                        'system-generated',
+                                                ) ?? ATTENDANCE_STATUSES[0],
                                         },
                                     },
                                 );

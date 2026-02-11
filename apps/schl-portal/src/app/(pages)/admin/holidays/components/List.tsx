@@ -175,6 +175,9 @@ const List: React.FC = () => {
                                 Date
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Comment
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Type (Flag)
                             </th>
 
@@ -187,7 +190,7 @@ const List: React.FC = () => {
                         {holidays.length === 0 ? (
                             <tr>
                                 <td
-                                    colSpan={4}
+                                    colSpan={5}
                                     className="px-6 py-4 text-center text-gray-500"
                                 >
                                     No holidays found.
@@ -198,6 +201,10 @@ const List: React.FC = () => {
                                 const flag = getFlagDetails(
                                     (holiday as any).flag || undefined,
                                 );
+                                const fromDate = new Date((holiday as any).dateFrom || holiday.dateFrom);
+                                const toDate = new Date((holiday as any).dateTo || holiday.dateTo);
+                                const sameDay = fromDate.toDateString() === toDate.toDateString();
+
                                 return (
                                     <tr
                                         key={holiday._id}
@@ -207,9 +214,12 @@ const List: React.FC = () => {
                                             {holiday.name}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            {new Date(
-                                                holiday.date,
-                                            ).toLocaleDateString()}
+                                            {sameDay
+                                                ? fromDate.toLocaleDateString()
+                                                : `${fromDate.toLocaleDateString()} - ${toDate.toLocaleDateString()}`}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            {(holiday as any).comment ? (holiday as any).comment : '-'}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                             {flag ? (
