@@ -21,10 +21,6 @@ export class CreateHolidayDto {
     dateTo?: string;
 
     @IsOptional()
-    @IsMongoId()
-    flagId?: string; // Optional: The AttendanceFlag ID (defaults to flag with code 'H' if omitted)
-
-    @IsOptional()
     @IsString()
     comment?: string;
 }

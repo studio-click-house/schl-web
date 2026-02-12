@@ -15,7 +15,7 @@ export type ShiftResolvedSource = (typeof SHIFT_RESOLVED_SOURCES)[number];
 export const SHIFT_TYPES = ['morning', 'evening', 'night', 'custom'] as const;
 export type ShiftType = (typeof SHIFT_TYPES)[number];
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'shift_resolved' })
 export class ShiftResolved {
     @Prop({
         required: [true, 'Employee is required'],
@@ -50,7 +50,6 @@ export class ShiftResolved {
 
     @Prop({ required: false, type: Boolean, default: false })
     is_off_day_overtime?: boolean; // If true, treat any work on this day as overtime (off-day OT)
-
 
     @Prop({
         required: [true, 'Resolved source is required'],

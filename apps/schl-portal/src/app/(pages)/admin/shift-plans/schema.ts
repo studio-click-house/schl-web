@@ -78,7 +78,9 @@ export const shiftOverrideSchema = z
         data => {
             // For 'replace' overrides we require shift details; 'cancel' and 'off_day' do not require them
             if (data.overrideType === 'replace') {
-                return Boolean(data.shiftType && data.shiftStart && data.shiftEnd);
+                return Boolean(
+                    data.shiftType && data.shiftStart && data.shiftEnd,
+                );
             }
             return true;
         },

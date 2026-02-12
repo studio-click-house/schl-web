@@ -1,9 +1,14 @@
 'use client';
 import Badge from '@/components/Badge';
 import { useAuthedFetchApi } from '@/lib/api-client';
-import { Check, Plus, X } from 'lucide-react';
+import {
+    LeaveType,
+    leaveTypeOptions,
+} from '@repo/common/constants/leave.constant';
+import { Check, Edit, Plus, Trash2, X } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import Filter from './Filter';
 import LeaveModal from './LeaveModal';
 
 interface AttendanceFlag {
@@ -22,6 +27,8 @@ interface Leave {
     _id: string;
     employee: Employee | string;
     flag: AttendanceFlag | string;
+    leave_type?: LeaveType;
+    is_paid?: boolean;
     start_date: string;
     end_date: string;
     reason: string;
@@ -36,18 +43,49 @@ const List: React.FC = () => {
     const [loading, setLoading] = useState<boolean>(true);
     const authedFetchApi = useAuthedFetchApi();
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingLeave, setEditingLeave] = useState<Leave | null>(null);
+
+    const [filters, setFilters] = useState<{
+        employeeId: string;
+        fromDate: string;
+        toDate: string;
+        isPaid: boolean | null;
+        leaveType: string;
+    }>({ employeeId: '', fromDate: '', toDate: '', isPaid: null, leaveType: '' });
 
     const fetchData = useCallback(async () => {
         setLoading(true);
         try {
+            // Build query params from filters
+            // Use POST /v1/leaves/search — send filters in body (isPaid is boolean)
+            const query = new URLSearchParams({ paginated: 'false' });
+            const leavesPath = `/v1/leaves/search?${query.toString()}`;
+
             const [leavesRes, employeesRes, flagsRes] = await Promise.all([
-                authedFetchApi<Leave[]>(
-                    { path: '/v1/leaves' },
-                    { method: 'GET' },
+                authedFetchApi<{ items: Leave[]; pagination: { count: number; pageCount: number } }>(
+                    { path: leavesPath },
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            employeeId: filters.employeeId || undefined,
+                            fromDate: filters.fromDate || undefined,
+                            toDate: filters.toDate || undefined,
+                            isPaid: typeof filters.isPaid === 'boolean' ? filters.isPaid : undefined,
+                            leaveType: filters.leaveType || undefined,
+                        }),
+                    },
                 ),
                 authedFetchApi<Employee[]>(
-                    { path: '/v1/employees' },
-                    { method: 'GET' },
+                    {
+                        path: '/v1/employee/search-employees',
+                        query: { paginated: false },
+                    },
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({}),
+                    },
                 ),
                 authedFetchApi<AttendanceFlag[]>(
                     { path: '/v1/attendance-flags' },
@@ -55,7 +93,13 @@ const List: React.FC = () => {
                 ),
             ]);
 
-            if (leavesRes.ok) setLeaves(leavesRes.data);
+            if (leavesRes.ok) {
+                // support both paginated and legacy array responses
+                const data = leavesRes.data as any;
+                if (Array.isArray(data)) setLeaves(data);
+                else setLeaves(data.items || []);
+            }
+
             if (employeesRes.ok) setEmployees(employeesRes.data);
             if (flagsRes.ok) setFlags(flagsRes.data);
 
@@ -66,7 +110,7 @@ const List: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    }, [authedFetchApi]);
+    }, [authedFetchApi, filters]);
 
     useEffect(() => {
         fetchData();
@@ -103,10 +147,30 @@ const List: React.FC = () => {
         }
     };
 
+    const handleDelete = async (id: string) => {
+        if (!confirm('Delete this leave application?')) return;
+        try {
+            const res = await authedFetchApi(
+                { path: `/v1/leaves/${id}` },
+                { method: 'DELETE' },
+            );
+            if (res.ok) {
+                toast.success('Deleted');
+                fetchData();
+            } else {
+                toast.error(res.data?.message || 'Delete failed');
+            }
+        } catch (err) {
+            console.error(err);
+            toast.error('Network error');
+        }
+    };
+
     const formatDate = (d: string) => new Date(d).toLocaleDateString();
 
-    if (loading)
+    if (loading) {
         return <div className="p-4 text-center">Loading leaves...</div>;
+    }
 
     return (
         <div className="container mx-auto px-4 py-8">
@@ -119,12 +183,26 @@ const List: React.FC = () => {
                         Manage employee leave applications.
                     </p>
                 </div>
-                <button
-                    onClick={() => setIsModalOpen(true)}
-                    className="px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-2"
-                >
-                    <Plus size={16} /> New Application
-                </button>
+
+                <div className="flex items-center gap-3">
+                    <Filter
+                        submitHandler={() => fetchData()}
+                        filters={filters}
+                        setFilters={setFilters}
+                        isLoading={loading}
+                        employees={employees}
+                    />
+
+                    <button
+                        onClick={() => {
+                            setEditingLeave(null);
+                            setIsModalOpen(true);
+                        }}
+                        className="px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-2"
+                    >
+                        <Plus size={16} /> New Application
+                    </button>
+                </div>
             </div>
 
             <div className="overflow-x-auto border rounded-lg shadow-sm">
@@ -136,6 +214,12 @@ const List: React.FC = () => {
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Type
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Subtype
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Paid
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Period
@@ -155,7 +239,7 @@ const List: React.FC = () => {
                         {leaves.length === 0 ? (
                             <tr>
                                 <td
-                                    colSpan={6}
+                                    colSpan={8}
                                     className="px-6 py-4 text-center text-gray-500"
                                 >
                                     No leave requests found.
@@ -199,6 +283,30 @@ const List: React.FC = () => {
                                             )}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            {leave.leave_type
+                                                ? (leaveTypeOptions.find(
+                                                      o =>
+                                                          o.value ===
+                                                          leave.leave_type,
+                                                  )?.label ??
+                                                  leave.leave_type
+                                                      .charAt(0)
+                                                      .toUpperCase() +
+                                                      leave.leave_type.slice(1))
+                                                : '-'}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            {leave.is_paid ? (
+                                                <span className="text-green-600 font-semibold">
+                                                    Paid
+                                                </span>
+                                            ) : (
+                                                <span className="text-red-600 font-semibold">
+                                                    Unpaid
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                             {formatDate(leave.start_date)} -{' '}
                                             {formatDate(leave.end_date)}
                                         </td>
@@ -210,15 +318,7 @@ const List: React.FC = () => {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                                             <span
-                                                className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                                ${
-                                                    leave.status === 'approved'
-                                                        ? 'bg-green-100 text-green-800'
-                                                        : leave.status ===
-                                                            'rejected'
-                                                          ? 'bg-red-100 text-red-800'
-                                                          : 'bg-yellow-100 text-yellow-800'
-                                                }`}
+                                                className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${leave.status === 'approved' ? 'bg-green-100 text-green-800' : leave.status === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}
                                             >
                                                 {leave.status
                                                     .charAt(0)
@@ -227,34 +327,60 @@ const List: React.FC = () => {
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            {leave.status === 'pending' && (
-                                                <div className="flex justify-end gap-2">
-                                                    <button
-                                                        onClick={() =>
-                                                            handleStatusChange(
-                                                                leave._id,
-                                                                'approved',
-                                                            )
-                                                        }
-                                                        className="text-green-600 hover:text-green-900 bg-green-50 p-1 rounded"
-                                                        title="Approve"
-                                                    >
-                                                        <Check size={16} />
-                                                    </button>
-                                                    <button
-                                                        onClick={() =>
-                                                            handleStatusChange(
-                                                                leave._id,
-                                                                'rejected',
-                                                            )
-                                                        }
-                                                        className="text-red-600 hover:text-red-900 bg-red-50 p-1 rounded"
-                                                        title="Reject"
-                                                    >
-                                                        <X size={16} />
-                                                    </button>
-                                                </div>
-                                            )}
+                                            <div className="flex justify-end gap-2">
+                                                {leave.status === 'pending' && (
+                                                    <>
+                                                        <button
+                                                            onClick={() => {
+                                                                setEditingLeave(
+                                                                    leave,
+                                                                );
+                                                                setIsModalOpen(
+                                                                    true,
+                                                                );
+                                                            }}
+                                                            className="text-blue-600 hover:text-blue-900 bg-blue-50 p-1 rounded"
+                                                            title="Edit"
+                                                        >
+                                                            <Edit size={16} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() =>
+                                                                handleStatusChange(
+                                                                    leave._id,
+                                                                    'approved',
+                                                                )
+                                                            }
+                                                            className="text-green-600 hover:text-green-900 bg-green-50 p-1 rounded"
+                                                            title="Approve"
+                                                        >
+                                                            <Check size={16} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() =>
+                                                                handleStatusChange(
+                                                                    leave._id,
+                                                                    'rejected',
+                                                                )
+                                                            }
+                                                            className="text-red-600 hover:text-red-900 bg-red-50 p-1 rounded"
+                                                            title="Reject"
+                                                        >
+                                                            <X size={16} />
+                                                        </button>
+                                                    </>
+                                                )}
+
+                                                <button
+                                                    onClick={() =>
+                                                        handleDelete(leave._id)
+                                                    }
+                                                    className="text-gray-600 hover:text-gray-900 bg-gray-50 p-1 rounded"
+                                                    title="Delete"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 );
@@ -266,7 +392,11 @@ const List: React.FC = () => {
 
             <LeaveModal
                 isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
+                initialData={editingLeave || undefined}
+                onClose={() => {
+                    setIsModalOpen(false);
+                    setEditingLeave(null);
+                }}
                 onSuccess={fetchData}
                 flags={flags}
                 employees={employees}

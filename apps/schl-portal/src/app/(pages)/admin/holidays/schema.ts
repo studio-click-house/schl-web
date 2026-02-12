@@ -30,4 +30,4 @@ export const holidaySchema = z
         },
     );
 
-export type HolidayData = z.infer<typeof holidaySchema>; 
+export type HolidayData = z.infer<typeof holidaySchema>;

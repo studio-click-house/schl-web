@@ -1,4 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { LEAVE_TYPES } from '@repo/common/constants/leave.constant';
 import * as mongoose from 'mongoose';
 import { HydratedDocument } from 'mongoose';
 
@@ -6,6 +7,8 @@ export type LeaveDocument = HydratedDocument<Leave>;
 
 export const LEAVE_STATUSES = ['pending', 'approved', 'rejected'] as const;
 export type LeaveStatus = (typeof LEAVE_STATUSES)[number];
+
+// LEAVE_TYPES is centralized in @repo/common/constants/leave.constant
 
 @Schema({ timestamps: true })
 export class Leave {
@@ -19,10 +22,16 @@ export class Leave {
 
     @Prop({
         required: true,
-        ref: 'AttendanceFlag',
+        ref: 'attendance_flags',
         type: mongoose.Schema.Types.ObjectId,
     })
-    flag: mongoose.Types.ObjectId; // The type of leave (Sick, Casual, etc. mapped to a Flag like 'SL', 'CL' or generic 'L')
+    flag: mongoose.Types.ObjectId; // The flag (usually generic 'L' for leaves)
+
+    @Prop({ required: true, type: String, enum: LEAVE_TYPES as any })
+    leave_type: string; // 'casual' | 'emergency' | 'marriage' | 'unpaid'
+
+    @Prop({ default: true })
+    is_paid: boolean; // Whether this particular leave is paid or unpaid
 
     @Prop({ required: true, type: Date })
     start_date: Date;

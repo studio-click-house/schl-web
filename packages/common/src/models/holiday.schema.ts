@@ -20,11 +20,10 @@ export class Holiday {
 
     @Prop({
         required: true,
-        ref: 'AttendanceFlag',
+        ref: 'attendance_flags',
         type: mongoose.Schema.Types.ObjectId,
     })
     flag: mongoose.Types.ObjectId; // E.g., The 'H' flag
-
 }
 
 export const HolidaySchema = SchemaFactory.createForClass(Holiday);

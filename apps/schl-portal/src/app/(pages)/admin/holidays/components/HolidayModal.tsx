@@ -7,13 +7,6 @@ import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { HolidayData, holidaySchema } from '../schema';
 
-interface AttendanceFlag {
-    _id: string;
-    name: string;
-    code: string;
-    color: string;
-}
-
 interface HolidayModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -51,8 +44,16 @@ const HolidayModal: React.FC<HolidayModalProps> = ({
             reset({
                 name: editData.name,
                 // Ensure dates are YYYY-MM-DD
-                dateFrom: new Date((editData as any).dateFrom || editData.dateFrom).toISOString().split('T')[0],
-                dateTo: (editData as any).dateTo ? new Date((editData as any).dateTo).toISOString().split('T')[0] : '',
+                dateFrom: new Date(
+                    (editData as any).dateFrom || editData.dateFrom,
+                )
+                    .toISOString()
+                    .split('T')[0],
+                dateTo: (editData as any).dateTo
+                    ? new Date((editData as any).dateTo)
+                          .toISOString()
+                          .split('T')[0]
+                    : '',
                 comment: (editData as any).comment || '',
             });
         } else if (isOpen) {
@@ -74,8 +75,10 @@ const HolidayModal: React.FC<HolidayModalProps> = ({
 
             // Don't send empty string for optional fields - omit them so backend @IsOptional passes
             const payload: any = { name: data.name, dateFrom: data.dateFrom };
-            if (data.dateTo && data.dateTo.trim() !== '') payload.dateTo = data.dateTo;
-            if (data.comment && data.comment.trim() !== '') payload.comment = data.comment.trim();
+            if (data.dateTo && data.dateTo.trim() !== '')
+                payload.dateTo = data.dateTo;
+            if (data.comment && data.comment.trim() !== '')
+                payload.comment = data.comment.trim();
 
             const response = await authedFetchApi(
                 { path: url },
@@ -124,7 +127,11 @@ const HolidayModal: React.FC<HolidayModalProps> = ({
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" autoComplete="off">
+                <form
+                    onSubmit={handleSubmit(onSubmit)}
+                    className="space-y-4"
+                    autoComplete="off"
+                >
                     <div>
                         <label className="block text-sm font-medium text-gray-700">
                             Name
@@ -192,10 +199,6 @@ const HolidayModal: React.FC<HolidayModalProps> = ({
                             </p>
                         )}
                     </div>
-
-
-
-
 
                     <div className="flex justify-end gap-2 pt-4">
                         <button

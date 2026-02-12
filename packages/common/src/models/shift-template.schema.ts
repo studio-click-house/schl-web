@@ -7,7 +7,7 @@ export type ShiftTemplateDocument = HydratedDocument<ShiftTemplate>;
 export const SHIFT_TYPES = ['morning', 'evening', 'night', 'custom'] as const;
 export type ShiftType = (typeof SHIFT_TYPES)[number];
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'shift_templates' })
 export class ShiftTemplate {
     @Prop({
         required: [true, 'Employee is required'],

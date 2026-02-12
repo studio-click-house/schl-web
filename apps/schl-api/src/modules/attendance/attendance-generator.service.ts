@@ -153,46 +153,46 @@ export class AttendanceGeneratorService {
                 let flagCode = ''; // Default None
                 let remarks = '';
 
-                // A. Check Leaves
+                // Priority: Holiday -> Weekend -> Leave -> Absent
+                // Check Holiday first (range intersection)
                 let holiday: HolidayDocument | null = null;
-                const leave = await this.leaveModel.findOne({
-                    employee: emp._id,
-                    status: 'approved',
-                    start_date: { $lte: endOfDay },
-                    end_date: { $gte: startOfDay },
+                const leave: LeaveDocument | null = null;
+                holiday = await this.holidayModel.findOne({
+                    dateFrom: { $lte: endOfDay },
+                    dateTo: { $gte: startOfDay },
                 });
 
-                if (leave) {
-                    flagCode = 'L';
-                    remarks = 'Auto-generated Leave';
-                    counts.L++;
+                if (holiday) {
+                    flagCode = 'H';
+                    remarks = holiday.name || 'Holiday';
+                    counts.H++;
                 } else {
-                    // B. Check Holidays (range intersection)
-                    holiday = await this.holidayModel.findOne({
-                        dateFrom: { $lte: endOfDay },
-                        dateTo: { $gte: startOfDay },
-                    });
+                    // Check Weekend
+                    const deptName = emp.department
+                        ? emp.department.trim().toLowerCase()
+                        : '';
+                    const weekendDays = deptMap.get(deptName) || [0]; // Default Sunday (0) if not configured
 
-                    if (holiday) {
-                        flagCode = 'H';
-                        remarks = holiday.name || 'Holiday';
-                        counts.H++;
+                    const isWeekend = weekendDays.includes(dayOfWeek);
+                    if (isWeekend) {
+                        flagCode = 'W';
+                        remarks = 'Weekend';
+                        counts.W++;
                     } else {
-                        // C. Check Weekend
-                        const deptName = emp.department
-                            ? emp.department.trim().toLowerCase()
-                            : '';
-                        const weekendDays = deptMap.get(deptName) || [0]; // Default Sunday (0) if not configured
+                        // Check approved Leave only if not holiday/weekend
+                        const leave = await this.leaveModel.findOne({
+                            employee: emp._id,
+                            status: 'approved',
+                            start_date: { $lte: endOfDay },
+                            end_date: { $gte: startOfDay },
+                        });
 
-                        const isWeekend = weekendDays.includes(dayOfWeek);
-
-                        if (isWeekend) {
-                            flagCode = 'W';
-                            remarks = 'Weekend';
-                            counts.W++;
+                        if (leave) {
+                            flagCode = 'L';
+                            remarks = 'Auto-generated Leave';
+                            counts.L++;
                         } else {
-                            // D. Absent (If nothing else)
-                            // "A is assigned auto when a employee didn't come office... unless H, W, L"
+                            // Absent (If nothing else)
                             flagCode = 'A';
                             remarks = 'Absent (Auto-generated)';
                             counts.A++;

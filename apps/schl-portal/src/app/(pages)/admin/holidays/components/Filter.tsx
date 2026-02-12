@@ -29,7 +29,9 @@ const FilterButton: React.FC<PropsType> = props => {
     }, [isOpen, filters]);
 
     const handleChange = (
-        e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
+        e: React.ChangeEvent<
+            HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+        >,
     ) => {
         const { name, value } = e.target;
         setLocalFilters((prev: any) => ({ ...prev, [name]: value }));
@@ -37,7 +39,11 @@ const FilterButton: React.FC<PropsType> = props => {
 
     const handleResetFilters = () => {
         const currentYear = new Date().getFullYear();
-        const reset = { name: '', fromDate: `${currentYear}-01-01`, toDate: `${currentYear}-12-31` };
+        const reset = {
+            name: '',
+            fromDate: `${currentYear}-01-01`,
+            toDate: `${currentYear}-12-31`,
+        };
         setLocalFilters(reset);
         // Apply reset immediately as before
         setFilters(reset);
@@ -91,7 +97,9 @@ const FilterButton: React.FC<PropsType> = props => {
                     <div className="p-4">
                         <div className="grid grid-cols-1 gap-x-3 gap-y-4">
                             <div>
-                                <label className="uppercase tracking-wide text-gray-700 text-sm font-bold block mb-2">Name</label>
+                                <label className="uppercase tracking-wide text-gray-700 text-sm font-bold block mb-2">
+                                    Name
+                                </label>
                                 <input
                                     className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
                                     name="name"
@@ -103,8 +111,13 @@ const FilterButton: React.FC<PropsType> = props => {
                             </div>
 
                             <div>
-                                <label className="uppercase tracking-wide text-gray-700 text-sm font-bold flex gap-2 mb-2">Date Range</label>
-                                <div className="inline-flex w-full" role="group">
+                                <label className="uppercase tracking-wide text-gray-700 text-sm font-bold flex gap-2 mb-2">
+                                    Date Range
+                                </label>
+                                <div
+                                    className="inline-flex w-full"
+                                    role="group"
+                                >
                                     <input
                                         className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded-s-md py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
                                         name="fromDate"
@@ -129,7 +142,10 @@ const FilterButton: React.FC<PropsType> = props => {
 
                     <footer className="flex space-x-2 items-center px-4 py-2 border-t justify-end border-gray-200 rounded-b">
                         <button
-                            onClick={() => { handleResetFilters(); setIsOpen(false); }}
+                            onClick={() => {
+                                handleResetFilters();
+                                setIsOpen(false);
+                            }}
                             className="rounded-md bg-gray-600 text-white  hover:opacity-90 hover:ring-2 hover:ring-gray-600 transition duration-200 delay-300 hover:text-opacity-100 px-8 py-2 uppercase"
                             type="button"
                             disabled={props.isLoading}
@@ -137,7 +153,11 @@ const FilterButton: React.FC<PropsType> = props => {
                             Reset
                         </button>
                         <button
-                            onClick={() => { setFilters(localFilters); props.submitHandler(); setIsOpen(false); }}
+                            onClick={() => {
+                                setFilters(localFilters);
+                                props.submitHandler();
+                                setIsOpen(false);
+                            }}
                             className="rounded-md bg-blue-600 text-white   hover:opacity-90 hover:ring-2 hover:ring-blue-600 transition duration-200 delay-300 hover:text-opacity-100 px-8 py-2 uppercase"
                             type="button"
                             disabled={props.isLoading}

@@ -10,7 +10,7 @@ export type ShiftOverrideType = (typeof SHIFT_OVERRIDE_TYPES)[number];
 export const SHIFT_TYPES = ['morning', 'evening', 'night', 'custom'] as const;
 export type ShiftType = (typeof SHIFT_TYPES)[number];
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'shift_overrides' })
 export class ShiftOverride {
     @Prop({
         required: [true, 'Employee is required'],

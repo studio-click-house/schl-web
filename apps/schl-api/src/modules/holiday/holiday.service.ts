@@ -97,20 +97,17 @@ export class HolidayService {
             );
         }
 
-        // Determine flag: prefer provided flagId, else pick the flag with code 'H'
-        let flagId = dto.flagId;
-        if (!flagId) {
-            const holidayFlag = await this.flagModel
-                .findOne({ code: 'H' })
-                .lean()
-                .exec();
-            if (!holidayFlag) {
-                throw new BadRequestException(
-                    "Attendance Flag with code 'H' (Holiday) not found. Please create it before adding holidays.",
-                );
-            }
-            flagId = holidayFlag._id.toString();
+        // Always use the Attendance Flag with code 'H' (Holiday)
+        const holidayFlag = await this.flagModel
+            .findOne({ code: 'H' })
+            .lean()
+            .exec();
+        if (!holidayFlag) {
+            throw new BadRequestException(
+                "Attendance Flag with code 'H' (Holiday) not found. Please create it before adding holidays.",
+            );
         }
+        const flagId = holidayFlag._id.toString();
 
         return await this.holidayModel.create({
             name: dto.name,
@@ -140,9 +137,6 @@ export class HolidayService {
             dateTo: to,
             comment: dto.comment?.trim(),
         } as Partial<Holiday>;
-
-        // Only update flag if provided (we removed flag selection from UI)
-        if (dto.flagId) patch.flag = dto.flagId as any;
 
         // Check for overlapping other holidays
         const overlapping = await this.holidayModel.findOne({

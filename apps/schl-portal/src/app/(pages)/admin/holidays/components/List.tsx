@@ -37,7 +37,11 @@ const List: React.FC = () => {
     const defaultFrom = `${currentYear}-01-01`;
     const defaultTo = `${currentYear}-12-31`;
 
-    const [filters, setFilters] = useState<{ name: string; fromDate: string; toDate: string }>({
+    const [filters, setFilters] = useState<{
+        name: string;
+        fromDate: string;
+        toDate: string;
+    }>({
         name: '',
         fromDate: defaultFrom,
         toDate: defaultTo,
@@ -58,7 +62,7 @@ const List: React.FC = () => {
 
             // Fetch Holidays
             const holidaysRes = await authedFetchApi<Holiday[]>(
-                { path, },
+                { path },
                 { method: 'GET' },
             );
 
@@ -201,9 +205,16 @@ const List: React.FC = () => {
                                 const flag = getFlagDetails(
                                     (holiday as any).flag || undefined,
                                 );
-                                const fromDate = new Date((holiday as any).dateFrom || holiday.dateFrom);
-                                const toDate = new Date((holiday as any).dateTo || holiday.dateTo);
-                                const sameDay = fromDate.toDateString() === toDate.toDateString();
+                                const fromDate = new Date(
+                                    (holiday as any).dateFrom ||
+                                        holiday.dateFrom,
+                                );
+                                const toDate = new Date(
+                                    (holiday as any).dateTo || holiday.dateTo,
+                                );
+                                const sameDay =
+                                    fromDate.toDateString() ===
+                                    toDate.toDateString();
 
                                 return (
                                     <tr
@@ -219,7 +230,9 @@ const List: React.FC = () => {
                                                 : `${fromDate.toLocaleDateString()} - ${toDate.toLocaleDateString()}`}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            {(holiday as any).comment ? (holiday as any).comment : '-'}
+                                            {(holiday as any).comment
+                                                ? (holiday as any).comment
+                                                : '-'}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                             {flag ? (

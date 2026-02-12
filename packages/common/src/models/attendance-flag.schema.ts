@@ -3,7 +3,7 @@ import { HydratedDocument } from 'mongoose';
 
 export type AttendanceFlagDocument = HydratedDocument<AttendanceFlag>;
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'attendance_flags' })
 export class AttendanceFlag {
     @Prop({ required: true, unique: true, uppercase: true, trim: true })
     code: string; // e.g., "P", "L", "H", "E"

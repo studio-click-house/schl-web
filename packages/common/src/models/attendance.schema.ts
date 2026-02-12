@@ -7,6 +7,7 @@ import {
     ATTENDANCE_STATUSES,
     VERIFY_MODES,
 } from '../constants/attendance.constant';
+import { AttendanceFlag } from './attendance-flag.schema';
 
 export type AttendanceDocument = HydratedDocument<Attendance>;
 
@@ -39,7 +40,7 @@ export class Attendance {
 
     @Prop({
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'AttendanceFlag',
+        ref: 'attendance_flags',
         required: false,
     })
     flag?: mongoose.Types.ObjectId;
