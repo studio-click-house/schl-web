@@ -1,18 +1,32 @@
 'use client';
 
 import { cn } from '@repo/common/utils/general-utils';
+import {
+    setCalculatedZIndex,
+    setClassNameAndIsDisabled,
+    setMenuPortalTarget,
+} from '@repo/common/utils/select-helpers';
 import { Filter, X } from 'lucide-react';
+import moment from 'moment-timezone';
 import React, { useRef, useState } from 'react';
+import Select from 'react-select';
 
 const baseZIndex = 50;
+
+type EmployeeOption = {
+    value: string;
+    label: string;
+};
 
 interface PropsType {
     className?: string;
     submitHandler: () => void;
     filters: {
+        employeeId: string;
         fromDate: string;
         toDate: string;
     };
+    employeeOptions: EmployeeOption[];
     setFilters: React.Dispatch<React.SetStateAction<any>>;
     loading: boolean;
 }
@@ -43,14 +57,12 @@ const FilterButton: React.FC<PropsType> = props => {
     };
 
     const handleResetFilters = () => {
-        // Reset to 1 week default
-        const today = new Date();
-        const oneWeekAgo = new Date(today);
-        oneWeekAgo.setDate(today.getDate() - 7);
+        const today = moment.tz('Asia/Dhaka').format('YYYY-MM-DD');
 
         setFilters({
-            fromDate: oneWeekAgo.toISOString().split('T')[0],
-            toDate: today.toISOString().split('T')[0],
+            employeeId: '',
+            fromDate: today,
+            toDate: today,
         });
     };
 
@@ -101,6 +113,38 @@ const FilterButton: React.FC<PropsType> = props => {
                     </header>
                     <div className="overflow-y-scroll max-h-[70vh] p-4">
                         <div className="grid grid-cols-1 gap-x-3 gap-y-4 mb-4">
+                            <div>
+                                <label className="uppercase tracking-wide text-gray-700 text-sm font-bold flex gap-2 mb-2">
+                                    Employee
+                                </label>
+                                <Select
+                                    {...setClassNameAndIsDisabled(isOpen)}
+                                    options={props.employeeOptions}
+                                    classNamePrefix="react-select"
+                                    menuPortalTarget={setMenuPortalTarget}
+                                    styles={setCalculatedZIndex(baseZIndex)}
+                                    value={
+                                        props.employeeOptions.find(
+                                            option =>
+                                                option.value ===
+                                                filters.employeeId,
+                                        ) || null
+                                    }
+                                    onChange={selectedOption =>
+                                        setFilters(
+                                            (
+                                                prevData: PropsType['filters'],
+                                            ) => ({
+                                                ...prevData,
+                                                employeeId:
+                                                    selectedOption?.value || '',
+                                            }),
+                                        )
+                                    }
+                                    isClearable
+                                    placeholder="Select employee"
+                                />
+                            </div>
                             <div>
                                 <label className="uppercase tracking-wide text-gray-700 text-sm font-bold flex gap-2 mb-2">
                                     Date Range

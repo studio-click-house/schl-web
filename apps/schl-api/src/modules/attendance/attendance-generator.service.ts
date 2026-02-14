@@ -71,6 +71,120 @@ export class AttendanceGeneratorService {
     }
 
     /**
+     * Prefill Absent (A) records at the start of the given date for employees
+     * who are expected to work (i.e. NOT on Holiday/Weekend/Approved Leave/Shift-cancel).
+     * Idempotent: will NOT overwrite existing attendance records.
+     */
+    async prefillForDate(date: Date) {
+        const startOfDay = moment(date)
+            .tz('Asia/Dhaka')
+            .startOf('day')
+            .toDate();
+        const endOfDay = moment(date).tz('Asia/Dhaka').endOf('day').toDate();
+        const yyyymmdd = moment(startOfDay)
+            .tz('Asia/Dhaka')
+            .format('YYYY-MM-DD');
+        const dayOfWeek = moment(date).tz('Asia/Dhaka').day(); // 0-6
+
+        // Fetch Flags Code -> ID Map
+        const flags = await this.attendanceFlagModel.find().lean().exec();
+        const flagMap = new Map<string, Types.ObjectId>();
+        flags.forEach(f => flagMap.set(f.code, f._id));
+
+        // Fetch Department Configs
+        const departments = await this.departmentModel.find().lean().exec();
+        const deptMap = new Map<string, number[]>();
+        departments.forEach(d => {
+            const normalizedName = d.name.trim().toLowerCase();
+            deptMap.set(normalizedName, d.weekend_days);
+        });
+
+        // Get active employees
+        const employees = await this.employeeModel.find({
+            status: { $in: ['active', 'on-leave'] },
+        });
+
+        this.logger.log(
+            `Prefilling Absent for ${employees.length} employees for date ${yyyymmdd}`,
+        );
+
+        for (const emp of employees) {
+            try {
+                // Skip if attendance already exists for that shift_date
+                const existing = await this.attendanceModel.findOne({
+                    employee: emp._id,
+                    shift_date: startOfDay,
+                });
+                if (existing) continue; // idempotent
+
+                // If shift is explicitly cancelled, do NOT prefill Absent here
+                const override = await this.shiftOverrideModel
+                    .findOne({ employee: emp._id, shift_date: startOfDay })
+                    .lean()
+                    .exec();
+                if (override && override.override_type === 'cancel') continue;
+
+                // Skip Holidays (range intersection)
+                const holiday = await this.holidayModel.findOne({
+                    dateFrom: { $lte: endOfDay },
+                    dateTo: { $gte: startOfDay },
+                });
+                if (holiday) continue;
+
+                // Skip approved Leave
+                const leave = await this.leaveModel.findOne({
+                    employee: emp._id,
+                    status: 'approved',
+                    start_date: { $lte: endOfDay },
+                    end_date: { $gte: startOfDay },
+                });
+                if (leave) continue;
+
+                // Skip Weekends for employee's department
+                const deptName = emp.department
+                    ? emp.department.trim().toLowerCase()
+                    : '';
+                const weekendDays = deptMap.get(deptName) || [0];
+                const isWeekend = weekendDays.includes(dayOfWeek);
+                if (isWeekend) continue;
+
+                // If there's no resolved shift (no template), we still prefill Absent
+                // because employee is considered expected to be present by business rule.
+
+                const flagId = flagMap.get('A');
+                const systemStatus =
+                    ATTENDANCE_STATUSES.find(
+                        s => (s as string) === 'system-generated',
+                    ) ?? ATTENDANCE_STATUSES[0];
+
+                // Prefill payload: we intentionally set in_time/out_time to null so the
+                // record represents a provisional Absent and will be converted on check-in.
+                const payload: Partial<Attendance> = {
+                    shift_date: startOfDay,
+                    employee: emp._id,
+                    user_id: emp.e_id
+                        ? `SYS_${emp.e_id}`
+                        : `SYS_${emp._id.toString()}`,
+                    device_id: DEFAULT_DEVICE_ID,
+                    source_ip: DEFAULT_SOURCE_IP,
+                    verify_mode: 'auto',
+                    status: systemStatus,
+                    flag: flagId,
+                    late_minutes: 0,
+                    out_remark: 'Prefilled Absent',
+                    in_remark: 'Prefilled Absent',
+                };
+
+                await this.attendanceModel.create(payload);
+            } catch (err: any) {
+                this.logger.error(
+                    `Failed to prefill attendance for emp ${emp._id.toString()}: ${err.message}`,
+                );
+            }
+        }
+    }
+
+    /**
      * Generates attendance records for L, H, W, A flags if no record exists
      */
     async generateForDate(date: Date) {
@@ -143,12 +257,6 @@ export class AttendanceGeneratorService {
                         continue; // Preserve manual/device-generated attendance
                     }
                 }
-
-                // Resolve Shift for times
-                const shift = await this.attendanceService.resolveShiftForDate(
-                    emp._id,
-                    startOfDay,
-                );
 
                 let flagCode = ''; // Default None
                 let remarks = '';
@@ -285,34 +393,6 @@ export class AttendanceGeneratorService {
                     }
                 }
 
-                // Determine Times
-                let inTimeStr = '09:00';
-                let outTimeStr = '17:00';
-
-                if (shift) {
-                    inTimeStr = shift.shift_start;
-                    outTimeStr = shift.shift_end;
-                }
-
-                const inTimeDate = moment
-                    .tz(
-                        `${yyyymmdd} ${inTimeStr}`,
-                        'YYYY-MM-DD HH:mm',
-                        'Asia/Dhaka',
-                    )
-                    .toDate();
-                let outTimeDate = moment
-                    .tz(
-                        `${yyyymmdd} ${outTimeStr}`,
-                        'YYYY-MM-DD HH:mm',
-                        'Asia/Dhaka',
-                    )
-                    .toDate();
-
-                if (outTimeDate < inTimeDate) {
-                    outTimeDate = moment(outTimeDate).add(1, 'day').toDate();
-                }
-
                 // Fetch User ID (Device ID equivalent)
                 const deviceUser = await this.deviceUserModel.findOne({
                     employee: emp._id,
@@ -349,8 +429,6 @@ export class AttendanceGeneratorService {
                     ) ?? ATTENDANCE_STATUSES[0];
 
                 const payload: Partial<Attendance> = {
-                    in_time: inTimeDate,
-                    out_time: outTimeDate,
                     shift_date: startOfDay,
                     employee: emp._id,
                     user_id: userId,

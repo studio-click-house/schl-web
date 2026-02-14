@@ -3,7 +3,6 @@ import { Transform, Type } from 'class-transformer';
 import {
     IsBoolean,
     IsInt,
-    IsNotEmpty,
     IsOptional,
     IsString,
     Max,
@@ -28,12 +27,16 @@ export class SearchAttendanceQueryDto {
     @Transform(({ value }) => toBoolean(value, true))
     @IsBoolean()
     paginated: boolean = true;
+
+    @IsOptional()
+    @IsString()
+    employeeId?: string;
 }
 
 export class SearchAttendanceBodyDto {
+    @IsOptional()
     @IsString()
-    @IsNotEmpty()
-    employeeId: string;
+    employeeId?: string;
 
     @IsOptional()
     @IsString()

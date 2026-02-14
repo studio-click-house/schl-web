@@ -2,7 +2,6 @@ import {
     Body,
     Controller,
     Delete,
-    Get,
     Param,
     Post,
     Put,
@@ -58,13 +57,19 @@ export class AttendanceController {
         @Body() body: SearchAttendanceBodyDto,
         @Req() req: Request & { user: UserSession },
     ) {
+        const effectiveEmployeeId =
+            body.employeeId?.trim() || query.employeeId?.trim() || undefined;
+
         const pagination = {
             page: query.page,
             itemsPerPage: query.itemsPerPage,
             paginated: query.paginated,
         };
         return await this.attendanceService.searchAttendance(
-            body,
+            {
+                ...body,
+                employeeId: effectiveEmployeeId,
+            },
             pagination,
             req.user,
         );

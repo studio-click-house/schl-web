@@ -196,7 +196,7 @@ const FilterButton: React.FC<PropsType> = props => {
 
                                 <div>
                                     <label className="uppercase tracking-wide text-gray-700 text-sm font-bold block mb-2">
-                                        Paid
+                                        Pay Eligibility
                                     </label>
                                     <Select
                                         {...setClassNameAndIsDisabled(isOpen)}
@@ -223,7 +223,7 @@ const FilterButton: React.FC<PropsType> = props => {
                                                     : null,
                                             }))
                                         }
-                                        placeholder="Select Paid Status"
+                                        placeholder="Select Pay Eligibility"
                                         isClearable
                                     />
                                 </div>

@@ -1,5 +1,7 @@
 'use client';
 import Badge from '@/components/Badge';
+import Pagination from '@/components/Pagination';
+import { usePaginationManager } from '@/hooks/usePaginationManager';
 import { useAuthedFetchApi } from '@/lib/api-client';
 import {
     LeaveType,
@@ -51,70 +53,92 @@ const List: React.FC = () => {
         toDate: string;
         isPaid: boolean | null;
         leaveType: string;
-    }>({ employeeId: '', fromDate: '', toDate: '', isPaid: null, leaveType: '' });
+    }>({
+        employeeId: '',
+        fromDate: '',
+        toDate: '',
+        isPaid: null,
+        leaveType: '',
+    });
 
-    const fetchData = useCallback(async () => {
-        setLoading(true);
-        try {
-            // Build query params from filters
-            // Use POST /v1/leaves/search — send filters in body (isPaid is boolean)
-            const query = new URLSearchParams({ paginated: 'false' });
-            const leavesPath = `/v1/leaves/search?${query.toString()}`;
+    // pagination
+    const [page, setPage] = useState<number>(1);
+    const [pageCount, setPageCount] = useState<number>(0);
+    const [itemPerPage, setItemPerPage] = useState<number>(30);
 
-            const [leavesRes, employeesRes, flagsRes] = await Promise.all([
-                authedFetchApi<{ items: Leave[]; pagination: { count: number; pageCount: number } }>(
-                    { path: leavesPath },
-                    {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            employeeId: filters.employeeId || undefined,
-                            fromDate: filters.fromDate || undefined,
-                            toDate: filters.toDate || undefined,
-                            isPaid: typeof filters.isPaid === 'boolean' ? filters.isPaid : undefined,
-                            leaveType: filters.leaveType || undefined,
-                        }),
-                    },
-                ),
-                authedFetchApi<Employee[]>(
-                    {
-                        path: '/v1/employee/search-employees',
-                        query: { paginated: false },
-                    },
-                    {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({}),
-                    },
-                ),
-                authedFetchApi<AttendanceFlag[]>(
-                    { path: '/v1/attendance-flags' },
-                    { method: 'GET' },
-                ),
-            ]);
+    const fetchData = useCallback(
+        async (pageArg: number = 1, itemsArg: number = itemPerPage) => {
+            setLoading(true);
+            try {
+                // POST /v1/leaves/search with pagination
+                const query = new URLSearchParams({
+                    paginated: 'true',
+                    page: String(pageArg),
+                    itemsPerPage: String(itemsArg),
+                });
+                const leavesPath = `/v1/leaves/search?${query.toString()}`;
 
-            if (leavesRes.ok) {
-                // support both paginated and legacy array responses
-                const data = leavesRes.data as any;
-                if (Array.isArray(data)) setLeaves(data);
-                else setLeaves(data.items || []);
+                const [leavesRes, employeesRes, flagsRes] = await Promise.all([
+                    authedFetchApi<{
+                        items: Leave[];
+                        pagination: { count: number; pageCount: number };
+                    }>(
+                        { path: leavesPath },
+                        {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                employeeId: filters.employeeId || undefined,
+                                fromDate: filters.fromDate || undefined,
+                                toDate: filters.toDate || undefined,
+                                isPaid:
+                                    typeof filters.isPaid === 'boolean'
+                                        ? filters.isPaid
+                                        : undefined,
+                                leaveType: filters.leaveType || undefined,
+                            }),
+                        },
+                    ),
+                    authedFetchApi<Employee[]>(
+                        {
+                            path: '/v1/employee/search-employees',
+                            query: { paginated: false },
+                        },
+                        {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({}),
+                        },
+                    ),
+                    authedFetchApi<AttendanceFlag[]>(
+                        { path: '/v1/attendance-flags' },
+                        { method: 'GET' },
+                    ),
+                ]);
+
+                if (leavesRes.ok) {
+                    const data = leavesRes.data as any;
+                    setLeaves(data.items || []);
+                    setPageCount(data.pagination?.pageCount || 0);
+                }
+
+                if (employeesRes.ok) setEmployees(employeesRes.data);
+                if (flagsRes.ok) setFlags(flagsRes.data);
+
+                if (!leavesRes.ok) toast.error('Failed to fetch leaves');
+            } catch (err) {
+                console.error(err);
+                toast.error('Network error');
+            } finally {
+                setLoading(false);
             }
-
-            if (employeesRes.ok) setEmployees(employeesRes.data);
-            if (flagsRes.ok) setFlags(flagsRes.data);
-
-            if (!leavesRes.ok) toast.error('Failed to fetch leaves');
-        } catch (err) {
-            console.error(err);
-            toast.error('Network error');
-        } finally {
-            setLoading(false);
-        }
-    }, [authedFetchApi, filters]);
+        },
+        [authedFetchApi, filters, itemPerPage],
+    );
 
     useEffect(() => {
-        fetchData();
-    }, [fetchData]);
+        fetchData(page, itemPerPage);
+    }, [fetchData, page, itemPerPage]);
 
     const handleStatusChange = async (
         id: string,
@@ -132,7 +156,7 @@ const List: React.FC = () => {
 
             if (response.ok) {
                 toast.success(`Leave ${status}`);
-                fetchData(); // Refresh list
+                fetchData(page, itemPerPage); // Refresh list
             } else {
                 const msg = response.data.message;
                 toast.error(
@@ -156,7 +180,7 @@ const List: React.FC = () => {
             );
             if (res.ok) {
                 toast.success('Deleted');
-                fetchData();
+                fetchData(page, itemPerPage);
             } else {
                 toast.error(res.data?.message || 'Delete failed');
             }
@@ -185,8 +209,30 @@ const List: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-3">
+                    <Pagination
+                        page={page}
+                        pageCount={pageCount}
+                        isLoading={loading}
+                        setPage={setPage}
+                    />
+
+                    <select
+                        value={itemPerPage}
+                        onChange={e =>
+                            setItemPerPage(parseInt(e.target.value, 10))
+                        }
+                        className="appearance-none cursor-pointer px-4 py-2 bg-gray-50 text-gray-700 border border-gray-200 rounded-md leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
+                    >
+                        <option value={30}>30</option>
+                        <option value={50}>50</option>
+                        <option value={100}>100</option>
+                    </select>
+
                     <Filter
-                        submitHandler={() => fetchData()}
+                        submitHandler={() => {
+                            setPage(1);
+                            fetchData(1, itemPerPage);
+                        }}
                         filters={filters}
                         setFilters={setFilters}
                         isLoading={loading}
@@ -213,13 +259,10 @@ const List: React.FC = () => {
                                 Employee
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Type
+                                Category
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Subtype
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Paid
+                                Pay Eligibility
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Period
@@ -239,7 +282,7 @@ const List: React.FC = () => {
                         {leaves.length === 0 ? (
                             <tr>
                                 <td
-                                    colSpan={8}
+                                    colSpan={7}
                                     className="px-6 py-4 text-center text-gray-500"
                                 >
                                     No leave requests found.
@@ -264,24 +307,7 @@ const List: React.FC = () => {
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                             {empName}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            {flag ? (
-                                                <Badge
-                                                    value={flag.name}
-                                                    style={{
-                                                        backgroundColor:
-                                                            flag.color ||
-                                                            '#ccc',
-                                                        color: '#fff',
-                                                        borderColor:
-                                                            flag.color ||
-                                                            '#ccc',
-                                                    }}
-                                                />
-                                            ) : (
-                                                '-'
-                                            )}
-                                        </td>
+
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                             {leave.leave_type
                                                 ? (leaveTypeOptions.find(
@@ -397,7 +423,7 @@ const List: React.FC = () => {
                     setIsModalOpen(false);
                     setEditingLeave(null);
                 }}
-                onSuccess={fetchData}
+                onSuccess={() => fetchData(page, itemPerPage)}
                 flags={flags}
                 employees={employees}
             />

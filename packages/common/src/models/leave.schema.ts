@@ -2,6 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { LEAVE_TYPES } from '@repo/common/constants/leave.constant';
 import * as mongoose from 'mongoose';
 import { HydratedDocument } from 'mongoose';
+import { AttendanceFlag } from './attendance-flag.schema';
 
 export type LeaveDocument = HydratedDocument<Leave>;
 
@@ -22,10 +23,10 @@ export class Leave {
 
     @Prop({
         required: true,
-        ref: 'attendance_flags',
+        ref: AttendanceFlag.name,
         type: mongoose.Schema.Types.ObjectId,
     })
-    flag: mongoose.Types.ObjectId; // The flag (usually generic 'L' for leaves)
+    flag: mongoose.Types.ObjectId; // The flag (usually generic 'L' for leaves')
 
     @Prop({ required: true, type: String, enum: LEAVE_TYPES as any })
     leave_type: string; // 'casual' | 'emergency' | 'marriage' | 'unpaid'

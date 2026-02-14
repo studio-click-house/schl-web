@@ -13,8 +13,8 @@ export type AttendanceDocument = HydratedDocument<Attendance>;
 
 @Schema()
 export class Attendance {
-    @Prop({ required: [true, 'In-time is required'], type: Date, index: true })
-    in_time: Date;
+    @Prop({ required: false, type: Date, default: null, index: true })
+    in_time: Date | null;
 
     @Prop({ required: false, type: String, default: '' })
     in_remark: string;
@@ -40,7 +40,7 @@ export class Attendance {
 
     @Prop({
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'attendance_flags',
+        ref: AttendanceFlag.name,
         required: false,
     })
     flag?: mongoose.Types.ObjectId;

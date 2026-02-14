@@ -17,7 +17,15 @@ import {
     AttendanceFlagDocument,
 } from '@repo/common/models/attendance-flag.schema';
 import { Attendance } from '@repo/common/models/attendance.schema';
+import {
+    Department,
+    DepartmentDocument,
+} from '@repo/common/models/department.schema';
 import { DeviceUser } from '@repo/common/models/device-user.schema';
+import {
+    Employee,
+    EmployeeDocument,
+} from '@repo/common/models/employee.schema';
 import { Holiday, HolidayDocument } from '@repo/common/models/holiday.schema';
 import { Leave, LeaveDocument } from '@repo/common/models/leave.schema';
 import { ShiftOverride } from '@repo/common/models/shift-override.schema';
@@ -31,7 +39,7 @@ import {
 } from '@repo/common/utils/ot-calculation';
 import { hasPerm } from '@repo/common/utils/permission-check';
 import * as moment from 'moment-timezone';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { CreateAttendanceBodyDto } from './dto/create-attendance.dto';
 import { MarkAttendanceDto } from './dto/mark-attendance.dto';
 import { SearchAttendanceBodyDto } from './dto/search-attendance.dto';
@@ -40,9 +48,14 @@ import { AttendanceFactory } from './factories/attendance.factory';
 @Injectable()
 export class AttendanceService {
     private readonly logger = new Logger(AttendanceService.name);
+
     constructor(
         @InjectModel(Attendance.name)
         private attendanceModel: Model<Attendance>,
+        @InjectModel(Employee.name)
+        private employeeModel: Model<EmployeeDocument>,
+        @InjectModel(Department.name)
+        private departmentModel: Model<DepartmentDocument>,
         @InjectModel(DeviceUser.name)
         private deviceUserModel: Model<DeviceUser>,
         @InjectModel(ShiftTemplate.name)
@@ -443,6 +456,56 @@ export class AttendanceService {
                 return created;
             }
 
+            // If attendance exists and is an auto-generated Absent (prefill),
+            // treat this incoming mark as the *real* check-in and convert the record.
+            if (
+                (existingAttendance as any).verify_mode === 'auto' &&
+                (existingAttendance as any).status === 'system-generated' &&
+                (existingAttendance as any).flag
+            ) {
+                try {
+                    const flagDoc = await this.attendanceFlagModel
+                        .findById((existingAttendance as any).flag)
+                        .lean()
+                        .exec();
+
+                    // Only convert when the existing system-generated flag is 'A' (Absent)
+                    if (flagDoc && flagDoc.code === 'A') {
+                        // Convert prefilled Absent into a real check-in
+                        existingAttendance.in_time = currentTime;
+                        existingAttendance.verify_mode =
+                            normalizedBody.verifyMode;
+                        existingAttendance.status = normalizedBody.status; // e.g. 'check-in'
+                        if (normalizedBody.deviceId) {
+                            existingAttendance.device_id =
+                                normalizedBody.deviceId;
+                        }
+                        existingAttendance.total_checkins = 1;
+                        existingAttendance.out_time = null;
+                        existingAttendance.ot_minutes = 0;
+
+                        // Re-evaluate lateness/flag based on actual shift (if available)
+                        if (resolved.shift) {
+                            await this.evaluateAttendance(
+                                existingAttendance as any,
+                                resolved.shift,
+                                deviceUserMapping.employee,
+                            );
+                        }
+
+                        // Persist and return
+                        await existingAttendance.save();
+                        return existingAttendance;
+                    }
+                } catch (err) {
+                    this.logger.error(
+                        'Failed converting prefilled absent:',
+                        err as Error,
+                    );
+                    // fall through to normal subsequent-check-in logic below
+                }
+            }
+
             // Existing attendance found - this is a subsequent check-in (update out_time)
             // Prevent accidental duplicate scans within 2 minutes
             const lastScanTime =
@@ -589,59 +652,293 @@ export class AttendanceService {
         }
 
         try {
-            const query: Record<string, unknown> = {
-                employee: filters.employeeId,
+            const today = moment.tz('Asia/Dhaka');
+            const from = filters.fromDate
+                ? moment.tz(filters.fromDate, 'Asia/Dhaka').startOf('day')
+                : today.clone().startOf('day');
+            const to = filters.toDate
+                ? moment.tz(filters.toDate, 'Asia/Dhaka').endOf('day')
+                : today.clone().endOf('day');
+            if (!from.isValid() || !to.isValid()) {
+                throw new BadRequestException('Invalid from/to date');
+            }
+
+            const page = pagination.paginated ? pagination.page : 1;
+            const limit = pagination.paginated ? pagination.itemsPerPage : 1000;
+            const skip = (page - 1) * limit;
+
+            const employeeQuery: Record<string, unknown> = filters.employeeId
+                ? { _id: filters.employeeId }
+                : { status: { $in: ['active', 'on-leave'] } };
+
+            const [employees, employeeCount] = await Promise.all([
+                this.employeeModel
+                    .find(employeeQuery)
+                    .select(
+                        'real_name e_id designation department status branch',
+                    )
+                    .sort({ real_name: 1 })
+                    .skip(skip)
+                    .limit(limit)
+                    .lean()
+                    .exec(),
+                this.employeeModel.countDocuments(employeeQuery),
+            ]);
+
+            if (!employees.length) {
+                return {
+                    pagination: {
+                        count: employeeCount,
+                        pageCount: Math.ceil(employeeCount / limit),
+                    },
+                    items: [],
+                };
+            }
+
+            const employeeIds = employees.map(e => e._id);
+            const fromDate = from.toDate();
+            const toDate = to.toDate();
+
+            const [attendanceRows, leaveRows, holidayRows, departments] =
+                await Promise.all([
+                    this.attendanceModel
+                        .find({
+                            employee: { $in: employeeIds },
+                            shift_date: { $gte: fromDate, $lte: toDate },
+                        })
+                        .populate('flag')
+                        .sort({ createdAt: -1 })
+                        .lean()
+                        .exec(),
+                    this.leaveModel
+                        .find({
+                            employee: { $in: employeeIds },
+                            status: 'approved',
+                            start_date: { $lte: toDate },
+                            end_date: { $gte: fromDate },
+                        })
+                        .lean()
+                        .exec(),
+                    this.holidayModel
+                        .find({
+                            dateFrom: { $lte: toDate },
+                            dateTo: { $gte: fromDate },
+                        })
+                        .lean()
+                        .exec(),
+                    this.departmentModel.find().lean().exec(),
+                ]);
+
+            const departmentWeekendMap = new Map<string, number[]>();
+            departments.forEach(dept => {
+                departmentWeekendMap.set(
+                    dept.name.trim().toLowerCase(),
+                    dept.weekend_days || [0],
+                );
+            });
+
+            const employeeMap = new Map<string, any>();
+            employees.forEach(emp => {
+                employeeMap.set(emp._id.toString(), emp);
+            });
+
+            const attendanceByKey = new Map<string, any>();
+            const dateToKey = (date: Date) =>
+                moment.tz(date, 'Asia/Dhaka').format('YYYY-MM-DD');
+
+            const checkinPriority = (row: any): number => {
+                const code = row?.flag?.code || '';
+                if (row?.verify_mode !== 'auto') return 100;
+                if (code === 'P' || code === 'D' || code === 'E') return 90;
+                if (code === 'L') return 40;
+                if (code === 'H') return 30;
+                if (code === 'W') return 20;
+                if (code === 'A') return 10;
+                return 0;
             };
 
-            if (filters.fromDate || filters.toDate) {
-                const from = filters.fromDate
-                    ? moment.tz(filters.fromDate, 'Asia/Dhaka').startOf('day')
-                    : null;
-                const to = filters.toDate
-                    ? moment.tz(filters.toDate, 'Asia/Dhaka').endOf('day')
-                    : null;
-
-                const range: Record<string, Date> = {};
-                if (from?.isValid()) range.$gte = from.toDate();
-                if (to?.isValid()) range.$lte = to.toDate();
-
-                if (Object.keys(range).length > 0) {
-                    query.in_time = range;
+            for (const row of attendanceRows) {
+                const key = `${String(row.employee)}_${dateToKey(row.shift_date)}`;
+                const existing = attendanceByKey.get(key);
+                if (
+                    !existing ||
+                    checkinPriority(row) > checkinPriority(existing)
+                ) {
+                    attendanceByKey.set(key, row);
                 }
             }
 
-            if (!pagination.paginated) {
-                const records = await this.attendanceModel
-                    .find(query)
-                    .populate('flag')
-                    .sort({ in_time: -1 })
-                    .exec();
-                return records;
+            const leaveDateSetByEmployee = new Map<string, Set<string>>();
+
+            const dates: string[] = [];
+            for (
+                let cursor = from.clone().startOf('day');
+                cursor.isSameOrBefore(to, 'day');
+                cursor.add(1, 'day')
+            ) {
+                dates.push(cursor.format('YYYY-MM-DD'));
             }
+            const dateSet = new Set(dates);
 
-            const skip = (pagination.page - 1) * pagination.itemsPerPage;
-            const limit = pagination.itemsPerPage;
+            const holidayDateSet = new Set<string>();
+            holidayRows.forEach(holiday => {
+                const hStart = moment
+                    .tz(holiday.dateFrom, 'Asia/Dhaka')
+                    .startOf('day');
+                const hEnd = moment
+                    .tz(holiday.dateTo, 'Asia/Dhaka')
+                    .endOf('day');
 
-            const [items, count] = await Promise.all([
-                this.attendanceModel
-                    .find(query)
-                    .populate('flag')
-                    .sort({ in_time: -1 })
-                    .skip(skip)
-                    .limit(limit)
-                    .exec(),
-                this.attendanceModel.countDocuments(query),
+                for (
+                    const dayCursor = hStart.clone();
+                    dayCursor.isSameOrBefore(hEnd, 'day');
+                    dayCursor.add(1, 'day')
+                ) {
+                    const key = dayCursor.format('YYYY-MM-DD');
+                    if (dateSet.has(key)) {
+                        holidayDateSet.add(key);
+                    }
+                }
+            });
+
+            leaveRows.forEach(leave => {
+                const employeeId = String(leave.employee);
+                const set =
+                    leaveDateSetByEmployee.get(employeeId) || new Set<string>();
+
+                const lStart = moment
+                    .tz(leave.start_date, 'Asia/Dhaka')
+                    .startOf('day');
+                const lEnd = moment
+                    .tz(leave.end_date, 'Asia/Dhaka')
+                    .endOf('day');
+
+                for (
+                    const dayCursor = lStart.clone();
+                    dayCursor.isSameOrBefore(lEnd, 'day');
+                    dayCursor.add(1, 'day')
+                ) {
+                    const key = dayCursor.format('YYYY-MM-DD');
+                    if (dateSet.has(key)) {
+                        set.add(key);
+                    }
+                }
+
+                leaveDateSetByEmployee.set(employeeId, set);
+            });
+
+            const resolveVirtualCode = (
+                employee: any,
+                dateKey: string,
+            ): string => {
+                const employeeId = employee._id.toString();
+
+                const leaveDateSet = leaveDateSetByEmployee.get(employeeId);
+                if (leaveDateSet?.has(dateKey)) return 'L';
+
+                if (holidayDateSet.has(dateKey)) return 'H';
+
+                const weekendDays = departmentWeekendMap.get(
+                    (employee.department || '').trim().toLowerCase(),
+                ) || [0];
+                const dayOfWeek = moment
+                    .tz(dateKey, 'YYYY-MM-DD', 'Asia/Dhaka')
+                    .day();
+                if (weekendDays.includes(dayOfWeek)) return 'W';
+
+                return 'A';
+            };
+
+            const precedence = new Map<string, number>([
+                ['P', 100],
+                ['D', 95],
+                ['E', 90],
+                ['L', 40],
+                ['H', 30],
+                ['W', 20],
+                ['A', 10],
             ]);
 
-            const pageCount = Math.ceil(count / limit);
+            const items: any[] = [];
 
-            return {
+            for (const employee of employees) {
+                for (const dateKey of dates) {
+                    const key = `${employee._id.toString()}_${dateKey}`;
+                    const existing = attendanceByKey.get(key);
+                    const existingCode = existing?.flag?.code || '';
+                    const virtualCode = resolveVirtualCode(employee, dateKey);
+
+                    const existingRank = precedence.get(existingCode) || 0;
+                    const virtualRank = precedence.get(virtualCode) || 0;
+
+                    if (existing && existingRank >= virtualRank) {
+                        items.push({
+                            ...existing,
+                            employee,
+                            is_virtual: false,
+                        });
+                    } else {
+                        const shiftDate = moment
+                            .tz(dateKey, 'YYYY-MM-DD', 'Asia/Dhaka')
+                            .startOf('day')
+                            .toDate();
+
+                        items.push({
+                            _id: `virtual_${employee._id.toString()}_${dateKey}`,
+                            employee,
+                            shift_date: shiftDate,
+                            in_time: null,
+                            out_time: null,
+                            in_remark: `Virtual ${virtualCode}`,
+                            out_remark: '',
+                            ot_minutes: 0,
+                            verify_mode: 'auto',
+                            status: 'system-generated',
+                            flag: {
+                                _id: new Types.ObjectId(),
+                                code: virtualCode,
+                                color:
+                                    virtualCode === 'L'
+                                        ? '#16a34a'
+                                        : virtualCode === 'H'
+                                          ? '#0ea5e9'
+                                          : virtualCode === 'W'
+                                            ? '#f59e0b'
+                                            : '#ef4444',
+                            },
+                            is_virtual: true,
+                        });
+                    }
+                }
+            }
+
+            items.sort((a, b) => {
+                const aDate = moment
+                    .tz(a.shift_date || a.in_time, 'Asia/Dhaka')
+                    .valueOf();
+                const bDate = moment
+                    .tz(b.shift_date || b.in_time, 'Asia/Dhaka')
+                    .valueOf();
+
+                if (bDate !== aDate) return bDate - aDate;
+                const aName = a.employee?.real_name || '';
+                const bName = b.employee?.real_name || '';
+                return aName.localeCompare(bName);
+            });
+
+            const response = {
                 pagination: {
-                    count,
-                    pageCount,
+                    count: employeeCount,
+                    pageCount: Math.ceil(employeeCount / limit),
                 },
                 items,
             };
+
+            if (!pagination.paginated) {
+                return response.items;
+            }
+
+            return response;
         } catch (err) {
             if (err instanceof HttpException) throw err;
             this.logger.error('Failed to search attendance records', err);

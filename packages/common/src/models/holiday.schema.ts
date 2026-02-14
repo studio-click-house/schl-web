@@ -1,6 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import * as mongoose from 'mongoose';
 import { HydratedDocument } from 'mongoose';
+import { AttendanceFlag } from './attendance-flag.schema';
 
 export type HolidayDocument = HydratedDocument<Holiday>;
 
@@ -20,7 +21,7 @@ export class Holiday {
 
     @Prop({
         required: true,
-        ref: 'attendance_flags',
+        ref: AttendanceFlag.name,
         type: mongoose.Schema.Types.ObjectId,
     })
     flag: mongoose.Types.ObjectId; // E.g., The 'H' flag

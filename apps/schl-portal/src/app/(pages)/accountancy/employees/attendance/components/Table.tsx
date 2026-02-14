@@ -3,17 +3,14 @@
 import Badge from '@/components/Badge';
 import NoData, { Type } from '@/components/NoData';
 import Pagination from '@/components/Pagination';
-import { usePaginationManager } from '@/hooks/usePaginationManager';
 import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import { AttendanceDocument } from '@repo/common/models/attendance.schema';
-import { formatDate, formatTime } from '@repo/common/utils/date-helpers';
+import { EmployeeDocument } from '@repo/common/models/employee.schema';
 import { cn } from '@repo/common/utils/general-utils';
 import { hasPerm } from '@repo/common/utils/permission-check';
-import { Undo2 } from 'lucide-react';
 import moment from 'moment-timezone';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { formatOT } from '../utils/ot-helpers';
@@ -21,56 +18,117 @@ import DeleteButton from './Delete';
 import FilterButton from './Filter';
 
 interface AttendanceTableProps {
-    employeeId: string;
+    queryEmployeeId?: string;
 }
+
+type AttendanceWithRelations = AttendanceDocument & {
+    employee?: EmployeeDocument | string;
+    shift_date?: Date;
+    flag?: any;
+};
 
 type AttendanceResponse = {
     pagination: {
         count: number;
         pageCount: number;
     };
-    items: AttendanceDocument[];
+    items: AttendanceWithRelations[];
 };
 
-const Table = ({ employeeId }: AttendanceTableProps) => {
-    const [attendanceData, setAttendanceData] = useState<AttendanceDocument[]>(
+type EmployeeOption = {
+    value: string;
+    label: string;
+};
+
+const getDefaultDateRange = (): { fromDate: string; toDate: string } => {
+    const today = moment.tz('Asia/Dhaka').format('YYYY-MM-DD');
+    return {
+        fromDate: today,
+        toDate: today,
+    };
+};
+
+const Table = ({ queryEmployeeId }: AttendanceTableProps) => {
+    const [attendanceData, setAttendanceData] = useState<
+        AttendanceWithRelations[]
+    >([]);
+    const [employeeOptions, setEmployeeOptions] = useState<EmployeeOption[]>(
         [],
     );
     const [pageCount, setPageCount] = useState<number>(0);
+
     const { data: session } = useSession();
     const userPermissions = useMemo(
         () => session?.user.permissions || [],
         [session?.user.permissions],
     );
-    const router = useRouter();
+
     const authedFetchApi = useAuthedFetchApi();
 
     const [loading, setLoading] = useState<boolean>(true);
     const [page, setPage] = useState<number>(1);
     const [itemPerPage, setItemPerPage] = useState<number>(30);
-    const [searchVersion, setSearchVersion] = useState<number>(0);
 
-    // Initialize filters with default 1 week range (using Asia/Dhaka timezone)
-    const getDefaultDateRange = (): { fromDate: string; toDate: string } => {
-        const today = moment.tz('Asia/Dhaka').format('YYYY-MM-DD');
-        const oneWeekAgo = moment
-            .tz('Asia/Dhaka')
-            .subtract(7, 'days')
-            .format('YYYY-MM-DD');
-        return {
-            fromDate: oneWeekAgo,
-            toDate: today,
-        };
-    };
+    const baseDateRange = getDefaultDateRange();
+
+    const initialEmployeeId = queryEmployeeId || '';
 
     const [filters, setFilters] = useState<{
+        employeeId: string;
         fromDate: string;
         toDate: string;
-    }>(getDefaultDateRange());
+    }>({
+        employeeId: initialEmployeeId,
+        ...baseDateRange,
+    });
+
+    const [appliedFilters, setAppliedFilters] = useState<{
+        employeeId: string;
+        fromDate: string;
+        toDate: string;
+    }>({
+        employeeId: initialEmployeeId,
+        ...baseDateRange,
+    });
+
+    const getEmployeesForFilter = useCallback(async () => {
+        try {
+            const response = await authedFetchApi<EmployeeDocument[]>(
+                {
+                    path: '/v1/employee/search-employees',
+                    query: { paginated: false },
+                },
+                {
+                    method: 'POST',
+                    headers: {
+                        Accept: '*/*',
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({}),
+                    cache: 'no-store',
+                },
+            );
+
+            if (response.ok) {
+                const options = (response.data || []).map(employee => ({
+                    value: String(employee._id),
+                    label: `${employee.real_name} (${employee.e_id})`,
+                }));
+                setEmployeeOptions(options);
+            } else {
+                toastFetchError(response);
+            }
+        } catch (error) {
+            console.error(error);
+            toast.error('An error occurred while retrieving employee list');
+        }
+    }, [authedFetchApi]);
 
     const getAllAttendance = useCallback(async () => {
         try {
             setLoading(true);
+
+            const effectiveEmployeeId = appliedFilters.employeeId || undefined;
 
             const response = await authedFetchApi<AttendanceResponse>(
                 {
@@ -88,8 +146,9 @@ const Table = ({ employeeId }: AttendanceTableProps) => {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        employeeId: employeeId,
-                        ...filters,
+                        employeeId: effectiveEmployeeId,
+                        fromDate: appliedFilters.fromDate,
+                        toDate: appliedFilters.toDate,
                     }),
                     cache: 'no-store',
                 },
@@ -108,31 +167,27 @@ const Table = ({ employeeId }: AttendanceTableProps) => {
         } finally {
             setLoading(false);
         }
-    }, [authedFetchApi, employeeId, page, itemPerPage, filters]);
-
-    usePaginationManager({
-        page,
+    }, [
+        appliedFilters.employeeId,
+        appliedFilters.fromDate,
+        appliedFilters.toDate,
+        authedFetchApi,
         itemPerPage,
-        pageCount,
-        setPage,
-        triggerFetch: getAllAttendance,
-    });
+        page,
+    ]);
 
     useEffect(() => {
-        if (searchVersion > 0 && page === 1) {
-            getAllAttendance();
-        }
-    }, [searchVersion, page]);
+        getEmployeesForFilter();
+    }, [getEmployeesForFilter]);
+
+    useEffect(() => {
+        getAllAttendance();
+    }, [getAllAttendance]);
 
     const handleSearch = useCallback(() => {
-        setPage(prev => {
-            if (prev === 1) {
-                setSearchVersion(v => v + 1);
-                return prev;
-            }
-            return 1;
-        });
-    }, [setPage]);
+        setAppliedFilters(filters);
+        setPage(1);
+    }, [filters]);
 
     const deleteAttendance = useCallback(
         async (attendance: AttendanceDocument) => {
@@ -160,6 +215,9 @@ const Table = ({ employeeId }: AttendanceTableProps) => {
         [authedFetchApi, getAllAttendance],
     );
 
+    const getReferenceDate = (attendance: AttendanceWithRelations) =>
+        attendance.shift_date || attendance.in_time;
+
     const formatAttendanceTime = (date?: Date | null) => {
         if (!date) return '-';
         try {
@@ -179,18 +237,17 @@ const Table = ({ employeeId }: AttendanceTableProps) => {
     };
 
     const calculateWorkingHours = (
-        inTime: Date,
-        outTime: Date | null,
+        inTime?: Date | null,
+        outTime?: Date | null,
         flag?: any,
     ) => {
         if (!inTime || !outTime) return '0:0';
-        // If flag says ignore hours, return 0:0
         if (flag && flag.ignore_attendance_hours) return '0:0';
         try {
             const start = moment.tz(inTime, 'Asia/Dhaka');
             const end = moment.tz(outTime, 'Asia/Dhaka');
             const diffMinutes = end.diff(start, 'minutes');
-            const hours = Math.floor(diffMinutes / 60);
+            const hours = Math.floor(Math.max(diffMinutes, 0) / 60);
             const minutes = Math.max(diffMinutes % 60, 0);
             return `${hours}:${minutes < 10 ? '0' : ''}${minutes}`;
         } catch {
@@ -198,7 +255,7 @@ const Table = ({ employeeId }: AttendanceTableProps) => {
         }
     };
 
-    const getDayOfWeek = (date: Date) => {
+    const getDayOfWeek = (date?: Date | null) => {
         if (!date) return '';
         try {
             return moment.tz(date, 'Asia/Dhaka').format('ddd');
@@ -207,23 +264,34 @@ const Table = ({ employeeId }: AttendanceTableProps) => {
         }
     };
 
+    const getEmployeeCode = (attendance: AttendanceWithRelations) => {
+        if (!attendance.employee || typeof attendance.employee === 'string') {
+            return '-';
+        }
+        return attendance.employee.e_id;
+    };
+
+    const getEmployeeName = (attendance: AttendanceWithRelations) => {
+        if (!attendance.employee || typeof attendance.employee === 'string') {
+            return '-';
+        }
+        return attendance.employee.real_name;
+    };
+
     return (
         <>
             <div
                 className={cn(
                     'flex flex-col mb-4 gap-2',
-                    hasPerm('admin:create_task', userPermissions)
-                        ? 'sm:flex-row sm:justify-between'
-                        : 'sm:justify-end sm:flex-row',
+                    'sm:flex-row sm:justify-between',
                 )}
             >
-                <div className="flex flex-col sm:flex-row items- sm:items-center gap-2">
+                <div className="flex flex-col sm:flex-row items-center gap-2">
                     <Link
                         href="/accountancy/employees"
                         className="flex justify-between items-center gap-2 rounded-md bg-blue-600 hover:opacity-90 hover:ring-4 hover:ring-blue-600 transition duration-200 delay-300 hover:text-opacity-100 text-white px-3 py-2"
                     >
-                        Show all employees
-                        <Undo2 size={18} />
+                        Employees
                     </Link>
                 </div>
 
@@ -237,7 +305,10 @@ const Table = ({ employeeId }: AttendanceTableProps) => {
 
                     <select
                         value={itemPerPage}
-                        onChange={e => setItemPerPage(parseInt(e.target.value))}
+                        onChange={e => {
+                            setItemPerPage(parseInt(e.target.value));
+                            setPage(1);
+                        }}
                         required
                         className="appearance-none cursor-pointer px-4 py-2 bg-gray-50 text-gray-700 border border-gray-200 rounded-md leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
                     >
@@ -251,6 +322,7 @@ const Table = ({ employeeId }: AttendanceTableProps) => {
                         submitHandler={handleSearch}
                         setFilters={setFilters}
                         filters={filters}
+                        employeeOptions={employeeOptions}
                         className="w-full justify-between sm:w-auto"
                     />
                 </div>
@@ -266,6 +338,8 @@ const Table = ({ employeeId }: AttendanceTableProps) => {
                                 <thead className="table-dark">
                                     <tr>
                                         <th>S/N</th>
+                                        <th>Employee Code</th>
+                                        <th>Employee Name</th>
                                         <th>Date</th>
                                         <th>Day</th>
                                         <th>Flag</th>
@@ -283,124 +357,146 @@ const Table = ({ employeeId }: AttendanceTableProps) => {
                                 </thead>
                                 <tbody>
                                     {attendanceData?.map(
-                                        (attendance, index) => (
-                                            <tr
-                                                key={String(
-                                                    attendance.createdAt,
-                                                )}
-                                            >
-                                                <td>
-                                                    {(page - 1) * itemPerPage +
-                                                        index +
-                                                        1}
-                                                </td>
-                                                <td className="text-wrap">
-                                                    {formatAttendanceDate(
-                                                        attendance.in_time,
-                                                    )}
-                                                </td>
-                                                <td className="text-wrap">
-                                                    {getDayOfWeek(
-                                                        attendance.in_time,
-                                                    )}
-                                                </td>
-                                                <td className="text-wrap uppercase">
-                                                    {(attendance as any)
-                                                        .flag ? (
-                                                        <Badge
-                                                            value={
-                                                                (
-                                                                    attendance as any
-                                                                ).flag.code
-                                                            }
-                                                            className="border"
-                                                            style={{
-                                                                backgroundColor:
-                                                                    (
-                                                                        attendance as any
-                                                                    ).flag
-                                                                        .color ||
-                                                                    '#e5e7eb',
-                                                                color: '#ffffff',
-                                                                borderColor:
-                                                                    (
-                                                                        attendance as any
-                                                                    ).flag
-                                                                        .color ||
-                                                                    '#e5e7eb',
-                                                            }}
-                                                        />
-                                                    ) : (
-                                                        // Fallback to Status if no flag
-                                                        <Badge
-                                                            value={
-                                                                attendance.status ||
-                                                                'N/A'
-                                                            }
-                                                            className="bg-gray-100 text-gray-800 border-gray-400"
-                                                        />
-                                                    )}
-                                                </td>
-                                                <td className="text-wrap">
-                                                    {formatAttendanceTime(
-                                                        attendance.in_time,
-                                                    )}
-                                                </td>
-                                                <td className="text-wrap">
-                                                    {attendance.in_remark ||
-                                                        '-'}
-                                                </td>
-                                                <td className="text-wrap">
-                                                    {attendance.out_time
-                                                        ? `${formatAttendanceDate(
-                                                              attendance.out_time,
-                                                          )}, ${formatAttendanceTime(
-                                                              attendance.out_time,
-                                                          )}`
-                                                        : '-'}
-                                                </td>
-                                                <td className="text-wrap">
-                                                    {attendance.out_remark ||
-                                                        '-'}
-                                                </td>
-                                                <td className="text-wrap">
-                                                    {calculateWorkingHours(
-                                                        attendance.in_time,
-                                                        attendance.out_time,
-                                                        (attendance as any)
-                                                            .flag,
-                                                    )}
-                                                </td>
-                                                <td className="text-wrap font-semibold text-green-600">
-                                                    {formatOT(
-                                                        attendance.ot_minutes,
-                                                    )}
-                                                </td>
-                                                {hasPerm(
-                                                    'admin:delete_attendance',
-                                                    userPermissions,
-                                                ) && (
-                                                    <td
-                                                        className="text-center"
-                                                        style={{
-                                                            verticalAlign:
-                                                                'middle',
-                                                        }}
-                                                    >
-                                                        <div className="inline-block">
-                                                            <DeleteButton
-                                                                attendanceData={
-                                                                    attendance
-                                                                }
-                                                                submitHandler={
-                                                                    deleteAttendance
-                                                                }
-                                                            />
-                                                        </div>
+                                        (attendance, index) => {
+                                            const referenceDate =
+                                                getReferenceDate(attendance);
+                                            const isVirtualRow = Boolean(
+                                                (attendance as any).is_virtual,
+                                            );
+
+                                            return (
+                                                <tr
+                                                    key={String(attendance._id)}
+                                                >
+                                                    <td>
+                                                        {(page - 1) *
+                                                            itemPerPage +
+                                                            index +
+                                                            1}
                                                     </td>
-                                                )}
-                                            </tr>
-                                        ),
+                                                    <td className="text-wrap">
+                                                        {getEmployeeCode(
+                                                            attendance,
+                                                        )}
+                                                    </td>
+                                                    <td className="text-wrap">
+                                                        {getEmployeeName(
+                                                            attendance,
+                                                        )}
+                                                    </td>
+                                                    <td className="text-wrap">
+                                                        {formatAttendanceDate(
+                                                            referenceDate,
+                                                        )}
+                                                    </td>
+                                                    <td className="text-wrap">
+                                                        {getDayOfWeek(
+                                                            referenceDate,
+                                                        )}
+                                                    </td>
+                                                    <td className="text-wrap uppercase">
+                                                        {(attendance as any)
+                                                            .flag ? (
+                                                            <Badge
+                                                                value={
+                                                                    (
+                                                                        attendance as any
+                                                                    ).flag.code
+                                                                }
+                                                                className="border"
+                                                                style={{
+                                                                    backgroundColor:
+                                                                        (
+                                                                            attendance as any
+                                                                        ).flag
+                                                                            .color ||
+                                                                        '#e5e7eb',
+                                                                    color: '#ffffff',
+                                                                    borderColor:
+                                                                        (
+                                                                            attendance as any
+                                                                        ).flag
+                                                                            .color ||
+                                                                        '#e5e7eb',
+                                                                }}
+                                                            />
+                                                        ) : (
+                                                            <Badge
+                                                                value={
+                                                                    attendance.status ||
+                                                                    'N/A'
+                                                                }
+                                                                className="bg-gray-100 text-gray-800 border-gray-400"
+                                                            />
+                                                        )}
+                                                    </td>
+                                                    <td className="text-wrap">
+                                                        {formatAttendanceTime(
+                                                            attendance.in_time,
+                                                        )}
+                                                    </td>
+                                                    <td className="text-wrap">
+                                                        {attendance.in_remark ||
+                                                            '-'}
+                                                    </td>
+                                                    <td className="text-wrap">
+                                                        {attendance.out_time
+                                                            ? `${formatAttendanceDate(
+                                                                  attendance.out_time,
+                                                              )}, ${formatAttendanceTime(
+                                                                  attendance.out_time,
+                                                              )}`
+                                                            : '-'}
+                                                    </td>
+                                                    <td className="text-wrap">
+                                                        {attendance.out_remark ||
+                                                            '-'}
+                                                    </td>
+                                                    <td className="text-wrap">
+                                                        {calculateWorkingHours(
+                                                            attendance.in_time,
+                                                            attendance.out_time,
+                                                            (attendance as any)
+                                                                .flag,
+                                                        )}
+                                                    </td>
+                                                    <td className="text-wrap font-semibold text-green-600">
+                                                        {formatOT(
+                                                            attendance.ot_minutes,
+                                                        )}
+                                                    </td>
+                                                    {hasPerm(
+                                                        'admin:delete_attendance',
+                                                        userPermissions,
+                                                    ) && (
+                                                        <td
+                                                            className="text-center"
+                                                            style={{
+                                                                verticalAlign:
+                                                                    'middle',
+                                                            }}
+                                                        >
+                                                            {isVirtualRow ? (
+                                                                <span className="text-gray-400">
+                                                                    -
+                                                                </span>
+                                                            ) : (
+                                                                <div className="inline-block">
+                                                                    <DeleteButton
+                                                                        attendanceData={
+                                                                            attendance
+                                                                        }
+                                                                        submitHandler={
+                                                                            deleteAttendance
+                                                                        }
+                                                                    />
+                                                                </div>
+                                                            )}
+                                                        </td>
+                                                    )}
+                                                </tr>
+                                            );
+                                        },
                                     )}
                                 </tbody>
                             </table>
