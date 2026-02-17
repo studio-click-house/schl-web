@@ -109,6 +109,35 @@ export const authorizedRoutes: AuthorizedRoute[] = [
         permissions: ['notice:view_notice', 'notice:send_notice'],
     },
 
+    // Tickets
+    {
+        href: '/tickets',
+        label: 'Tickets',
+        permissions: [
+            'ticket:create_ticket',
+            'ticket:view_my_tickets',
+            'ticket:review_queue',
+            'ticket:view_ticket',
+        ],
+        children: [
+            {
+                href: '/tickets/create',
+                label: 'Create Ticket',
+                permissions: ['ticket:create_ticket'],
+            },
+            {
+                href: '/tickets/my-tickets',
+                label: 'My Tickets',
+                permissions: ['ticket:view_my_tickets'],
+            },
+            {
+                href: '/tickets/review-queue',
+                label: 'Review Queue',
+                permissions: ['ticket:review_queue'],
+            },
+        ],
+    },
+
     // Accountancy
     {
         href: '/accountancy',

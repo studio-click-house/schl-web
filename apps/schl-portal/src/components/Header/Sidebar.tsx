@@ -15,6 +15,7 @@ import {
     ChevronDown,
     CirclePause,
     ClipboardList,
+    ClipboardPlus,
     FilePlus,
     FilePlus2,
     FileSliders,
@@ -27,6 +28,8 @@ import {
     Map,
     Megaphone,
     Menu,
+    MessageSquareText,
+    MessagesSquare,
     ScrollText,
     Shield,
     Signature,
@@ -544,6 +547,69 @@ const Sidebar: React.FC<PropsType> = props => {
                             <Megaphone className="w-6 h-6 mr-2" />
                             Notices
                         </Link>
+                    )}
+
+                    {hasAny([
+                        'ticket:create_ticket',
+                        'ticket:view_my_tickets',
+                        'ticket:review_queue',
+                    ]) && (
+                        <>
+                            <span
+                                className={cn(
+                                    'p-4 flex items-center justify-between',
+                                    pathname.includes('/tickets/')
+                                        ? 'bg-primary text-white'
+                                        : 'hover:bg-gray-100',
+                                )}
+                                aria-controls="dropdown-parent-5"
+                                data-collapse-toggle="dropdown-parent-5"
+                            >
+                                <span className="flex items-center">
+                                    <MessagesSquare className="w-6 h-6 mr-2" />
+                                    <span>Tickets</span>
+                                </span>
+                                <ChevronDown size={17} />
+                            </span>
+                            <ul
+                                id="dropdown-parent-5"
+                                className="hidden pb-2 space-y-1"
+                            >
+                                {has('ticket:create_ticket') && (
+                                    <li>
+                                        <Link
+                                            href="/tickets/create"
+                                            className="flex items-center w-full p-2 text-gray-900 transition duration-75 pl-11 group hover:bg-gray-100"
+                                        >
+                                            <ClipboardPlus className="w-6 h-6 mr-2" />
+                                            Create Ticket
+                                        </Link>
+                                    </li>
+                                )}
+                                {has('ticket:view_my_tickets') && (
+                                    <li>
+                                        <Link
+                                            href="/tickets/my-tickets"
+                                            className="flex items-center w-full p-2 text-gray-900 transition duration-75 pl-11 group hover:bg-gray-100"
+                                        >
+                                            <MessageSquareText className="w-6 h-6 mr-2" />
+                                            My Tickets
+                                        </Link>
+                                    </li>
+                                )}
+                                {has('ticket:review_queue') && (
+                                    <li>
+                                        <Link
+                                            href="/tickets/review-queue"
+                                            className="flex items-center w-full p-2 text-gray-900 transition duration-75 pl-11 group hover:bg-gray-100"
+                                        >
+                                            <ClipboardList className="w-6 h-6 mr-2" />
+                                            Review Queue
+                                        </Link>
+                                    </li>
+                                )}
+                            </ul>
+                        </>
                     )}
 
                     <hr />
