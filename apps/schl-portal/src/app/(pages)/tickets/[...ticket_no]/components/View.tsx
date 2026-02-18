@@ -14,6 +14,10 @@ import { capitalize } from 'lodash';
 import { useRouter } from 'nextjs-toploader/app';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import {
+    getTicketStatusBadgeClass,
+    getTicketTypeBadgeClass,
+} from '../../my-tickets/components/ticket-badge.helper';
 
 interface ViewTicketProps {
     ticket_no: string;
@@ -176,21 +180,8 @@ const ViewTicket: React.FC<ViewTicketProps> = props => {
         getTicket();
     }, [getTicket, ticket_no]);
 
-    const typeBadgeClass =
-        ticket.type === 'bug'
-            ? 'bg-orange-600 text-white border-orange-600 me-0'
-            : ticket.type === 'feature'
-              ? 'bg-blue-600 text-white border-blue-600 me-0'
-              : 'bg-green-600 text-white border-green-600 me-0';
-
-    const statusBadgeClass =
-        ticket.status === 'accepted'
-            ? 'bg-green-600 text-white border-green-600 me-0'
-            : ticket.status === 'rejected'
-              ? 'bg-red-600 text-white border-red-600 me-0'
-              : ticket.status === 'in-review'
-                ? 'bg-amber-600 text-white border-amber-600 me-0'
-                : 'bg-gray-600 text-white border-gray-600 me-0';
+    const typeBadgeClass = getTicketTypeBadgeClass(ticket.type);
+    const statusBadgeClass = getTicketStatusBadgeClass(ticket.status);
 
     return (
         <>

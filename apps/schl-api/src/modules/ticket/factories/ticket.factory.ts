@@ -32,7 +32,7 @@ export class TicketFactory {
             title: dto.title.trim(),
             description: dto.description.trim(),
             type: dto.type,
-            status: dto.status ?? 'new',
+            status: dto.status ?? 'backlog',
             tags: TicketFactory.normalizeTags(dto.tags),
             checked_by: null,
         };

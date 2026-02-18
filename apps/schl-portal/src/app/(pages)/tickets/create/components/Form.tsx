@@ -20,7 +20,7 @@ const Form: React.FC = () => {
     const [editorResetKey, setEditorResetKey] = useState(0);
 
     const newStatusOption = useMemo(
-        () => statusOptions.find(option => option.value === 'new') || null,
+        () => statusOptions.find(option => option.value === 'backlog') || null,
         [],
     );
 
@@ -36,7 +36,7 @@ const Form: React.FC = () => {
             title: '',
             description: '',
             type: 'bug',
-            status: 'new',
+            status: 'backlog',
             tags: '',
         },
     });
@@ -58,7 +58,7 @@ const Form: React.FC = () => {
 
             const payload = {
                 ...rest,
-                status: 'new',
+                status: 'backlog',
                 tags: tags
                     .split(',')
                     .map(tag => tag.trim())
@@ -82,7 +82,7 @@ const Form: React.FC = () => {
                     title: '',
                     description: '',
                     type: 'bug',
-                    status: 'new',
+                    status: 'backlog',
                     tags: '',
                 });
                 setEditorResetKey(prev => prev + 1);

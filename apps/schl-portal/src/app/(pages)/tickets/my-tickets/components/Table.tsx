@@ -21,6 +21,10 @@ import { TicketFormDataType, validationSchema } from '../../schema';
 import DeleteButton from './Delete';
 import EditButton from './Edit';
 import FilterButton from './Filter';
+import {
+    getTicketStatusBadgeClass,
+    getTicketTypeBadgeClass,
+} from './ticket-badge.helper';
 
 type TicketsState = {
     pagination: {
@@ -57,15 +61,6 @@ const Table = () => {
     const [searchVersion, setSearchVersion] = useState<number>(0);
 
     const [filters, setFilters] = useState({
-        ticketNumber: '',
-        title: '',
-        type: '',
-        status: '',
-        fromDate: '',
-        toDate: '',
-    });
-
-    const [appliedFilters, setAppliedFilters] = useState({
         ticketNumber: '',
         title: '',
         type: '',
@@ -131,7 +126,7 @@ const Table = () => {
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify(appliedFilters),
+                        body: JSON.stringify(filters),
                     },
                 );
 
@@ -150,7 +145,7 @@ const Table = () => {
             }
             return;
         },
-        [appliedFilters, authedFetchApi],
+        [authedFetchApi, filters],
     );
 
     const fetchTickets = useCallback(async () => {
@@ -247,14 +242,13 @@ const Table = () => {
         if (searchVersion > 0 && isFiltered && page === 1) {
             fetchTickets();
         }
-    }, [searchVersion, isFiltered, page, fetchTickets]);
+    }, [searchVersion, isFiltered, page]);
 
     const handleSearch = useCallback(() => {
-        setAppliedFilters(filters);
         setIsFiltered(true);
         setPage(1);
         setSearchVersion(v => v + 1);
-    }, [filters]);
+    }, []);
 
     return (
         <>
@@ -336,8 +330,7 @@ const Table = () => {
                                         session?.user.db_id;
                                     const canEdit =
                                         canManage &&
-                                        ticket.status !== 'accepted' &&
-                                        ticket.status !== 'rejected';
+                                        ticket.status !== 'done';
 
                                     return (
                                         <tr key={ticket.ticket_number}>
@@ -368,15 +361,9 @@ const Table = () => {
                                                         value={capitalize(
                                                             ticket.type,
                                                         )}
-                                                        className={
-                                                            ticket.type ===
-                                                            'bug'
-                                                                ? 'bg-orange-600 text-white border-orange-600 me-0'
-                                                                : ticket.type ===
-                                                                    'feature'
-                                                                  ? 'bg-blue-600 text-white border-blue-600 me-0'
-                                                                  : 'bg-green-600 text-white border-green-600 me-0'
-                                                        }
+                                                        className={getTicketTypeBadgeClass(
+                                                            ticket.type,
+                                                        )}
                                                     />
                                                 </div>
                                             </td>
@@ -391,18 +378,9 @@ const Table = () => {
                                                         value={capitalize(
                                                             ticket.status,
                                                         )}
-                                                        className={
-                                                            ticket.status ===
-                                                            'accepted'
-                                                                ? 'bg-green-600 text-white border-green-600 me-0'
-                                                                : ticket.status ===
-                                                                    'rejected'
-                                                                  ? 'bg-red-600 text-white border-red-600 me-0'
-                                                                  : ticket.status ===
-                                                                      'in-review'
-                                                                    ? 'bg-amber-600 text-white border-amber-600 me-0'
-                                                                    : 'bg-gray-600 text-white border-gray-600 me-0'
-                                                        }
+                                                        className={getTicketStatusBadgeClass(
+                                                            ticket.status,
+                                                        )}
                                                     />
                                                 </div>
                                             </td>

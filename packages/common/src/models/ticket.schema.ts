@@ -1,8 +1,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { HydratedDocument } from 'mongoose';
 import {
+    TICKET_PRIORITIES,
     TICKET_STATUSES,
     TICKET_TYPES,
+    type TicketPriority,
     type TicketStatus,
     type TicketType,
 } from '../constants/ticket.constant';
@@ -44,6 +46,11 @@ export class Ticket {
 
     @Prop({ enum: TICKET_TYPES, required: true })
     type: TicketType;
+
+    @Prop({
+        enum: TICKET_PRIORITIES,
+    })
+    priority: TicketPriority;
 
     @Prop({
         type: mongoose.Schema.Types.ObjectId,
