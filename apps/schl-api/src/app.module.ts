@@ -18,6 +18,7 @@ import { OrderModule } from './modules/order/order.module';
 import { ReportModule } from './modules/report/report.module';
 import { RoleModule } from './modules/role/role.module';
 import { ScheduleModule } from './modules/schedule/schedule.module';
+import { TicketModule } from './modules/ticket/ticket.module';
 import { TrackerModule } from './modules/tracker/tracker.module';
 import { UserModule } from './modules/user/user.module';
 import { ValidatorModule } from './modules/validator/validator.module';
@@ -52,6 +53,7 @@ import { ValidatorModule } from './modules/validator/validator.module';
         ApprovalModule,
         OrderModule,
         ValidatorModule,
+        TicketModule,
         TrackerModule,
         AttendanceModule,
         DeviceUserModule,

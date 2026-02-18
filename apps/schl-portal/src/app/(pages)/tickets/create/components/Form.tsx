@@ -8,24 +8,18 @@ import {
     typeOptions,
 } from '@repo/common/constants/ticket.constant';
 import { setMenuPortalTarget } from '@repo/common/utils/select-helpers';
-import { useSession } from 'next-auth/react';
 import { useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import Select from 'react-select';
 import { toast } from 'sonner';
 import { TicketFormDataType, validationSchema } from '../../schema';
 
-type TicketSelectOption = {
-    value: string;
-    label: string;
-};
-
 const Form: React.FC = () => {
     const authedFetchApi = useAuthedFetchApi();
     const [loading, setLoading] = useState(false);
-    const { data: session } = useSession();
+    const [editorResetKey, setEditorResetKey] = useState(0);
 
-    const newStatusOption = useMemo<TicketSelectOption | null>(
+    const newStatusOption = useMemo(
         () => statusOptions.find(option => option.value === 'new') || null,
         [],
     );
@@ -44,7 +38,6 @@ const Form: React.FC = () => {
             type: 'bug',
             status: 'new',
             tags: '',
-            updated_by: session?.user.real_name || '',
         },
     });
 
@@ -91,8 +84,8 @@ const Form: React.FC = () => {
                     type: 'bug',
                     status: 'new',
                     tags: '',
-                    updated_by: session?.user.real_name || '',
                 });
+                setEditorResetKey(prev => prev + 1);
             } else {
                 toastFetchError(response);
             }
@@ -122,7 +115,7 @@ const Form: React.FC = () => {
                         name="type"
                         control={control}
                         render={({ field }) => (
-                            <Select<TicketSelectOption, false>
+                            <Select
                                 options={typeOptions}
                                 closeMenuOnSelect={true}
                                 placeholder="Select ticket type"
@@ -145,7 +138,7 @@ const Form: React.FC = () => {
                     <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
                         <span className="uppercase">Status</span>
                     </label>
-                    <Select<TicketSelectOption, false>
+                    <Select
                         options={statusOptions}
                         closeMenuOnSelect={true}
                         placeholder="Ticket status"
@@ -165,6 +158,8 @@ const Form: React.FC = () => {
                     </label>
                     <input
                         {...register('title')}
+                        autoComplete="off"
+                        autoCorrect="off"
                         className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
                         type="text"
                         placeholder="Title of the ticket"
@@ -185,6 +180,8 @@ const Form: React.FC = () => {
                     </div>
                     <input
                         {...register('tags')}
+                        autoComplete="off"
+                        autoCorrect="off"
                         className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
                         type="text"
                         placeholder="e.g. portal, auth, login"
@@ -205,8 +202,9 @@ const Form: React.FC = () => {
                     control={control}
                     render={({ field: { onChange, value } }) => (
                         <NoticeBodyEditor
+                            key={editorResetKey}
                             onChange={onChange}
-                            initialContent={value}
+                            initialContent={value ?? ''}
                         />
                     )}
                 />

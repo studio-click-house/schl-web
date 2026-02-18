@@ -6,7 +6,6 @@ import {
     type TicketStatus,
     type TicketType,
 } from '../constants/ticket.constant';
-import { Backlog } from './backlog.schema';
 import { User } from './user.schema';
 
 export type TicketDocument = HydratedDocument<Ticket>;
@@ -14,11 +13,10 @@ export type TicketDocument = HydratedDocument<Ticket>;
 @Schema({ timestamps: true })
 export class Ticket {
     /*
-    Format: SCHL-TPOR-202601-0001
+    Format: SCHL-T202601-0001
 
     SCHL = Studio Click House Ltd.
     T = Ticket
-    POR = Project Code (e.g., Portal, CRM, API, etc.)
     202601 = Year and Month (e.g., January 2026)
     0001 = Sequential Number (e.g., 0001, 0002, 123456 etc.)
     */

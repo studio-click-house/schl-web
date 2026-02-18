@@ -2,10 +2,10 @@
   "name": "schl-web",
   "private": true,
   "scripts": {
-    "build": "turbo run build",
-    "dev": "turbo run dev --parallel",
-    "lint": "turbo run lint",
-    "check-types": "turbo run check-types",
+    "build": "turbo run build --ui stream",
+    "dev": "turbo run dev --parallel --ui stream",
+    "lint": "turbo run lint --ui stream",
+    "check-types": "turbo run check-types --ui stream",
     "format": "prettier --write \"**/*.{ts,tsx,md}\""
   },
   "devDependencies": {
