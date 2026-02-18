@@ -24,6 +24,7 @@ import { ReportModule } from './modules/report/report.module';
 import { RoleModule } from './modules/role/role.module';
 import { ScheduleModule } from './modules/schedule/schedule.module';
 import { ShiftPlanModule } from './modules/shift-plan/shift-plan.module';
+import { TicketModule } from './modules/ticket/ticket.module';
 import { TrackerModule } from './modules/tracker/tracker.module';
 import { UserModule } from './modules/user/user.module';
 import { ValidatorModule } from './modules/validator/validator.module';
@@ -60,6 +61,7 @@ import { ValidatorModule } from './modules/validator/validator.module';
         ApprovalModule,
         OrderModule,
         ValidatorModule,
+        TicketModule,
         TrackerModule,
         AttendanceModule,
         AttendanceFlagModule,

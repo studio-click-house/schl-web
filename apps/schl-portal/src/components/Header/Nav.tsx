@@ -699,6 +699,84 @@ const Nav: React.FC<PropsType> = props => {
                 >
                     Notices
                 </Link>
+
+                <span
+                    role="button"
+                    id="ticketsDropdownButton"
+                    data-dropdown-toggle="ticketsDropdown"
+                    data-dropdown-trigger="hover"
+                    className={cn(
+                        'py-3 px-5 select-none',
+                        pathname === '/tickets' ||
+                            pathname.startsWith('/tickets/')
+                            ? 'bg-primary'
+                            : 'hover:opacity-90',
+                        !hasAny([
+                            'ticket:create_ticket',
+                            'ticket:view_my_tickets',
+                            'ticket:review_queue',
+                        ]) && 'hidden',
+                    )}
+                >
+                    <span className="flex gap-1 items-center justify-between">
+                        <span>Tickets</span>
+                        <ChevronDown size={17} />
+                    </span>
+                </span>
+
+                <div
+                    id="ticketsDropdown"
+                    className="z-10 hidden bg-gray-900 divide-y divide-gray-100 rounded-md shadow w-44"
+                    suppressHydrationWarning
+                >
+                    <ul
+                        className="py-2 text-white"
+                        aria-labelledby="ticketsDropdownButton"
+                    >
+                        <li
+                            className={cn(
+                                !has('ticket:create_ticket') && 'hidden',
+                            )}
+                        >
+                            <Link
+                                className={cn(
+                                    'block px-4 py-2 hover:bg-primary',
+                                )}
+                                href={'/tickets/create'}
+                            >
+                                Create Ticket
+                            </Link>
+                        </li>
+                        <li
+                            className={cn(
+                                !has('ticket:view_my_tickets') && 'hidden',
+                            )}
+                        >
+                            <Link
+                                className={cn(
+                                    'block px-4 py-2 hover:bg-primary',
+                                )}
+                                href={'/tickets/my-tickets'}
+                            >
+                                My Tickets
+                            </Link>
+                        </li>
+                        <li
+                            className={cn(
+                                !has('ticket:review_queue') && 'hidden',
+                            )}
+                        >
+                            <Link
+                                className={cn(
+                                    'block px-4 py-2 hover:bg-primary',
+                                )}
+                                href={'/tickets/review-queue'}
+                            >
+                                Review Queue
+                            </Link>
+                        </li>
+                    </ul>
+                </div>
             </div>
 
             <span className="max-lg:hidden">{msg}</span>

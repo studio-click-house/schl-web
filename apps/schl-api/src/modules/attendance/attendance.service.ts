@@ -351,9 +351,12 @@ export class AttendanceService {
         shiftDate: Date,
         employeeId: any,
     ): Promise<number> {
-        if (!attendance.out_time) {
+        if (!attendance.in_time || !attendance.out_time) {
             return 0;
         }
+
+        const inTime = attendance.in_time;
+        const outTime = attendance.out_time;
 
         try {
             const resolved = await this.resolveShiftForDate(
@@ -368,8 +371,8 @@ export class AttendanceService {
 
             // If this shift is marked as an off-day OT (admin chose 'off_day'), treat full worked minutes as OT
             if ((resolved as any).is_off_day_overtime) {
-                const actualIn = moment.tz(attendance.in_time, 'Asia/Dhaka');
-                const actualOut = moment.tz(attendance.out_time, 'Asia/Dhaka');
+                const actualIn = moment.tz(inTime, 'Asia/Dhaka');
+                const actualOut = moment.tz(outTime, 'Asia/Dhaka');
                 const workedMinutes = actualOut.diff(actualIn, 'minutes');
                 if (workedMinutes <= 0) return 0;
                 const otMinutes = calculateOTFromMinutes(workedMinutes);
@@ -377,8 +380,8 @@ export class AttendanceService {
             }
 
             const otMinutes = calculateOT({
-                in_time: attendance.in_time,
-                out_time: attendance.out_time,
+                in_time: inTime,
+                out_time: outTime,
                 shift_start: resolved.shift_start,
                 shift_end: resolved.shift_end,
                 shift_date: shiftDate,

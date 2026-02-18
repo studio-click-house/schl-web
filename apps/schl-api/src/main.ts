@@ -1,12 +1,15 @@
-import * as dns from 'node:dns';
-
-if (process.env.NODE_ENV === 'development') {
-    dns.setServers(['8.8.8.8', '1.1.1.1']);
-}
-
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import * as dns from 'node:dns';
 import { AppModule } from './app.module';
+
+// Global fix for Node + Windows SRV resolution
+dns.setDefaultResultOrder('ipv4first');
+
+// Development-only DNS override to prevent intermittent timeouts
+if (process.env.NODE_ENV === 'development') {
+    dns.setServers(['8.8.8.8', '8.8.4.4', '1.1.1.1', '1.0.0.1']);
+}
 
 async function bootstrap() {
     const app = await NestFactory.create(AppModule);

@@ -65,6 +65,28 @@ export const USER_PERMISSIONS = [
     },
 
     {
+        label: 'Ticket',
+        options: [
+            {
+                value: 'ticket:create_ticket',
+                label: 'Create ticket',
+            },
+            {
+                value: 'ticket:view_my_tickets',
+                label: 'View my tickets',
+            },
+            {
+                value: 'ticket:review_queue',
+                label: 'Review ticket queue',
+            },
+            {
+                value: 'ticket:view_ticket',
+                label: 'View ticket details',
+            },
+        ],
+    },
+
+    {
         label: 'CRM',
         options: [
             {
