@@ -39,6 +39,8 @@ export interface InvoiceDataType {
 }
 
 export interface GenerateInvoiceOptions {
+    /** Include the bank details block in invoice output (default: true) */
+    includeBankDetails?: boolean;
     /** Try to keep bank & footer on same page as totals if they fit (default: true) */
     keepBankOnSamePage?: boolean;
     /** Force bank section to a new page regardless of available space (overrides keepBankOnSamePage) */
@@ -560,6 +562,7 @@ export default async function generateInvoice(
 
         // --- Two-pass pagination ---
         const {
+            includeBankDetails = true,
             keepBankOnSamePage = true,
             forceNewPageForBank = false,
             pageType = 'letter',
@@ -652,180 +655,198 @@ export default async function generateInvoice(
         const remainingHeightOnCurrentPage =
             PRINTABLE_HEIGHT_POINTS - currentPageUsedHeight;
 
-        // Preview spans once (row offsets do not affect span lengths / wrapping logic)
-        const previewStartRow = grandTotalRow + 3; // arbitrary placeholder (grandTotal + gap(1) + heading + subheading)
-        const previewSpans = computeBankRowSpans(
-            sheet,
-            leftPairsPreview,
-            rightPairsPreview,
-            previewStartRow,
-        );
-
-        // Constant height components (independent of gap except heading offset)
-        const headingHeightPts = pxToPoints(20);
-        const subHeadingHeightPts = pxToPoints(20);
-        const dataHeightPts = previewSpans.reduce((acc: number, span: any) => {
-            return (
-                acc +
-                (span.rows > 1 ? span.rows * pxToPoints(20) : pxToPoints(22))
+        let footerSpacerRow: number;
+        if (includeBankDetails) {
+            // Preview spans once (row offsets do not affect span lengths / wrapping logic)
+            const previewStartRow = grandTotalRow + 3; // arbitrary placeholder (grandTotal + gap(1) + heading + subheading)
+            const previewSpans = computeBankRowSpans(
+                sheet,
+                leftPairsPreview,
+                rightPairsPreview,
+                previewStartRow,
             );
-        }, 0);
-        const closingFillHeightPts = pxToPoints(22);
-        const spacerHeightPts = pxToPoints(20); // spacer before footer message
-        const footerLineHeightPts = pxToPoints(20) * 3; // 3 footer lines
 
-        // Decide chosen gap dynamically
-        let chosenSamePageGapRows = 0;
-        let fitsSamePage = false;
-        if (!forceNewPageForBank && keepBankOnSamePage) {
-            const candidateGaps =
-                options.samePageBankGapRows !== undefined
-                    ? [Math.max(0, options.samePageBankGapRows)]
-                    : [2, 1];
-            for (const g of candidateGaps) {
-                const gapHeightPts = g * DEFAULT_ROW_HEIGHT_POINTS;
-                const bankSectionHeightPts =
-                    gapHeightPts +
-                    headingHeightPts +
-                    subHeadingHeightPts +
-                    dataHeightPts +
-                    closingFillHeightPts +
-                    spacerHeightPts +
-                    footerLineHeightPts;
-                if (
-                    bankSectionHeightPts + safetyMarginPts <=
-                    remainingHeightOnCurrentPage
-                ) {
-                    chosenSamePageGapRows = g;
-                    fitsSamePage = true;
-                    break;
+            // Constant height components (independent of gap except heading offset)
+            const headingHeightPts = pxToPoints(20);
+            const subHeadingHeightPts = pxToPoints(20);
+            const dataHeightPts = previewSpans.reduce(
+                (acc: number, span: any) => {
+                    return (
+                        acc +
+                        (span.rows > 1
+                            ? span.rows * pxToPoints(20)
+                            : pxToPoints(22))
+                    );
+                },
+                0,
+            );
+            const closingFillHeightPts = pxToPoints(22);
+            const spacerHeightPts = pxToPoints(20); // spacer before footer message
+            const footerLineHeightPts = pxToPoints(20) * 3; // 3 footer lines
+
+            // Decide chosen gap dynamically
+            let chosenSamePageGapRows = 0;
+            let fitsSamePage = false;
+            if (!forceNewPageForBank && keepBankOnSamePage) {
+                const candidateGaps =
+                    options.samePageBankGapRows !== undefined
+                        ? [Math.max(0, options.samePageBankGapRows)]
+                        : [2, 1];
+                for (const g of candidateGaps) {
+                    const gapHeightPts = g * DEFAULT_ROW_HEIGHT_POINTS;
+                    const bankSectionHeightPts =
+                        gapHeightPts +
+                        headingHeightPts +
+                        subHeadingHeightPts +
+                        dataHeightPts +
+                        closingFillHeightPts +
+                        spacerHeightPts +
+                        footerLineHeightPts;
+                    if (
+                        bankSectionHeightPts + safetyMarginPts <=
+                        remainingHeightOnCurrentPage
+                    ) {
+                        chosenSamePageGapRows = g;
+                        fitsSamePage = true;
+                        break;
+                    }
                 }
             }
-        }
 
-        let bankSectionStartRow: number;
-        if (fitsSamePage) {
-            bankSectionStartRow = grandTotalRow + chosenSamePageGapRows + 1; // grand total + gap + heading
+            let bankSectionStartRow: number;
+            if (fitsSamePage) {
+                bankSectionStartRow = grandTotalRow + chosenSamePageGapRows + 1; // grand total + gap + heading
+            } else {
+                sheet.getRow(grandTotalRow).addPageBreak();
+                bankSectionStartRow = grandTotalRow + 1; // new page (no gap)
+            }
+
+            // Heading full width
+            await cell(
+                `A${bankSectionStartRow}:H${bankSectionStartRow}`,
+                'STUDIO CLICK HOUSE BANK DETAILS',
+                ARIAL(10, { bold: true, color: { argb: WHITE } }),
+                MID_CENTER,
+                thinBorder,
+                'pattern',
+            );
+            sheet.getRow(bankSectionStartRow).height = h20;
+
+            // Sub headings (country titles) - row below heading
+            const bankSubHeadingRow = bankSectionStartRow + 1;
+            await cell(
+                `A${bankSubHeadingRow}:D${bankSubHeadingRow}`,
+                leftBank.header_in_invoice || 'Bank Details',
+                ARIAL(9, { bold: true }),
+                MID_CENTER,
+                thinBorder,
+                'pattern',
+                LIGHT_GREEN,
+            );
+            await cell(
+                `E${bankSubHeadingRow}:H${bankSubHeadingRow}`,
+                rightBank.header_in_invoice || 'Other Bank Details',
+                ARIAL(9, { bold: true }),
+                MID_CENTER,
+                thinBorder,
+                'pattern',
+                LIGHT_GREEN,
+            );
+            sheet.getRow(bankSubHeadingRow).height = h20;
+
+            const leftPairs = buildPairs(leftBank);
+            const rightPairs = buildPairs(rightBank);
+
+            const bankDataFirstRow = bankSubHeadingRow + 1;
+            const bankSpans = computeBankRowSpans(
+                sheet,
+                leftPairs,
+                rightPairs,
+                bankDataFirstRow,
+            );
+
+            // Helper to render bank rows (keeps original two-pass logic: right side by span, then left packed row-by-row)
+            const renderBankRows = async () => {
+                for (let i = 0; i < bankSpans.length; i++) {
+                    const span = bankSpans[i];
+                    // Unified alignment: if either side needs multiple rows, merge BOTH sides across the full span.
+                    const mergeBoth = span!.rows > 1;
+                    if (mergeBoth) {
+                        setRows(span!.start, span!.end, h20);
+                    } else {
+                        sheet.getRow(span!.start).height = h22;
+                    }
+
+                    const left = leftPairs[i];
+                    const right = rightPairs[i];
+                    const leftRange = mergeBoth
+                        ? `A${span!.start}:D${span!.end}`
+                        : `A${span!.start}:D${span!.start}`;
+                    const rightRange = mergeBoth
+                        ? `E${span!.start}:H${span!.end}`
+                        : `E${span!.start}:H${span!.start}`;
+
+                    await cell(
+                        leftRange,
+                        left && left[1]
+                            ? {
+                                  richText: [
+                                      { font: { bold: true }, text: left[0] },
+                                      { text: left[1] || '' },
+                                  ],
+                              }
+                            : undefined,
+                        CALIBRI(),
+                        {
+                            vertical: 'middle',
+                            horizontal: 'left',
+                            wrapText: true,
+                        },
+                        dividerBorder,
+                    );
+                    await cell(
+                        rightRange,
+                        right && right[1]
+                            ? {
+                                  richText: [
+                                      { font: { bold: true }, text: right[0] },
+                                      { text: right[1] || '' },
+                                  ],
+                              }
+                            : undefined,
+                        CALIBRI(),
+                        {
+                            vertical: 'middle',
+                            horizontal: 'left',
+                            wrapText: true,
+                        },
+                        dividerBorder,
+                    );
+                }
+            };
+            await renderBankRows();
+
+            // closing solid fill (split into two merged halves to keep center vertical border visible)
+            const afterBankTableRow = bankSpans.length
+                ? bankSpans[bankSpans.length - 1]!.end + 1
+                : bankDataFirstRow;
+            await cell(
+                `A${afterBankTableRow}:H${afterBankTableRow}`,
+                undefined,
+                ARIAL(10, { bold: true }),
+                MID_CENTER,
+                thinBorder,
+                'pattern',
+                LIGHT_GREEN,
+            );
+            sheet.getRow(afterBankTableRow).height = h22;
+
+            footerSpacerRow = afterBankTableRow + 1;
         } else {
-            sheet.getRow(grandTotalRow).addPageBreak();
-            bankSectionStartRow = grandTotalRow + 1; // new page (no gap)
+            footerSpacerRow = grandTotalRow + 1;
         }
-
-        // Heading full width
-        await cell(
-            `A${bankSectionStartRow}:H${bankSectionStartRow}`,
-            'STUDIO CLICK HOUSE BANK DETAILS',
-            ARIAL(10, { bold: true, color: { argb: WHITE } }),
-            MID_CENTER,
-            thinBorder,
-            'pattern',
-        );
-        sheet.getRow(bankSectionStartRow).height = h20;
-
-        // Sub headings (country titles) - row below heading
-        const bankSubHeadingRow = bankSectionStartRow + 1;
-        // (leftBank/rightBank already defined above for sizing logic)
-        await cell(
-            `A${bankSubHeadingRow}:D${bankSubHeadingRow}`,
-            leftBank.header_in_invoice || 'Bank Details',
-            ARIAL(9, { bold: true }),
-            MID_CENTER,
-            thinBorder,
-            'pattern',
-            LIGHT_GREEN,
-        );
-        await cell(
-            `E${bankSubHeadingRow}:H${bankSubHeadingRow}`,
-            rightBank.header_in_invoice || 'Other Bank Details',
-            ARIAL(9, { bold: true }),
-            MID_CENTER,
-            thinBorder,
-            'pattern',
-            LIGHT_GREEN,
-        );
-        sheet.getRow(bankSubHeadingRow).height = h20;
-
-        const leftPairs = buildPairs(leftBank);
-        const rightPairs = buildPairs(rightBank);
-
-        const bankDataFirstRow = bankSubHeadingRow + 1;
-        const bankSpans = computeBankRowSpans(
-            sheet,
-            leftPairs,
-            rightPairs,
-            bankDataFirstRow,
-        );
-
-        // Helper to render bank rows (keeps original two-pass logic: right side by span, then left packed row-by-row)
-        const renderBankRows = async () => {
-            for (let i = 0; i < bankSpans.length; i++) {
-                const span = bankSpans[i];
-                // Unified alignment: if either side needs multiple rows, merge BOTH sides across the full span.
-                const mergeBoth = span!.rows > 1;
-                if (mergeBoth) {
-                    setRows(span!.start, span!.end, h20);
-                } else {
-                    sheet.getRow(span!.start).height = h22;
-                }
-
-                const left = leftPairs[i];
-                const right = rightPairs[i];
-                const leftRange = mergeBoth
-                    ? `A${span!.start}:D${span!.end}`
-                    : `A${span!.start}:D${span!.start}`;
-                const rightRange = mergeBoth
-                    ? `E${span!.start}:H${span!.end}`
-                    : `E${span!.start}:H${span!.start}`;
-
-                await cell(
-                    leftRange,
-                    left && left[1]
-                        ? {
-                              richText: [
-                                  { font: { bold: true }, text: left[0] },
-                                  { text: left[1] || '' },
-                              ],
-                          }
-                        : undefined,
-                    CALIBRI(),
-                    { vertical: 'middle', horizontal: 'left', wrapText: true },
-                    dividerBorder,
-                );
-                await cell(
-                    rightRange,
-                    right && right[1]
-                        ? {
-                              richText: [
-                                  { font: { bold: true }, text: right[0] },
-                                  { text: right[1] || '' },
-                              ],
-                          }
-                        : undefined,
-                    CALIBRI(),
-                    { vertical: 'middle', horizontal: 'left', wrapText: true },
-                    dividerBorder,
-                );
-            }
-        };
-        await renderBankRows();
-
-        // closing solid fill (split into two merged halves to keep center vertical border visible)
-        const afterBankTableRow = bankSpans.length
-            ? bankSpans[bankSpans.length - 1]!.end + 1
-            : bankDataFirstRow;
-        await cell(
-            `A${afterBankTableRow}:H${afterBankTableRow}`,
-            undefined,
-            ARIAL(10, { bold: true }),
-            MID_CENTER,
-            thinBorder,
-            'pattern',
-            LIGHT_GREEN,
-        );
-        sheet.getRow(afterBankTableRow).height = h22;
 
         // FOOTER SECTION (Questions / Contact / Thank You)
-        const footerSpacerRow = afterBankTableRow + 1;
         const footerQuestionRow = footerSpacerRow + 1;
         const footerContactRow = footerSpacerRow + 2;
         const footerThanksRow = footerSpacerRow + 3;

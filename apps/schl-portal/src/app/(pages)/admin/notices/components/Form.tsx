@@ -30,7 +30,7 @@ const Form: React.FC = () => {
     const { data: session } = useSession();
     const userDepartment = session?.user.department;
     const isExemptDepartment = useMemo(
-        () => isExemptDept(userDepartment as any),
+        () => isExemptDept(userDepartment),
         [userDepartment],
     );
     const [file, setFile] = useState<File | null>(null);
@@ -273,7 +273,7 @@ const Form: React.FC = () => {
                         {...register('notice_no')}
                         className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
                         type="text"
-                        placeholder='e.g. "SCHL-HR-202601-0001"'
+                        placeholder='e.g. "SCHL-N202601-0001"'
                     />
                 </div>
                 <div>

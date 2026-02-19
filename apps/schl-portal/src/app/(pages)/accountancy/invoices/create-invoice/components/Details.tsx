@@ -16,6 +16,11 @@ import { ClientDocument } from '@repo/common/models/client.schema';
 import { OrderDocument } from '@repo/common/models/order.schema';
 import { getTodayDate } from '@repo/common/utils/date-helpers';
 import { cn } from '@repo/common/utils/general-utils';
+import {
+    setCalculatedZIndex,
+    setClassNameAndIsDisabled,
+    setMenuPortalTarget,
+} from '@repo/common/utils/select-helpers';
 
 import 'flowbite';
 import { initFlowbite } from 'flowbite';
@@ -23,7 +28,10 @@ import { PlusCircleIcon, X } from 'lucide-react';
 import moment from 'moment-timezone';
 import { useSession } from 'next-auth/react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import Select from 'react-select';
 import { toast } from 'sonner';
+
+import { currencyOptions } from '@/app/(pages)/admin/clients/create-client/components/Form';
 
 const baseZIndex = 50; // 52
 
@@ -74,6 +82,7 @@ const Details: React.FC<DetailsProps> = props => {
         contactNumber: '+8809609777111, +8801819727117',
         email: 'accounts@studioclickhouse.com',
     });
+    const [includeBankDetails, setIncludeBankDetails] = useState<boolean>(true);
 
     const handleClickOutside = (e: React.MouseEvent<HTMLDivElement>) => {
         if (
@@ -187,6 +196,7 @@ const Details: React.FC<DetailsProps> = props => {
                 invoiceData,
                 billData,
                 bankDetails,
+                { includeBankDetails },
             );
             if (!invoice) {
                 toast.error('Unable to generate invoice', { id: toastId });
@@ -308,6 +318,7 @@ const Details: React.FC<DetailsProps> = props => {
         clientDetails,
         props.filters,
         props.clientCode,
+        includeBankDetails,
         session,
         authedFetchApi,
     ]);
@@ -605,16 +616,60 @@ const Details: React.FC<DetailsProps> = props => {
                                         >
                                             Currency
                                         </label>
-                                        <input
-                                            id="currency"
-                                            name="currency"
-                                            onChange={handleChangeClient}
-                                            className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
-                                            value={customer.currency}
-                                            type="text"
-                                            placeholder='Enter currency symbol/code. Eg: "$"'
+                                        <Select
+                                            {...setClassNameAndIsDisabled(
+                                                isOpen,
+                                            )}
+                                            styles={setCalculatedZIndex(
+                                                baseZIndex,
+                                            )}
+                                            inputId="currency"
+                                            options={currencyOptions}
+                                            closeMenuOnSelect={true}
+                                            placeholder="Select currency"
+                                            classNamePrefix="react-select"
+                                            menuPortalTarget={
+                                                setMenuPortalTarget
+                                            }
+                                            menuPlacement="auto"
+                                            menuPosition="fixed"
+                                            value={
+                                                currencyOptions.find(
+                                                    option =>
+                                                        option.value ===
+                                                        customer.currency,
+                                                ) || null
+                                            }
+                                            onChange={option =>
+                                                setCustomer(prev => ({
+                                                    ...prev,
+                                                    currency: option
+                                                        ? option.value
+                                                        : '',
+                                                }))
+                                            }
                                         />
                                     </div>
+                                    <div className="md:col-span-2">
+                                        <label className="inline-flex items-center gap-2 cursor-pointer">
+                                            <input
+                                                id="includeBankDetails"
+                                                name="includeBankDetails"
+                                                type="checkbox"
+                                                checked={includeBankDetails}
+                                                onChange={e =>
+                                                    setIncludeBankDetails(
+                                                        e.target.checked,
+                                                    )
+                                                }
+                                                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                                            />
+                                            <span className="text-sm font-medium text-gray-700">
+                                                Include Bank Details
+                                            </span>
+                                        </label>
+                                    </div>
+
                                     <div className="md:col-span-2">
                                         <label
                                             htmlFor="prices"
