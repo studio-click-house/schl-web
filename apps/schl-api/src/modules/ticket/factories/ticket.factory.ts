@@ -32,7 +32,8 @@ export class TicketFactory {
             title: dto.title.trim(),
             description: dto.description.trim(),
             type: dto.type,
-            status: dto.status ?? 'backlog',
+            status: dto.status ?? 'new',
+            priority: dto.priority ?? 'low',
             tags: TicketFactory.normalizeTags(dto.tags),
             checked_by: null,
         };
@@ -45,6 +46,7 @@ export class TicketFactory {
             patch.description = dto.description.trim();
         if (dto.type !== undefined) patch.type = dto.type;
         if (dto.status !== undefined) patch.status = dto.status;
+        if (dto.priority !== undefined) patch.priority = dto.priority;
         if (dto.tags !== undefined)
             patch.tags = TicketFactory.normalizeTags(dto.tags);
         return patch;

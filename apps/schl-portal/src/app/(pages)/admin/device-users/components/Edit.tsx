@@ -145,7 +145,7 @@ const EditButton: React.FC<EditButtonProps> = ({
 
             <section
                 onClick={handleClickOutside}
-                className={`fixed z-${baseZIndex} inset-0 flex justify-center items-center transition-colors ${isOpen ? 'visible bg-black/20 disable-page-scroll' : 'invisible'} `}
+                className={`fixed z-${baseZIndex} inset-0 flex justify-center items-center transition-colors ${isOpen ? 'visible bg-black/20 disable-page-scroll pointer-events-auto' : 'invisible pointer-events-none'} `}
             >
                 <article
                     ref={popupRef}

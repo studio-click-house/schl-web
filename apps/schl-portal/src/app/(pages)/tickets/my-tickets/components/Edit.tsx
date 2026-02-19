@@ -3,21 +3,30 @@
 import NoticeBodyEditor from '@/components/RichText/RichTextEditor';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
+    priorityOptions,
     statusOptions,
     typeOptions,
 } from '@repo/common/constants/ticket.constant';
 import {
     setCalculatedZIndex,
+    setClassNameAndIsDisabled,
     setMenuPortalTarget,
 } from '@repo/common/utils/select-helpers';
 import { SquarePen, X } from 'lucide-react';
 import React, { useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import Select from 'react-select';
+import CreatableSelect from 'react-select/creatable';
 import { TicketFormDataType, validationSchema } from '../../schema';
+
+type SelectOption = {
+    value: string;
+    label: string;
+};
 
 interface PropsType {
     isLoading: boolean;
+    canReviewTicket: boolean;
     ticketData: TicketFormDataType;
     submitHandler: (editedTicketData: TicketFormDataType) => Promise<void>;
 }
@@ -69,7 +78,7 @@ const EditButton: React.FC<PropsType> = props => {
 
             <section
                 onClick={handleClickOutside}
-                className={`fixed z-${baseZIndex} inset-0 flex justify-center items-center transition-colors ${isOpen ? 'visible bg-black/20 disable-page-scroll' : 'invisible'} `}
+                className={`fixed z-${baseZIndex} inset-0 flex justify-center items-center transition-colors ${isOpen ? 'visible bg-black/20 disable-page-scroll pointer-events-auto' : 'invisible pointer-events-none'} `}
             >
                 <article
                     ref={popupRef}
@@ -109,6 +118,9 @@ const EditButton: React.FC<PropsType> = props => {
                                     control={control}
                                     render={({ field }) => (
                                         <Select
+                                            {...setClassNameAndIsDisabled(
+                                                isOpen,
+                                            )}
                                             options={typeOptions}
                                             closeMenuOnSelect
                                             placeholder="Select ticket type"
@@ -145,6 +157,10 @@ const EditButton: React.FC<PropsType> = props => {
                                     control={control}
                                     render={({ field }) => (
                                         <Select
+                                            {...setClassNameAndIsDisabled(
+                                                isOpen,
+                                                !props.canReviewTicket,
+                                            )}
                                             options={statusOptions}
                                             closeMenuOnSelect
                                             placeholder="Ticket status"
@@ -167,7 +183,94 @@ const EditButton: React.FC<PropsType> = props => {
                                                     option?.value || '',
                                                 )
                                             }
-                                            isDisabled={true}
+                                        />
+                                    )}
+                                />
+                            </div>
+
+                            <div>
+                                <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
+                                    <span className="uppercase">Priority</span>
+                                    <span className="text-red-700 text-wrap block text-xs">
+                                        {errors.priority &&
+                                            errors.priority.message}
+                                    </span>
+                                </label>
+                                <Controller
+                                    name="priority"
+                                    control={control}
+                                    render={({ field }) => (
+                                        <Select
+                                            {...setClassNameAndIsDisabled(
+                                                isOpen,
+                                                !props.canReviewTicket,
+                                            )}
+                                            options={priorityOptions}
+                                            closeMenuOnSelect
+                                            placeholder="Ticket priority"
+                                            classNamePrefix="react-select"
+                                            menuPortalTarget={
+                                                setMenuPortalTarget
+                                            }
+                                            styles={setCalculatedZIndex(
+                                                baseZIndex,
+                                            )}
+                                            value={
+                                                priorityOptions.find(
+                                                    option =>
+                                                        option.value ===
+                                                        field.value,
+                                                ) || null
+                                            }
+                                            onChange={option =>
+                                                field.onChange(
+                                                    option?.value || '',
+                                                )
+                                            }
+                                        />
+                                    )}
+                                />
+                            </div>
+
+                            <div>
+                                <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
+                                    Tags
+                                </label>
+                                <Controller
+                                    name="tags"
+                                    control={control}
+                                    render={({ field }) => (
+                                        <CreatableSelect
+                                            {...setClassNameAndIsDisabled(
+                                                isOpen,
+                                            )}
+                                            isMulti
+                                            closeMenuOnSelect={false}
+                                            placeholder="Add tags"
+                                            classNamePrefix="react-select"
+                                            menuPortalTarget={
+                                                setMenuPortalTarget
+                                            }
+                                            styles={setCalculatedZIndex(
+                                                baseZIndex,
+                                            )}
+                                            value={field.value.map(tag => ({
+                                                value: tag,
+                                                label: tag,
+                                            }))}
+                                            onChange={selected => {
+                                                const nextTags = selected
+                                                    ? selected
+                                                          .map(
+                                                              (
+                                                                  option: SelectOption,
+                                                              ) =>
+                                                                  option.value.trim(),
+                                                          )
+                                                          .filter(Boolean)
+                                                    : [];
+                                                field.onChange(nextTags);
+                                            }}
                                         />
                                     )}
                                 />
@@ -187,18 +290,6 @@ const EditButton: React.FC<PropsType> = props => {
                                     className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
                                     type="text"
                                     placeholder="Title of the ticket"
-                                />
-                            </div>
-
-                            <div className="md:col-span-2">
-                                <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
-                                    Tags
-                                </label>
-                                <input
-                                    {...register('tags')}
-                                    className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
-                                    type="text"
-                                    placeholder="e.g. portal, auth, login"
                                 />
                             </div>
                         </div>

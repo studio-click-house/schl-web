@@ -273,7 +273,7 @@ const Form: React.FC = () => {
                         {...register('notice_no')}
                         className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
                         type="text"
-                        placeholder='e.g. "SCH-20251231-001"'
+                        placeholder='e.g. "SCHL-HR-202601-0001"'
                     />
                 </div>
                 <div>

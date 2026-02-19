@@ -1,4 +1,5 @@
 import {
+    TICKET_PRIORITIES,
     TICKET_STATUSES,
     TICKET_TYPES,
 } from '@repo/common/constants/ticket.constant';
@@ -11,8 +12,9 @@ export const validationSchema = z.object({
     type: z.enum(TICKET_TYPES, {
         required_error: 'Ticket type is required',
     }),
-    status: z.enum(TICKET_STATUSES).default('backlog'),
-    tags: z.string().default(''),
+    status: z.enum(TICKET_STATUSES).default('new'),
+    priority: z.enum(TICKET_PRIORITIES).default('low'),
+    tags: z.array(z.string()).default([]),
     _id: z.optional(
         z.string().refine(val => {
             return mongoose.Types.ObjectId.isValid(val);

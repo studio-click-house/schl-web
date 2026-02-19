@@ -49,6 +49,7 @@ export class Ticket {
 
     @Prop({
         enum: TICKET_PRIORITIES,
+        required: true,
     })
     priority: TicketPriority;
 
@@ -58,7 +59,6 @@ export class Ticket {
         default: null,
     })
     checked_by: mongoose.Types.ObjectId | null;
-
 
     // enforced in api when closing a ticket
     @Prop({ default: '', type: String })

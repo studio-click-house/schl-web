@@ -18,10 +18,10 @@ export class CommitLog {
     @Prop({ default: '', type: String })
     url: string;
 
-    @Prop({type: String })
+    @Prop({ type: String })
     message: string;
 
-    @Prop({type: String })
+    @Prop({ type: String })
     description: string;
 
     @Prop({ type: Date })

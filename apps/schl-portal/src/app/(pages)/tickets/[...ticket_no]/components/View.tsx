@@ -3,7 +3,7 @@
 import Badge from '@/components/Badge';
 import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import { formatDate } from '@repo/common/utils/date-helpers';
-import DOMPurify from 'dompurify';
+import createDOMPurify from 'dompurify';
 import parse, {
     DOMNode,
     domToReact,
@@ -85,21 +85,19 @@ const options: HTMLReactParserOptions = {
     },
 };
 
+const sanitizeHtml = (html: string): string => {
+    if (typeof window === 'undefined') {
+        return html;
+    }
+
+    return createDOMPurify(window).sanitize(html);
+};
+
 const ViewTicket: React.FC<ViewTicketProps> = props => {
     const ticket_no = decodeURIComponent(props.ticket_no);
 
-    const [ticket, setTicket] = useState<Ticket>({
-        ticket_number: '',
-        title: '',
-        description: '',
-        type: '',
-        status: '',
-        tags: [],
-        opened_by_name: '',
-        createdAt: '',
-        updatedAt: '',
-    });
-    const [isLoading, setIsLoading] = useState(false);
+    const [ticket, setTicket] = useState<Ticket | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
     const router = useRouter();
     const routerRef = useRef(router);
@@ -180,14 +178,17 @@ const ViewTicket: React.FC<ViewTicketProps> = props => {
         getTicket();
     }, [getTicket, ticket_no]);
 
-    const typeBadgeClass = getTicketTypeBadgeClass(ticket.type);
-    const statusBadgeClass = getTicketStatusBadgeClass(ticket.status);
+    const typeBadgeClass = ticket ? getTicketTypeBadgeClass(ticket.type) : '';
+    const statusBadgeClass = ticket
+        ? getTicketStatusBadgeClass(ticket.status)
+        : '';
 
+    if (isLoading || !ticket) {
+        return <p className="text-center">Loading...</p>;
+    }
     return (
         <>
-            {isLoading ? <p className="text-center">Loading...</p> : null}
-
-            {!isLoading && (
+            {ticket && (
                 <div className="container mt-8 md:mt-12 mb-6 max-w-5xl">
                     <div className="rounded-lg border border-gray-200 bg-white p-4 md:p-6">
                         <div className="border-b border-gray-200 pb-4 md:pb-5">
@@ -235,7 +236,7 @@ const ViewTicket: React.FC<ViewTicketProps> = props => {
                             </p>
                             <div className="pl-4 border-l-2 border-gray-200 text-gray-900 leading-7">
                                 {parse(
-                                    DOMPurify.sanitize(ticket.description),
+                                    sanitizeHtml(ticket.description),
                                     options,
                                 )}
                             </div>

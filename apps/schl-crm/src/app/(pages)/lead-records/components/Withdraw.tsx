@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
 import { useSession } from 'next-auth/react';
+import React, { useState } from 'react';
 
 interface PropsType {
     leadData: { [key: string]: any };
@@ -37,7 +37,7 @@ const WithdrawLeadButton: React.FC<PropsType> = props => {
 
             <section
                 onClick={() => setIsOpen(false)}
-                className={`fixed inset-0 flex justify-center items-center transition-colors ${isOpen ? 'visible bg-black/20 disable-page-scroll' : 'invisible'} `}
+                className={`fixed inset-0 flex justify-center items-center transition-colors ${isOpen ? 'visible bg-black/20 disable-page-scroll pointer-events-auto' : 'invisible pointer-events-none'} `}
             >
                 <article
                     onClick={e => e.stopPropagation()}

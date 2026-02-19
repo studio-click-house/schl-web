@@ -6,7 +6,7 @@ import { constructFileName } from '@repo/common/utils/general-utils';
 
 import type { EmployeeDepartment } from '@repo/common/constants/employee.constant';
 import { hasPerm } from '@repo/common/utils/permission-check';
-import DOMPurify from 'dompurify';
+import createDOMPurify from 'dompurify';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'nextjs-toploader/app';
 import React, {
@@ -96,18 +96,18 @@ const options: HTMLReactParserOptions = {
     },
 };
 
+const sanitizeHtml = (html: string): string => {
+    if (typeof window === 'undefined') {
+        return html;
+    }
+
+    return createDOMPurify(window).sanitize(html);
+};
+
 const ViewNotice: React.FC<ViewNoticeProps> = props => {
     const notice_no = decodeURIComponent(props.notice_no);
-    const [notice, setNotice] = useState<Notice>({
-        channel: [],
-        notice_no: '',
-        title: '',
-        description: '',
-        file_name: '',
-        updatedAt: '',
-        createdAt: '',
-    });
-    const [isLoading, setIsLoading] = useState(false);
+    const [notice, setNotice] = useState<Notice | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
     const router = useRouter();
     const routerRef = useRef(router);
@@ -178,6 +178,10 @@ const ViewNotice: React.FC<ViewNoticeProps> = props => {
     }, [authedFetchApi, notice_no]);
 
     const handleFileDownload = async () => {
+        if (!notice) {
+            return;
+        }
+
         try {
             const response = await authedFetchApi<Blob>(
                 {
@@ -236,11 +240,13 @@ const ViewNotice: React.FC<ViewNoticeProps> = props => {
         getNotice();
     }, [getNotice, notice_no]);
 
+    if (isLoading || !notice) {
+        return <p className="text-center">Loading...</p>;
+    }
+
     return (
         <>
-            {isLoading ? <p className="text-center">Loading...</p> : null}
-
-            {!isLoading && (
+            {notice && (
                 <div className="notice container mt-10 md:mt-20 mb-3">
                     <div className="notice-header mb-6">
                         <h2 className="mb-0 font-semibold text-4xl">
@@ -253,7 +259,7 @@ const ViewNotice: React.FC<ViewNoticeProps> = props => {
                         </p>
                     </div>
 
-                    {parse(DOMPurify.sanitize(notice.description), options)}
+                    {parse(sanitizeHtml(notice.description), options)}
 
                     {notice.file_name && (
                         <div className="file-download text-lg font-semibold font-sans">

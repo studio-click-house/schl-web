@@ -1,6 +1,8 @@
 import {
+    TICKET_PRIORITIES,
     TICKET_STATUSES,
     TICKET_TYPES,
+    type TicketPriority,
     type TicketStatus,
     type TicketType,
 } from '@repo/common/constants/ticket.constant';
@@ -38,6 +40,11 @@ export class CreateTicketBodyDto {
     @Transform(toLower)
     @IsIn(TICKET_STATUSES as readonly TicketStatus[])
     status?: TicketStatus;
+
+    @IsOptional()
+    @Transform(toLower)
+    @IsIn(TICKET_PRIORITIES as readonly TicketPriority[])
+    priority?: TicketPriority;
 
     @IsOptional()
     @IsArray()

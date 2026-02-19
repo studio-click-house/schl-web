@@ -4,23 +4,38 @@ import NoticeBodyEditor from '@/components/RichText/RichTextEditor';
 import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
+    priorityOptions,
     statusOptions,
     typeOptions,
 } from '@repo/common/constants/ticket.constant';
+import { hasPerm } from '@repo/common/utils/permission-check';
 import { setMenuPortalTarget } from '@repo/common/utils/select-helpers';
+import { useSession } from 'next-auth/react';
 import { useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import Select from 'react-select';
+import CreatableSelect from 'react-select/creatable';
 import { toast } from 'sonner';
 import { TicketFormDataType, validationSchema } from '../../schema';
 
+type SelectOption = {
+    value: string;
+    label: string;
+};
+
 const Form: React.FC = () => {
     const authedFetchApi = useAuthedFetchApi();
+    const { data: session } = useSession();
     const [loading, setLoading] = useState(false);
     const [editorResetKey, setEditorResetKey] = useState(0);
 
+    const canReviewTicket = useMemo(
+        () => hasPerm('ticket:review_queue', session?.user.permissions || []),
+        [session?.user.permissions],
+    );
+
     const newStatusOption = useMemo(
-        () => statusOptions.find(option => option.value === 'backlog') || null,
+        () => statusOptions.find(option => option.value === 'new') || null,
         [],
     );
 
@@ -36,8 +51,9 @@ const Form: React.FC = () => {
             title: '',
             description: '',
             type: 'bug',
-            status: 'backlog',
-            tags: '',
+            status: 'new',
+            priority: 'low',
+            tags: [],
         },
     });
 
@@ -58,11 +74,9 @@ const Form: React.FC = () => {
 
             const payload = {
                 ...rest,
-                status: 'backlog',
-                tags: tags
-                    .split(',')
-                    .map(tag => tag.trim())
-                    .filter(Boolean),
+                status: canReviewTicket ? rest.status : 'new',
+                priority: canReviewTicket ? rest.priority : 'low',
+                tags: tags.map(tag => tag.trim()).filter(Boolean),
             };
 
             const response = await authedFetchApi(
@@ -82,8 +96,9 @@ const Form: React.FC = () => {
                     title: '',
                     description: '',
                     type: 'bug',
-                    status: 'backlog',
-                    tags: '',
+                    status: 'new',
+                    priority: 'low',
+                    tags: [],
                 });
                 setEditorResetKey(prev => prev + 1);
             } else {
@@ -138,14 +153,101 @@ const Form: React.FC = () => {
                     <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
                         <span className="uppercase">Status</span>
                     </label>
-                    <Select
-                        options={statusOptions}
-                        closeMenuOnSelect={true}
-                        placeholder="Ticket status"
-                        classNamePrefix="react-select"
-                        menuPortalTarget={setMenuPortalTarget}
-                        value={newStatusOption}
-                        isDisabled={true}
+                    <Controller
+                        name="status"
+                        control={control}
+                        render={({ field }) => (
+                            <Select
+                                options={statusOptions}
+                                closeMenuOnSelect={true}
+                                placeholder="Ticket status"
+                                classNamePrefix="react-select"
+                                menuPortalTarget={setMenuPortalTarget}
+                                value={
+                                    canReviewTicket
+                                        ? statusOptions.find(
+                                              option =>
+                                                  option.value === field.value,
+                                          ) || null
+                                        : newStatusOption
+                                }
+                                onChange={option =>
+                                    field.onChange(option?.value || '')
+                                }
+                                isDisabled={!canReviewTicket}
+                            />
+                        )}
+                    />
+                </div>
+
+                <div>
+                    <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
+                        <span className="uppercase">Priority</span>
+                        <span className="text-red-700 text-wrap block text-xs">
+                            {errors.priority && errors.priority.message}
+                        </span>
+                    </label>
+                    <Controller
+                        name="priority"
+                        control={control}
+                        render={({ field }) => (
+                            <Select
+                                options={priorityOptions}
+                                closeMenuOnSelect={true}
+                                placeholder="Ticket priority"
+                                classNamePrefix="react-select"
+                                menuPortalTarget={setMenuPortalTarget}
+                                value={
+                                    priorityOptions.find(
+                                        option => option.value === field.value,
+                                    ) || null
+                                }
+                                onChange={option =>
+                                    field.onChange(option?.value || '')
+                                }
+                                isDisabled={!canReviewTicket}
+                            />
+                        )}
+                    />
+                </div>
+                <div>
+                    <div className="mb-2">
+                        <label className="uppercase tracking-wide text-gray-700 text-sm font-bold flex gap-2">
+                            Tags
+                            <span className="cursor-pointer has-tooltip">
+                                &#9432;
+                                <span className="tooltip italic font-medium rounded-md text-xs shadow-lg p-1 px-2 bg-gray-100 ml-2 normal-case">
+                                    Create and select one or more tags
+                                </span>
+                            </span>
+                        </label>
+                    </div>
+                    <Controller
+                        name="tags"
+                        control={control}
+                        render={({ field }) => (
+                            <CreatableSelect
+                                isMulti
+                                closeMenuOnSelect={false}
+                                placeholder="Add tags"
+                                classNamePrefix="react-select"
+                                menuPortalTarget={setMenuPortalTarget}
+                                value={field.value.map(tag => ({
+                                    value: tag,
+                                    label: tag,
+                                }))}
+                                onChange={selected => {
+                                    const nextTags = selected
+                                        ? selected
+                                              .map((option: SelectOption) =>
+                                                  option.value.trim(),
+                                              )
+                                              .filter(Boolean)
+                                        : [];
+                                    field.onChange(nextTags);
+                                }}
+                            />
+                        )}
                     />
                 </div>
 
@@ -163,28 +265,6 @@ const Form: React.FC = () => {
                         className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
                         type="text"
                         placeholder="Title of the ticket"
-                    />
-                </div>
-
-                <div className="md:col-span-2">
-                    <div className="mb-2">
-                        <label className="uppercase tracking-wide text-gray-700 text-sm font-bold flex gap-2">
-                            Tags
-                            <span className="cursor-pointer has-tooltip">
-                                &#9432;
-                                <span className="tooltip italic font-medium rounded-md text-xs shadow-lg p-1 px-2 bg-gray-100 ml-2 normal-case">
-                                    Add tags separated by comma
-                                </span>
-                            </span>
-                        </label>
-                    </div>
-                    <input
-                        {...register('tags')}
-                        autoComplete="off"
-                        autoCorrect="off"
-                        className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
-                        type="text"
-                        placeholder="e.g. portal, auth, login"
                     />
                 </div>
             </div>

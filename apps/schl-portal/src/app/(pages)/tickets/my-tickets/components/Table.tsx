@@ -22,6 +22,7 @@ import DeleteButton from './Delete';
 import EditButton from './Edit';
 import FilterButton from './Filter';
 import {
+    getTicketPriorityBadgeClass,
     getTicketStatusBadgeClass,
     getTicketTypeBadgeClass,
 } from './ticket-badge.helper';
@@ -49,6 +50,10 @@ const Table = () => {
     const userPermissions = useMemo(
         () => session?.user.permissions || [],
         [session?.user.permissions],
+    );
+    const canReviewTicket = useMemo(
+        () => hasPerm('ticket:review_queue', userPermissions),
+        [userPermissions],
     );
 
     const router = useRouter();
@@ -199,10 +204,7 @@ const Table = () => {
 
             const payload = {
                 ...rest,
-                tags: tags
-                    .split(',')
-                    .map(tag => tag.trim())
-                    .filter(Boolean),
+                tags: tags.map(tag => tag.trim()).filter(Boolean),
             };
 
             const response = await authedFetchApi(
@@ -319,6 +321,7 @@ const Table = () => {
                                     <th>Ticket No</th>
                                     <th>Title</th>
                                     <th>Type</th>
+                                    <th>Priority</th>
                                     <th>Status</th>
                                     <th>Manage</th>
                                 </tr>
@@ -330,7 +333,12 @@ const Table = () => {
                                         session?.user.db_id;
                                     const canEdit =
                                         canManage &&
-                                        ticket.status !== 'done';
+                                        ![
+                                            'done',
+                                            'resolved',
+                                            'rejected',
+                                            'no-work',
+                                        ].includes(ticket.status);
 
                                     return (
                                         <tr key={ticket.ticket_number}>
@@ -363,6 +371,23 @@ const Table = () => {
                                                         )}
                                                         className={getTicketTypeBadgeClass(
                                                             ticket.type,
+                                                        )}
+                                                    />
+                                                </div>
+                                            </td>
+                                            <td
+                                                className="uppercase text-wrap text-center"
+                                                style={{
+                                                    verticalAlign: 'middle',
+                                                }}
+                                            >
+                                                <div className="flex justify-center">
+                                                    <Badge
+                                                        value={capitalize(
+                                                            ticket.priority,
+                                                        )}
+                                                        className={getTicketPriorityBadgeClass(
+                                                            ticket.priority,
                                                         )}
                                                     />
                                                 </div>
@@ -410,6 +435,9 @@ const Table = () => {
                                                                 isLoading={
                                                                     loading
                                                                 }
+                                                                canReviewTicket={
+                                                                    canReviewTicket
+                                                                }
                                                                 submitHandler={
                                                                     editTicket
                                                                 }
@@ -422,9 +450,10 @@ const Table = () => {
                                                                         ticket.description,
                                                                     type: ticket.type,
                                                                     status: ticket.status,
-                                                                    tags: ticket.tags.join(
-                                                                        ', ',
-                                                                    ),
+                                                                    priority:
+                                                                        ticket.priority ??
+                                                                        'low',
+                                                                    tags: ticket.tags,
                                                                 }}
                                                             />
                                                         )}
