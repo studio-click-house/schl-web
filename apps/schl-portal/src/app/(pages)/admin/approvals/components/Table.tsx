@@ -6,6 +6,7 @@ import NoData, { Type } from '@/components/NoData';
 import Pagination from '@/components/Pagination';
 import { usePaginationManager } from '@/hooks/usePaginationManager';
 import { ApprovalDocument } from '@repo/common/models/approval.schema';
+import { UserDocument } from '@repo/common/models/user.schema';
 import {
     formatDate,
     formatTime,
@@ -23,14 +24,10 @@ export interface PopulatedApprovalType extends Omit<
     ApprovalDocument,
     'req_by' | 'rev_by'
 > {
-    req_by: {
-        real_name: string;
-        _id: string;
-    };
-    rev_by: {
-        real_name: string;
-        _id: string;
-    };
+    req_by: UserDocument;
+    rev_by?: UserDocument;
+    req_by_name: string;
+    rev_by_name?: string;
 }
 
 type ApprovalsState = {
@@ -464,7 +461,7 @@ const Table: React.FC = props => {
                                             </div>
                                         </td>
                                         <td className="text-wrap">
-                                            {String(approval.req_by?.real_name)}
+                                            {String(approval.req_by_name)}
                                         </td>
                                         <td
                                             className="uppercase text-wrap"
