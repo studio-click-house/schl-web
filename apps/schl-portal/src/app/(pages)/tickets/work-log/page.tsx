@@ -3,7 +3,7 @@ import { TicketDocument } from '@repo/common/models/ticket.schema';
 import React, { Suspense } from 'react';
 import InputForm from './components/Form';
 
-export const getAllTickets = async (): Promise<
+const getAllTickets = async (): Promise<
     TicketDocument[] | undefined
 > => {
     try {
