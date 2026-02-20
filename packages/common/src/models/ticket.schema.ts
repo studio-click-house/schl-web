@@ -60,15 +60,6 @@ export class Ticket {
     })
     checked_by: mongoose.Types.ObjectId | null;
 
-    // enforced in api when closing a ticket
-    @Prop({ default: '', type: String })
-    completion_note: string;
-
-    // Format: https://github.com/user/repo/compare/abc123...def456
-    // enforced in api when closing a ticket
-    @Prop({ default: '', type: String })
-    diff_url: string;
-
     @Prop({ type: Date })
     readonly createdAt: Date;
 

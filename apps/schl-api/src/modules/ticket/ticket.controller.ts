@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { UserSession } from '@repo/common/types/user-session.type';
 import { IdParamDto } from '../../common/dto/id-param.dto';
+import { CreateCommitBodyDto } from './dto/create-commit.dto';
 import { CreateTicketBodyDto } from './dto/create-ticket.dto';
 import {
     SearchTicketsBodyDto,
@@ -68,6 +69,11 @@ export class TicketController {
         );
     }
 
+    @Get('work-log-tickets')
+    getWorkLogTickets(@Req() req: Request & { user: UserSession }) {
+        return this.ticketService.getWorkLogTickets(req.user);
+    }
+
     @Put('update-ticket/:id')
     updateTicket(
         @Param() { id }: IdParamDto,
@@ -75,6 +81,15 @@ export class TicketController {
         @Req() req: Request & { user: UserSession },
     ): Promise<{ message: string }> {
         return this.ticketService.updateTicket(id, ticketData, req.user);
+    }
+
+    @Post('add-commit/:id')
+    addCommit(
+        @Param() { id }: IdParamDto,
+        @Body() body: CreateCommitBodyDto,
+        @Req() req: Request & { user: UserSession },
+    ) {
+        return this.ticketService.addCommit(id, body, req.user);
     }
 
     @Delete('delete-ticket/:id')

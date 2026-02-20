@@ -8,6 +8,8 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
+import { type TicketStatus } from '@repo/common/constants/ticket.constant';
+import { CommitLog } from '@repo/common/models/commit-log.schema';
 import { Employee } from '@repo/common/models/employee.schema';
 import { Ticket } from '@repo/common/models/ticket.schema';
 import { User } from '@repo/common/models/user.schema';
@@ -18,7 +20,8 @@ import {
     createRegexQuery,
 } from '@repo/common/utils/filter-helpers';
 import { hasPerm } from '@repo/common/utils/permission-check';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
+import { CreateCommitBodyDto } from './dto/create-commit.dto';
 import { CreateTicketBodyDto } from './dto/create-ticket.dto';
 import { SearchTicketsBodyDto } from './dto/search-tickets.dto';
 import { TicketFactory } from './factories/ticket.factory';
@@ -39,6 +42,8 @@ export class TicketService {
     constructor(
         @InjectModel(Ticket.name)
         private readonly ticketModel: Model<Ticket>,
+        @InjectModel(CommitLog.name)
+        private readonly commitLogModel: Model<CommitLog>,
         @InjectModel(User.name)
         private readonly userModel: Model<User>,
         @InjectModel(Employee.name)
@@ -221,6 +226,37 @@ export class TicketService {
         }
     }
 
+    async getWorkLogTickets(userSession: UserSession): Promise<Ticket[]> {
+        if (!hasPerm('ticket:view_ticket', userSession.permissions)) {
+            throw new ForbiddenException(
+                "You don't have permission to view tickets",
+            );
+        }
+
+        const excludedStatuses: TicketStatus[] = [
+            'resolved',
+            'done',
+            'no-work',
+            'rejected',
+        ];
+
+        const query: Record<string, unknown> = {
+            status: { $nin: excludedStatuses },
+        };
+
+        if (!hasPerm('ticket:review_queue', userSession.permissions)) {
+            query.opened_by = userSession.db_id;
+        }
+
+        const items = await this.ticketModel
+            .find(query)
+            .sort({ createdAt: -1 })
+            .lean()
+            .exec();
+
+        return items as Ticket[];
+    }
+
     async searchTickets(
         filters: SearchTicketsBodyDto,
         pagination: TicketsPagination,
@@ -336,6 +372,68 @@ export class TicketService {
         if (!updated)
             throw new InternalServerErrorException('Unable to update ticket');
         return { message: 'Updated the ticket successfully' };
+    }
+
+    async addCommit(
+        ticketId: string,
+        dto: CreateCommitBodyDto,
+        userSession: UserSession,
+    ) {
+        const existing = await this.ticketModel.findById(ticketId).exec();
+        if (!existing) {
+            throw new NotFoundException('Ticket not found');
+        }
+
+        // Only owner or reviewer may add commits/work-logs
+        if (
+            !hasPerm('ticket:review_queue', userSession.permissions) &&
+            existing.opened_by.toString() !== userSession.db_id
+        ) {
+            throw new ForbiddenException(
+                "You don't have permission to add a commit to this ticket",
+            );
+        }
+
+        try {
+            const created = await this.commitLogModel.create({
+                ticket: existing._id,
+                sha: dto.sha ?? '',
+                message: dto.message,
+                description: dto.description ?? '',
+            });
+
+            const ticketPatch: Partial<Ticket> = TicketFactory.fromUpdateDto({
+                type: dto.type,
+                status: dto.status,
+                priority: dto.priority,
+            });
+
+            const terminalStatuses: TicketStatus[] = [
+                'resolved',
+                'rejected',
+                'no-work',
+                'done',
+            ];
+
+            if (dto.status && terminalStatuses.includes(dto.status)) {
+                ticketPatch.checked_by = new Types.ObjectId(userSession.db_id);
+            }
+
+            if (Object.keys(ticketPatch).length > 0) {
+                await this.ticketModel
+                    .findByIdAndUpdate(
+                        ticketId,
+                        { $set: ticketPatch },
+                        { new: true },
+                    )
+                    .exec();
+            }
+
+            return created;
+        } catch (err: unknown) {
+            if (err instanceof HttpException) throw err;
+            throw new InternalServerErrorException('Unable to add commit');
+        }
     }
 
     async deleteTicket(

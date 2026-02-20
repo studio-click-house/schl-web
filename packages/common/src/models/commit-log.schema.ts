@@ -4,7 +4,7 @@ import { Ticket } from './ticket.schema';
 
 export type CommitLogDocument = HydratedDocument<CommitLog>;
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'commit_logs' })
 export class CommitLog {
     @Prop({
         required: true,
@@ -14,9 +14,9 @@ export class CommitLog {
     })
     ticket: mongoose.Types.ObjectId;
 
-    // github commit url
+    // github commit sha
     @Prop({ default: '', type: String })
-    url: string;
+    sha: string;
 
     @Prop({ type: String })
     message: string;

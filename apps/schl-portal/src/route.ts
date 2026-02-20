@@ -135,6 +135,11 @@ export const authorizedRoutes: AuthorizedRoute[] = [
                 label: 'Review Queue',
                 permissions: ['ticket:review_queue'],
             },
+            {
+                href: '/tickets/work-log',
+                label: 'Work Log',
+                permissions: ['ticket:review_queue'],
+            },
         ],
     },
 

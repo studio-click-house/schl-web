@@ -15,6 +15,7 @@ import { useRouter } from 'nextjs-toploader/app';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
+    getTicketPriorityBadgeClass,
     getTicketStatusBadgeClass,
     getTicketTypeBadgeClass,
 } from '../../my-tickets/components/ticket-badge.helper';
@@ -24,11 +25,13 @@ interface ViewTicketProps {
 }
 
 interface Ticket {
+    _id?: string;
     ticket_number: string;
     title: string;
     description: string;
     type: string;
     status: string;
+    priority?: string;
     tags: string[];
     opened_by_name?: string;
     createdAt: string;
@@ -200,17 +203,11 @@ const ViewTicket: React.FC<ViewTicketProps> = props => {
                             </h2>
 
                             <div className="mt-3 space-y-1 text-sm text-gray-600">
-                                <p>
-                                    {ticket.createdAt
-                                        ? formatDate(ticket.createdAt)
-                                        : ''}
-                                </p>
-                                <p>
-                                    <span className="font-semibold text-gray-700">
-                                        Opened By:
-                                    </span>{' '}
-                                    {ticket.opened_by_name ||
-                                        'Unknown Employee'}
+                                <p className="text-sm text-gray-600 mt-1">
+                                    {ticket.createdAt &&
+                                        formatDate(ticket.createdAt)}
+                                    {ticket.opened_by_name &&
+                                        ` • ${ticket.opened_by_name}`}
                                 </p>
                             </div>
 
@@ -225,6 +222,14 @@ const ViewTicket: React.FC<ViewTicketProps> = props => {
                                     <Badge
                                         value={capitalize(ticket.status)}
                                         className={statusBadgeClass}
+                                    />
+                                ) : null}
+                                {ticket.priority ? (
+                                    <Badge
+                                        value={capitalize(ticket.priority)}
+                                        className={getTicketPriorityBadgeClass(
+                                            ticket.priority,
+                                        )}
                                     />
                                 ) : null}
                             </div>
