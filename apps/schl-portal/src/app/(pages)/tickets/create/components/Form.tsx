@@ -14,14 +14,8 @@ import { useSession } from 'next-auth/react';
 import { useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import Select from 'react-select';
-import CreatableSelect from 'react-select/creatable';
 import { toast } from 'sonner';
 import { TicketFormDataType, validationSchema } from '../../schema';
-
-type SelectOption = {
-    value: string;
-    label: string;
-};
 
 const Form: React.FC = () => {
     const authedFetchApi = useAuthedFetchApi();
@@ -30,7 +24,7 @@ const Form: React.FC = () => {
     const [editorResetKey, setEditorResetKey] = useState(0);
 
     const canReviewTicket = useMemo(
-        () => hasPerm('ticket:review_queue', session?.user.permissions || []),
+        () => hasPerm('ticket:review_tickets', session?.user.permissions || []),
         [session?.user.permissions],
     );
 
@@ -53,7 +47,6 @@ const Form: React.FC = () => {
             type: 'bug',
             status: 'new',
             priority: 'low',
-            tags: [],
         },
     });
 
@@ -69,14 +62,12 @@ const Form: React.FC = () => {
                 return;
             }
 
-            const { tags, _id, createdAt, updatedAt, __v, ...rest } =
-                parsed.data;
+            const { _id, createdAt, updatedAt, __v, ...rest } = parsed.data;
 
             const payload = {
                 ...rest,
                 status: canReviewTicket ? rest.status : 'new',
                 priority: canReviewTicket ? rest.priority : 'low',
-                tags: tags.map(tag => tag.trim()).filter(Boolean),
             };
 
             const response = await authedFetchApi(
@@ -98,7 +89,6 @@ const Form: React.FC = () => {
                     type: 'bug',
                     status: 'new',
                     priority: 'low',
-                    tags: [],
                 });
                 setEditorResetKey(prev => prev + 1);
             } else {
@@ -206,46 +196,6 @@ const Form: React.FC = () => {
                                     field.onChange(option?.value || '')
                                 }
                                 isDisabled={!canReviewTicket}
-                            />
-                        )}
-                    />
-                </div>
-                <div>
-                    <div className="mb-2">
-                        <label className="uppercase tracking-wide text-gray-700 text-sm font-bold flex gap-2">
-                            Tags
-                            <span className="cursor-pointer has-tooltip">
-                                &#9432;
-                                <span className="tooltip italic font-medium rounded-md text-xs shadow-lg p-1 px-2 bg-gray-100 ml-2 normal-case">
-                                    Create and select one or more tags
-                                </span>
-                            </span>
-                        </label>
-                    </div>
-                    <Controller
-                        name="tags"
-                        control={control}
-                        render={({ field }) => (
-                            <CreatableSelect
-                                isMulti
-                                closeMenuOnSelect={false}
-                                placeholder="Add tags"
-                                classNamePrefix="react-select"
-                                menuPortalTarget={setMenuPortalTarget}
-                                value={field.value.map(tag => ({
-                                    value: tag,
-                                    label: tag,
-                                }))}
-                                onChange={selected => {
-                                    const nextTags = selected
-                                        ? selected
-                                              .map((option: SelectOption) =>
-                                                  option.value.trim(),
-                                              )
-                                              .filter(Boolean)
-                                        : [];
-                                    field.onChange(nextTags);
-                                }}
                             />
                         )}
                     />

@@ -4,6 +4,7 @@ import {
 } from '@repo/common/utils/transformers';
 import { Transform, Type } from 'class-transformer';
 import {
+    IsArray,
     IsBoolean,
     IsInt,
     IsOptional,

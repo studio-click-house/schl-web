@@ -41,9 +41,6 @@ export class Ticket {
     @Prop({ enum: TICKET_STATUSES, required: true })
     status: TicketStatus;
 
-    @Prop({ type: [String], default: [] })
-    tags: string[];
-
     @Prop({ enum: TICKET_TYPES, required: true })
     type: TicketType;
 

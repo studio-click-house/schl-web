@@ -3,9 +3,7 @@ import { TicketDocument } from '@repo/common/models/ticket.schema';
 import React, { Suspense } from 'react';
 import InputForm from './components/Form';
 
-const getAllTickets = async (): Promise<
-    TicketDocument[] | undefined
-> => {
+const getAllTickets = async (): Promise<TicketDocument[] | undefined> => {
     try {
         const response = await fetchApiWithServerAuth<TicketDocument[]>(
             {

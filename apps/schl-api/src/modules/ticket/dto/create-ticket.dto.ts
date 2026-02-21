@@ -45,9 +45,4 @@ export class CreateTicketBodyDto {
     @Transform(toLower)
     @IsIn(TICKET_PRIORITIES as readonly TicketPriority[])
     priority?: TicketPriority;
-
-    @IsOptional()
-    @IsArray()
-    @IsString({ each: true })
-    tags?: string[];
 }

@@ -40,7 +40,6 @@ const Form: React.FC<Props> = ({ ticketsData }) => {
         type: string;
         status: string;
         priority?: string;
-        tags: string[];
         createdAt: string;
         opened_by_name?: string;
     };
@@ -258,16 +257,7 @@ const Form: React.FC<Props> = ({ ticketsData }) => {
                                         />
                                     )}
                                 </div>
-                                {ticketDetails.tags.length > 0 && (
-                                    <p className="text-sm text-gray-700 mt-2">
-                                        <span className="font-semibold">
-                                            Tags:
-                                        </span>{' '}
-                                        {ticketDetails.tags.join(', ')}
-                                    </p>
-                                )}
                             </div>
-                            {/* rest of form now conditional below card */}
                             <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-x-3 gap-y-4">
                                 <div>
                                     <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
@@ -388,6 +378,7 @@ const Form: React.FC<Props> = ({ ticketsData }) => {
                                 </label>
                                 <input
                                     {...register('message')}
+                                    autoComplete="off"
                                     className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
                                     placeholder="Short commit message"
                                     type="text"
@@ -402,6 +393,7 @@ const Form: React.FC<Props> = ({ ticketsData }) => {
                                 </label>
                                 <input
                                     {...register('sha')}
+                                    autoComplete="off"
                                     className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
                                     placeholder="Enter commit SHA"
                                     type="text"

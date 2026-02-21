@@ -19,7 +19,7 @@ import {
     addIfDefined,
     createRegexQuery,
 } from '@repo/common/utils/filter-helpers';
-import { hasPerm } from '@repo/common/utils/permission-check';
+import { hasAnyPerm, hasPerm } from '@repo/common/utils/permission-check';
 import { Model, Types } from 'mongoose';
 import { CreateCommitBodyDto } from './dto/create-commit.dto';
 import { CreateTicketBodyDto } from './dto/create-ticket.dto';
@@ -32,9 +32,14 @@ type TicketsPagination = {
     paginated: boolean;
 };
 
+type TicketWithName = Ticket & { opened_by_name?: string };
+
+// response from search may include opened_by_name on each ticket
+// it is added by the service when appropriate
+
 type TicketListResponse = {
     pagination: { count: number; pageCount: number };
-    items: Ticket[];
+    items: TicketWithName[];
 };
 
 @Injectable()
@@ -150,7 +155,12 @@ export class TicketService {
     }
 
     async getTicketById(ticketId: string, userSession: UserSession) {
-        if (!hasPerm('ticket:view_ticket', userSession.permissions)) {
+        if (
+            !hasAnyPerm(
+                ['ticket:create_ticket', 'ticket:review_tickets'],
+                userSession.permissions,
+            )
+        ) {
             throw new ForbiddenException(
                 "You don't have permission to view this ticket",
             );
@@ -163,7 +173,10 @@ export class TicketService {
             }
 
             if (
-                !hasPerm('ticket:review_queue', userSession.permissions) &&
+                !hasAnyPerm(
+                    ['ticket:create_ticket', 'ticket:review_tickets'],
+                    userSession.permissions,
+                ) &&
                 ticket.opened_by.toString() !== userSession.db_id
             ) {
                 throw new ForbiddenException(
@@ -186,7 +199,12 @@ export class TicketService {
     }
 
     async getTicketByTicketNumber(ticketNo: string, userSession: UserSession) {
-        if (!hasPerm('ticket:view_ticket', userSession.permissions)) {
+        if (
+            !hasAnyPerm(
+                ['ticket:create_ticket', 'ticket:review_tickets'],
+                userSession.permissions,
+            )
+        ) {
             throw new ForbiddenException(
                 "You don't have permission to view this ticket",
             );
@@ -204,7 +222,10 @@ export class TicketService {
             }
 
             if (
-                !hasPerm('ticket:review_queue', userSession.permissions) &&
+                !hasAnyPerm(
+                    ['ticket:create_ticket', 'ticket:review_tickets'],
+                    userSession.permissions,
+                ) &&
                 ticket.opened_by.toString() !== userSession.db_id
             ) {
                 throw new ForbiddenException(
@@ -227,7 +248,7 @@ export class TicketService {
     }
 
     async getWorkLogTickets(userSession: UserSession): Promise<Ticket[]> {
-        if (!hasPerm('ticket:view_ticket', userSession.permissions)) {
+        if (!hasPerm('ticket:review_tickets', userSession.permissions)) {
             throw new ForbiddenException(
                 "You don't have permission to view tickets",
             );
@@ -244,7 +265,7 @@ export class TicketService {
             status: { $nin: excludedStatuses },
         };
 
-        if (!hasPerm('ticket:review_queue', userSession.permissions)) {
+        if (!hasPerm('ticket:review_tickets', userSession.permissions)) {
             query.opened_by = userSession.db_id;
         }
 
@@ -276,7 +297,10 @@ export class TicketService {
             status?: string;
             createdAt?: { $gte?: Date; $lte?: Date };
             opened_by?: string;
-        };
+        } & Partial<{
+            $and: Record<string, unknown>[];
+            $or: Record<string, unknown>[];
+        }>;
 
         const query: QueryShape = {};
 
@@ -303,7 +327,7 @@ export class TicketService {
             query.opened_by = userSession.db_id;
         }
         // Otherwise, if user does not have review permission, restrict to own tickets
-        else if (!hasPerm('ticket:review_queue', userSession.permissions)) {
+        else if (!hasPerm('ticket:review_tickets', userSession.permissions)) {
             query.opened_by = userSession.db_id;
         }
 
@@ -315,13 +339,23 @@ export class TicketService {
                 query as Record<string, unknown>,
             );
 
-            const items = await this.ticketModel
+            let items = await this.ticketModel
                 .find(query as Record<string, unknown>)
                 .sort(sortQuery)
                 .skip(skip)
                 .limit(itemsPerPage)
                 .lean()
                 .exec();
+
+            // attach opener name
+            items = await Promise.all(
+                items.map(async t => {
+                    const name = await this.resolveOpenedByName(
+                        t.opened_by.toString(),
+                    );
+                    return { ...t, opened_by_name: name };
+                }),
+            );
 
             return {
                 pagination: {
@@ -332,11 +366,20 @@ export class TicketService {
             };
         }
 
-        const items = await this.ticketModel
+        let items = await this.ticketModel
             .find(query as Record<string, unknown>)
             .sort(sortQuery)
             .lean()
             .exec();
+
+        items = await Promise.all(
+            items.map(async t => {
+                const name = await this.resolveOpenedByName(
+                    t.opened_by.toString(),
+                );
+                return { ...t, opened_by_name: name };
+            }),
+        );
         return items;
     }
 
@@ -352,7 +395,7 @@ export class TicketService {
 
         // Only owner or reviewer may update
         if (
-            !hasPerm('ticket:review_queue', userSession.permissions) &&
+            !hasPerm('ticket:review_tickets', userSession.permissions) &&
             existing.opened_by.toString() !== userSession.db_id
         ) {
             throw new ForbiddenException(
@@ -386,7 +429,7 @@ export class TicketService {
 
         // Only owner or reviewer may add commits/work-logs
         if (
-            !hasPerm('ticket:review_queue', userSession.permissions) &&
+            !hasPerm('ticket:review_tickets', userSession.permissions) &&
             existing.opened_by.toString() !== userSession.db_id
         ) {
             throw new ForbiddenException(
@@ -444,7 +487,7 @@ export class TicketService {
         if (!existing) throw new NotFoundException('Ticket not found');
 
         if (
-            !hasPerm('ticket:review_queue', userSession.permissions) &&
+            !hasPerm('ticket:review_tickets', userSession.permissions) &&
             existing.opened_by.toString() !== userSession.db_id
         ) {
             throw new ForbiddenException(

@@ -72,16 +72,12 @@ export const USER_PERMISSIONS = [
                 label: 'Create ticket',
             },
             {
-                value: 'ticket:view_my_tickets',
-                label: 'View my tickets',
+                value: 'ticket:review_tickets',
+                label: 'Review tickets',
             },
             {
-                value: 'ticket:review_queue',
-                label: 'Review ticket queue',
-            },
-            {
-                value: 'ticket:view_ticket',
-                label: 'View ticket details',
+                value: 'ticket:review_logs',
+                label: 'View ticket work logs',
             },
         ],
     },

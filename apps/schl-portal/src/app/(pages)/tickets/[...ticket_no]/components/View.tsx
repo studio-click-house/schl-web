@@ -3,6 +3,7 @@
 import Badge from '@/components/Badge';
 import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import { formatDate } from '@repo/common/utils/date-helpers';
+import { hasPerm } from '@repo/common/utils/permission-check';
 import createDOMPurify from 'dompurify';
 import parse, {
     DOMNode,
@@ -11,8 +12,15 @@ import parse, {
     HTMLReactParserOptions,
 } from 'html-react-parser';
 import { capitalize } from 'lodash';
+import { useSession } from 'next-auth/react';
 import { useRouter } from 'nextjs-toploader/app';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 import { toast } from 'sonner';
 import {
     getTicketPriorityBadgeClass,
@@ -32,7 +40,6 @@ interface Ticket {
     type: string;
     status: string;
     priority?: string;
-    tags: string[];
     opened_by_name?: string;
     createdAt: string;
     updatedAt: string;
@@ -102,6 +109,18 @@ const ViewTicket: React.FC<ViewTicketProps> = props => {
     const [ticket, setTicket] = useState<Ticket | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
+    const { data: session } = useSession();
+    const userPermissions = useMemo(
+        () => session?.user.permissions || [],
+        [session?.user.permissions],
+    );
+
+    const redirectBase = useMemo(() => {
+        return hasPerm('ticket:review_tickets', userPermissions)
+            ? '/tickets/all-tickets'
+            : '/tickets/my-tickets';
+    }, [userPermissions]);
+
     const router = useRouter();
     const routerRef = useRef(router);
 
@@ -139,8 +158,7 @@ const ViewTicket: React.FC<ViewTicketProps> = props => {
                         id: 'ticket-error',
                     });
                     routerRef.current.replace(
-                        process.env.NEXT_PUBLIC_BASE_URL +
-                            '/tickets/my-tickets',
+                        process.env.NEXT_PUBLIC_BASE_URL + redirectBase,
                     );
                     return;
                 }
@@ -150,14 +168,14 @@ const ViewTicket: React.FC<ViewTicketProps> = props => {
             } else {
                 toastFetchError(response, 'Failed to retrieve ticket');
                 routerRef.current.replace(
-                    process.env.NEXT_PUBLIC_BASE_URL + '/tickets/my-tickets',
+                    process.env.NEXT_PUBLIC_BASE_URL + redirectBase,
                 );
             }
         } catch (error) {
             console.error(error);
             toast.error('An error occurred while retrieving the ticket');
             routerRef.current.replace(
-                process.env.NEXT_PUBLIC_BASE_URL + '/tickets/my-tickets',
+                process.env.NEXT_PUBLIC_BASE_URL + redirectBase,
             );
         } finally {
             setIsLoading(false);
@@ -168,7 +186,7 @@ const ViewTicket: React.FC<ViewTicketProps> = props => {
         if (!ticket_no) {
             setIsLoading(false);
             routerRef.current.replace(
-                process.env.NEXT_PUBLIC_BASE_URL + '/tickets/my-tickets',
+                process.env.NEXT_PUBLIC_BASE_URL + redirectBase,
             );
             return;
         }
@@ -245,15 +263,6 @@ const ViewTicket: React.FC<ViewTicketProps> = props => {
                                     options,
                                 )}
                             </div>
-                        </div>
-
-                        <div className="mt-6 pt-4 border-t border-gray-200">
-                            <p className="text-sm text-gray-700">
-                                <span className="font-semibold">Tags:</span>{' '}
-                                {ticket.tags.length > 0
-                                    ? ticket.tags.join(', ')
-                                    : 'No tags'}
-                            </p>
                         </div>
                     </div>
                 </div>

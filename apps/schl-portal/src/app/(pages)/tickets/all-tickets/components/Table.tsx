@@ -27,12 +27,15 @@ import {
     getTicketTypeBadgeClass,
 } from './ticket-badge.helper';
 
+// tickets returned from search may include opened_by_name added by service
+type TicketWithName = TicketDocument & { opened_by_name?: string };
+
 type TicketsState = {
     pagination: {
         count: number;
         pageCount: number;
     };
-    items: TicketDocument[];
+    items: TicketWithName[];
 };
 
 const Table = () => {
@@ -84,7 +87,6 @@ const Table = () => {
                             page,
                             itemsPerPage: itemPerPage,
                             paginated: true,
-                            myTickets: true,
                         },
                     },
                     {
@@ -123,7 +125,6 @@ const Table = () => {
                             page,
                             itemsPerPage: itemPerPage,
                             paginated: true,
-                            myTickets: true,
                         },
                     },
                     {
@@ -319,6 +320,7 @@ const Table = () => {
                                     <th>Date</th>
                                     <th>Ticket No</th>
                                     <th>Title</th>
+                                    <th>Opened By</th>
                                     <th>Type</th>
                                     <th>Priority</th>
                                     <th>Status</th>
@@ -327,10 +329,9 @@ const Table = () => {
                             </thead>
                             <tbody>
                                 {tickets.items.map((ticket, index) => {
-                                    const canManage = hasPerm(
-                                        'ticket:create_ticket',
-                                        userPermissions,
-                                    );
+                                    const canManage =
+                                        String(ticket.opened_by) ===
+                                        session?.user.db_id;
                                     const canEdit =
                                         canManage &&
                                         ![
@@ -357,6 +358,9 @@ const Table = () => {
                                             <td>{ticket.ticket_number}</td>
                                             <td className="text-wrap">
                                                 {ticket.title}
+                                            </td>
+                                            <td className="text-wrap">
+                                                {ticket.opened_by_name || ''}
                                             </td>
                                             <td
                                                 className="uppercase text-wrap text-center"
@@ -387,7 +391,8 @@ const Table = () => {
                                                             ticket.priority,
                                                         )}
                                                         className={getTicketPriorityBadgeClass(
-                                                            ticket.priority,
+                                                            ticket.priority ??
+                                                                'low',
                                                         )}
                                                     />
                                                 </div>
@@ -418,36 +423,16 @@ const Table = () => {
                                                 <div className="inline-block">
                                                     <div className="flex gap-2">
                                                         {canManage && (
-                                                            <>
-                                                                <DeleteButton
-                                                                    ticketData={{
-                                                                        _id: String(
-                                                                            ticket._id,
-                                                                        ),
-                                                                    }}
-                                                                    submitHandler={
-                                                                        deleteTicket
-                                                                    }
-                                                                />
-                                                                <button
-                                                                    onClick={() => {
-                                                                        window.open(
-                                                                            process
-                                                                                .env
-                                                                                .NEXT_PUBLIC_BASE_URL +
-                                                                                `/tickets/${encodeURIComponent(ticket.ticket_number)}`,
-                                                                            '_blank',
-                                                                        );
-                                                                    }}
-                                                                    className="items-center gap-2 rounded-md bg-amber-600 hover:opacity-90 hover:ring-2 hover:ring-amber-600 transition duration-200 delay-300 hover:text-opacity-100 text-white p-2"
-                                                                >
-                                                                    <SquareArrowOutUpRight
-                                                                        size={
-                                                                            16
-                                                                        }
-                                                                    />
-                                                                </button>
-                                                            </>
+                                                            <DeleteButton
+                                                                ticketData={{
+                                                                    _id: String(
+                                                                        ticket._id,
+                                                                    ),
+                                                                }}
+                                                                submitHandler={
+                                                                    deleteTicket
+                                                                }
+                                                            />
                                                         )}
 
                                                         {canEdit && (
@@ -476,6 +461,22 @@ const Table = () => {
                                                                 }}
                                                             />
                                                         )}
+
+                                                        <button
+                                                            onClick={() => {
+                                                                window.open(
+                                                                    process.env
+                                                                        .NEXT_PUBLIC_BASE_URL +
+                                                                        `/tickets/${encodeURIComponent(ticket.ticket_number)}`,
+                                                                    '_blank',
+                                                                );
+                                                            }}
+                                                            className="items-center gap-2 rounded-md bg-amber-600 hover:opacity-90 hover:ring-2 hover:ring-amber-600 transition duration-200 delay-300 hover:text-opacity-100 text-white p-2"
+                                                        >
+                                                            <SquareArrowOutUpRight
+                                                                size={16}
+                                                            />
+                                                        </button>
                                                     </div>
                                                 </div>
                                             </td>
