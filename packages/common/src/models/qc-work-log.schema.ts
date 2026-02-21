@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
 
-export type WorkLogDocument = HydratedDocument<WorkLog>;
+export type QcWorkLogDocument = HydratedDocument<QcWorkLog>;
 
 @Schema({ _id: false })
 export class PauseReason {
@@ -13,40 +13,22 @@ export class PauseReason {
 }
 
 @Schema({ _id: false })
-export class WorkLogFile {
-    @Prop({ type: String, default: '' })
-    folder_path?: string;
-
+export class QcWorkLogFile {
     @Prop({ type: String, required: [true, 'File name is required'] })
     file_name: string;
 
-    @Prop({ type: Number, required: [true, 'Time spent is required'] })
-    time_spent: number;
-
-    @Prop({ type: Number, default: 0 })
-    pause_count: number;
+    @Prop({ type: String, default: '' })
+    file_status?: string;
 
     @Prop({ type: String, default: '' })
-    categories: string;
-
-    @Prop({ type: String, required: [true, 'File status is required'] })
-    file_status: string;
-
-    @Prop({ type: Date, default: Date.now })
-    started_at?: Date;
-
-    @Prop({ type: Date, default: null })
-    completed_at?: Date;
+    report?: string;
 
     @Prop({ type: Number, default: 0 })
-    pause_time: number;
-
-    @Prop({ type: [PauseReason], default: [] })
-    pause_reasons: PauseReason[];
+    time_spent: number;
 }
 
-@Schema({ timestamps: true, collection: 'work_logs' })
-export class WorkLog {
+@Schema({ timestamps: true, collection: 'qc_work_logs' })
+export class QcWorkLog {
     @Prop({ type: String, required: [true, 'Employee name is required'] })
     employee_name: string;
 
@@ -65,13 +47,31 @@ export class WorkLog {
     @Prop({ type: String, required: [true, 'Date is required'] }) // YYYY-MM-DD
     date_today: string;
 
-    @Prop({ type: [WorkLogFile], default: [] })
-    files: WorkLogFile[];
+    @Prop({ type: Number, default: 0 })
+    estimate_time: number;
+
+    @Prop({ type: String, default: '' })
+    categories: string;
+
+    @Prop({ type: Number, default: 0 })
+    total_times: number;
+
+    @Prop({ type: Number, default: 0 })
+    pause_count: number;
+
+    @Prop({ type: Number, default: 0 })
+    pause_time: number;
+
+    @Prop({ type: [PauseReason], default: [] })
+    pause_reasons: PauseReason[];
+
+    @Prop({ type: [QcWorkLogFile], default: [] })
+    files: QcWorkLogFile[];
 }
 
-export const WorkLogSchema = SchemaFactory.createForClass(WorkLog);
-// Create compound index for the unique bucket key
-WorkLogSchema.index(
+export const QcWorkLogSchema = SchemaFactory.createForClass(QcWorkLog);
+// Compound index: one batch document per employee+client+folder+shift+workType+date
+QcWorkLogSchema.index(
     {
         employee_name: 1,
         client_code: 1,

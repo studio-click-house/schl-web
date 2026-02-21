@@ -1,18 +1,32 @@
 import {
-    IsDateString,
+    ArrayMinSize,
+    IsArray,
     IsNotEmpty,
     IsNumber,
     IsOptional,
     IsString,
     Min,
+    ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 type PauseReasonDto = {
     reason: string;
     duration: number;
 };
 
-export class SyncWorkLogDto {
+class QcWorkLogFileDto {
+    @IsString()
+    @IsNotEmpty()
+    fileName: string;
+
+    @IsNumber()
+    @Min(0)
+    @IsOptional()
+    timeSpent?: number;
+}
+
+export class SyncQcWorkLogDto {
     @IsString()
     @IsNotEmpty()
     employeeName: string;
@@ -33,14 +47,23 @@ export class SyncWorkLogDto {
     @IsOptional()
     folderPath?: string;
 
+    @IsNumber()
+    @Min(0)
+    @IsOptional()
+    estimateTime?: number;
+
+    @IsString()
+    @IsOptional()
+    categories?: string;
+
     @IsString()
     @IsNotEmpty()
-    fileName: string;
+    fileStatus: string;
 
     @IsNumber()
     @Min(0)
     @IsOptional()
-    timeSpent?: number;
+    totalTimes?: number;
 
     @IsNumber()
     @Min(0)
@@ -55,19 +78,9 @@ export class SyncWorkLogDto {
     @IsOptional()
     pauseReasons?: PauseReasonDto[];
 
-    @IsString()
-    @IsOptional()
-    categories?: string;
-
-    @IsString()
-    @IsNotEmpty()
-    fileStatus: string;
-
-    @IsDateString()
-    @IsOptional()
-    startedAt?: string;
-
-    @IsDateString()
-    @IsOptional()
-    completedAt?: string;
+    @IsArray()
+    @ArrayMinSize(1)
+    @ValidateNested({ each: true })
+    @Type(() => QcWorkLogFileDto)
+    files: QcWorkLogFileDto[];
 }

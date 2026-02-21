@@ -1,38 +1,59 @@
 import { Body, Controller, Post } from '@nestjs/common';
-import { Public } from '../../common/auth/public.decorator';
-import { CheckUserDto } from './dto/check-user.dto';
-import { LoginTrackerDto, SetPasswordDto } from './dto/login-tracker.dto';
-import { ResolveOrderDto } from './dto/resolve-order.dto';
-import { SyncWorkLogDto } from './dto/sync-work-log.dto';
-import { TrackerService } from './tracker.service';
+import { CheckUserDto, LoginTrackerDto, SetPasswordDto } from './dto/auth.dto';
+import { JobListDto } from './dto/job-list.dto';
+import { ReportFileDto } from './dto/report-file.dto';
+import { SearchFileDto } from './dto/search-file.dto';
+import { DashboardTodayDto } from './dto/dashboard-today.dto';
+import { SyncQcWorkLogDto } from './dto/sync-qc-work-log.dto';
+import { TrackerAuthService } from './tracker.auth.service';
+import { TrackerQcWorkLogService } from './tracker.qc-work-log.service';
+import { TrackerQueryService } from './tracker.query.service';
 
-@Public()
 @Controller('tracker')
 export class TrackerController {
-    constructor(private readonly trackerService: TrackerService) {}
+    constructor(
+        private readonly authService: TrackerAuthService,
+        private readonly qcWorkLogService: TrackerQcWorkLogService,
+        private readonly queryService: TrackerQueryService,
+    ) {}
 
     @Post('check-user')
     checkUser(@Body() dto: CheckUserDto) {
-        return this.trackerService.checkUser(dto.username);
+        return this.authService.checkUser(dto.username);
     }
 
     @Post('login')
     login(@Body() dto: LoginTrackerDto) {
-        return this.trackerService.login(dto);
+        return this.authService.login(dto);
     }
 
     @Post('set-password')
     setPassword(@Body() dto: SetPasswordDto) {
-        return this.trackerService.setPassword(dto.username, dto.password);
+        return this.authService.setPassword(dto.username, dto.password);
     }
 
-    @Post('sync')
-    sync(@Body() dto: SyncWorkLogDto) {
-        return this.trackerService.sync(dto);
+    @Post('sync-qc')
+    syncQc(@Body() dto: SyncQcWorkLogDto) {
+        return this.qcWorkLogService.syncQc(dto);
     }
 
-    @Post('resolve-order')
-    resolveOrder(@Body() dto: ResolveOrderDto) {
-        return this.trackerService.resolveOrder(dto);
+    @Post('report-file')
+    reportFile(@Body() dto: ReportFileDto) {
+        return this.qcWorkLogService.reportFile(dto);
+    }
+
+    @Post('job-list')
+    jobList(@Body() dto: JobListDto) {
+        return this.queryService.jobList(dto);
+    }
+
+    @Post('search-file')
+    searchFile(@Body() dto: SearchFileDto) {
+        return this.queryService.searchFile(dto);
+    }
+
+    @Post('dashboard-today')
+    dashboardToday(@Body() dto: DashboardTodayDto) {
+        return this.queryService.dashboardToday(dto);
     }
 }
