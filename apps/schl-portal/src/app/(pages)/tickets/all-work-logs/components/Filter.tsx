@@ -62,8 +62,7 @@ export default function FilterButton(props: PropsType) {
                     },
                 );
                 if (resp.ok && !cancelled) {
-                    const users = resp.data as any[];
-                    const opts = users.map(u => ({
+                    const opts = resp.data.map(u => ({
                         value: u._id,
                         label:
                             u.employee?.real_name ||
@@ -91,7 +90,7 @@ export default function FilterButton(props: PropsType) {
         >,
     ) => {
         const { name, value } = e.target;
-        setFilters(prev => ({ ...prev, [name]: value }) as any);
+        setFilters(prev => ({ ...prev, [name]: value }));
     };
 
     const handleResetFilters = () => {

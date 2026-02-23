@@ -308,7 +308,7 @@ const Table = () => {
                 </div>
             </div>
 
-            {loading ? <p className="text-center">Loading...</p> : <></>}
+            {loading && <p className="text-center">Loading...</p>}
 
             <div className="table-responsive text-nowrap text-base">
                 {!loading &&

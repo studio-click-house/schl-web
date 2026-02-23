@@ -4,30 +4,13 @@ import NoData, { Type } from '@/components/NoData';
 import Pagination from '@/components/Pagination';
 import { usePaginationManager } from '@/hooks/usePaginationManager';
 import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
-import { CirclePlus } from 'lucide-react';
+import { hasPerm } from '@repo/common/utils/permission-check';
 import { useSession } from 'next-auth/react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-
-import { formatDate } from '@repo/common/utils/date-helpers';
-import { cn } from '@repo/common/utils/general-utils';
-import { hasPerm } from '@repo/common/utils/permission-check';
-
 import { UpdateCommitFormType } from '../schema';
-import DeleteButton from './Delete';
-import EditButton from './Edit';
+import CommitCard, { CommitLogItem } from './Card';
 import FilterButton from './Filter';
-
-interface CommitLogItem {
-    _id: string;
-    ticket_number: string;
-    message: string;
-    description?: string;
-    sha?: string;
-    createdAt?: string;
-    created_by?: string;
-    created_by_name?: string;
-}
 
 type CommitLogsState = {
     pagination: {
@@ -37,7 +20,7 @@ type CommitLogsState = {
     items: CommitLogItem[];
 };
 
-const Table = () => {
+const List = () => {
     const authedFetchApi = useAuthedFetchApi();
     const { data: session } = useSession();
 
@@ -59,7 +42,7 @@ const Table = () => {
     const [page, setPage] = useState<number>(1);
     const [pageCount, setPageCount] = useState<number>(0);
     const [itemPerPage, setItemPerPage] = useState<number>(30);
-    const [loading, setIsLoading] = useState<boolean>(true);
+    const [loading, setLoading] = useState<boolean>(true);
     const [searchVersion, setSearchVersion] = useState<number>(0);
 
     // `split` may return undefined for safety, coerce to string
@@ -104,7 +87,7 @@ const Table = () => {
                 console.error(error);
                 toast.error('An error occurred while retrieving work logs');
             } finally {
-                setIsLoading(false);
+                setLoading(false);
             }
         },
         [authedFetchApi],
@@ -142,7 +125,7 @@ const Table = () => {
                 console.error(error);
                 toast.error('An error occurred while retrieving work logs');
             } finally {
-                setIsLoading(false);
+                setLoading(false);
             }
         },
         [authedFetchApi, filters],
@@ -179,7 +162,7 @@ const Table = () => {
 
     const editLog = async (edited: UpdateCommitFormType & { _id: string }) => {
         try {
-            setIsLoading(true);
+            setLoading(true);
             const response = await authedFetchApi(
                 { path: `/v1/ticket/update-commit/${edited._id}` },
                 {
@@ -202,7 +185,7 @@ const Table = () => {
             console.error(error);
             toast.error('An error occurred while updating the work log');
         } finally {
-            setIsLoading(false);
+            setLoading(false);
         }
     };
 
@@ -260,81 +243,37 @@ const Table = () => {
                 </div>
             </div>
 
-            {loading ? <p className="text-center">Loading...</p> : <></>}
+            {loading && <p className="text-center">Loading...</p>}
 
-            <div className="table-responsive text-nowrap text-base">
-                {!loading &&
-                    (logs?.items?.length !== 0 ? (
-                        <table className="table table-bordered table-striped">
-                            <thead className="table-dark">
-                                <tr>
-                                    <th>#</th>
-                                    <th>Date</th>
-                                    <th>Ticket No</th>
-                                    <th>Message</th>
-                                    <th>Created By</th>
-                                    <th>Manage</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {logs.items.map((log, index) => {
-                                    const isOwner =
-                                        log.created_by === session?.user.db_id;
-                                    const canEdit = isOwner;
-                                    const canDelete = isOwner || canReviewLogs;
+            {!loading &&
+                (logs.items.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {logs.items.map((log, index) => {
+                            const isOwner =
+                                log.created_by === session?.user.db_id;
+                            const canDelete = isOwner || canReviewLogs;
 
-                                    return (
-                                        <tr key={log._id}>
-                                            <td>
-                                                {index +
-                                                    1 +
-                                                    itemPerPage * (page - 1)}
-                                            </td>
-                                            <td>
-                                                {log.createdAt
-                                                    ? formatDate(log.createdAt)
-                                                    : null}
-                                            </td>
-                                            <td>{log.ticket_number}</td>
-                                            <td className="text-wrap">
-                                                {log.message}
-                                            </td>
-                                            <td className="text-wrap">
-                                                {log.created_by_name ||
-                                                    log.created_by}
-                                            </td>
-                                            <td>
-                                                <div className="flex gap-2">
-                                                    {canEdit && (
-                                                        <EditButton
-                                                            isLoading={loading}
-                                                            commitData={log}
-                                                            submitHandler={
-                                                                editLog
-                                                            }
-                                                        />
-                                                    )}
-                                                    {canDelete && (
-                                                        <DeleteButton
-                                                            commitId={log._id}
-                                                            submitHandler={
-                                                                deleteLog
-                                                            }
-                                                        />
-                                                    )}
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    ) : (
-                        <NoData text="No Work Logs Found" type={Type.danger} />
-                    ))}
-            </div>
+                            return (
+                                <CommitCard
+                                    key={log._id}
+                                    log={log}
+                                    index={index}
+                                    page={page}
+                                    itemPerPage={itemPerPage}
+                                    isOwner={isOwner}
+                                    canDelete={canDelete}
+                                    onEdit={editLog}
+                                    onDelete={deleteLog}
+                                    isLoading={loading}
+                                />
+                            );
+                        })}
+                    </div>
+                ) : (
+                    <NoData text="No Work Logs Found" type={Type.danger} />
+                ))}
         </>
     );
 };
 
-export default Table;
+export default List;
