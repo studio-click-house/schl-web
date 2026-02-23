@@ -14,9 +14,14 @@ import { IdParamDto } from '../../common/dto/id-param.dto';
 import { CreateCommitBodyDto } from './dto/create-commit.dto';
 import { CreateTicketBodyDto } from './dto/create-ticket.dto';
 import {
+    SearchCommitLogsBodyDto,
+    SearchCommitLogsQueryDto,
+} from './dto/search-commit-logs.dto';
+import {
     SearchTicketsBodyDto,
     SearchTicketsQueryDto,
 } from './dto/search-tickets.dto';
+import { UpdateCommitBodyDto } from './dto/update-commit.dto';
 import { TicketService } from './ticket.service';
 
 @Controller('ticket')
@@ -90,6 +95,36 @@ export class TicketController {
         @Req() req: Request & { user: UserSession },
     ) {
         return this.ticketService.addCommit(id, body, req.user);
+    }
+
+    @Post('search-commit-logs')
+    searchCommitLogs(
+        @Query() query: SearchCommitLogsQueryDto,
+        @Body() body: SearchCommitLogsBodyDto,
+    ) {
+        const pagination = {
+            page: query.page,
+            itemsPerPage: query.itemsPerPage,
+            paginated: query.paginated,
+        };
+        return this.ticketService.searchCommitLogs(body, pagination);
+    }
+
+    @Put('update-commit/:id')
+    updateCommit(
+        @Param() { id }: IdParamDto,
+        @Body() body: UpdateCommitBodyDto,
+        @Req() req: Request & { user: UserSession },
+    ) {
+        return this.ticketService.updateCommitLog(id, body, req.user);
+    }
+
+    @Delete('delete-commit/:id')
+    deleteCommit(
+        @Param() { id }: IdParamDto,
+        @Req() req: Request & { user: UserSession },
+    ) {
+        return this.ticketService.deleteCommitLog(id, req.user);
     }
 
     @Delete('delete-ticket/:id')

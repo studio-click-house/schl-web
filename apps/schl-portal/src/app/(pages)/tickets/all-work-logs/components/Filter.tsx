@@ -1,9 +1,6 @@
 'use client';
 
-import {
-    statusOptions,
-    typeOptions,
-} from '@repo/common/constants/ticket.constant';
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import { cn } from '@repo/common/utils/general-utils';
 import {
     setCalculatedZIndex,
@@ -11,7 +8,8 @@ import {
     setMenuPortalTarget,
 } from '@repo/common/utils/select-helpers';
 import { Filter, X } from 'lucide-react';
-import React, { useRef, useState } from 'react';
+import moment from 'moment-timezone';
+import React, { useEffect, useRef, useState } from 'react';
 import Select from 'react-select';
 
 const baseZIndex = 50;
@@ -20,19 +18,17 @@ interface PropsType {
     className?: string;
     submitHandler: () => void;
     filters: {
+        message: string;
         ticketNumber: string;
-        title: string;
-        type: string;
-        status: string;
+        createdBy: string;
         fromDate: string;
         toDate: string;
     };
     setFilters: React.Dispatch<
         React.SetStateAction<{
+            message: string;
             ticketNumber: string;
-            title: string;
-            type: string;
-            status: string;
+            createdBy: string;
             fromDate: string;
             toDate: string;
         }>
@@ -42,8 +38,52 @@ interface PropsType {
 
 export default function FilterButton(props: PropsType) {
     const [isOpen, setIsOpen] = useState(false);
+    const [userOptions, setUserOptions] = useState<
+        { value: string; label: string }[]
+    >([]);
     const popupRef = useRef<HTMLElement | null>(null);
+    const authedFetchApi = useAuthedFetchApi();
     const { filters, setFilters } = props;
+
+    // load user list for dropdown
+    useEffect(() => {
+        let cancelled = false;
+        const loadUsers = async () => {
+            try {
+                const resp = await authedFetchApi<any[]>(
+                    {
+                        path: '/v1/user/search-users',
+                        query: { paginated: false },
+                    },
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({}),
+                    },
+                );
+                if (resp.ok && !cancelled) {
+                    const users = resp.data as any[];
+                    const opts = users.map(u => ({
+                        value: u._id,
+                        label:
+                            u.employee?.real_name ||
+                            u.username ||
+                            u.email ||
+                            '',
+                    }));
+                    setUserOptions(opts);
+                } else if (!cancelled) {
+                    toastFetchError(resp);
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        };
+        loadUsers();
+        return () => {
+            cancelled = true;
+        };
+    }, [authedFetchApi]);
 
     const handleChange = (
         e: React.ChangeEvent<
@@ -56,12 +96,11 @@ export default function FilterButton(props: PropsType) {
 
     const handleResetFilters = () => {
         setFilters({
+            message: '',
             ticketNumber: '',
-            title: '',
-            type: '',
-            status: '',
-            fromDate: '',
-            toDate: '',
+            createdBy: '',
+            fromDate: moment().format('YYYY-MM-DD'),
+            toDate: moment().format('YYYY-MM-DD'),
         });
     };
 
@@ -91,16 +130,22 @@ export default function FilterButton(props: PropsType) {
 
             <section
                 onClick={handleClickOutside}
-                className={`fixed z-${baseZIndex} inset-0 flex justify-center items-center transition-colors ${isOpen ? 'visible bg-black/20 disable-page-scroll pointer-events-auto' : 'invisible pointer-events-none'}`}
+                className={`fixed z-${baseZIndex} inset-0 flex justify-center items-center transition-colors ${
+                    isOpen
+                        ? 'visible bg-black/20 disable-page-scroll pointer-events-auto'
+                        : 'invisible pointer-events-none'
+                }`}
             >
                 <article
                     ref={popupRef}
                     onClick={e => e.stopPropagation()}
-                    className={`${isOpen ? 'scale-100 opacity-100' : 'scale-125 opacity-0'} bg-white rounded-lg lg:w-[35vw] md:w-[70vw] sm:w-[80vw] shadow relative`}
+                    className={`${
+                        isOpen ? 'scale-100 opacity-100' : 'scale-125 opacity-0'
+                    } bg-white rounded-lg lg:w-[35vw] md:w-[70vw] sm:w-[80vw] shadow relative`}
                 >
                     <header className="flex items-center align-middle justify-between px-4 py-2 border-b rounded-t">
                         <h3 className="text-gray-900 text-lg lg:text-xl font-semibold uppercase">
-                            Filter Tickets
+                            Filter Work Logs
                         </h3>
                         <button
                             onClick={() => setIsOpen(false)}
@@ -113,6 +158,21 @@ export default function FilterButton(props: PropsType) {
 
                     <div className="overflow-y-scroll max-h-[70vh] p-4">
                         <div className="grid grid-cols-1 gap-x-3 gap-y-4 md:grid-cols-2">
+                            <div>
+                                <label className="uppercase tracking-wide text-gray-700 text-sm font-bold block mb-2">
+                                    Commit Message
+                                </label>
+                                <input
+                                    autoComplete="off"
+                                    name="message"
+                                    value={filters.message}
+                                    onChange={handleChange}
+                                    className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
+                                    type="text"
+                                    placeholder="Search by message"
+                                />
+                            </div>
+
                             <div>
                                 <label className="uppercase tracking-wide text-gray-700 text-sm font-bold block mb-2">
                                     Ticket Number
@@ -130,65 +190,23 @@ export default function FilterButton(props: PropsType) {
 
                             <div>
                                 <label className="uppercase tracking-wide text-gray-700 text-sm font-bold block mb-2">
-                                    Title
-                                </label>
-                                <input
-                                    autoComplete="off"
-                                    name="title"
-                                    value={filters.title}
-                                    onChange={handleChange}
-                                    className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
-                                    type="text"
-                                    placeholder="Search by title"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="uppercase tracking-wide text-gray-700 text-sm font-bold block mb-2">
-                                    Type
+                                    Created By
                                 </label>
                                 <Select
                                     {...setClassNameAndIsDisabled(isOpen)}
-                                    options={typeOptions}
+                                    options={userOptions}
                                     classNamePrefix="react-select"
                                     menuPortalTarget={setMenuPortalTarget}
                                     styles={setCalculatedZIndex(baseZIndex)}
                                     value={
-                                        typeOptions.find(
-                                            o => o.value === props.filters.type,
+                                        userOptions.find(
+                                            o => o.value === filters.createdBy,
                                         ) || null
                                     }
                                     onChange={opt =>
                                         setFilters(prev => ({
                                             ...prev,
-                                            type: opt?.value || '',
-                                        }))
-                                    }
-                                    isClearable
-                                />
-                            </div>
-
-                            <div>
-                                <label className="uppercase tracking-wide text-gray-700 text-sm font-bold block mb-2">
-                                    Status
-                                </label>
-                                <Select
-                                    {...setClassNameAndIsDisabled(isOpen)}
-                                    options={statusOptions}
-                                    classNamePrefix="react-select"
-                                    menuPortalTarget={setMenuPortalTarget}
-                                    styles={setCalculatedZIndex(baseZIndex)}
-                                    value={
-                                        statusOptions.find(
-                                            o =>
-                                                o.value ===
-                                                props.filters.status,
-                                        ) || null
-                                    }
-                                    onChange={opt =>
-                                        setFilters(prev => ({
-                                            ...prev,
-                                            status: opt?.value || '',
+                                            createdBy: opt?.value || '',
                                         }))
                                     }
                                     isClearable
@@ -224,26 +242,25 @@ export default function FilterButton(props: PropsType) {
                                 </div>
                             </div>
                         </div>
-                    </div>
 
-                    <footer className="flex space-x-2 items-center px-4 py-2 border-t justify-end border-gray-200 rounded-b">
-                        <button
-                            onClick={handleResetFilters}
-                            className="rounded-md bg-gray-600 text-white  hover:opacity-90 hover:ring-2 hover:ring-gray-600 transition duration-200 delay-300 hover:text-opacity-100 px-8 py-2 uppercase"
-                            type="button"
-                            disabled={props.isLoading}
-                        >
-                            Reset
-                        </button>
-                        <button
-                            onClick={props.submitHandler}
-                            className="rounded-md bg-blue-600 text-white   hover:opacity-90 hover:ring-2 hover:ring-blue-600 transition duration-200 delay-300 hover:text-opacity-100 px-8 py-2 uppercase"
-                            type="button"
-                            disabled={props.isLoading}
-                        >
-                            Search
-                        </button>
-                    </footer>
+                        <div className="flex justify-end gap-2 pt-4">
+                            <button
+                                onClick={handleResetFilters}
+                                type="button"
+                                className="rounded-md bg-gray-600 text-white hover:opacity-90 hover:ring-2 hover:ring-gray-600 transition duration-200 delay-300 hover:text-opacity-100 px-4 py-1"
+                            >
+                                Reset
+                            </button>
+                            <button
+                                onClick={props.submitHandler}
+                                disabled={props.isLoading}
+                                className="rounded-md bg-blue-600 text-white hover:opacity-90 hover:ring-2 hover:ring-blue-600 transition duration-200 delay-300 hover:text-opacity-100 px-4 py-1"
+                                type="button"
+                            >
+                                Search
+                            </button>
+                        </div>
+                    </div>
                 </article>
             </section>
         </>

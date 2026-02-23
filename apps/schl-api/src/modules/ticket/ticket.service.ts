@@ -23,13 +23,24 @@ import { hasAnyPerm, hasPerm } from '@repo/common/utils/permission-check';
 import { Model, Types } from 'mongoose';
 import { CreateCommitBodyDto } from './dto/create-commit.dto';
 import { CreateTicketBodyDto } from './dto/create-ticket.dto';
+import { SearchCommitLogsBodyDto } from './dto/search-commit-logs.dto';
 import { SearchTicketsBodyDto } from './dto/search-tickets.dto';
+import { UpdateCommitBodyDto } from './dto/update-commit.dto';
+import { CommitLogFactory } from './factories/commit-log.factory';
 import { TicketFactory } from './factories/ticket.factory';
 
 type TicketsPagination = {
     page: number;
     itemsPerPage: number;
     paginated: boolean;
+};
+
+// Response type for commit logs list API
+// can't extend CommitLog directly because we change created_by to string
+export type CommitLogResponse = CommitLog & {
+    ticket_number?: string;
+    created_by?: string;
+    created_by_name?: string;
 };
 
 type TicketWithName = Ticket & { opened_by_name?: string };
@@ -440,6 +451,7 @@ export class TicketService {
         try {
             const created = await this.commitLogModel.create({
                 ticket: existing._id,
+                created_by: new Types.ObjectId(userSession.db_id),
                 sha: dto.sha ?? '',
                 message: dto.message,
                 description: dto.description ?? '',
@@ -477,6 +489,198 @@ export class TicketService {
             if (err instanceof HttpException) throw err;
             throw new InternalServerErrorException('Unable to add commit');
         }
+    }
+
+    // search existing commit logs with optional filters and pagination
+    async searchCommitLogs(
+        filters: SearchCommitLogsBodyDto,
+        pagination: TicketsPagination,
+    ): Promise<
+        | CommitLogResponse[]
+        | {
+              pagination: { count: number; pageCount: number };
+              items: CommitLogResponse[];
+          }
+    > {
+        const { page, itemsPerPage, paginated } = pagination;
+        const { message, ticketNumber, createdBy, fromDate, toDate } = filters;
+        const normalizedFromDate = this.normalizeDateInput(fromDate);
+        const normalizedToDate = this.normalizeDateInput(toDate);
+
+        const query: Record<string, unknown> = {};
+
+        if (message) {
+            addIfDefined(query, 'message', createRegexQuery(message));
+        }
+
+        applyDateRange(
+            query,
+            'createdAt',
+            normalizedFromDate,
+            normalizedToDate,
+        );
+
+        if (ticketNumber) {
+            // allow partial search like commit message
+            const regex = createRegexQuery(ticketNumber);
+            const tickets = await this.ticketModel
+                .find({ ticket_number: regex })
+                .select('_id')
+                .lean()
+                .exec();
+            if (!tickets || tickets.length === 0) {
+                if (paginated) {
+                    return {
+                        pagination: { count: 0, pageCount: 0 },
+                        items: [],
+                    };
+                }
+                return [];
+            }
+            query.ticket = { $in: tickets.map(t => t._id) };
+        }
+
+        if (createdBy) {
+            try {
+                query.created_by = new Types.ObjectId(createdBy);
+            } catch {
+                // ignore invalid id, will match nothing
+                query.created_by = undefined;
+            }
+        }
+
+        const sortQuery: Record<string, 1 | -1> = { createdAt: -1 };
+
+        if (paginated) {
+            const skip = (page - 1) * itemsPerPage;
+            const count = await this.commitLogModel.countDocuments(query);
+
+            type CommitLogLean = CommitLog & {
+                ticket?: { ticket_number?: string };
+                created_by?: any; // populated user document
+            };
+
+            const itemsRaw = await this.commitLogModel
+                .find(query)
+                .sort(sortQuery)
+                .skip(skip)
+                .limit(itemsPerPage)
+                .populate('ticket', 'ticket_number')
+                .populate({
+                    path: 'created_by',
+                    select: 'employee email username',
+                    populate: { path: 'employee', select: 'real_name' },
+                })
+                .lean<CommitLogLean>()
+                .exec();
+            const items = itemsRaw as unknown as CommitLogLean[];
+
+            const mapped = items.map(item => {
+                const user = item.created_by || {};
+                const name =
+                    user.employee?.real_name ||
+                    user.email ||
+                    user.username ||
+                    '';
+                return {
+                    ...item,
+                    ticket_number: item.ticket?.ticket_number || '',
+                    created_by: user._id ? String(user._id) : '',
+                    created_by_name: name,
+                } as CommitLogResponse;
+            });
+
+            return {
+                pagination: {
+                    count,
+                    pageCount: Math.ceil(count / itemsPerPage),
+                },
+                items: mapped,
+            };
+        }
+
+        type CommitLogLean = CommitLog & {
+            ticket?: { ticket_number?: string };
+            created_by?: any;
+        };
+
+        const itemsRaw = await this.commitLogModel
+            .find(query)
+            .sort(sortQuery)
+            .populate('ticket', 'ticket_number')
+            .populate({
+                path: 'created_by',
+                select: 'employee email username',
+                populate: { path: 'employee', select: 'real_name' },
+            })
+            .lean<CommitLogLean>()
+            .exec();
+        const items = itemsRaw as unknown as CommitLogLean[];
+
+        const mapped = items.map(item => {
+            const user = item.created_by || {};
+            const name =
+                user.employee?.real_name || user.email || user.username || '';
+            return {
+                ...item,
+                ticket_number: item.ticket?.ticket_number || '',
+                created_by: user._id ? String(user._id) : '',
+                created_by_name: name,
+            } as CommitLogResponse;
+        });
+        return mapped;
+    }
+
+    async updateCommitLog(
+        commitId: string,
+        dto: UpdateCommitBodyDto,
+        userSession: UserSession,
+    ) {
+        const existing = await this.commitLogModel.findById(commitId).exec();
+        if (!existing) throw new NotFoundException('Commit log not found');
+
+        const isOwner =
+            (existing as any).created_by?.toString() === userSession.db_id;
+        if (!isOwner) {
+            throw new ForbiddenException(
+                "You don't have permission to edit this commit log",
+            );
+        }
+
+        const patch = CommitLogFactory.fromUpdateDto(dto);
+        if (Object.keys(patch).length === 0) {
+            throw new BadRequestException('No fields provided for update');
+        }
+
+        const updated = await this.commitLogModel
+            .findByIdAndUpdate(commitId, { $set: patch }, { new: true })
+            .exec();
+        if (!updated) {
+            throw new InternalServerErrorException(
+                'Unable to update commit log',
+            );
+        }
+        return updated;
+    }
+
+    async deleteCommitLog(commitId: string, userSession: UserSession) {
+        const existing = await this.commitLogModel.findById(commitId).exec();
+        if (!existing) throw new NotFoundException('Commit log not found');
+
+        const isOwner =
+            (existing as any).created_by?.toString() === userSession.db_id;
+        const canReview = hasPerm(
+            'ticket:review_logs',
+            userSession.permissions,
+        );
+        if (!isOwner && !canReview) {
+            throw new ForbiddenException(
+                "You don't have permission to delete this commit log",
+            );
+        }
+
+        await existing.deleteOne();
+        return { message: 'Deleted commit log successfully' };
     }
 
     async deleteTicket(
