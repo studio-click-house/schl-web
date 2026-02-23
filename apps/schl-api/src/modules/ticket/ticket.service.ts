@@ -314,7 +314,7 @@ export class TicketService {
             type?: string;
             status?: string;
             createdAt?: { $gte?: Date; $lte?: Date };
-            opened_by?: string;
+            opened_by?: Types.ObjectId;
         } & Partial<{
             $and: Record<string, unknown>[];
             $or: Record<string, unknown>[];
@@ -341,9 +341,9 @@ export class TicketService {
         addIfDefined(query, 'status', status);
 
         if (myTickets) {
-            query.opened_by = userSession.db_id;
+            query.opened_by = new Types.ObjectId(userSession.db_id);
         } else if (!hasPerm('ticket:review_tickets', userSession.permissions)) {
-            query.opened_by = userSession.db_id;
+            query.opened_by = new Types.ObjectId(userSession.db_id);
         }
 
         const terminalStatuses: TicketStatus[] = [
