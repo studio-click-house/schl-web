@@ -206,7 +206,6 @@ const Form: React.FC<Props> = ({ ticketsData }) => {
                 {selectedTicketId ? (
                     ticketDetails ? (
                         <>
-                            {/* details card below selector */}
                             <div className="md:col-span-2 max-w-xl block rounded-lg border border-gray-200 bg-white p-4 md:p-6 mb-4">
                                 <div className="flex justify-between items-start">
                                     <h4 className="font-semibold text-lg">
@@ -258,6 +257,7 @@ const Form: React.FC<Props> = ({ ticketsData }) => {
                                     )}
                                 </div>
                             </div>
+
                             <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-x-3 gap-y-4">
                                 <div>
                                     <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">

@@ -363,59 +363,53 @@ const Table = () => {
                                                 {ticket.opened_by_name || ''}
                                             </td>
                                             <td
-                                                className="uppercase text-wrap text-center"
+                                                className="uppercase text-wrap"
                                                 style={{
                                                     verticalAlign: 'middle',
                                                 }}
                                             >
-                                                <div className="flex justify-center">
-                                                    <Badge
-                                                        value={capitalize(
-                                                            ticket.type,
-                                                        )}
-                                                        className={getTicketTypeBadgeClass(
-                                                            ticket.type,
-                                                        )}
-                                                    />
-                                                </div>
+                                                <Badge
+                                                    value={capitalize(
+                                                        ticket.type,
+                                                    )}
+                                                    className={getTicketTypeBadgeClass(
+                                                        ticket.type,
+                                                    )}
+                                                />
                                             </td>
                                             <td
-                                                className="uppercase text-wrap text-center"
+                                                className="uppercase text-wrap"
                                                 style={{
                                                     verticalAlign: 'middle',
                                                 }}
                                             >
-                                                <div className="flex justify-center">
-                                                    <Badge
-                                                        value={capitalize(
-                                                            ticket.priority,
-                                                        )}
-                                                        className={getTicketPriorityBadgeClass(
-                                                            ticket.priority ??
-                                                                'low',
-                                                        )}
-                                                    />
-                                                </div>
+                                                <Badge
+                                                    value={capitalize(
+                                                        ticket.priority,
+                                                    )}
+                                                    className={getTicketPriorityBadgeClass(
+                                                        ticket.priority ??
+                                                            'low',
+                                                    )}
+                                                />
                                             </td>
                                             <td
-                                                className="uppercase text-wrap text-center"
+                                                className="uppercase text-wrap"
                                                 style={{
                                                     verticalAlign: 'middle',
                                                 }}
                                             >
-                                                <div className="flex justify-center">
-                                                    <Badge
-                                                        value={capitalize(
-                                                            ticket.status,
-                                                        )}
-                                                        className={getTicketStatusBadgeClass(
-                                                            ticket.status,
-                                                        )}
-                                                    />
-                                                </div>
+                                                <Badge
+                                                    value={capitalize(
+                                                        ticket.status,
+                                                    )}
+                                                    className={getTicketStatusBadgeClass(
+                                                        ticket.status,
+                                                    )}
+                                                />
                                             </td>
                                             <td
-                                                className="text-center"
+                                                className="text-wrap"
                                                 style={{
                                                     verticalAlign: 'middle',
                                                 }}

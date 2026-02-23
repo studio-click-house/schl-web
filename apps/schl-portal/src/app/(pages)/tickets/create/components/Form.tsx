@@ -108,7 +108,7 @@ const Form: React.FC = () => {
 
     return (
         <form onSubmit={handleSubmit(onSubmit)}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 mb-4 gap-y-4">
+            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-x-3 mb-4 gap-y-4">
                 <div>
                     <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
                         <span className="uppercase">Ticket Type*</span>
@@ -201,7 +201,7 @@ const Form: React.FC = () => {
                     />
                 </div>
 
-                <div className="md:col-span-2">
+                <div className="md:col-span-3">
                     <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
                         <span className="uppercase">Ticket Title*</span>
                         <span className="text-red-700 text-wrap block text-xs">
