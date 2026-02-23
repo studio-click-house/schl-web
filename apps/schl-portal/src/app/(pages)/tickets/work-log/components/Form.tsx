@@ -5,9 +5,8 @@ import NoticeBodyEditor from '@/components/RichText/RichTextEditor';
 import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
-    TICKET_PRIORITIES,
-    TICKET_STATUSES,
-    TICKET_TYPES,
+    priorityOptions, statusOptions,
+    typeOptions,
 } from '@repo/common/constants/ticket.constant';
 import { TicketDocument } from '@repo/common/models/ticket.schema';
 import { formatDate } from '@repo/common/utils/date-helpers';
@@ -57,19 +56,6 @@ const Form: React.FC<Props> = ({ ticketsData }) => {
                 label: t.ticket_number,
             })),
         [ticketsData],
-    );
-
-    const typeOptions = useMemo(
-        () => TICKET_TYPES.map(value => ({ value, label: value })),
-        [],
-    );
-    const statusOptions = useMemo(
-        () => TICKET_STATUSES.map(value => ({ value, label: value })),
-        [],
-    );
-    const priorityOptions = useMemo(
-        () => TICKET_PRIORITIES.map(value => ({ value, label: value })),
-        [],
     );
 
     const {
