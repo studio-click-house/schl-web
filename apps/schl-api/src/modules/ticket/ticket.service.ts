@@ -20,7 +20,7 @@ import {
     createRegexQuery,
 } from '@repo/common/utils/filter-helpers';
 import { hasAnyPerm, hasPerm } from '@repo/common/utils/permission-check';
-import { Model, Types } from 'mongoose';
+import { Model, PipelineStage, Types } from 'mongoose';
 import { CreateCommitBodyDto } from './dto/create-commit.dto';
 import { CreateTicketBodyDto } from './dto/create-ticket.dto';
 import { SearchCommitLogsBodyDto } from './dto/search-commit-logs.dto';
@@ -44,6 +44,13 @@ export type CommitLogResponse = CommitLog & {
 };
 
 type TicketWithName = Ticket & { opened_by_name?: string };
+
+// when we run aggregation for custom sorting we temporarily add sortPriority
+// and mongoose returns plain objects rather than documents. this type helps
+// us keep strong typing and avoid `any`.
+interface AggregatedTicket extends Ticket {
+    sortPriority?: number;
+}
 
 // response from search may include opened_by_name on each ticket
 // it is added by the service when appropriate
@@ -333,16 +340,46 @@ export class TicketService {
         addIfDefined(query, 'type', type);
         addIfDefined(query, 'status', status);
 
-        // For my-tickets page always restrict to current user
         if (myTickets) {
             query.opened_by = userSession.db_id;
-        }
-        // Otherwise, if user does not have review permission, restrict to own tickets
-        else if (!hasPerm('ticket:review_tickets', userSession.permissions)) {
+        } else if (!hasPerm('ticket:review_tickets', userSession.permissions)) {
             query.opened_by = userSession.db_id;
         }
 
-        const sortQuery: Record<string, 1 | -1> = { createdAt: -1 };
+        const terminalStatuses: TicketStatus[] = [
+            'resolved',
+            'rejected',
+            'done',
+            'no-work',
+        ];
+        const sortStage = {
+            $addFields: {
+                sortPriority: {
+                    $switch: {
+                        branches: [
+                            {
+                                case: { $in: ['$status', terminalStatuses] },
+                                then: 0,
+                            },
+                            { case: { $eq: ['$priority', 'low'] }, then: 1 },
+                            { case: { $eq: ['$priority', 'medium'] }, then: 2 },
+                            { case: { $eq: ['$priority', 'high'] }, then: 3 },
+                            {
+                                case: { $eq: ['$priority', 'critical'] },
+                                then: 4,
+                            },
+                        ],
+                        default: 0,
+                    },
+                },
+            },
+        };
+
+        const basePipeline: PipelineStage[] = [
+            { $match: query } as PipelineStage,
+        ];
+        basePipeline.push(sortStage);
+        basePipeline.push({ $sort: { sortPriority: -1, createdAt: -1 } });
 
         if (paginated) {
             const skip = (page - 1) * itemsPerPage;
@@ -350,21 +387,23 @@ export class TicketService {
                 query as Record<string, unknown>,
             );
 
-            let items = await this.ticketModel
-                .find(query as Record<string, unknown>)
-                .sort(sortQuery)
-                .skip(skip)
-                .limit(itemsPerPage)
-                .lean()
+            const pipeline: PipelineStage[] = [
+                ...basePipeline,
+                { $skip: skip } as PipelineStage,
+                { $limit: itemsPerPage } as PipelineStage,
+            ];
+            const items = await this.ticketModel
+                .aggregate<AggregatedTicket>(pipeline)
                 .exec();
 
-            // attach opener name
-            items = await Promise.all(
-                items.map(async t => {
-                    const name = await this.resolveOpenedByName(
-                        t.opened_by.toString(),
-                    );
-                    return { ...t, opened_by_name: name };
+            // remove the helper field and attach opener name
+            const paged: TicketWithName[] = await Promise.all(
+                items.map(async (t: AggregatedTicket) => {
+                    const openedById = t.opened_by?.toString() ?? '';
+                    const name = await this.resolveOpenedByName(openedById);
+                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                    const { sortPriority, ...rest } = t;
+                    return { ...rest, opened_by_name: name } as TicketWithName;
                 }),
             );
 
@@ -373,25 +412,23 @@ export class TicketService {
                     count,
                     pageCount: Math.ceil(count / itemsPerPage),
                 },
-                items,
+                items: paged,
             };
         }
 
-        let items = await this.ticketModel
-            .find(query as Record<string, unknown>)
-            .sort(sortQuery)
-            .lean()
+        const items = await this.ticketModel
+            .aggregate<AggregatedTicket>(basePipeline)
             .exec();
-
-        items = await Promise.all(
-            items.map(async t => {
-                const name = await this.resolveOpenedByName(
-                    t.opened_by.toString(),
-                );
-                return { ...t, opened_by_name: name };
+        const result: TicketWithName[] = await Promise.all(
+            items.map(async (t: AggregatedTicket) => {
+                const openedById = t.opened_by?.toString() ?? '';
+                const name = await this.resolveOpenedByName(openedById);
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                const { sortPriority, ...rest } = t;
+                return { ...rest, opened_by_name: name } as TicketWithName;
             }),
         );
-        return items;
+        return result;
     }
 
     async updateTicket(
