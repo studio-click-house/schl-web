@@ -160,6 +160,31 @@ export default function FilterButton(props: PropsType) {
                         <div className="grid grid-cols-1 gap-x-3 gap-y-4 md:grid-cols-2">
                             <div>
                                 <label className="uppercase tracking-wide text-gray-700 text-sm font-bold block mb-2">
+                                    Created By
+                                </label>
+                                <Select
+                                    {...setClassNameAndIsDisabled(isOpen)}
+                                    options={userOptions}
+                                    classNamePrefix="react-select"
+                                    menuPortalTarget={setMenuPortalTarget}
+                                    styles={setCalculatedZIndex(baseZIndex)}
+                                    value={
+                                        userOptions.find(
+                                            o => o.value === filters.createdBy,
+                                        ) || null
+                                    }
+                                    onChange={opt =>
+                                        setFilters(prev => ({
+                                            ...prev,
+                                            createdBy: opt?.value || '',
+                                        }))
+                                    }
+                                    isClearable
+                                />
+                            </div>
+
+                            <div>
+                                <label className="uppercase tracking-wide text-gray-700 text-sm font-bold block mb-2">
                                     Commit Message
                                 </label>
                                 <input
@@ -185,31 +210,6 @@ export default function FilterButton(props: PropsType) {
                                     className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
                                     type="text"
                                     placeholder="Search by ticket number"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="uppercase tracking-wide text-gray-700 text-sm font-bold block mb-2">
-                                    Created By
-                                </label>
-                                <Select
-                                    {...setClassNameAndIsDisabled(isOpen)}
-                                    options={userOptions}
-                                    classNamePrefix="react-select"
-                                    menuPortalTarget={setMenuPortalTarget}
-                                    styles={setCalculatedZIndex(baseZIndex)}
-                                    value={
-                                        userOptions.find(
-                                            o => o.value === filters.createdBy,
-                                        ) || null
-                                    }
-                                    onChange={opt =>
-                                        setFilters(prev => ({
-                                            ...prev,
-                                            createdBy: opt?.value || '',
-                                        }))
-                                    }
-                                    isClearable
                                 />
                             </div>
 
