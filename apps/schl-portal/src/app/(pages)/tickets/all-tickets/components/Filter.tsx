@@ -118,6 +118,7 @@ export default function FilterButton(props: PropsType) {
                                     Ticket Number
                                 </label>
                                 <input
+                                    autoComplete="off"
                                     name="ticketNumber"
                                     value={filters.ticketNumber}
                                     onChange={handleChange}
@@ -132,6 +133,7 @@ export default function FilterButton(props: PropsType) {
                                     Title
                                 </label>
                                 <input
+                                    autoComplete="off"
                                     name="title"
                                     value={filters.title}
                                     onChange={handleChange}

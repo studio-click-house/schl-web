@@ -8,7 +8,7 @@ export const populatedUserSchema = z.object({
     employee: z.object({
         _id: z.string(),
         e_id: z.string(),
-        company_provided_name: z.string(),
+        company_provided_name: z.string().nullable(),
         real_name: z.string(),
     }),
     role: z.object({

@@ -19,11 +19,14 @@ import {
     addIfDefined,
     createRegexQuery,
 } from '@repo/common/utils/filter-helpers';
-import { hasPerm } from '@repo/common/utils/permission-check';
-import { Model, Types } from 'mongoose';
+import { hasAnyPerm, hasPerm } from '@repo/common/utils/permission-check';
+import { Model, PipelineStage, Types } from 'mongoose';
 import { CreateCommitBodyDto } from './dto/create-commit.dto';
 import { CreateTicketBodyDto } from './dto/create-ticket.dto';
+import { SearchCommitLogsBodyDto } from './dto/search-commit-logs.dto';
 import { SearchTicketsBodyDto } from './dto/search-tickets.dto';
+import { UpdateCommitBodyDto } from './dto/update-commit.dto';
+import { CommitLogFactory } from './factories/commit-log.factory';
 import { TicketFactory } from './factories/ticket.factory';
 
 type TicketsPagination = {
@@ -32,9 +35,29 @@ type TicketsPagination = {
     paginated: boolean;
 };
 
+// Response type for commit logs list API
+// can't extend CommitLog directly because we change created_by to string
+export type CommitLogResponse = CommitLog & {
+    ticket_number?: string;
+    created_by?: string;
+    created_by_name?: string;
+};
+
+type TicketWithName = Ticket & { opened_by_name?: string };
+
+// when we run aggregation for custom sorting we temporarily add sortPriority
+// and mongoose returns plain objects rather than documents. this type helps
+// us keep strong typing and avoid `any`.
+interface AggregatedTicket extends Ticket {
+    sortPriority?: number;
+}
+
+// response from search may include opened_by_name on each ticket
+// it is added by the service when appropriate
+
 type TicketListResponse = {
     pagination: { count: number; pageCount: number };
-    items: Ticket[];
+    items: TicketWithName[];
 };
 
 @Injectable()
@@ -150,7 +173,12 @@ export class TicketService {
     }
 
     async getTicketById(ticketId: string, userSession: UserSession) {
-        if (!hasPerm('ticket:view_ticket', userSession.permissions)) {
+        if (
+            !hasAnyPerm(
+                ['ticket:create_ticket', 'ticket:review_tickets'],
+                userSession.permissions,
+            )
+        ) {
             throw new ForbiddenException(
                 "You don't have permission to view this ticket",
             );
@@ -163,7 +191,10 @@ export class TicketService {
             }
 
             if (
-                !hasPerm('ticket:review_queue', userSession.permissions) &&
+                !hasAnyPerm(
+                    ['ticket:create_ticket', 'ticket:review_tickets'],
+                    userSession.permissions,
+                ) &&
                 ticket.opened_by.toString() !== userSession.db_id
             ) {
                 throw new ForbiddenException(
@@ -186,7 +217,12 @@ export class TicketService {
     }
 
     async getTicketByTicketNumber(ticketNo: string, userSession: UserSession) {
-        if (!hasPerm('ticket:view_ticket', userSession.permissions)) {
+        if (
+            !hasAnyPerm(
+                ['ticket:create_ticket', 'ticket:review_tickets'],
+                userSession.permissions,
+            )
+        ) {
             throw new ForbiddenException(
                 "You don't have permission to view this ticket",
             );
@@ -204,7 +240,10 @@ export class TicketService {
             }
 
             if (
-                !hasPerm('ticket:review_queue', userSession.permissions) &&
+                !hasAnyPerm(
+                    ['ticket:create_ticket', 'ticket:review_tickets'],
+                    userSession.permissions,
+                ) &&
                 ticket.opened_by.toString() !== userSession.db_id
             ) {
                 throw new ForbiddenException(
@@ -227,7 +266,7 @@ export class TicketService {
     }
 
     async getWorkLogTickets(userSession: UserSession): Promise<Ticket[]> {
-        if (!hasPerm('ticket:view_ticket', userSession.permissions)) {
+        if (!hasPerm('ticket:review_tickets', userSession.permissions)) {
             throw new ForbiddenException(
                 "You don't have permission to view tickets",
             );
@@ -244,7 +283,7 @@ export class TicketService {
             status: { $nin: excludedStatuses },
         };
 
-        if (!hasPerm('ticket:review_queue', userSession.permissions)) {
+        if (!hasPerm('ticket:review_tickets', userSession.permissions)) {
             query.opened_by = userSession.db_id;
         }
 
@@ -275,8 +314,11 @@ export class TicketService {
             type?: string;
             status?: string;
             createdAt?: { $gte?: Date; $lte?: Date };
-            opened_by?: string;
-        };
+            opened_by?: Types.ObjectId;
+        } & Partial<{
+            $and: Record<string, unknown>[];
+            $or: Record<string, unknown>[];
+        }>;
 
         const query: QueryShape = {};
 
@@ -298,16 +340,46 @@ export class TicketService {
         addIfDefined(query, 'type', type);
         addIfDefined(query, 'status', status);
 
-        // For my-tickets page always restrict to current user
         if (myTickets) {
-            query.opened_by = userSession.db_id;
-        }
-        // Otherwise, if user does not have review permission, restrict to own tickets
-        else if (!hasPerm('ticket:review_queue', userSession.permissions)) {
-            query.opened_by = userSession.db_id;
+            query.opened_by = new Types.ObjectId(userSession.db_id);
+        } else if (!hasPerm('ticket:review_tickets', userSession.permissions)) {
+            query.opened_by = new Types.ObjectId(userSession.db_id);
         }
 
-        const sortQuery: Record<string, 1 | -1> = { createdAt: -1 };
+        const terminalStatuses: TicketStatus[] = [
+            'resolved',
+            'rejected',
+            'done',
+            'no-work',
+        ];
+        const sortStage = {
+            $addFields: {
+                sortPriority: {
+                    $switch: {
+                        branches: [
+                            {
+                                case: { $in: ['$status', terminalStatuses] },
+                                then: 0,
+                            },
+                            { case: { $eq: ['$priority', 'low'] }, then: 1 },
+                            { case: { $eq: ['$priority', 'medium'] }, then: 2 },
+                            { case: { $eq: ['$priority', 'high'] }, then: 3 },
+                            {
+                                case: { $eq: ['$priority', 'critical'] },
+                                then: 4,
+                            },
+                        ],
+                        default: 0,
+                    },
+                },
+            },
+        };
+
+        const basePipeline: PipelineStage[] = [
+            { $match: query } as PipelineStage,
+        ];
+        basePipeline.push(sortStage);
+        basePipeline.push({ $sort: { sortPriority: -1, createdAt: -1 } });
 
         if (paginated) {
             const skip = (page - 1) * itemsPerPage;
@@ -315,29 +387,48 @@ export class TicketService {
                 query as Record<string, unknown>,
             );
 
+            const pipeline: PipelineStage[] = [
+                ...basePipeline,
+                { $skip: skip } as PipelineStage,
+                { $limit: itemsPerPage } as PipelineStage,
+            ];
             const items = await this.ticketModel
-                .find(query as Record<string, unknown>)
-                .sort(sortQuery)
-                .skip(skip)
-                .limit(itemsPerPage)
-                .lean()
+                .aggregate<AggregatedTicket>(pipeline)
                 .exec();
+
+            // remove the helper field and attach opener name
+            const paged: TicketWithName[] = await Promise.all(
+                items.map(async (t: AggregatedTicket) => {
+                    const openedById = t.opened_by?.toString() ?? '';
+                    const name = await this.resolveOpenedByName(openedById);
+                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                    const { sortPriority, ...rest } = t;
+                    return { ...rest, opened_by_name: name } as TicketWithName;
+                }),
+            );
 
             return {
                 pagination: {
                     count,
                     pageCount: Math.ceil(count / itemsPerPage),
                 },
-                items,
+                items: paged,
             };
         }
 
         const items = await this.ticketModel
-            .find(query as Record<string, unknown>)
-            .sort(sortQuery)
-            .lean()
+            .aggregate<AggregatedTicket>(basePipeline)
             .exec();
-        return items;
+        const result: TicketWithName[] = await Promise.all(
+            items.map(async (t: AggregatedTicket) => {
+                const openedById = t.opened_by?.toString() ?? '';
+                const name = await this.resolveOpenedByName(openedById);
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                const { sortPriority, ...rest } = t;
+                return { ...rest, opened_by_name: name } as TicketWithName;
+            }),
+        );
+        return result;
     }
 
     async updateTicket(
@@ -352,7 +443,7 @@ export class TicketService {
 
         // Only owner or reviewer may update
         if (
-            !hasPerm('ticket:review_queue', userSession.permissions) &&
+            !hasPerm('ticket:review_tickets', userSession.permissions) &&
             existing.opened_by.toString() !== userSession.db_id
         ) {
             throw new ForbiddenException(
@@ -386,7 +477,7 @@ export class TicketService {
 
         // Only owner or reviewer may add commits/work-logs
         if (
-            !hasPerm('ticket:review_queue', userSession.permissions) &&
+            !hasPerm('ticket:review_tickets', userSession.permissions) &&
             existing.opened_by.toString() !== userSession.db_id
         ) {
             throw new ForbiddenException(
@@ -397,6 +488,7 @@ export class TicketService {
         try {
             const created = await this.commitLogModel.create({
                 ticket: existing._id,
+                created_by: new Types.ObjectId(userSession.db_id),
                 sha: dto.sha ?? '',
                 message: dto.message,
                 description: dto.description ?? '',
@@ -436,6 +528,198 @@ export class TicketService {
         }
     }
 
+    // search existing commit logs with optional filters and pagination
+    async searchCommitLogs(
+        filters: SearchCommitLogsBodyDto,
+        pagination: TicketsPagination,
+    ): Promise<
+        | CommitLogResponse[]
+        | {
+              pagination: { count: number; pageCount: number };
+              items: CommitLogResponse[];
+          }
+    > {
+        const { page, itemsPerPage, paginated } = pagination;
+        const { message, ticketNumber, createdBy, fromDate, toDate } = filters;
+        const normalizedFromDate = this.normalizeDateInput(fromDate);
+        const normalizedToDate = this.normalizeDateInput(toDate);
+
+        const query: Record<string, unknown> = {};
+
+        if (message) {
+            addIfDefined(query, 'message', createRegexQuery(message));
+        }
+
+        applyDateRange(
+            query,
+            'createdAt',
+            normalizedFromDate,
+            normalizedToDate,
+        );
+
+        if (ticketNumber) {
+            // allow partial search like commit message
+            const regex = createRegexQuery(ticketNumber);
+            const tickets = await this.ticketModel
+                .find({ ticket_number: regex })
+                .select('_id')
+                .lean()
+                .exec();
+            if (!tickets || tickets.length === 0) {
+                if (paginated) {
+                    return {
+                        pagination: { count: 0, pageCount: 0 },
+                        items: [],
+                    };
+                }
+                return [];
+            }
+            query.ticket = { $in: tickets.map(t => t._id) };
+        }
+
+        if (createdBy) {
+            try {
+                query.created_by = new Types.ObjectId(createdBy);
+            } catch {
+                // ignore invalid id, will match nothing
+                query.created_by = undefined;
+            }
+        }
+
+        const sortQuery: Record<string, 1 | -1> = { createdAt: -1 };
+
+        if (paginated) {
+            const skip = (page - 1) * itemsPerPage;
+            const count = await this.commitLogModel.countDocuments(query);
+
+            type CommitLogLean = CommitLog & {
+                ticket?: { ticket_number?: string };
+                created_by?: any; // populated user document
+            };
+
+            const itemsRaw = await this.commitLogModel
+                .find(query)
+                .sort(sortQuery)
+                .skip(skip)
+                .limit(itemsPerPage)
+                .populate('ticket', 'ticket_number')
+                .populate({
+                    path: 'created_by',
+                    select: 'employee email username',
+                    populate: { path: 'employee', select: 'real_name' },
+                })
+                .lean<CommitLogLean>()
+                .exec();
+            const items = itemsRaw as unknown as CommitLogLean[];
+
+            const mapped = items.map(item => {
+                const user = item.created_by || {};
+                const name =
+                    user.employee?.real_name ||
+                    user.email ||
+                    user.username ||
+                    '';
+                return {
+                    ...item,
+                    ticket_number: item.ticket?.ticket_number || '',
+                    created_by: user._id ? String(user._id) : '',
+                    created_by_name: name,
+                } as CommitLogResponse;
+            });
+
+            return {
+                pagination: {
+                    count,
+                    pageCount: Math.ceil(count / itemsPerPage),
+                },
+                items: mapped,
+            };
+        }
+
+        type CommitLogLean = CommitLog & {
+            ticket?: { ticket_number?: string };
+            created_by?: any;
+        };
+
+        const itemsRaw = await this.commitLogModel
+            .find(query)
+            .sort(sortQuery)
+            .populate('ticket', 'ticket_number')
+            .populate({
+                path: 'created_by',
+                select: 'employee email username',
+                populate: { path: 'employee', select: 'real_name' },
+            })
+            .lean<CommitLogLean>()
+            .exec();
+        const items = itemsRaw as unknown as CommitLogLean[];
+
+        const mapped = items.map(item => {
+            const user = item.created_by || {};
+            const name =
+                user.employee?.real_name || user.email || user.username || '';
+            return {
+                ...item,
+                ticket_number: item.ticket?.ticket_number || '',
+                created_by: user._id ? String(user._id) : '',
+                created_by_name: name,
+            } as CommitLogResponse;
+        });
+        return mapped;
+    }
+
+    async updateCommitLog(
+        commitId: string,
+        dto: UpdateCommitBodyDto,
+        userSession: UserSession,
+    ) {
+        const existing = await this.commitLogModel.findById(commitId).exec();
+        if (!existing) throw new NotFoundException('Commit log not found');
+
+        const isOwner =
+            (existing as any).created_by?.toString() === userSession.db_id;
+        if (!isOwner) {
+            throw new ForbiddenException(
+                "You don't have permission to edit this commit log",
+            );
+        }
+
+        const patch = CommitLogFactory.fromUpdateDto(dto);
+        if (Object.keys(patch).length === 0) {
+            throw new BadRequestException('No fields provided for update');
+        }
+
+        const updated = await this.commitLogModel
+            .findByIdAndUpdate(commitId, { $set: patch }, { new: true })
+            .exec();
+        if (!updated) {
+            throw new InternalServerErrorException(
+                'Unable to update commit log',
+            );
+        }
+        return updated;
+    }
+
+    async deleteCommitLog(commitId: string, userSession: UserSession) {
+        const existing = await this.commitLogModel.findById(commitId).exec();
+        if (!existing) throw new NotFoundException('Commit log not found');
+
+        const isOwner =
+            (existing as any).created_by?.toString() === userSession.db_id;
+        const canReview = hasPerm(
+            'ticket:review_logs',
+            userSession.permissions,
+        );
+        if (!isOwner && !canReview) {
+            throw new ForbiddenException(
+                "You don't have permission to delete this commit log",
+            );
+        }
+
+        await existing.deleteOne();
+        return { message: 'Deleted commit log successfully' };
+    }
+
     async deleteTicket(
         ticketId: string,
         userSession: UserSession,
@@ -444,7 +728,7 @@ export class TicketService {
         if (!existing) throw new NotFoundException('Ticket not found');
 
         if (
-            !hasPerm('ticket:review_queue', userSession.permissions) &&
+            !hasPerm('ticket:review_tickets', userSession.permissions) &&
             existing.opened_by.toString() !== userSession.db_id
         ) {
             throw new ForbiddenException(

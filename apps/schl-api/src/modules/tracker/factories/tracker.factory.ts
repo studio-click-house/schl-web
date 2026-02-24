@@ -32,23 +32,36 @@ export class TrackerFactory {
 
         if (dto.estimateTime !== undefined) set.estimate_time = dto.estimateTime;
         if (dto.categories !== undefined) set.categories = dto.categories?.trim() || '';
-        if (dto.totalTimes !== undefined) set.total_times = dto.totalTimes;
 
-        if (dto.pauseCount !== undefined) set.pause_count = dto.pauseCount;
-        if (dto.pauseTime !== undefined) set.pause_time = dto.pauseTime;
         if (dto.pauseReasons !== undefined)
             set.pause_reasons = this.derivePauseReasons(dto.pauseReasons);
 
         return set;
     }
 
-    static qcFileSetFromSyncFileDto(fileDto: {
-        timeSpent?: number;
-    }) {
+    static qcBucketMaxFromSyncDto(dto: SyncQcWorkLogDto) {
+        const max: Record<string, number> = {};
+        if (dto.pauseCount !== undefined) max.pause_count = Number(dto.pauseCount) || 0;
+        if (dto.pauseTime !== undefined) max.pause_time = Number(dto.pauseTime) || 0;
+        return max;
+    }
+
+    static qcBucketIncFromSyncDto(dto: SyncQcWorkLogDto) {
+        const inc: Record<string, number> = {};
+        if (dto.totalTimes !== undefined) inc.total_times = Number(dto.totalTimes) || 0;
+        return inc;
+    }
+
+    static qcFileSetFromSyncFileDto(fileDto: { timeSpent?: number }) {
         const $set: Record<string, any> = {};
-        if (fileDto.timeSpent !== undefined)
-            $set['files.$.time_spent'] = fileDto.timeSpent;
         return $set;
+    }
+
+    static qcFileIncFromSyncFileDto(fileDto: { timeSpent?: number }) {
+        const $inc: Record<string, number> = {};
+        if (fileDto.timeSpent !== undefined)
+            $inc['files.$.time_spent'] = Number(fileDto.timeSpent) || 0;
+        return $inc;
     }
 
     static qcFileDocFromSyncFileDto(

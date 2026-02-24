@@ -78,6 +78,10 @@ export class SyncQcWorkLogDto {
     @IsOptional()
     pauseReasons?: PauseReasonDto[];
 
+    @IsString()
+    @IsOptional()
+    syncId?: string;
+
     @IsArray()
     @ArrayMinSize(1)
     @ValidateNested({ each: true })

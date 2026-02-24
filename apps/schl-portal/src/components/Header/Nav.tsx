@@ -601,8 +601,8 @@ const Nav: React.FC<PropsType> = props => {
                             : 'hover:opacity-90',
                         !hasAny([
                             'ticket:create_ticket',
-                            'ticket:view_my_tickets',
-                            'ticket:review_queue',
+                            'ticket:review_tickets',
+                            'ticket:review_logs',
                         ]) && 'hidden',
                     )}
                 >
@@ -637,7 +637,7 @@ const Nav: React.FC<PropsType> = props => {
                         </li>
                         <li
                             className={cn(
-                                !has('ticket:view_my_tickets') && 'hidden',
+                                !has('ticket:create_ticket') && 'hidden',
                             )}
                         >
                             <Link
@@ -651,21 +651,21 @@ const Nav: React.FC<PropsType> = props => {
                         </li>
                         <li
                             className={cn(
-                                !has('ticket:review_queue') && 'hidden',
+                                !has('ticket:review_tickets') && 'hidden',
                             )}
                         >
                             <Link
                                 className={cn(
                                     'block px-4 py-2 hover:bg-primary',
                                 )}
-                                href={'/tickets/review-queue'}
+                                href={'/tickets/all-tickets'}
                             >
                                 All Tickets
                             </Link>
                         </li>
                         <li
                             className={cn(
-                                !has('ticket:review_queue') && 'hidden',
+                                !has('ticket:review_tickets') && 'hidden',
                             )}
                         >
                             <Link
@@ -674,7 +674,21 @@ const Nav: React.FC<PropsType> = props => {
                                 )}
                                 href={'/tickets/work-log'}
                             >
-                                Work Log
+                                Create Work Log
+                            </Link>
+                        </li>
+                        <li
+                            className={cn(
+                                !has('ticket:review_logs') && 'hidden',
+                            )}
+                        >
+                            <Link
+                                className={cn(
+                                    'block px-4 py-2 hover:bg-primary',
+                                )}
+                                href={'/tickets/all-work-logs'}
+                            >
+                                All Work Logs
                             </Link>
                         </li>
                     </ul>

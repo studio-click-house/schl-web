@@ -5,9 +5,8 @@ import NoticeBodyEditor from '@/components/RichText/RichTextEditor';
 import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
-    TICKET_PRIORITIES,
-    TICKET_STATUSES,
-    TICKET_TYPES,
+    priorityOptions, statusOptions,
+    typeOptions,
 } from '@repo/common/constants/ticket.constant';
 import { TicketDocument } from '@repo/common/models/ticket.schema';
 import { formatDate } from '@repo/common/utils/date-helpers';
@@ -40,7 +39,6 @@ const Form: React.FC<Props> = ({ ticketsData }) => {
         type: string;
         status: string;
         priority?: string;
-        tags: string[];
         createdAt: string;
         opened_by_name?: string;
     };
@@ -58,19 +56,6 @@ const Form: React.FC<Props> = ({ ticketsData }) => {
                 label: t.ticket_number,
             })),
         [ticketsData],
-    );
-
-    const typeOptions = useMemo(
-        () => TICKET_TYPES.map(value => ({ value, label: value })),
-        [],
-    );
-    const statusOptions = useMemo(
-        () => TICKET_STATUSES.map(value => ({ value, label: value })),
-        [],
-    );
-    const priorityOptions = useMemo(
-        () => TICKET_PRIORITIES.map(value => ({ value, label: value })),
-        [],
     );
 
     const {
@@ -207,7 +192,6 @@ const Form: React.FC<Props> = ({ ticketsData }) => {
                 {selectedTicketId ? (
                     ticketDetails ? (
                         <>
-                            {/* details card below selector */}
                             <div className="md:col-span-2 max-w-xl block rounded-lg border border-gray-200 bg-white p-4 md:p-6 mb-4">
                                 <div className="flex justify-between items-start">
                                     <h4 className="font-semibold text-lg">
@@ -258,16 +242,8 @@ const Form: React.FC<Props> = ({ ticketsData }) => {
                                         />
                                     )}
                                 </div>
-                                {ticketDetails.tags.length > 0 && (
-                                    <p className="text-sm text-gray-700 mt-2">
-                                        <span className="font-semibold">
-                                            Tags:
-                                        </span>{' '}
-                                        {ticketDetails.tags.join(', ')}
-                                    </p>
-                                )}
                             </div>
-                            {/* rest of form now conditional below card */}
+
                             <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-x-3 gap-y-4">
                                 <div>
                                     <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
@@ -388,6 +364,7 @@ const Form: React.FC<Props> = ({ ticketsData }) => {
                                 </label>
                                 <input
                                     {...register('message')}
+                                    autoComplete="off"
                                     className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
                                     placeholder="Short commit message"
                                     type="text"
@@ -402,6 +379,7 @@ const Form: React.FC<Props> = ({ ticketsData }) => {
                                 </label>
                                 <input
                                     {...register('sha')}
+                                    autoComplete="off"
                                     className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
                                     placeholder="Enter commit SHA"
                                     type="text"

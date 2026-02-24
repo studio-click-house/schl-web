@@ -3,9 +3,7 @@ import { TicketDocument } from '@repo/common/models/ticket.schema';
 import React, { Suspense } from 'react';
 import InputForm from './components/Form';
 
-const getAllTickets = async (): Promise<
-    TicketDocument[] | undefined
-> => {
+const getAllTickets = async (): Promise<TicketDocument[] | undefined> => {
     try {
         const response = await fetchApiWithServerAuth<TicketDocument[]>(
             {
@@ -33,7 +31,7 @@ const WorkLogPage = async () => {
     return (
         <div className="px-4 mt-8 mb-4 container md:w-[70vw] mx-auto">
             <h1 className="text-2xl font-semibold text-left mb-8 underline underline-offset-4 uppercase">
-                Work Log
+                Create Work Log
             </h1>
 
             <Suspense fallback={<p className="text-center">Loading...</p>}>

@@ -67,6 +67,9 @@ export class QcWorkLog {
 
     @Prop({ type: [QcWorkLogFile], default: [] })
     files: QcWorkLogFile[];
+
+    @Prop({ type: [String], default: [] })
+    processed_sync_ids: string[];
 }
 
 export const QcWorkLogSchema = SchemaFactory.createForClass(QcWorkLog);

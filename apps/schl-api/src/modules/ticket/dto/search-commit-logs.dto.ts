@@ -4,7 +4,6 @@ import {
 } from '@repo/common/utils/transformers';
 import { Transform, Type } from 'class-transformer';
 import {
-    IsArray,
     IsBoolean,
     IsInt,
     IsOptional,
@@ -13,7 +12,7 @@ import {
     Min,
 } from 'class-validator';
 
-export class SearchTicketsQueryDto {
+export class SearchCommitLogsQueryDto {
     @IsOptional()
     @Type(() => Number)
     @IsInt()
@@ -32,15 +31,14 @@ export class SearchTicketsQueryDto {
     @Transform(({ value }) => toBoolean(value, false))
     @IsBoolean()
     paginated: boolean = false;
-
-    @IsOptional()
-    @Type(() => String)
-    @Transform(({ value }) => toBoolean(value, false))
-    @IsBoolean()
-    myTickets: boolean = false;
 }
 
-export class SearchTicketsBodyDto {
+export class SearchCommitLogsBodyDto {
+    @Transform(emptyStringToUndefined)
+    @IsOptional()
+    @IsString()
+    message?: string;
+
     @Transform(emptyStringToUndefined)
     @IsOptional()
     @IsString()
@@ -49,17 +47,7 @@ export class SearchTicketsBodyDto {
     @Transform(emptyStringToUndefined)
     @IsOptional()
     @IsString()
-    title?: string;
-
-    @Transform(emptyStringToUndefined)
-    @IsOptional()
-    @IsString()
-    type?: string;
-
-    @Transform(emptyStringToUndefined)
-    @IsOptional()
-    @IsString()
-    status?: string;
+    createdBy?: string;
 
     @Transform(emptyStringToUndefined)
     @IsOptional()

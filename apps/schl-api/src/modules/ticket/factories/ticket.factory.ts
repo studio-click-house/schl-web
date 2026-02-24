@@ -4,23 +4,6 @@ import mongoose from 'mongoose';
 import { CreateTicketBodyDto } from '../dto/create-ticket.dto';
 
 export class TicketFactory {
-    private static normalizeTags(tags: unknown): string[] {
-        if (Array.isArray(tags)) {
-            return tags
-                .map(tag => String(tag).trim())
-                .filter(tag => tag.length > 0);
-        }
-
-        if (typeof tags === 'string') {
-            return tags
-                .split(',')
-                .map(tag => tag.trim())
-                .filter(tag => tag.length > 0);
-        }
-
-        return [];
-    }
-
     static fromCreateDto(
         dto: CreateTicketBodyDto,
         session: UserSession,
@@ -34,7 +17,6 @@ export class TicketFactory {
             type: dto.type,
             status: dto.status ?? 'new',
             priority: dto.priority ?? 'low',
-            tags: TicketFactory.normalizeTags(dto.tags),
             checked_by: null,
         };
     }
@@ -47,8 +29,6 @@ export class TicketFactory {
         if (dto.type !== undefined) patch.type = dto.type;
         if (dto.status !== undefined) patch.status = dto.status;
         if (dto.priority !== undefined) patch.priority = dto.priority;
-        if (dto.tags !== undefined)
-            patch.tags = TicketFactory.normalizeTags(dto.tags);
         return patch;
     }
 }

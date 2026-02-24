@@ -14,6 +14,15 @@ export class CommitLog {
     })
     ticket: mongoose.Types.ObjectId;
 
+    // who added this work log / commit
+    @Prop({
+        required: true,
+        index: true,
+        ref: 'User',
+        type: mongoose.Schema.Types.ObjectId,
+    })
+    created_by: mongoose.Types.ObjectId;
+
     // github commit sha
     @Prop({ default: '', type: String })
     sha: string;

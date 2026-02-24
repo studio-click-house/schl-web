@@ -14,7 +14,6 @@ export const validationSchema = z.object({
     }),
     status: z.enum(TICKET_STATUSES).default('new'),
     priority: z.enum(TICKET_PRIORITIES).default('low'),
-    tags: z.array(z.string()).default([]),
     _id: z.optional(
         z.string().refine(val => {
             return mongoose.Types.ObjectId.isValid(val);
