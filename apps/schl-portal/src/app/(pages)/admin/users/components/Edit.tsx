@@ -147,7 +147,7 @@ const EditButton: React.FC<PropsType> = props => {
                 setValue('employee._id', employee._id.toString() || '');
                 setValue(
                     'employee.company_provided_name',
-                    employee.company_provided_name || '',
+                    employee.company_provided_name || null,
                 );
             } else {
                 toast.info('No employee found with the code provided');
