@@ -26,6 +26,7 @@ interface PropsType {
         status: string;
         fromDate: string;
         toDate: string;
+        deadlineStatus: string;
     };
     setFilters: React.Dispatch<
         React.SetStateAction<{
@@ -35,6 +36,7 @@ interface PropsType {
             status: string;
             fromDate: string;
             toDate: string;
+            deadlineStatus: string;
         }>
     >;
     isLoading: boolean;
@@ -62,6 +64,7 @@ export default function FilterButton(props: PropsType) {
             status: '',
             fromDate: '',
             toDate: '',
+            deadlineStatus: '',
         });
     };
 
@@ -193,6 +196,24 @@ export default function FilterButton(props: PropsType) {
                                     }
                                     isClearable
                                 />
+                            </div>
+
+                            <div>
+                                <label className="uppercase tracking-wide text-gray-700 text-sm font-bold block mb-2">
+                                    Deadline
+                                </label>
+                                <select
+                                    name="deadlineStatus"
+                                    value={props.filters.deadlineStatus}
+                                    onChange={handleChange}
+                                    className="block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
+                                >
+                                    <option value="">All</option>
+                                    <option value="overdue">Overdue</option>
+                                    <option value="not-overdue">
+                                        Not overdue
+                                    </option>
+                                </select>
                             </div>
 
                             <div className="md:col-span-2">

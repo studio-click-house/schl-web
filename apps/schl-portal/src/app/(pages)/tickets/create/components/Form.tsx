@@ -8,10 +8,12 @@ import {
     statusOptions,
     typeOptions,
 } from '@repo/common/constants/ticket.constant';
+import type { FullyPopulatedUser } from '@repo/common/types/populated-user.type';
+import { localDateTimeToISO } from '@repo/common/utils/date-helpers';
 import { hasPerm } from '@repo/common/utils/permission-check';
 import { setMenuPortalTarget } from '@repo/common/utils/select-helpers';
 import { useSession } from 'next-auth/react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import Select from 'react-select';
 import { toast } from 'sonner';
@@ -22,14 +24,62 @@ const Form: React.FC = () => {
     const { data: session } = useSession();
     const [loading, setLoading] = useState(false);
     const [editorResetKey, setEditorResetKey] = useState(0);
+    const [assigneeOptions, setAssigneeOptions] = useState<
+        {
+            label: string;
+            value: { db_id: string; name: string; e_id: string };
+        }[]
+    >([]);
 
     const canReviewTicket = useMemo(
-        () => hasPerm('ticket:review_tickets', session?.user.permissions || []),
+        () => hasPerm('ticket:review_works', session?.user.permissions || []),
         [session?.user.permissions],
     );
 
+    useEffect(() => {
+        if (!canReviewTicket) return;
+        const loadUsers = async () => {
+            try {
+                const resp = await authedFetchApi<{
+                    pagination?: { count: number; pageCount: number };
+                    items: FullyPopulatedUser[];
+                }>(
+                    {
+                        path: '/v1/user/search-users',
+                        query: { page: 1, itemsPerPage: 100, paginated: false },
+                    },
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ employee_expanded: true }),
+                    },
+                );
+                if (resp.ok && resp.data) {
+                    const usersRaw = Array.isArray(resp.data)
+                        ? resp.data
+                        : resp.data.items || [];
+                    const valid = (usersRaw as FullyPopulatedUser[]).filter(u =>
+                        hasPerm('ticket:submit_daily_work', u.role.permissions),
+                    );
+                    const options = valid.map(u => ({
+                        label: `${u.employee.real_name} (${u.employee.e_id})`,
+                        value: {
+                            db_id: String(u._id),
+                            name: u.employee.real_name,
+                            e_id: u.employee.e_id,
+                        },
+                    }));
+                    setAssigneeOptions(options);
+                }
+            } catch (e) {
+                console.error('failed loading assignees', e);
+            }
+        };
+        loadUsers();
+    }, [authedFetchApi, canReviewTicket]);
+
     const newStatusOption = useMemo(
-        () => statusOptions.find(option => option.value === 'new') || null,
+        () => statusOptions.find(option => option.value === 'pending') || null,
         [],
     );
 
@@ -45,8 +95,10 @@ const Form: React.FC = () => {
             title: '',
             description: '',
             type: 'bug',
-            status: 'new',
+            status: 'pending',
             priority: 'low',
+            deadline: undefined,
+            assignees: [],
         },
     });
 
@@ -66,8 +118,7 @@ const Form: React.FC = () => {
 
             const payload = {
                 ...rest,
-                status: canReviewTicket ? rest.status : 'new',
-                priority: canReviewTicket ? rest.priority : 'low',
+                deadline: localDateTimeToISO(rest.deadline),
             };
 
             const response = await authedFetchApi(
@@ -87,8 +138,10 @@ const Form: React.FC = () => {
                     title: '',
                     description: '',
                     type: 'bug',
-                    status: 'new',
+                    status: 'pending',
                     priority: 'low',
+                    deadline: undefined,
+                    assignees: [],
                 });
                 setEditorResetKey(prev => prev + 1);
             } else {
@@ -218,6 +271,56 @@ const Form: React.FC = () => {
                     />
                 </div>
             </div>
+            {canReviewTicket && (
+                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-x-3 mb-4 gap-y-4">
+                    <div>
+                        <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
+                            <span className="uppercase">Assignees</span>
+                        </label>
+                        <Controller
+                            name="assignees"
+                            control={control}
+                            render={({ field }) => (
+                                <Select
+                                    {...field}
+                                    isMulti
+                                    options={assigneeOptions}
+                                    closeMenuOnSelect={false}
+                                    placeholder="Select assignee(s)"
+                                    classNamePrefix="react-select"
+                                    menuPortalTarget={setMenuPortalTarget}
+                                    value={
+                                        assigneeOptions.filter(option =>
+                                            field.value?.some(
+                                                v =>
+                                                    v.db_id ===
+                                                    option.value.db_id,
+                                            ),
+                                        ) || null
+                                    }
+                                    onChange={selected =>
+                                        field.onChange(
+                                            selected
+                                                ? selected.map(o => o.value)
+                                                : [],
+                                        )
+                                    }
+                                />
+                            )}
+                        />
+                    </div>
+                    <div>
+                        <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
+                            <span className="uppercase">Deadline</span>
+                        </label>
+                        <input
+                            {...register('deadline')}
+                            type="datetime-local"
+                            className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
+                        />
+                    </div>
+                </div>
+            )}
 
             <div className="mb-4">
                 <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">

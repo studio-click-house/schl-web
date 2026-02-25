@@ -214,7 +214,7 @@ const Form: React.FC<PropsType> = props => {
                     </div>
                 </div>
                 <div>
-                    <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
+                    <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
                         <span className="uppercase">Client Name*</span>
                         <span className="text-red-700 text-wrap block text-xs">
                             {errors.client_name && errors.client_name.message}
@@ -254,48 +254,48 @@ const Form: React.FC<PropsType> = props => {
                         />
                     </div>
                 </div>
-                <div>
-                    <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
-                        <span className="uppercase">Assigned Tasks*</span>
-                        <span className="text-red-700 text-wrap block text-xs">
-                            {errors.task && errors.task?.message}
-                        </span>
-                    </label>
+            </div>
+            <div className="md:col-span-4 mb-4">
+                <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
+                    <span className="uppercase">Assigned Tasks*</span>
+                    <span className="text-red-700 text-wrap block text-xs">
+                        {errors.task && errors.task?.message}
+                    </span>
+                </label>
 
-                    <Controller
-                        name="task"
-                        control={control}
-                        render={({ field }) => (
-                            <Select
-                                {...field}
-                                isSearchable={true}
-                                isMulti={true}
-                                options={taskOptions}
-                                closeMenuOnSelect={false}
-                                placeholder="Select task(s)"
-                                classNamePrefix="react-select"
-                                menuPortalTarget={setMenuPortalTarget}
-                                menuPlacement="auto"
-                                menuPosition="fixed" // Prevent clipping by parent containers
-                                value={
-                                    taskOptions.filter(
-                                        (option: { value: string }) =>
-                                            field.value
-                                                ?.split('+')
-                                                .includes(option.value),
-                                    ) || null
-                                }
-                                onChange={selectedOptions =>
-                                    field.onChange(
-                                        selectedOptions
-                                            ?.map(option => option.value)
-                                            .join('+') || '',
-                                    )
-                                }
-                            />
-                        )}
-                    />
-                </div>
+                <Controller
+                    name="task"
+                    control={control}
+                    render={({ field }) => (
+                        <Select
+                            {...field}
+                            isSearchable={true}
+                            isMulti={true}
+                            options={taskOptions}
+                            closeMenuOnSelect={false}
+                            placeholder="Select task(s)"
+                            classNamePrefix="react-select"
+                            menuPortalTarget={setMenuPortalTarget}
+                            menuPlacement="auto"
+                            menuPosition="fixed" // Prevent clipping by parent containers
+                            value={
+                                taskOptions.filter(
+                                    (option: { value: string }) =>
+                                        field.value
+                                            ?.split('+')
+                                            .includes(option.value),
+                                ) || null
+                            }
+                            onChange={selectedOptions =>
+                                field.onChange(
+                                    selectedOptions
+                                        ?.map(option => option.value)
+                                        .join('+') || '',
+                                )
+                            }
+                        />
+                    )}
+                />
             </div>
             <div>
                 <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">

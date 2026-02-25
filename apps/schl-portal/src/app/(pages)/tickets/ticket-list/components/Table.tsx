@@ -5,27 +5,32 @@ import NoData, { Type } from '@/components/NoData';
 import Pagination from '@/components/Pagination';
 import { usePaginationManager } from '@/hooks/usePaginationManager';
 import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
+import {
+    formatDate,
+    formatTime,
+    formatTimestamp,
+} from '@repo/common/utils/date-helpers';
+import { cn } from '@repo/common/utils/general-utils';
+import { hasPerm } from '@repo/common/utils/permission-check';
 import { CirclePlus, SquareArrowOutUpRight } from 'lucide-react';
 import { useSession } from 'next-auth/react';
+import Link from 'next/link';
 import { useRouter } from 'nextjs-toploader/app';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
-import { formatDate } from '@repo/common/utils/date-helpers';
-import { cn } from '@repo/common/utils/general-utils';
-import { hasPerm } from '@repo/common/utils/permission-check';
-
+import { CLOSED_TICKET_STATUSES } from '@repo/common/constants/ticket.constant';
 import { TicketDocument } from '@repo/common/models/ticket.schema';
 import { capitalize } from 'lodash';
-import { TicketFormDataType, validationSchema } from '../../schema';
-import DeleteButton from './Delete';
-import EditButton from './Edit';
-import FilterButton from './Filter';
 import {
     getTicketPriorityBadgeClass,
     getTicketStatusBadgeClass,
     getTicketTypeBadgeClass,
-} from './ticket-badge.helper';
+} from '../../all-tickets/components/ticket-badge.helper';
+import { TicketFormDataType, validationSchema } from '../../schema';
+import DeleteButton from './Delete';
+import EditButton from './Edit';
+import FilterButton from './Filter';
 
 type TicketsState = {
     pagination: {
@@ -52,7 +57,7 @@ const Table = () => {
         [session?.user.permissions],
     );
     const canReviewTicket = useMemo(
-        () => hasPerm('ticket:review_tickets', userPermissions),
+        () => hasPerm('ticket:review_works', userPermissions),
         [userPermissions],
     );
 
@@ -72,6 +77,7 @@ const Table = () => {
         status: '',
         fromDate: '',
         toDate: '',
+        deadlineStatus: '',
     });
 
     const getAllTickets = useCallback(
@@ -84,7 +90,7 @@ const Table = () => {
                             page,
                             itemsPerPage: itemPerPage,
                             paginated: true,
-                            myTickets: true,
+                            myTickets: !canReviewTicket,
                         },
                     },
                     {
@@ -123,7 +129,7 @@ const Table = () => {
                             page,
                             itemsPerPage: itemPerPage,
                             paginated: true,
-                            myTickets: true,
+                            myTickets: !canReviewTicket,
                         },
                     },
                     {
@@ -197,13 +203,11 @@ const Table = () => {
 
             const { _id, ...rest } = parsed.data;
 
-            if (!_id) {
-                toast.error('Missing ticket identifier');
-                return;
-            }
-
             const payload = {
                 ...rest,
+                deadline: rest.deadline
+                    ? new Date(rest.deadline).toISOString()
+                    : undefined,
             };
 
             const response = await authedFetchApi(
@@ -319,10 +323,14 @@ const Table = () => {
                                     <th>Date</th>
                                     <th>Ticket No</th>
                                     <th>Title</th>
+                                    {canReviewTicket && (
+                                        <th>Deadline</th>
+                                    )}
                                     <th>Type</th>
                                     <th>Priority</th>
                                     <th>Status</th>
-                                    <th>Manage</th>
+
+                                    <th>Action</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -333,12 +341,9 @@ const Table = () => {
                                     );
                                     const canEdit =
                                         canManage &&
-                                        ![
-                                            'done',
-                                            'resolved',
-                                            'rejected',
-                                            'no-work',
-                                        ].includes(ticket.status);
+                                        !CLOSED_TICKET_STATUSES.includes(
+                                            ticket.status,
+                                        );
 
                                     return (
                                         <tr key={ticket.ticket_number}>
@@ -358,6 +363,18 @@ const Table = () => {
                                             <td className="text-wrap">
                                                 {ticket.title}
                                             </td>
+                                            {canReviewTicket
+                                                 && (
+                                                <td className="text-nowrap">
+                                                    {ticket.deadline
+                                                        ? `${formatDate(ticket.deadline)} | ${formatTime(
+                                                              formatTimestamp(
+                                                                  ticket.deadline,
+                                                              ).time,
+                                                          )}`
+                                                        : 'N/A'}
+                                                </td>
+                                            )}
                                             <td
                                                 className="uppercase text-wrap"
                                                 style={{
@@ -388,6 +405,7 @@ const Table = () => {
                                                     )}
                                                 />
                                             </td>
+
                                             <td
                                                 className="uppercase text-wrap"
                                                 style={{
@@ -411,40 +429,32 @@ const Table = () => {
                                             >
                                                 <div className="inline-block">
                                                     <div className="flex gap-2">
-                                                        {canManage && (
-                                                            <>
-                                                                <DeleteButton
-                                                                    ticketData={{
-                                                                        _id: String(
-                                                                            ticket._id,
-                                                                        ),
-                                                                    }}
-                                                                    submitHandler={
-                                                                        deleteTicket
-                                                                    }
-                                                                />
-                                                                <button
-                                                                    onClick={() => {
-                                                                        window.open(
-                                                                            process
-                                                                                .env
-                                                                                .NEXT_PUBLIC_BASE_URL +
-                                                                                `/tickets/${encodeURIComponent(ticket.ticket_number)}`,
-                                                                            '_blank',
-                                                                        );
-                                                                    }}
-                                                                    className="items-center gap-2 rounded-md bg-amber-600 hover:opacity-90 hover:ring-2 hover:ring-amber-600 transition duration-200 delay-300 hover:text-opacity-100 text-white p-2"
-                                                                >
-                                                                    <SquareArrowOutUpRight
-                                                                        size={
-                                                                            16
-                                                                        }
-                                                                    />
-                                                                </button>
-                                                            </>
+                                                        {(canManage ||
+                                                            canReviewTicket) && (
+                                                            <DeleteButton
+                                                                ticketData={{
+                                                                    _id: String(
+                                                                        ticket._id,
+                                                                    ),
+                                                                }}
+                                                                submitHandler={
+                                                                    deleteTicket
+                                                                }
+                                                            />
                                                         )}
 
-                                                        {canEdit && (
+                                                        <Link
+                                                            href={`/tickets/${ticket.ticket_number}`}
+                                                            target="_blank"
+                                                            className="items-center gap-2 rounded-md bg-amber-600 hover:opacity-90 hover:ring-2 hover:ring-amber-600 transition duration-200 delay-300 hover:text-opacity-100 text-white p-2"
+                                                        >
+                                                            <SquareArrowOutUpRight
+                                                                size={16}
+                                                            />
+                                                        </Link>
+
+                                                        {(canEdit ||
+                                                            canReviewTicket) && (
                                                             <EditButton
                                                                 isLoading={
                                                                     loading
@@ -465,8 +475,42 @@ const Table = () => {
                                                                     type: ticket.type,
                                                                     status: ticket.status,
                                                                     priority:
-                                                                        ticket.priority ??
-                                                                        'low',
+                                                                        ticket.priority,
+                                                                    deadline:
+                                                                        ticket.deadline
+                                                                            ? typeof ticket.deadline ===
+                                                                              'string'
+                                                                                ? ticket.deadline
+                                                                                : ticket.deadline.toISOString()
+                                                                            : undefined,
+                                                                    assignees: (
+                                                                        ticket.assignees ||
+                                                                        []
+                                                                    )
+                                                                        .map(
+                                                                            a => {
+                                                                                const id =
+                                                                                    a.db_id;
+                                                                                if (
+                                                                                    !id
+                                                                                )
+                                                                                    return null;
+                                                                                return {
+                                                                                    db_id: String(
+                                                                                        id,
+                                                                                    ),
+                                                                                    name: a.name,
+                                                                                    e_id: a.e_id,
+                                                                                };
+                                                                            },
+                                                                        )
+                                                                        .filter(
+                                                                            Boolean,
+                                                                        ) as {
+                                                                        db_id: string;
+                                                                        name: string;
+                                                                        e_id: string;
+                                                                    }[],
                                                                 }}
                                                             />
                                                         )}

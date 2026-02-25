@@ -2,7 +2,11 @@
 
 import Badge from '@/components/Badge';
 import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
-import { formatDate } from '@repo/common/utils/date-helpers';
+import {
+    formatDate,
+    formatTime,
+    formatTimestamp,
+} from '@repo/common/utils/date-helpers';
 import { hasPerm } from '@repo/common/utils/permission-check';
 import createDOMPurify from 'dompurify';
 import parse, {
@@ -12,6 +16,7 @@ import parse, {
     HTMLReactParserOptions,
 } from 'html-react-parser';
 import { capitalize } from 'lodash';
+import { ClockFading } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'nextjs-toploader/app';
 import React, {
@@ -26,7 +31,7 @@ import {
     getTicketPriorityBadgeClass,
     getTicketStatusBadgeClass,
     getTicketTypeBadgeClass,
-} from '../../my-tickets/components/ticket-badge.helper';
+} from '../../all-tickets/components/ticket-badge.helper';
 
 interface ViewTicketProps {
     ticket_no: string;
@@ -39,8 +44,9 @@ interface Ticket {
     description: string;
     type: string;
     status: string;
-    priority?: string;
-    opened_by_name?: string;
+    priority: string;
+    deadline: string | null;
+    created_by_name: string;
     createdAt: string;
     updatedAt: string;
 }
@@ -115,8 +121,18 @@ const ViewTicket: React.FC<ViewTicketProps> = props => {
         [session?.user.permissions],
     );
 
+    const canReviewTicket = useMemo(
+        () => hasPerm('ticket:review_works', userPermissions),
+        [userPermissions],
+    );
+
+    const canSubmitWork = useMemo(
+        () => hasPerm('ticket:submit_daily_work', userPermissions),
+        [userPermissions],
+    );
+
     const redirectBase = useMemo(() => {
-        return hasPerm('ticket:review_tickets', userPermissions)
+        return hasPerm('ticket:review_works', userPermissions)
             ? '/tickets/all-tickets'
             : '/tickets/my-tickets';
     }, [userPermissions]);
@@ -215,31 +231,40 @@ const ViewTicket: React.FC<ViewTicketProps> = props => {
                         <div className="border-b border-gray-200 pb-4 md:pb-5">
                             <h2 className="text-2xl md:text-3xl font-semibold text-gray-900 leading-tight">
                                 {ticket.title}
-                                <span className="text-gray-500 font-medium ml-2">
+                                <span className="text-gray-500 font-medium text-base ml-2">
                                     [#{ticket.ticket_number}]
                                 </span>
                             </h2>
 
                             <div className="mt-3 space-y-1 text-sm text-gray-600">
-                                <p className="text-sm text-gray-600 mt-1">
-                                    {ticket.createdAt &&
-                                        formatDate(ticket.createdAt)}
-                                    {ticket.opened_by_name &&
-                                        ` • ${ticket.opened_by_name}`}
+                                <p className="text-sm text-gray-700 mt-1">
+                                    {`${formatDate(ticket.createdAt)} • ${ticket.created_by_name}`}
                                 </p>
                             </div>
+                            {ticket.deadline &&
+                                (canReviewTicket || canSubmitWork) && (
+                                    <div className="flex items-center text-center gap-1 mt-2 text-sm text-red-600">
+                                        <ClockFading
+                                            size={18}
+                                            className="me-1"
+                                        />
+                                        <span>
+                                            {ticket.deadline
+                                                ? `${formatDate(ticket.deadline)} | ${formatTime(
+                                                      formatTimestamp(
+                                                          ticket.deadline,
+                                                      ).time,
+                                                  )}`
+                                                : 'N/A'}
+                                        </span>
+                                    </div>
+                                )}
 
                             <div className="flex flex-wrap gap-2 mt-4 uppercase">
                                 {ticket.type ? (
                                     <Badge
                                         value={capitalize(ticket.type)}
                                         className={typeBadgeClass}
-                                    />
-                                ) : null}
-                                {ticket.status ? (
-                                    <Badge
-                                        value={capitalize(ticket.status)}
-                                        className={statusBadgeClass}
                                     />
                                 ) : null}
                                 {ticket.priority ? (
@@ -250,14 +275,17 @@ const ViewTicket: React.FC<ViewTicketProps> = props => {
                                         )}
                                     />
                                 ) : null}
+                                {ticket.status ? (
+                                    <Badge
+                                        value={capitalize(ticket.status)}
+                                        className={statusBadgeClass}
+                                    />
+                                ) : null}
                             </div>
                         </div>
 
                         <div className="mt-5 md:mt-6">
-                            <p className="text-xs font-semibold tracking-wider uppercase text-gray-500 mb-3">
-                                Activity
-                            </p>
-                            <div className="pl-4 border-l-2 border-gray-200 text-gray-900 leading-7">
+                            <div className="py-1 text-gray-900 leading-7">
                                 {parse(
                                     sanitizeHtml(ticket.description),
                                     options,

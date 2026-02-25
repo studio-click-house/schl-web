@@ -551,8 +551,7 @@ const Sidebar: React.FC<PropsType> = props => {
 
                     {hasAny([
                         'ticket:create_ticket',
-                        'ticket:review_tickets',
-                        'ticket:review_logs',
+                        'ticket:review_works',
                     ]) && (
                         <>
                             <span
@@ -587,50 +586,16 @@ const Sidebar: React.FC<PropsType> = props => {
                                     </li>
                                 )}
 
-                                {has('ticket:create_ticket') && (
+                                {hasAny(['ticket:create_ticket', 'ticket:review_works']) && (
                                     <li>
                                         <Link
-                                            href="/tickets/my-tickets"
+                                            href="/tickets/ticket-list"
                                             className="flex items-center w-full p-2 text-gray-900 transition duration-75 pl-11 group hover:bg-gray-100"
                                         >
                                             <TicketCheck className="w-6 h-6 mr-2" />
-                                            My Tickets
+                                            Ticket List
                                         </Link>
                                     </li>
-                                )}
-
-                                {has('ticket:review_tickets') && (
-                                    <>
-                                        <li>
-                                            <Link
-                                                href="/tickets/all-tickets"
-                                                className="flex items-center w-full p-2 text-gray-900 transition duration-75 pl-11 group hover:bg-gray-100"
-                                            >
-                                                <ListChecks className="w-6 h-6 mr-2" />
-                                                All Tickets
-                                            </Link>
-                                        </li>
-
-                                        <li>
-                                            <Link
-                                                href="/tickets/work-log"
-                                                className="flex items-center w-full p-2 text-gray-900 transition duration-75 pl-11 group hover:bg-gray-100"
-                                            >
-                                                <CalendarPlus2 className="w-6 h-6 mr-2" />
-                                                Create Work Log
-                                            </Link>
-                                        </li>
-
-                                        <li>
-                                            <Link
-                                                href="/tickets/all-work-logs"
-                                                className="flex items-center w-full p-2 text-gray-900 transition duration-75 pl-11 group hover:bg-gray-100"
-                                            >
-                                                <Calendars className="w-6 h-6 mr-2" />
-                                                All Work Logs
-                                            </Link>
-                                        </li>
-                                    </>
                                 )}
                             </ul>
                         </>
