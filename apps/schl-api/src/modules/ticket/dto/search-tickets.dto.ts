@@ -4,7 +4,6 @@ import {
 } from '@repo/common/utils/transformers';
 import { Transform, Type } from 'class-transformer';
 import {
-    IsArray,
     IsBoolean,
     IsInt,
     IsOptional,
@@ -64,10 +63,21 @@ export class SearchTicketsBodyDto {
     @Transform(emptyStringToUndefined)
     @IsOptional()
     @IsString()
+    priority?: string;
+
+    @Transform(emptyStringToUndefined)
+    @IsOptional()
+    @IsString()
     fromDate?: string;
 
     @Transform(emptyStringToUndefined)
     @IsOptional()
     @IsString()
     toDate?: string;
+
+    // filter tickets by deadline crossing status: 'overdue' | 'not-overdue'
+    @Transform(emptyStringToUndefined)
+    @IsOptional()
+    @IsString()
+    deadlineStatus?: 'overdue' | 'not-overdue';
 }

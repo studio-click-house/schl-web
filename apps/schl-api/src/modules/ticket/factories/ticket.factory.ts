@@ -8,20 +8,25 @@ export class TicketFactory {
         dto: CreateTicketBodyDto,
         session: UserSession,
         ticketNumber: string,
-    ): Partial<Ticket> {
+    ) {
         return {
             ticket_number: ticketNumber,
-            opened_by: new mongoose.Types.ObjectId(session.db_id),
+            created_by: new mongoose.Types.ObjectId(session.db_id),
             title: dto.title.trim(),
             description: dto.description.trim(),
             type: dto.type,
-            status: dto.status ?? 'new',
-            priority: dto.priority ?? 'low',
-            checked_by: null,
+            status: dto.status,
+            priority: dto.priority,
+            assignees: dto.assignees?.map(assignee => ({
+                name: assignee.name,
+                e_id: assignee.e_id,
+                db_id: new mongoose.Types.ObjectId(assignee.db_id),
+            })),
+            deadline: dto.deadline ? new Date(dto.deadline) : null,
         };
     }
 
-    static fromUpdateDto(dto: Partial<CreateTicketBodyDto>): Partial<Ticket> {
+    static fromUpdateDto(dto: Partial<CreateTicketBodyDto>) {
         const patch: Partial<Ticket> = {};
         if (dto.title !== undefined) patch.title = dto.title.trim();
         if (dto.description !== undefined)
@@ -29,6 +34,15 @@ export class TicketFactory {
         if (dto.type !== undefined) patch.type = dto.type;
         if (dto.status !== undefined) patch.status = dto.status;
         if (dto.priority !== undefined) patch.priority = dto.priority;
+        if (dto.deadline !== undefined)
+            patch.deadline = dto.deadline ? new Date(dto.deadline) : null;
+        if (dto.assignees !== undefined) {
+            patch.assignees = dto.assignees.map(a => ({
+                name: a.name,
+                e_id: a.e_id,
+                db_id: new mongoose.Types.ObjectId(a.db_id),
+            }));
+        }
         return patch;
     }
 }

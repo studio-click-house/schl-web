@@ -12,8 +12,18 @@ export const validationSchema = z.object({
     type: z.enum(TICKET_TYPES, {
         required_error: 'Ticket type is required',
     }),
-    status: z.enum(TICKET_STATUSES).default('new'),
+    status: z.enum(TICKET_STATUSES).default('pending'),
     priority: z.enum(TICKET_PRIORITIES).default('low'),
+    deadline: z.string().optional(),
+    assignees: z
+        .array(
+            z.object({
+                db_id: z.string(),
+                name: z.string(),
+                e_id: z.string(),
+            }),
+        )
+        .optional(),
     _id: z.optional(
         z.string().refine(val => {
             return mongoose.Types.ObjectId.isValid(val);

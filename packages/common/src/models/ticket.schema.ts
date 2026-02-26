@@ -30,7 +30,7 @@ export class Ticket {
         ref: User.name,
         type: mongoose.Schema.Types.ObjectId,
     })
-    opened_by: mongoose.Types.ObjectId;
+    created_by: mongoose.Types.ObjectId;
 
     @Prop({ required: true })
     title: string;
@@ -51,11 +51,23 @@ export class Ticket {
     priority: TicketPriority;
 
     @Prop({
-        type: mongoose.Schema.Types.ObjectId,
+        type: [
+            {
+                name: String,
+                db_id: mongoose.Schema.Types.ObjectId,
+                e_id: String,
+            },
+        ],
         ref: User.name,
-        default: null,
     })
-    checked_by: mongoose.Types.ObjectId | null;
+    assignees: {
+        name: string;
+        db_id: mongoose.Types.ObjectId;
+        e_id: string;
+    }[];
+
+    @Prop({ type: Date, default: null })
+    deadline: Date | null;
 
     @Prop({ type: Date })
     readonly createdAt: Date;

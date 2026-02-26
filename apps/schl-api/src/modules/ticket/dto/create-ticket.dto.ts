@@ -6,13 +6,15 @@ import {
     type TicketStatus,
     type TicketType,
 } from '@repo/common/constants/ticket.constant';
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
     IsArray,
     IsIn,
+    IsMongoId,
     IsNotEmpty,
     IsOptional,
     IsString,
+    ValidateNested,
 } from 'class-validator';
 
 const trimString = ({ value }: { value: unknown }) =>
@@ -20,6 +22,20 @@ const trimString = ({ value }: { value: unknown }) =>
 
 const toLower = ({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.toLowerCase() : value;
+
+export class AssigneeDto {
+    @IsString()
+    @IsNotEmpty()
+    name: string;
+
+    @IsString()
+    @IsNotEmpty()
+    e_id: string;
+
+    @IsMongoId()
+    @IsNotEmpty()
+    db_id: string;
+}
 
 export class CreateTicketBodyDto {
     @Transform(trimString)
@@ -36,13 +52,21 @@ export class CreateTicketBodyDto {
     @IsIn(TICKET_TYPES as readonly TicketType[])
     type: TicketType;
 
-    @IsOptional()
     @Transform(toLower)
     @IsIn(TICKET_STATUSES as readonly TicketStatus[])
     status?: TicketStatus;
 
-    @IsOptional()
     @Transform(toLower)
     @IsIn(TICKET_PRIORITIES as readonly TicketPriority[])
     priority?: TicketPriority;
+
+    @IsOptional()
+    @IsString()
+    deadline?: string;
+
+    @IsOptional()
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => AssigneeDto)
+    assignees?: AssigneeDto[];
 }

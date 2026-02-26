@@ -601,8 +601,7 @@ const Nav: React.FC<PropsType> = props => {
                             : 'hover:opacity-90',
                         !hasAny([
                             'ticket:create_ticket',
-                            'ticket:review_tickets',
-                            'ticket:review_logs',
+                            'ticket:review_works',
                         ]) && 'hidden',
                     )}
                 >
@@ -637,58 +636,16 @@ const Nav: React.FC<PropsType> = props => {
                         </li>
                         <li
                             className={cn(
-                                !has('ticket:create_ticket') && 'hidden',
+                                !hasAny(['ticket:create_ticket', 'ticket:review_works']) && 'hidden',
                             )}
                         >
                             <Link
                                 className={cn(
                                     'block px-4 py-2 hover:bg-primary',
                                 )}
-                                href={'/tickets/my-tickets'}
+                                href={'/tickets/ticket-list'}
                             >
-                                My Tickets
-                            </Link>
-                        </li>
-                        <li
-                            className={cn(
-                                !has('ticket:review_tickets') && 'hidden',
-                            )}
-                        >
-                            <Link
-                                className={cn(
-                                    'block px-4 py-2 hover:bg-primary',
-                                )}
-                                href={'/tickets/all-tickets'}
-                            >
-                                All Tickets
-                            </Link>
-                        </li>
-                        <li
-                            className={cn(
-                                !has('ticket:review_tickets') && 'hidden',
-                            )}
-                        >
-                            <Link
-                                className={cn(
-                                    'block px-4 py-2 hover:bg-primary',
-                                )}
-                                href={'/tickets/work-log'}
-                            >
-                                Create Work Log
-                            </Link>
-                        </li>
-                        <li
-                            className={cn(
-                                !has('ticket:review_logs') && 'hidden',
-                            )}
-                        >
-                            <Link
-                                className={cn(
-                                    'block px-4 py-2 hover:bg-primary',
-                                )}
-                                href={'/tickets/all-work-logs'}
-                            >
-                                All Work Logs
+                                Ticket List
                             </Link>
                         </li>
                     </ul>

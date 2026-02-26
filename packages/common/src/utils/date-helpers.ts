@@ -96,6 +96,21 @@ export function formatTimestamp(timestamp: string | Date) {
     };
 }
 
+export const isoToLocalDateTime = (iso?: string): string | undefined => {
+    if (!iso) return undefined;
+    const m = moment(iso);
+    if (!m.isValid()) return undefined;
+    // format for <input type="datetime-local"> which expects local time
+    return m.local().format('YYYY-MM-DDTHH:mm');
+};
+
+export const localDateTimeToISO = (local?: string): string | undefined => {
+    if (!local) return undefined;
+    const m = moment(local);
+    if (!m.isValid()) return undefined;
+    return m.toISOString();
+};
+
 export const toISODate = (
     dateStr: string,
     hours = 0,
@@ -206,4 +221,23 @@ export function daysToYMD(days: number) {
     );
 
     return { years, months, days: remainingDays };
+}
+
+export function normalizeDateInput(value?: string) {
+    if (!value) return undefined;
+
+    const trimmed = value.trim();
+    if (!trimmed) return undefined;
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+        return trimmed;
+    }
+
+    const slashMatch = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(trimmed);
+    if (slashMatch) {
+        const [, day, month, year] = slashMatch;
+        return `${year}-${month}-${day}`;
+    }
+
+    return undefined;
 }

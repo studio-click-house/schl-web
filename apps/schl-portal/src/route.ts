@@ -113,7 +113,10 @@ export const authorizedRoutes: AuthorizedRoute[] = [
     {
         href: '/tickets',
         label: 'Tickets',
-        permissions: ['ticket:create_ticket', 'ticket:review_tickets'],
+        permissions: [
+            'ticket:create_ticket',
+            'ticket:review_works',
+        ],
         children: [
             {
                 href: '/tickets/create',
@@ -121,24 +124,9 @@ export const authorizedRoutes: AuthorizedRoute[] = [
                 permissions: ['ticket:create_ticket'],
             },
             {
-                href: '/tickets/my-tickets',
-                label: 'My Tickets',
-                permissions: ['ticket:create_ticket'],
-            },
-            {
-                href: '/tickets/all-tickets',
-                label: 'All Tickets',
-                permissions: ['ticket:review_tickets'],
-            },
-            {
-                href: '/tickets/work-log',
-                label: 'Create Work Log',
-                permissions: ['ticket:review_tickets'],
-            },
-            {
-                href: '/tickets/work-log',
-                label: 'All Work Logs',
-                permissions: ['ticket:review_logs'],
+                href: '/tickets/ticket-list',
+                label: 'Ticket List',
+                permissions: ['ticket:create_ticket', 'ticket:review_works'],
             },
         ],
     },
