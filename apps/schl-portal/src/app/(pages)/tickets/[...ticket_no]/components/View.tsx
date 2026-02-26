@@ -2,6 +2,7 @@
 
 import Badge from '@/components/Badge';
 import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
+import { TicketDocument } from '@repo/common/models/ticket.schema';
 import {
     formatDate,
     formatTime,
@@ -37,19 +38,10 @@ interface ViewTicketProps {
     ticket_no: string;
 }
 
-interface Ticket {
-    _id?: string;
-    ticket_number: string;
-    title: string;
-    description: string;
-    type: string;
-    status: string;
-    priority: string;
-    deadline: string | null;
-    created_by_name: string;
-    createdAt: string;
-    updatedAt: string;
+interface TicketData extends TicketDocument {
+    created_by_name?: string; 
 }
+ 
 
 const options: HTMLReactParserOptions = {
     replace(domNode) {
@@ -112,7 +104,7 @@ const sanitizeHtml = (html: string): string => {
 const ViewTicket: React.FC<ViewTicketProps> = props => {
     const ticket_no = decodeURIComponent(props.ticket_no);
 
-    const [ticket, setTicket] = useState<Ticket | null>(null);
+    const [ticket, setTicket] = useState<TicketData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
     const { data: session } = useSession();
@@ -151,7 +143,7 @@ const ViewTicket: React.FC<ViewTicketProps> = props => {
         try {
             setIsLoading(true);
 
-            const response = await authedFetchApi<Ticket>(
+            const response = await authedFetchApi<TicketData>(
                 {
                     path: '/v1/ticket/get-ticket',
                     query: {

@@ -589,11 +589,11 @@ const Sidebar: React.FC<PropsType> = props => {
                                 {hasAny(['ticket:create_ticket', 'ticket:review_works']) && (
                                     <li>
                                         <Link
-                                            href="/tickets/ticket-list"
+                                            href="/tickets/all-tickets"
                                             className="flex items-center w-full p-2 text-gray-900 transition duration-75 pl-11 group hover:bg-gray-100"
                                         >
                                             <TicketCheck className="w-6 h-6 mr-2" />
-                                            Ticket List
+                                            All Tickets
                                         </Link>
                                     </li>
                                 )}

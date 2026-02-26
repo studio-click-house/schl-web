@@ -80,4 +80,10 @@ export class SearchTicketsBodyDto {
     @IsOptional()
     @IsString()
     deadlineStatus?: 'overdue' | 'not-overdue';
+
+    // filter by creator user id
+    @Transform(emptyStringToUndefined)
+    @IsOptional()
+    @IsString()
+    createdBy?: string;
 }

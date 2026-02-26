@@ -22,22 +22,26 @@ import { toast } from 'sonner';
 import { CLOSED_TICKET_STATUSES } from '@repo/common/constants/ticket.constant';
 import { TicketDocument } from '@repo/common/models/ticket.schema';
 import { capitalize } from 'lodash';
+import { TicketFormDataType, validationSchema } from '../../schema';
 import {
     getTicketPriorityBadgeClass,
     getTicketStatusBadgeClass,
     getTicketTypeBadgeClass,
-} from '../../all-tickets/components/ticket-badge.helper';
-import { TicketFormDataType, validationSchema } from '../../schema';
+} from '../components/ticket-badge.helper';
 import DeleteButton from './Delete';
 import EditButton from './Edit';
 import FilterButton from './Filter';
 
+interface TicketData extends TicketDocument {
+    created_by_name?: string; 
+}
+ 
 type TicketsState = {
     pagination: {
         count: number;
         pageCount: number;
     };
-    items: TicketDocument[];
+    items: TicketData[];
 };
 
 const Table = () => {
@@ -78,6 +82,7 @@ const Table = () => {
         fromDate: '',
         toDate: '',
         deadlineStatus: '',
+        createdBy: '',
     });
 
     const getAllTickets = useCallback(
@@ -137,7 +142,9 @@ const Table = () => {
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify(filters),
+                        body: JSON.stringify({
+                    ...filters,
+                }),
                     },
                 );
 
@@ -306,6 +313,7 @@ const Table = () => {
                         submitHandler={handleSearch}
                         setFilters={setFilters}
                         filters={filters}
+                        canReviewTicket={canReviewTicket}
                         className="w-full justify-between sm:w-auto"
                     />
                 </div>
@@ -321,6 +329,7 @@ const Table = () => {
                                 <tr>
                                     <th>#</th>
                                     <th>Date</th>
+                                    <th>Creator</th>
                                     <th>Ticket No</th>
                                     <th>Title</th>
                                     {canReviewTicket && (
@@ -354,11 +363,15 @@ const Table = () => {
                                             </td>
                                             <td>
                                                 {ticket.createdAt
-                                                    ? formatDate(
+                                                    && formatDate(
                                                           ticket.createdAt,
-                                                      )
-                                                    : null}
+                                                      )}
                                             </td>
+                                                                                        {canReviewTicket && (
+                                                <td>
+                                                    {ticket.created_by_name || 'N/A'}
+                                                </td>
+                                            )}
                                             <td>{ticket.ticket_number}</td>
                                             <td className="text-wrap">
                                                 {ticket.title}

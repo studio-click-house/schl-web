@@ -643,9 +643,9 @@ const Nav: React.FC<PropsType> = props => {
                                 className={cn(
                                     'block px-4 py-2 hover:bg-primary',
                                 )}
-                                href={'/tickets/ticket-list'}
+                                href={'/tickets/all-tickets'}
                             >
-                                Ticket List
+                                All Tickets
                             </Link>
                         </li>
                     </ul>

@@ -36,7 +36,7 @@ type TicketsPagination = {
     paginated: boolean;
 };
 
-type TicketWithName = Ticket & { opened_by_name?: string };
+type TicketWithName = Ticket & { created_by_name?: string };
 
 // when we run aggregation for custom sorting we temporarily add sortPriority
 // and mongoose returns plain objects rather than documents. this type helps
@@ -161,6 +161,7 @@ export class TicketService {
             toDate,
             priority,
             deadlineStatus,
+            createdBy,
         } = filters;
 
         const normalizedFromDate: string | undefined =
@@ -208,11 +209,17 @@ export class TicketService {
             query.deadline = { $gt: new Date() } as any;
         }
 
-        if (myTickets) {
-            query.created_by = new Types.ObjectId(userSession.db_id);
-        } else if (!hasPerm('ticket:review_works', userSession.permissions)) {
-            // users without the review_works permission only see their own tickets
-            query.created_by = new Types.ObjectId(userSession.db_id);
+        if (createdBy) {
+            query.created_by = new Types.ObjectId(createdBy);
+        } else {
+            if (myTickets) {
+                query.created_by = new Types.ObjectId(userSession.db_id);
+            } else if (
+                !hasPerm('ticket:review_works', userSession.permissions)
+            ) {
+                // users without the review_works permission only see their own tickets
+                query.created_by = new Types.ObjectId(userSession.db_id);
+            }
         }
 
         const sortStage = {
@@ -261,7 +268,7 @@ export class TicketService {
                     const createdById: string = t.created_by?.toString() ?? '';
                     const name = await this.resolveCreatedByName(createdById);
                     const { sortPriority: _sortPriority, ...rest } = t;
-                    return { ...rest, opened_by_name: name };
+                    return { ...rest, created_by_name: name };
                 }),
             );
 
@@ -282,7 +289,7 @@ export class TicketService {
                 const createdById: string = t.created_by?.toString() ?? '';
                 const name = await this.resolveCreatedByName(createdById);
                 const { sortPriority: _sortPriority, ...rest } = t;
-                return { ...rest, opened_by_name: name };
+                return { ...rest, created_by_name: name };
             }),
         );
         return result;
