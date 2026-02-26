@@ -30,6 +30,8 @@ interface PropsType {
         toDate: string;
         deadlineStatus: string;
         createdBy: string;
+        assignee: string;
+        excludeClosed: boolean;
     };
     setFilters: React.Dispatch<
         React.SetStateAction<{
@@ -41,6 +43,8 @@ interface PropsType {
             toDate: string;
             deadlineStatus: string;
             createdBy: string;
+            assignee: string;
+            excludeClosed: boolean;
         }>
     >;
     isLoading: boolean;
@@ -52,13 +56,18 @@ export default function FilterButton(props: PropsType) {
     const popupRef = useRef<HTMLElement | null>(null);
     const { filters, setFilters } = props;
     const authedFetchApi = useAuthedFetchApi();
-    const [creatorOptions, setCreatorOptions] = useState<{ label: string; value: string }[]>([]);
+    const [creatorOptions, setCreatorOptions] = useState<
+        { label: string; value: string }[]
+    >([]);
 
     // load user list for creator filter
     React.useEffect(() => {
         const loadCreators = async () => {
             try {
-                const resp = await authedFetchApi<{ pagination?: { count: number; pageCount: number }; items: any[] }>(
+                const resp = await authedFetchApi<{
+                    pagination?: { count: number; pageCount: number };
+                    items: any[];
+                }>(
                     {
                         path: '/v1/user/search-users',
                         query: { page: 1, itemsPerPage: 100, paginated: false },
@@ -70,9 +79,14 @@ export default function FilterButton(props: PropsType) {
                     },
                 );
                 if (resp.ok && resp.data) {
-                    const usersRaw = Array.isArray(resp.data) ? resp.data : resp.data.items || [];
+                    const usersRaw = Array.isArray(resp.data)
+                        ? resp.data
+                        : resp.data.items || [];
                     const validUsers = (usersRaw as any[]).filter(u =>
-                        hasPerm('ticket:create_ticket', u.role?.permissions || []),
+                        hasPerm(
+                            'ticket:create_ticket',
+                            u.role?.permissions || [],
+                        ),
                     );
                     const options = validUsers.map(u => ({
                         label: u.employee?.real_name
@@ -108,6 +122,8 @@ export default function FilterButton(props: PropsType) {
             toDate: '',
             deadlineStatus: '',
             createdBy: '',
+            assignee: '',
+            excludeClosed: false,
         });
     };
 
@@ -241,96 +257,115 @@ export default function FilterButton(props: PropsType) {
                                 />
                             </div>
 
-
-
-{props.canReviewTicket && <>
-                            <div>
-                                <label className="uppercase tracking-wide text-gray-700 text-sm font-bold block mb-2">
-                                    Creator
-                                </label>
-                                <Select
-                                    {...setClassNameAndIsDisabled(isOpen)}
-                                    options={creatorOptions}
-                                    classNamePrefix="react-select"
-                                    menuPortalTarget={setMenuPortalTarget}
-                                    styles={setCalculatedZIndex(baseZIndex)}
-                                    value={
-                                        creatorOptions.find(
-                                            o => o.value === props.filters.createdBy,
-                                        ) || null
-                                    }
-                                    onChange={opt =>
-                                        setFilters(prev => ({
-                                            ...prev,
-                                            createdBy: opt?.value || '',
-                                        }))
-                                    }
-                                    isClearable
-                                />
-                            </div>
-                            <div className="w-full">
-                                <label className="uppercase tracking-wide text-gray-700 text-sm font-bold flex gap-2 mb-2">
-                                    Deadline
-                                </label>
-
-                                <div className="radios flex flex-col sm:flex-row gap-1 sm:gap-4">
-                                    <div className="flex gap-2 items-center">
-                                        <input
-                                            name="deadlineStatus"
-                                            checked={props.filters.deadlineStatus === ''}
-                                            onChange={handleChange}
-                                            id="deadline-all-radio"
-                                            value=""
-                                            type="radio"
-                                            className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 focus:ring-2"
-                                        />
-                                        <label
-                                            htmlFor="deadline-all-radio"
-                                            className="uppercase"
-                                        >
-                                            All
+                            {props.canReviewTicket && (
+                                <>
+                                    <div>
+                                        <label className="uppercase tracking-wide text-gray-700 text-sm font-bold block mb-2">
+                                            Creator
                                         </label>
-                                    </div>
-
-                                    <div className="flex gap-2 items-center">
-                                        <input
-                                            name="deadlineStatus"
-                                            checked={props.filters.deadlineStatus === 'overdue'}
-                                            onChange={handleChange}
-                                            id="deadline-overdue-radio"
-                                            value="overdue"
-                                            type="radio"
-                                            className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 focus:ring-2"
+                                        <Select
+                                            {...setClassNameAndIsDisabled(
+                                                isOpen,
+                                            )}
+                                            options={creatorOptions}
+                                            classNamePrefix="react-select"
+                                            menuPortalTarget={
+                                                setMenuPortalTarget
+                                            }
+                                            styles={setCalculatedZIndex(
+                                                baseZIndex,
+                                            )}
+                                            value={
+                                                creatorOptions.find(
+                                                    o =>
+                                                        o.value ===
+                                                        props.filters.createdBy,
+                                                ) || null
+                                            }
+                                            onChange={opt =>
+                                                setFilters(prev => ({
+                                                    ...prev,
+                                                    createdBy: opt?.value || '',
+                                                }))
+                                            }
+                                            isClearable
                                         />
-                                        <label
-                                            htmlFor="deadline-overdue-radio"
-                                            className="uppercase"
-                                        >
-                                            Overdue
-                                        </label>
                                     </div>
-
-                                    <div className="flex gap-2 items-center">
-                                        <input
-                                            name="deadlineStatus"
-                                            checked={props.filters.deadlineStatus === 'not-overdue'}
-                                            onChange={handleChange}
-                                            id="deadline-notoverdue-radio"
-                                            value="not-overdue"
-                                            type="radio"
-                                            className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 focus:ring-2"
-                                        />
-                                        <label
-                                            htmlFor="deadline-notoverdue-radio"
-                                            className="uppercase"
-                                        >
-                                            Not overdue
+                                    <div className="w-full">
+                                        <label className="uppercase tracking-wide text-gray-700 text-sm font-bold flex gap-2 mb-2">
+                                            Deadline
                                         </label>
-                                    </div>
-                                </div>
-                            </div>
-</>}
 
+                                        <div className="radios flex flex-col sm:flex-row gap-1 sm:gap-4">
+                                            <div className="flex gap-2 items-center">
+                                                <input
+                                                    name="deadlineStatus"
+                                                    checked={
+                                                        props.filters
+                                                            .deadlineStatus ===
+                                                        ''
+                                                    }
+                                                    onChange={handleChange}
+                                                    id="deadline-all-radio"
+                                                    value=""
+                                                    type="radio"
+                                                    className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 focus:ring-2"
+                                                />
+                                                <label
+                                                    htmlFor="deadline-all-radio"
+                                                    className="uppercase"
+                                                >
+                                                    All
+                                                </label>
+                                            </div>
+
+                                            <div className="flex gap-2 items-center">
+                                                <input
+                                                    name="deadlineStatus"
+                                                    checked={
+                                                        props.filters
+                                                            .deadlineStatus ===
+                                                        'overdue'
+                                                    }
+                                                    onChange={handleChange}
+                                                    id="deadline-overdue-radio"
+                                                    value="overdue"
+                                                    type="radio"
+                                                    className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 focus:ring-2"
+                                                />
+                                                <label
+                                                    htmlFor="deadline-overdue-radio"
+                                                    className="uppercase"
+                                                >
+                                                    Overdue
+                                                </label>
+                                            </div>
+
+                                            <div className="flex gap-2 items-center">
+                                                <input
+                                                    name="deadlineStatus"
+                                                    checked={
+                                                        props.filters
+                                                            .deadlineStatus ===
+                                                        'not-overdue'
+                                                    }
+                                                    onChange={handleChange}
+                                                    id="deadline-notoverdue-radio"
+                                                    value="not-overdue"
+                                                    type="radio"
+                                                    className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 focus:ring-2"
+                                                />
+                                                <label
+                                                    htmlFor="deadline-notoverdue-radio"
+                                                    className="uppercase"
+                                                >
+                                                    Not overdue
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
 
                             <div className="md:col-span-2">
                                 <label className="uppercase tracking-wide text-gray-700 text-sm font-bold flex gap-2 mb-2">

@@ -22,6 +22,10 @@ export class TicketFactory {
                 e_id: assignee.e_id,
                 db_id: new mongoose.Types.ObjectId(assignee.db_id),
             })),
+            assigned_by:
+                dto.assignees && dto.assignees.length > 0
+                    ? new mongoose.Types.ObjectId(session.db_id)
+                    : null,
             deadline: dto.deadline ? new Date(dto.deadline) : null,
         };
     }

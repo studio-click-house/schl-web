@@ -15,6 +15,7 @@ import {
     ChartNoAxesCombined,
     ChevronDown,
     CirclePause,
+    ClipboardList,
     FilePlus2,
     FileSliders,
     FlaskConical,
@@ -586,7 +587,10 @@ const Sidebar: React.FC<PropsType> = props => {
                                     </li>
                                 )}
 
-                                {hasAny(['ticket:create_ticket', 'ticket:review_works']) && (
+                                {hasAny([
+                                    'ticket:create_ticket',
+                                    'ticket:review_works',
+                                ]) && (
                                     <li>
                                         <Link
                                             href="/tickets/all-tickets"
@@ -594,6 +598,17 @@ const Sidebar: React.FC<PropsType> = props => {
                                         >
                                             <TicketCheck className="w-6 h-6 mr-2" />
                                             All Tickets
+                                        </Link>
+                                    </li>
+                                )}
+                                {has('ticket:submit_daily_work') && (
+                                    <li>
+                                        <Link
+                                            href="/tickets/work-board"
+                                            className="flex items-center w-full p-2 text-gray-900 transition duration-75 pl-11 group hover:bg-gray-100"
+                                        >
+                                            <ClipboardList className="w-6 h-6 mr-2" />
+                                            Work Board
                                         </Link>
                                     </li>
                                 )}

@@ -19,6 +19,7 @@ import { useRouter } from 'nextjs-toploader/app';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
+import ExtendableTd from '@/components/ExtendableTd';
 import { CLOSED_TICKET_STATUSES } from '@repo/common/constants/ticket.constant';
 import { TicketDocument } from '@repo/common/models/ticket.schema';
 import { capitalize } from 'lodash';
@@ -33,9 +34,10 @@ import EditButton from './Edit';
 import FilterButton from './Filter';
 
 interface TicketData extends TicketDocument {
-    created_by_name?: string; 
+    created_by_name?: string;
+    assigned_by_name?: string;
 }
- 
+
 type TicketsState = {
     pagination: {
         count: number;
@@ -83,6 +85,8 @@ const Table = () => {
         toDate: '',
         deadlineStatus: '',
         createdBy: '',
+        assignee: '',
+        excludeClosed: false,
     });
 
     const getAllTickets = useCallback(
@@ -143,8 +147,8 @@ const Table = () => {
                             'Content-Type': 'application/json',
                         },
                         body: JSON.stringify({
-                    ...filters,
-                }),
+                            ...filters,
+                        }),
                     },
                 );
 
@@ -329,16 +333,14 @@ const Table = () => {
                                 <tr>
                                     <th>#</th>
                                     <th>Date</th>
-                                    <th>Creator</th>
+                                    <th>Created By</th>
+                                    {canReviewTicket && <th>Assigned By</th>}
                                     <th>Ticket No</th>
                                     <th>Title</th>
-                                    {canReviewTicket && (
-                                        <th>Deadline</th>
-                                    )}
+                                    {canReviewTicket && <th>Deadline</th>}
                                     <th>Type</th>
                                     <th>Priority</th>
                                     <th>Status</th>
-
                                     <th>Action</th>
                                 </tr>
                             </thead>
@@ -361,23 +363,27 @@ const Table = () => {
                                                     1 +
                                                     itemPerPage * (page - 1)}
                                             </td>
-                                            <td>
-                                                {ticket.createdAt
-                                                    && formatDate(
-                                                          ticket.createdAt,
-                                                      )}
+                                            <td className="text-nowrap">
+                                                {ticket.createdAt &&
+                                                    formatDate(
+                                                        ticket.createdAt,
+                                                    )}
                                             </td>
-                                                                                        {canReviewTicket && (
-                                                <td>
-                                                    {ticket.created_by_name || 'N/A'}
-                                                </td>
+                                            {canReviewTicket && (
+                                                <>
+                                                    <td>
+                                                        {ticket.created_by_name ||
+                                                            'N/A'}
+                                                    </td>
+                                                    <td>
+                                                        {ticket.assigned_by_name ||
+                                                            'N/A'}
+                                                    </td>
+                                                </>
                                             )}
-                                            <td>{ticket.ticket_number}</td>
-                                            <td className="text-wrap">
-                                                {ticket.title}
-                                            </td>
-                                            {canReviewTicket
-                                                 && (
+                                            <td className="text-nowrap">{ticket.ticket_number}</td>
+                                            <ExtendableTd data={ticket.title} />
+                                            {canReviewTicket && (
                                                 <td className="text-nowrap">
                                                     {ticket.deadline
                                                         ? `${formatDate(ticket.deadline)} | ${formatTime(
@@ -389,7 +395,7 @@ const Table = () => {
                                                 </td>
                                             )}
                                             <td
-                                                className="uppercase text-wrap"
+                                                className="uppercase text-nowrap"
                                                 style={{
                                                     verticalAlign: 'middle',
                                                 }}
@@ -404,7 +410,7 @@ const Table = () => {
                                                 />
                                             </td>
                                             <td
-                                                className="uppercase text-wrap"
+                                                className="uppercase text-nowrap"
                                                 style={{
                                                     verticalAlign: 'middle',
                                                 }}
@@ -418,9 +424,8 @@ const Table = () => {
                                                     )}
                                                 />
                                             </td>
-
                                             <td
-                                                className="uppercase text-wrap"
+                                                className="uppercase text-nowrap"
                                                 style={{
                                                     verticalAlign: 'middle',
                                                 }}
@@ -434,6 +439,7 @@ const Table = () => {
                                                     )}
                                                 />
                                             </td>
+
                                             <td
                                                 className="text-nowrap"
                                                 style={{

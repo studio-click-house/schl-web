@@ -86,4 +86,16 @@ export class SearchTicketsBodyDto {
     @IsOptional()
     @IsString()
     createdBy?: string;
+
+    // include tickets assigned to this user OR with no assignees
+    @Transform(emptyStringToUndefined)
+    @IsOptional()
+    @IsString()
+    assignee?: string;
+
+    // when true, excludes tickets whose status is in CLOSED_TICKET_STATUSES
+    @Transform(({ value }) => toBoolean(value, false))
+    @IsOptional()
+    @IsBoolean()
+    excludeClosed?: boolean;
 }

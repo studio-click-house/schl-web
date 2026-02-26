@@ -8,10 +8,7 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import {
-    CLOSED_TICKET_STATUSES,
-    type TicketStatus,
-} from '@repo/common/constants/ticket.constant';
+import { CLOSED_TICKET_STATUSES } from '@repo/common/constants/ticket.constant';
 import { Employee } from '@repo/common/models/employee.schema';
 import { Ticket } from '@repo/common/models/ticket.schema';
 import { User } from '@repo/common/models/user.schema';
@@ -36,7 +33,10 @@ type TicketsPagination = {
     paginated: boolean;
 };
 
-type TicketWithName = Ticket & { created_by_name?: string };
+type TicketWithName = Ticket & {
+    created_by_name?: string;
+    assigned_by_name?: string;
+};
 
 // when we run aggregation for custom sorting we temporarily add sortPriority
 // and mongoose returns plain objects rather than documents. this type helps
@@ -80,11 +80,9 @@ export class TicketService {
         return `${prefix}${sequencePart}`;
     }
 
-    private async resolveCreatedByName(
-        createdByUserId: string,
-    ): Promise<string> {
+    private async resolveUserName(userId: string): Promise<string> {
         const user = await this.userModel
-            .findById(createdByUserId)
+            .findById(userId)
             .select('employee')
             .lean()
             .exec();
@@ -103,6 +101,8 @@ export class TicketService {
     }
 
     async createTicket(body: CreateTicketBodyDto, userSession: UserSession) {
+        // if the creator assigns the ticket to someone, record who made that
+        // assignment by saving the current user id in `assigned_by`.
         if (!hasPerm('ticket:create_ticket', userSession.permissions)) {
             throw new ForbiddenException(
                 "You don't have permission to create tickets",
@@ -162,6 +162,8 @@ export class TicketService {
             priority,
             deadlineStatus,
             createdBy,
+            assignee,
+            excludeClosed,
         } = filters;
 
         const normalizedFromDate: string | undefined =
@@ -202,11 +204,28 @@ export class TicketService {
         addIfDefined(query, 'status', status);
         addIfDefined(query, 'priority', priority);
 
-        // deadline crossed filter
+        // deadline crossed filter needs to be combined with other clauses using $and
         if (deadlineStatus === 'overdue') {
-            query.deadline = { $lte: new Date() } as any;
+            // only tickets with a defined deadline that is in the past or now
+            const clause = { deadline: { $lte: new Date() } };
+            query.$and = query.$and || [];
+            query.$and.push(clause);
         } else if (deadlineStatus === 'not-overdue') {
-            query.deadline = { $gt: new Date() } as any;
+            // tickets with future deadlines or no deadline at all
+            const clause = {
+                $or: [
+                    { deadline: { $gt: new Date() } },
+                    { deadline: null },
+                    { deadline: { $exists: false } },
+                ],
+            };
+            query.$and = query.$and || [];
+            query.$and.push(clause);
+        }
+
+        if (excludeClosed) {
+            // this can stay at root since it will be ANDed with other root-level keys
+            query.status = { $nin: CLOSED_TICKET_STATUSES } as any;
         }
 
         if (createdBy) {
@@ -220,6 +239,19 @@ export class TicketService {
                 // users without the review_works permission only see their own tickets
                 query.created_by = new Types.ObjectId(userSession.db_id);
             }
+        }
+
+        // assignee filter: either assigned to specified user or unassigned
+        if (assignee) {
+            const assigneeId = new Types.ObjectId(assignee);
+            const clause = {
+                $or: [
+                    { 'assignees.db_id': assigneeId },
+                    { assignees: { $size: 0 } },
+                ],
+            };
+            query.$and = query.$and || [];
+            query.$and.push(clause);
         }
 
         const sortStage = {
@@ -266,9 +298,21 @@ export class TicketService {
             const tickets: TicketWithName[] = await Promise.all(
                 items.map(async (t: AggregatedTicket) => {
                     const createdById: string = t.created_by?.toString() ?? '';
-                    const name = await this.resolveCreatedByName(createdById);
+                    const assignedById: string = t.assigned_by
+                        ? t.assigned_by.toString()
+                        : '';
+                    const createdName = await this.resolveUserName(createdById);
+                    const assignedName = assignedById
+                        ? await this.resolveUserName(assignedById)
+                        : '';
                     const { sortPriority: _sortPriority, ...rest } = t;
-                    return { ...rest, created_by_name: name };
+                    void _sortPriority;
+                    return {
+                        ...rest,
+                        assigned_by: rest.assigned_by ?? null,
+                        created_by_name: createdName,
+                        assigned_by_name: assignedName,
+                    };
                 }),
             );
 
@@ -287,9 +331,19 @@ export class TicketService {
         const result: TicketWithName[] = await Promise.all(
             items.map(async (t: AggregatedTicket) => {
                 const createdById: string = t.created_by?.toString() ?? '';
-                const name = await this.resolveCreatedByName(createdById);
+                const assignedById: string = t.assigned_by?.toString() ?? '';
+                const createdName = await this.resolveUserName(createdById);
+                const assignedName = assignedById
+                    ? await this.resolveUserName(assignedById)
+                    : '';
                 const { sortPriority: _sortPriority, ...rest } = t;
-                return { ...rest, created_by_name: name };
+                void _sortPriority;
+                return {
+                    ...rest,
+                    assigned_by: rest.assigned_by ?? null,
+                    created_by_name: createdName,
+                    assigned_by_name: assignedName,
+                };
             }),
         );
         return result;
@@ -344,13 +398,20 @@ export class TicketService {
                 );
             }
 
-            const createdByName = await this.resolveCreatedByName(
+            const createdByName = await this.resolveUserName(
                 ticket.created_by.toString(),
             );
+            const assignedById: string = ticket.assigned_by
+                ? ticket.assigned_by.toString()
+                : '';
+            const assignedByName = assignedById
+                ? await this.resolveUserName(assignedById)
+                : '';
 
             return {
                 ...ticket.toObject(),
                 created_by_name: createdByName,
+                assigned_by_name: assignedByName,
             };
         } catch (err: unknown) {
             if (err instanceof HttpException) throw err;
@@ -378,9 +439,32 @@ export class TicketService {
             );
         }
 
-        const patch = TicketFactory.fromUpdateDto(ticketData);
+        // allow modifying assigned_by when needed
+        const patch = TicketFactory.fromUpdateDto(ticketData) as Partial<
+            Ticket & { assigned_by?: Types.ObjectId | null }
+        >;
         if (Object.keys(patch).length === 0) {
             throw new BadRequestException('No update fields provided');
+        }
+
+        // apply assignment logic when assignees list is changed
+        if (patch.assignees !== undefined) {
+            // if assignees are explicitly cleared, also clear assigned_by
+            if (
+                Array.isArray(patch.assignees) &&
+                patch.assignees.length === 0
+            ) {
+                patch.assigned_by = null;
+            } else {
+                // for any non-empty assignment change, record the current user
+                // unless they are already the one who assigned it
+                if (
+                    !existing.assigned_by ||
+                    existing.assigned_by.toString() !== userSession.db_id
+                ) {
+                    patch.assigned_by = new Types.ObjectId(userSession.db_id);
+                }
+            }
         }
 
         const updated = await this.ticketModel

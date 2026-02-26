@@ -66,6 +66,15 @@ export class Ticket {
         e_id: string;
     }[];
 
+    // user who assigned the ticket (never stored on client)
+    // null when ticket created without assignees
+    @Prop({
+        ref: User.name,
+        type: mongoose.Schema.Types.ObjectId,
+        default: null,
+    })
+    assigned_by: mongoose.Types.ObjectId | null;
+
     @Prop({ type: Date, default: null })
     deadline: Date | null;
 

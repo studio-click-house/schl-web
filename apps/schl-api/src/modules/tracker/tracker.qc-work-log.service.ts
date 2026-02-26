@@ -16,7 +16,7 @@ export class TrackerQcWorkLogService {
     constructor(
         @InjectModel(QcWorkLog.name)
         private readonly qcWorkLogModel: Model<QcWorkLog>,
-    ) { }
+    ) {}
 
     async syncQc(payload: SyncQcWorkLogDto) {
         if (!payload.employeeName) {
@@ -33,9 +33,7 @@ export class TrackerQcWorkLogService {
 
             // ── Idempotency check: skip $inc if syncId already processed ──
             const syncId =
-                typeof payload.syncId === 'string'
-                    ? payload.syncId.trim()
-                    : '';
+                typeof payload.syncId === 'string' ? payload.syncId.trim() : '';
             let skipInc = false;
 
             if (syncId) {
@@ -96,22 +94,19 @@ export class TrackerQcWorkLogService {
 
                 // Step 2: Push ALL new files in ONE call ($push + $each)
                 const newFileDocs = payload.files
-                    .map((f) => {
+                    .map(f => {
                         const fileName = f.fileName?.trim() || '';
                         if (!fileName || existingNames.has(fileName))
                             return null;
-                        const fileDoc =
-                            TrackerFactory.qcFileDocFromSyncFileDto(
-                                fileName,
-                                f,
-                            );
+                        const fileDoc = TrackerFactory.qcFileDocFromSyncFileDto(
+                            fileName,
+                            f,
+                        );
                         fileDoc.file_status = payload.fileStatus;
                         if (skipInc) fileDoc.time_spent = 0;
                         return fileDoc;
                     })
-                    .filter(
-                        (d): d is Record<string, any> => d !== null,
-                    );
+                    .filter((d): d is Record<string, any> => d !== null);
 
                 if (newFileDocs.length > 0) {
                     await this.qcWorkLogModel.updateOne(filter, {
@@ -121,7 +116,7 @@ export class TrackerQcWorkLogService {
 
                 // Step 3: bulkWrite to update status + $inc time_spent for all files at once
                 const bulkOps = payload.files
-                    .map((f) => {
+                    .map(f => {
                         const fileName = f.fileName?.trim() || '';
                         if (!fileName) return null;
 

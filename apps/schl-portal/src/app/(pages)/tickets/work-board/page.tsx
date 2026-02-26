@@ -1,7 +1,7 @@
 import React from 'react';
 import Table from './components/Table';
 
-const MyTicketsPage = async () => {
+const TicketsWorkBoardPage = async () => {
     return (
         <>
             <div className="px-4 mt-8 mb-4">
@@ -11,4 +11,5 @@ const MyTicketsPage = async () => {
     );
 };
 
-export default MyTicketsPage;
+export default TicketsWorkBoardPage;
+export const dynamic = 'force-dynamic';

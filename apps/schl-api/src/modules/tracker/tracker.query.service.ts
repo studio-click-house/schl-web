@@ -291,7 +291,9 @@ export class TrackerQueryService {
 
             const ensureClient = (client: string, workType: string) => {
                 const safeClient = (client || 'unknown_client').toString();
-                const safeWorkType = (workType || 'unknown_work_type').toString();
+                const safeWorkType = (
+                    workType || 'unknown_work_type'
+                ).toString();
                 const key = `${safeClient}|||${safeWorkType}`;
                 if (!byClient[key]) {
                     byClient[key] = {

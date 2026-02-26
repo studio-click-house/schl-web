@@ -20,6 +20,10 @@ import { TrackerQueryService } from './tracker.query.service';
         ]),
     ],
     controllers: [TrackerController],
-    providers: [TrackerAuthService, TrackerQcWorkLogService, TrackerQueryService],
+    providers: [
+        TrackerAuthService,
+        TrackerQcWorkLogService,
+        TrackerQueryService,
+    ],
 })
 export class TrackerModule {}
