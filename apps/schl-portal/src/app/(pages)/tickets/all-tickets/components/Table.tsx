@@ -214,12 +214,11 @@ const Table = () => {
 
             const { _id, ...rest } = parsed.data;
 
-            const payload = {
-                ...rest,
-                deadline: rest.deadline
-                    ? new Date(rest.deadline).toISOString()
-                    : undefined,
-            };
+            // convert deadline string to ISO or keep null when explicitly cleared
+            const payload: any = { ...rest };
+            if (rest.deadline !== undefined) {
+                payload.deadline = rest.deadline ? new Date(rest.deadline).toISOString() : null;
+            }
 
             const response = await authedFetchApi(
                 { path: `/v1/ticket/update-ticket/${_id}` },
