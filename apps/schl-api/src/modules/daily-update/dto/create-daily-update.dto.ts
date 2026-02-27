@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsMongoId, IsNotEmpty, IsString } from 'class-validator';
+import { IsMongoId, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 const trimString = ({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : value;
@@ -10,7 +10,8 @@ export class CreateDailyUpdateBodyDto {
     @IsNotEmpty()
     message: string;
 
-    @IsNotEmpty()
+    // optional ticket reference (ObjectId)
+    @IsOptional()
     @IsMongoId()
-    submittedBy: string;
+    ticket?: string;
 }

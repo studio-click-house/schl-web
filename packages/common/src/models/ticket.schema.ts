@@ -86,3 +86,8 @@ export class Ticket {
 }
 
 export const TicketSchema = SchemaFactory.createForClass(Ticket);
+
+// indexes to speed up common search queries
+TicketSchema.index({ 'assignees.db_id': 1 });
+TicketSchema.index({ created_by: 1, createdAt: -1 });
+TicketSchema.index({ deadline: 1 });

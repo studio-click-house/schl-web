@@ -374,11 +374,16 @@ const EditButton: React.FC<PropsType> = props => {
                                                 styles={setCalculatedZIndex(
                                                     baseZIndex + 1,
                                                 )}
-                                                value={(field.value || []).map(
-                                                    v => ({
-                                                        label: `${v.name} (${v.e_id})`,
-                                                        value: v,
-                                                    }),
+                                                value={assigneeOptions.filter(
+                                                    option =>
+                                                        (
+                                                            field.value || []
+                                                        ).some(
+                                                            v =>
+                                                                v.db_id ===
+                                                                option.value
+                                                                    .db_id,
+                                                        ),
                                                 )}
                                                 onChange={selected =>
                                                     field.onChange(

@@ -87,11 +87,22 @@ export class SearchTicketsBodyDto {
     @IsString()
     createdBy?: string;
 
-    // include tickets assigned to this user OR with no assignees
-    @Transform(emptyStringToUndefined)
+    // multi-select for assigned users; ticket matches if any of the selected
+    // user ids appear in its assignees array.
+    @Transform(({ value }) => {
+        if (Array.isArray(value)) return value;
+        if (typeof value === 'string' && value !== '') return [value];
+        return undefined;
+    })
     @IsOptional()
-    @IsString()
-    assignee?: string;
+    @IsString({ each: true })
+    assignees?: string[];
+
+    // when true, matching tickets will also include those with no assignees
+    @Transform(({ value }) => toBoolean(value, false))
+    @IsOptional()
+    @IsBoolean()
+    includeUnassigned?: boolean;
 
     // when true, excludes tickets whose status is in CLOSED_TICKET_STATUSES
     @Transform(({ value }) => toBoolean(value, false))

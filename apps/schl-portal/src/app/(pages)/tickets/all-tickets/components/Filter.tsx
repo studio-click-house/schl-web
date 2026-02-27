@@ -30,7 +30,7 @@ interface PropsType {
         toDate: string;
         deadlineStatus: string;
         createdBy: string;
-        assignee: string;
+        assignees: string[];
         excludeClosed: boolean;
     };
     setFilters: React.Dispatch<
@@ -43,7 +43,7 @@ interface PropsType {
             toDate: string;
             deadlineStatus: string;
             createdBy: string;
-            assignee: string;
+            assignees: string[];
             excludeClosed: boolean;
         }>
     >;
@@ -59,8 +59,10 @@ export default function FilterButton(props: PropsType) {
     const [creatorOptions, setCreatorOptions] = useState<
         { label: string; value: string }[]
     >([]);
+    const [assigneeOptions, setAssigneeOptions] = useState<
+        { label: string; value: string }[]
+    >([]);
 
-    // load user list for creator filter
     React.useEffect(() => {
         const loadCreators = async () => {
             try {
@@ -103,6 +105,46 @@ export default function FilterButton(props: PropsType) {
         loadCreators();
     }, [authedFetchApi]);
 
+    React.useEffect(() => {
+        if (!props.canReviewTicket) return;
+        const loadAssignees = async () => {
+            try {
+                const resp = await authedFetchApi<any>(
+                    {
+                        path: '/v1/user/search-users',
+                        query: { page: 1, itemsPerPage: 100, paginated: false },
+                    },
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ employee_expanded: true }),
+                    },
+                );
+                if (resp.ok && resp.data) {
+                    const usersRaw = Array.isArray(resp.data)
+                        ? resp.data
+                        : resp.data.items || [];
+                    const valid = (usersRaw as any[]).filter(u =>
+                        hasPerm(
+                            'ticket:submit_daily_work',
+                            u.role?.permissions || [],
+                        ),
+                    );
+                    const options = valid.map(u => ({
+                        label: u.employee?.real_name
+                            ? `${u.employee.real_name} (${u.employee.e_id})`
+                            : u.name || 'Unknown',
+                        value: String(u._id),
+                    }));
+                    setAssigneeOptions(options);
+                }
+            } catch (e) {
+                console.error('failed loading assignees', e);
+            }
+        };
+        loadAssignees();
+    }, [authedFetchApi, props.canReviewTicket]);
+
     const handleChange = (
         e: React.ChangeEvent<
             HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
@@ -122,7 +164,7 @@ export default function FilterButton(props: PropsType) {
             toDate: '',
             deadlineStatus: '',
             createdBy: '',
-            assignee: '',
+            assignees: [],
             excludeClosed: false,
         });
     };
@@ -175,6 +217,35 @@ export default function FilterButton(props: PropsType) {
 
                     <div className="overflow-y-scroll max-h-[70vh] p-4">
                         <div className="grid grid-cols-1 gap-x-3 gap-y-4 md:grid-cols-2">
+                            <div className="md:col-span-2">
+                                <label className="uppercase tracking-wide text-gray-700 text-sm font-bold flex gap-2 mb-2">
+                                    Date Picker
+                                </label>
+
+                                <div
+                                    className="inline-flex w-full"
+                                    role="group"
+                                >
+                                    <input
+                                        className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded-s-md py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
+                                        name="fromDate"
+                                        value={filters.fromDate}
+                                        onChange={handleChange}
+                                        type="date"
+                                    />
+                                    <span className="inline-flex items-center px-4 py-2 m-0 text-sm font-medium border">
+                                        <b>to</b>
+                                    </span>
+                                    <input
+                                        className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded-e-md py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
+                                        name="toDate"
+                                        value={filters.toDate}
+                                        onChange={handleChange}
+                                        type="date"
+                                    />
+                                </div>
+                            </div>
+
                             <div>
                                 <label className="uppercase tracking-wide text-gray-700 text-sm font-bold block mb-2">
                                     Ticket Number
@@ -291,6 +362,44 @@ export default function FilterButton(props: PropsType) {
                                             isClearable
                                         />
                                     </div>
+                                    {props.canReviewTicket && (
+                                        <div>
+                                            <label className="uppercase tracking-wide text-gray-700 text-sm font-bold block mb-2">
+                                                Assigned to
+                                            </label>
+                                            <Select
+                                                {...setClassNameAndIsDisabled(
+                                                    isOpen,
+                                                )}
+                                                isMulti
+                                                options={assigneeOptions}
+                                                classNamePrefix="react-select"
+                                                menuPortalTarget={
+                                                    setMenuPortalTarget
+                                                }
+                                                styles={setCalculatedZIndex(
+                                                    baseZIndex,
+                                                )}
+                                                value={assigneeOptions.filter(
+                                                    o =>
+                                                        props.filters.assignees.includes(
+                                                            o.value,
+                                                        ),
+                                                )}
+                                                onChange={opts =>
+                                                    setFilters(prev => ({
+                                                        ...prev,
+                                                        assignees: opts
+                                                            ? opts.map(
+                                                                  o => o.value,
+                                                              )
+                                                            : [],
+                                                    }))
+                                                }
+                                                isClearable
+                                            />
+                                        </div>
+                                    )}
                                     <div className="w-full">
                                         <label className="uppercase tracking-wide text-gray-700 text-sm font-bold flex gap-2 mb-2">
                                             Deadline
@@ -313,7 +422,7 @@ export default function FilterButton(props: PropsType) {
                                                 />
                                                 <label
                                                     htmlFor="deadline-all-radio"
-                                                    className="uppercase"
+                                                    className="uppercase whitespace-nowrap"
                                                 >
                                                     All
                                                 </label>
@@ -335,7 +444,7 @@ export default function FilterButton(props: PropsType) {
                                                 />
                                                 <label
                                                     htmlFor="deadline-overdue-radio"
-                                                    className="uppercase"
+                                                    className="uppercase whitespace-nowrap"
                                                 >
                                                     Overdue
                                                 </label>
@@ -357,7 +466,7 @@ export default function FilterButton(props: PropsType) {
                                                 />
                                                 <label
                                                     htmlFor="deadline-notoverdue-radio"
-                                                    className="uppercase"
+                                                    className="uppercase whitespace-nowrap"
                                                 >
                                                     Not overdue
                                                 </label>
@@ -366,35 +475,6 @@ export default function FilterButton(props: PropsType) {
                                     </div>
                                 </>
                             )}
-
-                            <div className="md:col-span-2">
-                                <label className="uppercase tracking-wide text-gray-700 text-sm font-bold flex gap-2 mb-2">
-                                    Date Picker
-                                </label>
-
-                                <div
-                                    className="inline-flex w-full"
-                                    role="group"
-                                >
-                                    <input
-                                        className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded-s-md py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
-                                        name="fromDate"
-                                        value={filters.fromDate}
-                                        onChange={handleChange}
-                                        type="date"
-                                    />
-                                    <span className="inline-flex items-center px-4 py-2 m-0 text-sm font-medium border">
-                                        <b>to</b>
-                                    </span>
-                                    <input
-                                        className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded-e-md py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
-                                        name="toDate"
-                                        value={filters.toDate}
-                                        onChange={handleChange}
-                                        type="date"
-                                    />
-                                </div>
-                            </div>
                         </div>
                     </div>
 

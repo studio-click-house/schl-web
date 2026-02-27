@@ -221,7 +221,7 @@ const ViewTicket: React.FC<ViewTicketProps> = props => {
                 <div className="container mt-8 md:mt-12 mb-6 max-w-5xl">
                     <div className="rounded-lg border border-gray-200 bg-white p-4 md:p-6">
                         <div className="border-b border-gray-200 pb-4 md:pb-5">
-                            <h2 className="text-2xl md:text-3xl font-semibold text-gray-900 leading-tight">
+                            <h2 className="text-xl md:text-2xl font-semibold text-gray-900 leading-tight text-pretty">
                                 {ticket.title}
                                 <span className="text-gray-500 font-medium text-base ml-2">
                                     [#{ticket.ticket_number}]
@@ -282,7 +282,7 @@ const ViewTicket: React.FC<ViewTicketProps> = props => {
                         </div>
 
                         <div className="mt-5 md:mt-6">
-                            <div className="py-1 text-gray-900 leading-7">
+                            <div className="py-1 text-gray-900 leading-7 text-balance">
                                 {parse(
                                     sanitizeHtml(ticket.description),
                                     options,

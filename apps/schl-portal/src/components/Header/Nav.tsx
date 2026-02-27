@@ -654,7 +654,10 @@ const Nav: React.FC<PropsType> = props => {
                         </li>
                         <li
                             className={cn(
-                                !has('ticket:submit_daily_work') && 'hidden',
+                                !hasAny([
+                                    'ticket:submit_daily_work',
+                                    'ticket:review_works',
+                                ]) && 'hidden',
                             )}
                         >
                             <Link

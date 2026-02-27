@@ -2,14 +2,19 @@
 
 import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import type { TicketStatus } from '@repo/common/constants/ticket.constant';
-import { CLOSED_TICKET_STATUSES, statusOptions } from '@repo/common/constants/ticket.constant';
-import { setCalculatedZIndex, setMenuPortalTarget } from '@repo/common/utils/select-helpers';
-import { SquarePen, X } from 'lucide-react';
+import {
+    CLOSED_TICKET_STATUSES,
+    statusOptions,
+} from '@repo/common/constants/ticket.constant';
+import {
+    setCalculatedZIndex,
+    setMenuPortalTarget,
+} from '@repo/common/utils/select-helpers';
+import { Pencil, SquarePen, X } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import Select from 'react-select';
 import { toast } from 'sonner';
-
 
 interface Props {
     ticketId: string;
@@ -23,7 +28,11 @@ interface FormData {
 
 const baseZIndex = 50;
 
-const StatusEdit: React.FC<Props> = ({ ticketId, currentStatus, onUpdated }) => {
+const StatusEdit: React.FC<Props> = ({
+    ticketId,
+    currentStatus,
+    onUpdated,
+}) => {
     const authedFetchApi = useAuthedFetchApi();
     const [isOpen, setIsOpen] = useState(false);
     const [submitting, setSubmitting] = useState(false);
@@ -78,9 +87,9 @@ const StatusEdit: React.FC<Props> = ({ ticketId, currentStatus, onUpdated }) => 
             <button
                 onClick={() => setIsOpen(true)}
                 disabled={submitting}
-                className="rounded-md bg-blue-600 hover:opacity-90 hover:ring-2 hover:ring-blue-600 transition duration-200 delay-300 hover:text-opacity-100 text-white p-2 items-center"
+                className="rounded-md bg-blue-700 hover:opacity-90 hover:ring-2 hover:ring-blue-700 transition duration-200 delay-300 hover:text-opacity-100 text-white p-2 items-center"
             >
-                <SquarePen size={18} />
+                <Pencil size={18} />
             </button>
 
             <section
@@ -96,21 +105,23 @@ const StatusEdit: React.FC<Props> = ({ ticketId, currentStatus, onUpdated }) => 
                         ref={popupRef}
                         onClick={e => e.stopPropagation()}
                         className={`${
-                            isOpen ? 'scale-100 opacity-100' : 'scale-125 opacity-0'
+                            isOpen
+                                ? 'scale-100 opacity-100'
+                                : 'scale-125 opacity-0'
                         } bg-white rounded-sm shadow relative md:w-[60vw] lg:w-[40vw] text-wrap`}
                     >
-                    <header className="flex items-center align-middle justify-between px-4 py-2 border-b rounded-t">
-                        <h3 className="text-gray-900 text-base lg:text-lg font-semibold uppercase">
-                            Update Status
-                        </h3>
-                        <button
-                            onClick={() => setIsOpen(false)}
-                            type="button"
-                            className="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 ml-auto inline-flex items-center "
-                        >
-                            <X size={18} />
-                        </button>
-                    </header>
+                        <header className="flex items-center align-middle justify-between px-4 py-2 border-b rounded-t">
+                            <h3 className="text-gray-900 text-base lg:text-lg font-semibold uppercase">
+                                Update Status
+                            </h3>
+                            <button
+                                onClick={() => setIsOpen(false)}
+                                type="button"
+                                className="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 ml-auto inline-flex items-center "
+                            >
+                                <X size={18} />
+                            </button>
+                        </header>
                         <form
                             onSubmit={handleSubmit(onSubmit)}
                             className="overflow-x-hidden overflow-y-scroll max-h-[70vh] p-4 text-start"
@@ -134,15 +145,20 @@ const StatusEdit: React.FC<Props> = ({ ticketId, currentStatus, onUpdated }) => 
                                             )}
                                             value={
                                                 statusOptions.find(
-                                                    o => o.value === field.value,
+                                                    o =>
+                                                        o.value === field.value,
                                                 ) || null
                                             }
                                             onChange={opt =>
                                                 field.onChange(opt?.value || '')
                                             }
                                             isClearable={false}
-                                            menuPortalTarget={setMenuPortalTarget}
-                                            styles={setCalculatedZIndex(baseZIndex)}
+                                            menuPortalTarget={
+                                                setMenuPortalTarget
+                                            }
+                                            styles={setCalculatedZIndex(
+                                                baseZIndex,
+                                            )}
                                         />
                                     )}
                                 />
@@ -161,7 +177,9 @@ const StatusEdit: React.FC<Props> = ({ ticketId, currentStatus, onUpdated }) => 
                                 <button
                                     type="button"
                                     disabled={submitting}
-                                    onClick={() => formRef.current?.requestSubmit()}
+                                    onClick={() =>
+                                        formRef.current?.requestSubmit()
+                                    }
                                     className="rounded-md bg-blue-600 text-white hover:opacity-90 hover:ring-2 hover:ring-blue-600 transition duration-200 delay-300 hover:text-opacity-100 px-4 py-1"
                                 >
                                     {submitting ? 'Submitting...' : 'Submit'}

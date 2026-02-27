@@ -7,7 +7,7 @@ export type DailyUpdateDocument = HydratedDocument<DailyUpdate>;
 
 @Schema({ timestamps: true, collection: 'daily_updates' })
 export class DailyUpdate {
-    // who added this work log / commit
+    // who added this work  / update
     @Prop({
         index: true,
         ref: User.name,
@@ -33,3 +33,7 @@ export class DailyUpdate {
 }
 
 export const DailyUpdateSchema = SchemaFactory.createForClass(DailyUpdate);
+
+// index ticket reference for lookups and compound with submitter if required
+DailyUpdateSchema.index({ ticket: 1 });
+DailyUpdateSchema.index({ submitted_by: 1, createdAt: -1 });

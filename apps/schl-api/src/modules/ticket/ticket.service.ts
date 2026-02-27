@@ -162,7 +162,7 @@ export class TicketService {
             priority,
             deadlineStatus,
             createdBy,
-            assignee,
+            assignees,
             excludeClosed,
         } = filters;
 
@@ -194,11 +194,7 @@ export class TicketService {
         );
 
         // text filters
-        addIfDefined(
-            query,
-            'ticket_number',
-            createRegexQuery(ticketNumber, { exact: true }),
-        );
+        addIfDefined(query, 'ticket_number', createRegexQuery(ticketNumber));
         addIfDefined(query, 'title', createRegexQuery(title));
         addIfDefined(query, 'type', type);
         addIfDefined(query, 'status', status);
@@ -241,35 +237,63 @@ export class TicketService {
             }
         }
 
-        // assignee filter: either assigned to specified user or unassigned
-        if (assignee) {
-            const assigneeId = new Types.ObjectId(assignee);
-            const clause = {
-                $or: [
-                    { 'assignees.db_id': assigneeId },
-                    { assignees: { $size: 0 } },
-                ],
-            };
+        // assignee filter: any ticket whose assignees array includes one of the
+        // selected users. can optionally include unassigned tickets as well.
+        if (assignees && assignees.length > 0) {
+            const ids: Types.ObjectId[] = [];
+            for (const id of assignees) {
+                ids.push(new Types.ObjectId(id));
+            }
+            const orClauses: any[] = [{ 'assignees.db_id': { $in: ids } }];
+            if (filters.includeUnassigned) {
+                orClauses.push({ assignees: { $size: 0 } });
+            }
+            const clause = { $or: orClauses };
             query.$and = query.$and || [];
             query.$and.push(clause);
         }
 
-        const sortStage = {
+        // build two helper fields so that sorting can proceed in stages:
+        // 1. `groupPriority` defines which bucket the ticket belongs to:
+        //    - 0 = closed tickets
+        //    - 1 = expired (deadline <= now)
+        //    - 2 = active / no deadline
+        // 2. `priorityOrder` gives low=0, medium=1, high=2 so that within each
+        //    group tickets are ordered low→medium→high (ascending).
+        const sortStage: PipelineStage = {
             $addFields: {
-                sortPriority: {
+                groupPriority: {
                     $switch: {
                         branches: [
                             {
+                                // closed tickets first
                                 case: {
                                     $in: ['$status', CLOSED_TICKET_STATUSES],
                                 },
                                 then: 0,
                             },
-                            { case: { $eq: ['$priority', 'low'] }, then: 1 },
-                            { case: { $eq: ['$priority', 'medium'] }, then: 2 },
-                            { case: { $eq: ['$priority', 'high'] }, then: 3 },
+                            {
+                                // expired tickets next (deadline exists and <= now)
+                                case: {
+                                    $and: [
+                                        { $lte: ['$deadline', new Date()] },
+                                        { $ne: ['$deadline', null] },
+                                    ],
+                                },
+                                then: 1,
+                            },
                         ],
-                        default: 0,
+                        default: 2, // everything else
+                    },
+                },
+                priorityOrder: {
+                    $switch: {
+                        branches: [
+                            { case: { $eq: ['$priority', 'low'] }, then: 0 },
+                            { case: { $eq: ['$priority', 'medium'] }, then: 1 },
+                            { case: { $eq: ['$priority', 'high'] }, then: 2 },
+                        ],
+                        default: 1,
                     },
                 },
             },
@@ -279,7 +303,10 @@ export class TicketService {
             { $match: query } as PipelineStage,
         ];
         basePipeline.push(sortStage);
-        basePipeline.push({ $sort: { sortPriority: -1, createdAt: -1 } });
+        // first sort by groupPriority asc, then priorityOrder asc, finally newest first
+        basePipeline.push({
+            $sort: { groupPriority: -1, priorityOrder: -1, createdAt: -1 },
+        });
 
         if (paginated) {
             const skip = (page - 1) * itemsPerPage;

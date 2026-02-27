@@ -73,7 +73,7 @@ const Table = () => {
     const [page, setPage] = useState<number>(1);
     const [pageCount, setPageCount] = useState<number>(0);
     const [itemPerPage, setItemPerPage] = useState<number>(30);
-    const [loading, setIsLoading] = useState<boolean>(true);
+    const [loading, setLoading] = useState<boolean>(true);
     const [searchVersion, setSearchVersion] = useState<number>(0);
 
     const [filters, setFilters] = useState({
@@ -85,7 +85,7 @@ const Table = () => {
         toDate: '',
         deadlineStatus: '',
         createdBy: '',
-        assignee: '',
+        assignees: [] as string[],
         excludeClosed: false,
     });
 
@@ -122,7 +122,7 @@ const Table = () => {
                 console.error(error);
                 toast.error('An error occurred while retrieving tickets data');
             } finally {
-                setIsLoading(false);
+                setLoading(false);
             }
         },
         [authedFetchApi],
@@ -163,7 +163,7 @@ const Table = () => {
                 console.error(error);
                 toast.error('An error occurred while retrieving tickets data');
             } finally {
-                setIsLoading(false);
+                setLoading(false);
             }
             return;
         },
@@ -203,7 +203,7 @@ const Table = () => {
 
     const editTicket = async (editedTicketData: TicketFormDataType) => {
         try {
-            setIsLoading(true);
+            setLoading(true);
             const parsed = validationSchema.safeParse(editedTicketData);
 
             if (!parsed.success) {
@@ -217,7 +217,9 @@ const Table = () => {
             // convert deadline string to ISO or keep null when explicitly cleared
             const payload: any = { ...rest };
             if (rest.deadline !== undefined) {
-                payload.deadline = rest.deadline ? new Date(rest.deadline).toISOString() : null;
+                payload.deadline = rest.deadline
+                    ? new Date(rest.deadline).toISOString()
+                    : null;
             }
 
             const response = await authedFetchApi(
@@ -241,7 +243,7 @@ const Table = () => {
             console.error(error);
             toast.error('An error occurred while updating the ticket');
         } finally {
-            setIsLoading(false);
+            setLoading(false);
         }
     };
 
@@ -324,23 +326,61 @@ const Table = () => {
 
             {loading && <p className="text-center">Loading...</p>}
 
-            <div className="table-responsive text-nowrap text-base">
+            <div className="table-responsive text-md overflow-x-auto">
                 {!loading &&
                     (tickets?.items?.length !== 0 ? (
-                        <table className="table table-bordered table-striped">
+                        <table className="table table-bordered table-striped min-w-full">
+                            {/* match work-board column widths */}
+                            <colgroup>
+                                <col className="min-w-[40px]" />
+                                <col className="whitespace-nowrap min-w-[120px]" />
+                                <col className="whitespace-nowrap min-w-[120px]" />
+                                <col className="whitespace-nowrap min-w-[150px]" />
+                                <col className="whitespace-nowrap min-w-[150px]" />
+                                <col className="whitespace-nowrap min-w-[150px]" />
+                                <col className="whitespace-nowrap min-w-[150px]" />
+                                <col className="min-w-[300px]" />
+                                <col className="whitespace-nowrap min-w-[100px]" />
+                                <col className="whitespace-nowrap min-w-[100px]" />
+                                <col className="whitespace-nowrap min-w-[100px]" />
+                                <col className="whitespace-nowrap min-w-[80px]" />
+                            </colgroup>
                             <thead className="table-dark">
-                                <tr>
-                                    <th>#</th>
-                                    <th>Date</th>
-                                    <th>Created By</th>
-                                    {canReviewTicket && <th>Assigned By</th>}
-                                    <th>Ticket No</th>
-                                    <th>Title</th>
-                                    {canReviewTicket && <th>Deadline</th>}
-                                    <th>Type</th>
-                                    <th>Priority</th>
-                                    <th>Status</th>
-                                    <th>Action</th>
+                                <tr className="whitespace-nowrap">
+                                    <th className="whitespace-nowrap">#</th>
+                                    <th className="whitespace-nowrap">Date</th>
+                                    <th className="whitespace-nowrap">
+                                        Created By
+                                    </th>
+                                    <th className="whitespace-nowrap">
+                                        Ticket No
+                                    </th>
+                                    {canReviewTicket && (
+                                        <th className="whitespace-nowrap">
+                                            Assigned By
+                                        </th>
+                                    )}
+                                    {canReviewTicket && (
+                                        <th className="whitespace-nowrap">
+                                            Assigned To
+                                        </th>
+                                    )}
+                                    {canReviewTicket && (
+                                        <th className="whitespace-nowrap">
+                                            Deadline
+                                        </th>
+                                    )}
+                                    <th className="whitespace-nowrap">Title</th>
+                                    <th className="whitespace-nowrap">Type</th>
+                                    <th className="whitespace-nowrap">
+                                        Priority
+                                    </th>
+                                    <th className="whitespace-nowrap">
+                                        Status
+                                    </th>
+                                    <th className="whitespace-nowrap">
+                                        Action
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -362,28 +402,40 @@ const Table = () => {
                                                     1 +
                                                     itemPerPage * (page - 1)}
                                             </td>
-                                            <td className="text-nowrap">
+                                            <td className="whitespace-nowrap">
                                                 {ticket.createdAt &&
                                                     formatDate(
                                                         ticket.createdAt,
                                                     )}
                                             </td>
+
                                             {canReviewTicket && (
-                                                <>
-                                                    <td>
-                                                        {ticket.created_by_name ||
-                                                            'N/A'}
-                                                    </td>
-                                                    <td>
-                                                        {ticket.assigned_by_name ||
-                                                            'N/A'}
-                                                    </td>
-                                                </>
+                                                <td className="text-balance">
+                                                    {ticket.created_by_name ||
+                                                        'N/A'}
+                                                </td>
                                             )}
-                                            <td className="text-nowrap">{ticket.ticket_number}</td>
-                                            <ExtendableTd data={ticket.title} />
+                                            <td className="whitespace-nowrap">
+                                                {ticket.ticket_number}
+                                            </td>
                                             {canReviewTicket && (
-                                                <td className="text-nowrap">
+                                                <td>
+                                                    {ticket.assigned_by_name ||
+                                                        'N/A'}
+                                                </td>
+                                            )}
+                                            {canReviewTicket && (
+                                                <td className="text-balance">
+                                                    {ticket.assignees &&
+                                                    ticket.assignees.length > 0
+                                                        ? ticket.assignees
+                                                              .map(a => a.name)
+                                                              .join(', ')
+                                                        : 'N/A'}
+                                                </td>
+                                            )}
+                                            {canReviewTicket && (
+                                                <td className="whitespace-nowrap">
                                                     {ticket.deadline
                                                         ? `${formatDate(ticket.deadline)} | ${formatTime(
                                                               formatTimestamp(
@@ -393,8 +445,10 @@ const Table = () => {
                                                         : 'N/A'}
                                                 </td>
                                             )}
+                                            <ExtendableTd data={ticket.title} />
+
                                             <td
-                                                className="uppercase text-nowrap"
+                                                className="uppercase whitespace-nowrap"
                                                 style={{
                                                     verticalAlign: 'middle',
                                                 }}
@@ -409,7 +463,7 @@ const Table = () => {
                                                 />
                                             </td>
                                             <td
-                                                className="uppercase text-nowrap"
+                                                className="uppercase whitespace-nowrap"
                                                 style={{
                                                     verticalAlign: 'middle',
                                                 }}
@@ -424,7 +478,7 @@ const Table = () => {
                                                 />
                                             </td>
                                             <td
-                                                className="uppercase text-nowrap"
+                                                className="uppercase whitespace-nowrap"
                                                 style={{
                                                     verticalAlign: 'middle',
                                                 }}
@@ -440,7 +494,7 @@ const Table = () => {
                                             </td>
 
                                             <td
-                                                className="text-nowrap"
+                                                className="whitespace-nowrap"
                                                 style={{
                                                     verticalAlign: 'middle',
                                                 }}

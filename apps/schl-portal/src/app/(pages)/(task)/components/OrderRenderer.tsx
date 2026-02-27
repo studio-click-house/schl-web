@@ -118,7 +118,7 @@ const OrderRenderer: React.FC<OrderRendererProps> = props => {
                         return (
                             `${task}` +
                             (index !== props.order.task.split('+').length - 1
-                                ? ' + '
+                                ? ', '
                                 : '')
                         );
                     })}
