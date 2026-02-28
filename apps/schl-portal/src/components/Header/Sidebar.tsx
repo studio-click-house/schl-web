@@ -616,6 +616,19 @@ const Sidebar: React.FC<PropsType> = props => {
                                         </Link>
                                     </li>
                                 )}
+                                                                {has(
+                                    'ticket:review_works',
+                                ) && (
+                                    <li>
+                                        <Link
+                                            href="/tickets/work-updates"
+                                            className="flex items-center w-full p-2 text-gray-900 transition duration-75 pl-11 group hover:bg-gray-100"
+                                        >
+                                            <ClipboardList className="w-6 h-6 mr-2" />
+                                            Work Updates
+                                        </Link>
+                                    </li>
+                                )}
                             </ul>
                         </>
                     )}

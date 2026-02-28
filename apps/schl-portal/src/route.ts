@@ -137,6 +137,11 @@ export const authorizedRoutes: AuthorizedRoute[] = [
                     'ticket:review_works',
                 ],
             },
+            {
+                href: '/tickets/work-updates',
+                label: 'Work Updates',
+                permissions: ['ticket:review_works'],
+            },
         ],
     },
 

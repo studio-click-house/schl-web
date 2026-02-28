@@ -669,6 +669,22 @@ const Nav: React.FC<PropsType> = props => {
                                 Work Board
                             </Link>
                         </li>
+                                                <li
+                            className={cn(
+                                !has(
+                                    'ticket:review_works',
+                                ) && 'hidden',
+                            )}
+                        >
+                            <Link
+                                className={cn(
+                                    'block px-4 py-2 hover:bg-primary',
+                                )}
+                                href={'/tickets/work-updates'}
+                            >
+                                Work Updates
+                            </Link>
+                        </li>
                     </ul>
                 </div>
             </div>
