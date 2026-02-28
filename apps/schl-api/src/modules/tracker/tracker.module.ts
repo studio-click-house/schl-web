@@ -10,11 +10,11 @@ import {
     UserSession,
     UserSessionSchema,
 } from '@repo/common/models/user-session.schema';
-import { TrackerController } from './tracker.controller';
 import { TrackerAuthService } from './tracker.auth.service';
+import { TrackerController } from './tracker.controller';
+import { TrackerGateway } from './tracker.gateway';
 import { TrackerQcWorkLogService } from './tracker.qc-work-log.service';
 import { TrackerQueryService } from './tracker.query.service';
-import { TrackerGateway } from './tracker.gateway';
 
 @Module({
     imports: [
@@ -30,6 +30,7 @@ import { TrackerGateway } from './tracker.gateway';
         TrackerAuthService,
         TrackerQcWorkLogService,
         TrackerQueryService,
+        TrackerGateway,
     ],
 })
 export class TrackerModule {}
