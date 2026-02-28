@@ -82,6 +82,9 @@ export class QcWorkLog {
 
     @Prop({ type: [String], default: [] })
     processed_sync_ids: string[];
+
+    @Prop({ type: Date })
+    last_heartbeat?: Date;
 }
 
 export const QcWorkLogSchema = SchemaFactory.createForClass(QcWorkLog);

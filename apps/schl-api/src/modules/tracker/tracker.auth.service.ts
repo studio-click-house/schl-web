@@ -8,6 +8,8 @@ import {
 import { randomUUID } from 'crypto';
 import { InjectModel } from '@nestjs/mongoose';
 import { AppUser } from '@repo/common/models/app-user.schema';
+import { Employee } from '@repo/common/models/employee.schema';
+import { QcWorkLog } from '@repo/common/models/qc-work-log.schema';
 import { UserSession } from '@repo/common/models/user-session.schema';
 import { Model } from 'mongoose';
 import { LoginTrackerDto } from './dto/auth.dto';
@@ -19,11 +21,17 @@ export class TrackerAuthService {
         @InjectModel(AppUser.name)
         private readonly appUserModel: Model<AppUser>,
 
+        @InjectModel(Employee.name)
+        private readonly employeeModel: Model<Employee>,
+
         @InjectModel(UserSession.name)
         private readonly userSessionModel: Model<UserSession>,
 
+        @InjectModel(QcWorkLog.name)
+        private readonly qcWorkLogModel: Model<QcWorkLog>,
+
         private readonly trackerGateway: TrackerGateway,
-    ) {}
+    ) { }
 
     async checkUser(username: string) {
         try {
@@ -75,10 +83,23 @@ export class TrackerAuthService {
             const now = new Date();
             const sessionDate = now.toISOString().split('T')[0] as string;
 
+            // Look up employee real name by e_id first
+            let displayName = user.username;
+            try {
+                const employee = await this.employeeModel
+                    .findOne({ e_id: { $regex: new RegExp(`^${user.username}$`, 'i') } })
+                    .select('e_id real_name')
+                    .lean()
+                    .exec();
+                if (employee?.real_name) {
+                    displayName = `${user.username} - ${employee.real_name}`;
+                }
+            } catch { /* fallback to username */ }
+
             await this.userSessionModel.create({
                 session_id: sessionId,
                 user_id: user._id,
-                username: user.username,
+                username: displayName,
                 user_type: (user.role ?? 'employee').toLowerCase(),
                 session_date: sessionDate,
                 login_at: now,
@@ -90,7 +111,7 @@ export class TrackerAuthService {
                 'TRACKER_SESSION_UPDATED',
                 {
                     sessionId,
-                    username: user.username,
+                    username: displayName,
                     userType: (user.role ?? 'employee').toLowerCase(),
                     sessionDate,
                     loginAt: now.toISOString(),
@@ -104,6 +125,7 @@ export class TrackerAuthService {
                 valid: true,
                 role: (user.role ?? 'employee').toLowerCase(),
                 username: user.username,
+                displayName,
                 user_id: String(user._id),
                 sessionId,
             };
@@ -132,6 +154,32 @@ export class TrackerAuthService {
                 };
             }
 
+            try {
+                const dateString = now.toISOString().split('T')[0] as string;
+                const workingTokens = ['working', 'in_progress', 'in progress'];
+
+                await this.qcWorkLogModel.updateMany(
+                    {
+                        employee_name: String(session.username || '')
+                            .trim()
+                            .toLowerCase(),
+                        date_today: dateString,
+                    },
+                    {
+                        $set: {
+                            'files.$[f].file_status': 'paused',
+                        },
+                    },
+                    {
+                        arrayFilters: [
+                            { 'f.file_status': { $in: workingTokens } },
+                        ],
+                    },
+                );
+            } catch {
+                // Never block logout on best-effort pause
+            }
+
             session.logout_at = now;
             session.duration_session = Math.max(
                 0,
@@ -139,6 +187,11 @@ export class TrackerAuthService {
             );
 
             await session.save();
+
+            this.trackerGateway.broadcastTrackerUpdate(
+                'TRACKER_UPDATED',
+                { reason: 'logout' },
+            );
 
             this.trackerGateway.broadcastTrackerUpdate(
                 'TRACKER_SESSION_UPDATED',

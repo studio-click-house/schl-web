@@ -3,6 +3,7 @@ import {
     HttpException,
     Injectable,
     InternalServerErrorException,
+    Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { QcWorkLog } from '@repo/common/models/qc-work-log.schema';
@@ -14,11 +15,13 @@ import { TrackerGateway } from './tracker.gateway';
 
 @Injectable()
 export class TrackerQcWorkLogService {
+    private readonly logger = new Logger(TrackerQcWorkLogService.name);
+
     constructor(
         @InjectModel(QcWorkLog.name)
         private readonly qcWorkLogModel: Model<QcWorkLog>,
         private readonly trackerGateway: TrackerGateway,
-    ) {}
+    ) { }
 
     async syncQc(payload: SyncQcWorkLogDto) {
         if (!payload.employeeName) {
@@ -26,6 +29,7 @@ export class TrackerQcWorkLogService {
         }
 
         try {
+            const workingTokens = ['working', 'in_progress', 'in progress'];
             const dateString = new Date().toISOString().split('T')[0] as string;
 
             const filter: Record<string, any> =
@@ -55,10 +59,17 @@ export class TrackerQcWorkLogService {
                 ? {}
                 : TrackerFactory.qcBucketIncFromSyncDto(payload);
 
+            const statusLower = String(payload.fileStatus || '').trim().toLowerCase();
+            const isWorkingUpdate = workingTokens.includes(statusLower);
+
             const bucketUpdate: Record<string, any> = {
                 $setOnInsert: filter,
             };
-            if (Object.keys(bucketSet).length) bucketUpdate.$set = bucketSet;
+            if (Object.keys(bucketSet).length || isWorkingUpdate)
+                bucketUpdate.$set = {
+                    ...(bucketSet || {}),
+                    ...(isWorkingUpdate ? { last_heartbeat: new Date() } : {}),
+                };
             if (Object.keys(bucketMax).length) bucketUpdate.$max = bucketMax;
             if (Object.keys(bucketInc).length) bucketUpdate.$inc = bucketInc;
 
@@ -230,6 +241,7 @@ export class TrackerQcWorkLogService {
                     estimate_time: 1,
                     pause_reasons: 1,
                     files: 1,
+                    categories: 1,
                 })
                 .lean();
 
@@ -255,6 +267,7 @@ export class TrackerQcWorkLogService {
                 pause_count: updatedDoc?.pause_count ?? 0,
                 estimate_time: updatedDoc?.estimate_time ?? 0,
                 pause_reasons: updatedDoc?.pause_reasons ?? [],
+                categories: updatedDoc?.categories ?? '',
                 // Full file list with accumulated time_spent
                 files: accFiles,
             });
@@ -324,4 +337,6 @@ export class TrackerQcWorkLogService {
             throw new InternalServerErrorException('Unable to save report');
         }
     }
+
+    
 }

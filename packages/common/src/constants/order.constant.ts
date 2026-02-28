@@ -19,9 +19,10 @@ export type OrderStatus = (typeof ORDER_STATUSES)[number];
 export const typeOptions = [
     { value: 'general', label: 'General' },
     { value: 'test', label: 'Test' },
-    { value: 'Pending', label: 'Pending' },
+    { value: 'pending', label: 'Pending' },
+    { value: 'qc', label: 'QC' },
 ];
-export const ORDER_TYPES = ['general', 'test', 'Pending'] as const;
+export const ORDER_TYPES = ['general', 'test', 'pending', 'qc'] as const;
 export type OrderType = (typeof ORDER_TYPES)[number];
 
 export const priorityOptions = [
