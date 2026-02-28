@@ -26,3 +26,9 @@ export class SetPasswordDto {
     @MinLength(4)
     password: string;
 }
+
+export class LogoutTrackerDto {
+    @IsString()
+    @IsNotEmpty()
+    sessionId: string;
+}

@@ -10,6 +10,12 @@ export class PauseReason {
 
     @Prop({ type: Number, required: [true, 'Pause duration is required'] })
     duration: number;
+
+    @Prop({ type: Date })
+    started_at?: Date;
+
+    @Prop({ type: Date })
+    completed_at?: Date;
 }
 
 @Schema({ _id: false })
@@ -25,6 +31,12 @@ export class QcWorkLogFile {
 
     @Prop({ type: Number, default: 0 })
     time_spent: number;
+
+    @Prop({ type: Date })
+    started_at?: Date;
+
+    @Prop({ type: Date })
+    completed_at?: Date;
 }
 
 @Schema({ timestamps: true, collection: 'qc_work_logs' })

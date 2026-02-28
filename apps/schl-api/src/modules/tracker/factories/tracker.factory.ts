@@ -5,11 +5,17 @@ export class TrackerFactory {
         pauseReasons?: { reason: string; duration: number }[],
     ) {
         if (Array.isArray(pauseReasons) && pauseReasons.length) {
+            const completedAt = new Date();
             return pauseReasons
                 .filter(p => p && typeof p.reason === 'string')
                 .map(p => ({
                     reason: p.reason.trim(),
                     duration: Number(p.duration) || 0,
+                    started_at: new Date(
+                        completedAt.getTime() -
+                            (Number(p.duration) || 0) * 1000,
+                    ),
+                    completed_at: completedAt,
                 }))
                 .filter(p => p.reason);
         }
@@ -30,8 +36,10 @@ export class TrackerFactory {
     static qcBucketSetFromSyncDto(dto: SyncQcWorkLogDto) {
         const set: Record<string, any> = {};
 
-        if (dto.estimateTime !== undefined) set.estimate_time = dto.estimateTime;
-        if (dto.categories !== undefined) set.categories = dto.categories?.trim() || '';
+        if (dto.estimateTime !== undefined)
+            set.estimate_time = dto.estimateTime;
+        if (dto.categories !== undefined)
+            set.categories = dto.categories?.trim() || '';
 
         if (dto.pauseReasons !== undefined)
             set.pause_reasons = this.derivePauseReasons(dto.pauseReasons);
@@ -41,18 +49,22 @@ export class TrackerFactory {
 
     static qcBucketMaxFromSyncDto(dto: SyncQcWorkLogDto) {
         const max: Record<string, number> = {};
-        if (dto.pauseCount !== undefined) max.pause_count = Number(dto.pauseCount) || 0;
-        if (dto.pauseTime !== undefined) max.pause_time = Number(dto.pauseTime) || 0;
+        if (dto.pauseCount !== undefined)
+            max.pause_count = Number(dto.pauseCount) || 0;
+        if (dto.pauseTime !== undefined)
+            max.pause_time = Number(dto.pauseTime) || 0;
         return max;
     }
 
     static qcBucketIncFromSyncDto(dto: SyncQcWorkLogDto) {
         const inc: Record<string, number> = {};
-        if (dto.totalTimes !== undefined) inc.total_times = Number(dto.totalTimes) || 0;
+        if (dto.totalTimes !== undefined)
+            inc.total_times = Number(dto.totalTimes) || 0;
         return inc;
     }
 
     static qcFileSetFromSyncFileDto(fileDto: { timeSpent?: number }) {
+        void fileDto;
         const $set: Record<string, any> = {};
         return $set;
     }

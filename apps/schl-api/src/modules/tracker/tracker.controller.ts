@@ -1,10 +1,16 @@
 import { Body, Controller, Post } from '@nestjs/common';
-import { CheckUserDto, LoginTrackerDto, SetPasswordDto } from './dto/auth.dto';
+import {
+    CheckUserDto,
+    LoginTrackerDto,
+    LogoutTrackerDto,
+    SetPasswordDto,
+} from './dto/auth.dto';
 import { JobListDto } from './dto/job-list.dto';
 import { ReportFileDto } from './dto/report-file.dto';
 import { SearchFileDto } from './dto/search-file.dto';
 import { DashboardTodayDto } from './dto/dashboard-today.dto';
 import { SyncQcWorkLogDto } from './dto/sync-qc-work-log.dto';
+import { LiveTrackingDataDto } from './dto/live-tracking-data.dto';
 import { TrackerAuthService } from './tracker.auth.service';
 import { TrackerQcWorkLogService } from './tracker.qc-work-log.service';
 import { TrackerQueryService } from './tracker.query.service';
@@ -25,6 +31,11 @@ export class TrackerController {
     @Post('login')
     login(@Body() dto: LoginTrackerDto) {
         return this.authService.login(dto);
+    }
+
+    @Post('logout')
+    logout(@Body() dto: LogoutTrackerDto) {
+        return this.authService.logout(dto.sessionId);
     }
 
     @Post('set-password')
@@ -55,5 +66,10 @@ export class TrackerController {
     @Post('dashboard-today')
     dashboardToday(@Body() dto: DashboardTodayDto) {
         return this.queryService.dashboardToday(dto);
+    }
+
+    @Post('live-tracking-data')
+    liveTrackingData(@Body() dto: LiveTrackingDataDto) {
+        return this.queryService.liveTrackingData(dto);
     }
 }
