@@ -8,10 +8,7 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import {
-    CLOSED_TICKET_STATUSES,
-    type TicketStatus,
-} from '@repo/common/constants/ticket.constant';
+import { CLOSED_TICKET_STATUSES } from '@repo/common/constants/ticket.constant';
 import { Employee } from '@repo/common/models/employee.schema';
 import { Ticket } from '@repo/common/models/ticket.schema';
 import { User } from '@repo/common/models/user.schema';
@@ -36,7 +33,10 @@ type TicketsPagination = {
     paginated: boolean;
 };
 
-type TicketWithName = Ticket & { opened_by_name?: string };
+type TicketWithName = Ticket & {
+    created_by_name?: string;
+    assigned_by_name?: string;
+};
 
 // when we run aggregation for custom sorting we temporarily add sortPriority
 // and mongoose returns plain objects rather than documents. this type helps
@@ -80,11 +80,9 @@ export class TicketService {
         return `${prefix}${sequencePart}`;
     }
 
-    private async resolveCreatedByName(
-        createdByUserId: string,
-    ): Promise<string> {
+    private async resolveUserName(userId: string): Promise<string> {
         const user = await this.userModel
-            .findById(createdByUserId)
+            .findById(userId)
             .select('employee')
             .lean()
             .exec();
@@ -103,6 +101,8 @@ export class TicketService {
     }
 
     async createTicket(body: CreateTicketBodyDto, userSession: UserSession) {
+        // if the creator assigns the ticket to someone, record who made that
+        // assignment by saving the current user id in `assigned_by`.
         if (!hasPerm('ticket:create_ticket', userSession.permissions)) {
             throw new ForbiddenException(
                 "You don't have permission to create tickets",
@@ -161,6 +161,9 @@ export class TicketService {
             toDate,
             priority,
             deadlineStatus,
+            createdBy,
+            assignees,
+            excludeClosed,
         } = filters;
 
         const normalizedFromDate: string | undefined =
@@ -191,46 +194,106 @@ export class TicketService {
         );
 
         // text filters
-        addIfDefined(
-            query,
-            'ticket_number',
-            createRegexQuery(ticketNumber, { exact: true }),
-        );
+        addIfDefined(query, 'ticket_number', createRegexQuery(ticketNumber));
         addIfDefined(query, 'title', createRegexQuery(title));
         addIfDefined(query, 'type', type);
         addIfDefined(query, 'status', status);
         addIfDefined(query, 'priority', priority);
 
-        // deadline crossed filter
+        // deadline crossed filter needs to be combined with other clauses using $and
         if (deadlineStatus === 'overdue') {
-            query.deadline = { $lte: new Date() } as any;
+            // only tickets with a defined deadline that is in the past or now
+            const clause = { deadline: { $lte: new Date() } };
+            query.$and = query.$and || [];
+            query.$and.push(clause);
         } else if (deadlineStatus === 'not-overdue') {
-            query.deadline = { $gt: new Date() } as any;
+            // tickets with future deadlines or no deadline at all
+            const clause = {
+                $or: [
+                    { deadline: { $gt: new Date() } },
+                    { deadline: null },
+                    { deadline: { $exists: false } },
+                ],
+            };
+            query.$and = query.$and || [];
+            query.$and.push(clause);
         }
 
-        if (myTickets) {
-            query.created_by = new Types.ObjectId(userSession.db_id);
-        } else if (!hasPerm('ticket:review_works', userSession.permissions)) {
-            // users without the review_works permission only see their own tickets
-            query.created_by = new Types.ObjectId(userSession.db_id);
+        if (excludeClosed) {
+            // this can stay at root since it will be ANDed with other root-level keys
+            query.status = { $nin: CLOSED_TICKET_STATUSES } as any;
         }
 
-        const sortStage = {
+        if (createdBy) {
+            query.created_by = new Types.ObjectId(createdBy);
+        } else {
+            if (myTickets) {
+                query.created_by = new Types.ObjectId(userSession.db_id);
+            } else if (
+                !hasPerm('ticket:review_works', userSession.permissions)
+            ) {
+                // users without the review_works permission only see their own tickets
+                query.created_by = new Types.ObjectId(userSession.db_id);
+            }
+        }
+
+        // assignee filter: any ticket whose assignees array includes one of the
+        // selected users. can optionally include unassigned tickets as well.
+        if (assignees && assignees.length > 0) {
+            const ids: Types.ObjectId[] = [];
+            for (const id of assignees) {
+                ids.push(new Types.ObjectId(id));
+            }
+            const orClauses: any[] = [{ 'assignees.db_id': { $in: ids } }];
+            if (filters.includeUnassigned) {
+                orClauses.push({ assignees: { $size: 0 } });
+            }
+            const clause = { $or: orClauses };
+            query.$and = query.$and || [];
+            query.$and.push(clause);
+        }
+
+        // build two helper fields so that sorting can proceed in stages:
+        // 1. `groupPriority` defines which bucket the ticket belongs to:
+        //    - 0 = closed tickets
+        //    - 1 = expired (deadline <= now)
+        //    - 2 = active / no deadline
+        // 2. `priorityOrder` gives low=0, medium=1, high=2 so that within each
+        //    group tickets are ordered low→medium→high (ascending).
+        const sortStage: PipelineStage = {
             $addFields: {
-                sortPriority: {
+                groupPriority: {
                     $switch: {
                         branches: [
                             {
+                                // closed tickets first
                                 case: {
                                     $in: ['$status', CLOSED_TICKET_STATUSES],
                                 },
                                 then: 0,
                             },
-                            { case: { $eq: ['$priority', 'low'] }, then: 1 },
-                            { case: { $eq: ['$priority', 'medium'] }, then: 2 },
-                            { case: { $eq: ['$priority', 'high'] }, then: 3 },
+                            {
+                                // expired tickets next (deadline exists and <= now)
+                                case: {
+                                    $and: [
+                                        { $lte: ['$deadline', new Date()] },
+                                        { $ne: ['$deadline', null] },
+                                    ],
+                                },
+                                then: 1,
+                            },
                         ],
-                        default: 0,
+                        default: 2, // everything else
+                    },
+                },
+                priorityOrder: {
+                    $switch: {
+                        branches: [
+                            { case: { $eq: ['$priority', 'low'] }, then: 0 },
+                            { case: { $eq: ['$priority', 'medium'] }, then: 1 },
+                            { case: { $eq: ['$priority', 'high'] }, then: 2 },
+                        ],
+                        default: 1,
                     },
                 },
             },
@@ -240,7 +303,10 @@ export class TicketService {
             { $match: query } as PipelineStage,
         ];
         basePipeline.push(sortStage);
-        basePipeline.push({ $sort: { sortPriority: -1, createdAt: -1 } });
+        // first sort by groupPriority asc, then priorityOrder asc, finally newest first
+        basePipeline.push({
+            $sort: { groupPriority: -1, priorityOrder: -1, createdAt: -1 },
+        });
 
         if (paginated) {
             const skip = (page - 1) * itemsPerPage;
@@ -259,9 +325,21 @@ export class TicketService {
             const tickets: TicketWithName[] = await Promise.all(
                 items.map(async (t: AggregatedTicket) => {
                     const createdById: string = t.created_by?.toString() ?? '';
-                    const name = await this.resolveCreatedByName(createdById);
+                    const assignedById: string = t.assigned_by
+                        ? t.assigned_by.toString()
+                        : '';
+                    const createdName = await this.resolveUserName(createdById);
+                    const assignedName = assignedById
+                        ? await this.resolveUserName(assignedById)
+                        : '';
                     const { sortPriority: _sortPriority, ...rest } = t;
-                    return { ...rest, opened_by_name: name };
+                    void _sortPriority;
+                    return {
+                        ...rest,
+                        assigned_by: rest.assigned_by ?? null,
+                        created_by_name: createdName,
+                        assigned_by_name: assignedName,
+                    };
                 }),
             );
 
@@ -280,9 +358,19 @@ export class TicketService {
         const result: TicketWithName[] = await Promise.all(
             items.map(async (t: AggregatedTicket) => {
                 const createdById: string = t.created_by?.toString() ?? '';
-                const name = await this.resolveCreatedByName(createdById);
+                const assignedById: string = t.assigned_by?.toString() ?? '';
+                const createdName = await this.resolveUserName(createdById);
+                const assignedName = assignedById
+                    ? await this.resolveUserName(assignedById)
+                    : '';
                 const { sortPriority: _sortPriority, ...rest } = t;
-                return { ...rest, opened_by_name: name };
+                void _sortPriority;
+                return {
+                    ...rest,
+                    assigned_by: rest.assigned_by ?? null,
+                    created_by_name: createdName,
+                    assigned_by_name: assignedName,
+                };
             }),
         );
         return result;
@@ -337,13 +425,20 @@ export class TicketService {
                 );
             }
 
-            const createdByName = await this.resolveCreatedByName(
+            const createdByName = await this.resolveUserName(
                 ticket.created_by.toString(),
             );
+            const assignedById: string = ticket.assigned_by
+                ? ticket.assigned_by.toString()
+                : '';
+            const assignedByName = assignedById
+                ? await this.resolveUserName(assignedById)
+                : '';
 
             return {
                 ...ticket.toObject(),
                 created_by_name: createdByName,
+                assigned_by_name: assignedByName,
             };
         } catch (err: unknown) {
             if (err instanceof HttpException) throw err;
@@ -371,9 +466,32 @@ export class TicketService {
             );
         }
 
-        const patch = TicketFactory.fromUpdateDto(ticketData);
+        // allow modifying assigned_by when needed
+        const patch = TicketFactory.fromUpdateDto(ticketData) as Partial<
+            Ticket & { assigned_by?: Types.ObjectId | null }
+        >;
         if (Object.keys(patch).length === 0) {
             throw new BadRequestException('No update fields provided');
+        }
+
+        // apply assignment logic when assignees list is changed
+        if (patch.assignees !== undefined) {
+            // if assignees are explicitly cleared, also clear assigned_by
+            if (
+                Array.isArray(patch.assignees) &&
+                patch.assignees.length === 0
+            ) {
+                patch.assigned_by = null;
+            } else {
+                // for any non-empty assignment change, record the current user
+                // unless they are already the one who assigned it
+                if (
+                    !existing.assigned_by ||
+                    existing.assigned_by.toString() !== userSession.db_id
+                ) {
+                    patch.assigned_by = new Types.ObjectId(userSession.db_id);
+                }
+            }
         }
 
         const updated = await this.ticketModel

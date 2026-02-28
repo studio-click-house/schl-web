@@ -2,6 +2,7 @@
 
 import Badge from '@/components/Badge';
 import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
+import { TicketDocument } from '@repo/common/models/ticket.schema';
 import {
     formatDate,
     formatTime,
@@ -37,18 +38,9 @@ interface ViewTicketProps {
     ticket_no: string;
 }
 
-interface Ticket {
-    _id?: string;
-    ticket_number: string;
-    title: string;
-    description: string;
-    type: string;
-    status: string;
-    priority: string;
-    deadline: string | null;
-    created_by_name: string;
-    createdAt: string;
-    updatedAt: string;
+interface TicketData extends TicketDocument {
+    created_by_name?: string;
+    assigned_by_name?: string;
 }
 
 const options: HTMLReactParserOptions = {
@@ -112,7 +104,7 @@ const sanitizeHtml = (html: string): string => {
 const ViewTicket: React.FC<ViewTicketProps> = props => {
     const ticket_no = decodeURIComponent(props.ticket_no);
 
-    const [ticket, setTicket] = useState<Ticket | null>(null);
+    const [ticket, setTicket] = useState<TicketData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
     const { data: session } = useSession();
@@ -151,7 +143,7 @@ const ViewTicket: React.FC<ViewTicketProps> = props => {
         try {
             setIsLoading(true);
 
-            const response = await authedFetchApi<Ticket>(
+            const response = await authedFetchApi<TicketData>(
                 {
                     path: '/v1/ticket/get-ticket',
                     query: {
@@ -229,7 +221,7 @@ const ViewTicket: React.FC<ViewTicketProps> = props => {
                 <div className="container mt-8 md:mt-12 mb-6 max-w-5xl">
                     <div className="rounded-lg border border-gray-200 bg-white p-4 md:p-6">
                         <div className="border-b border-gray-200 pb-4 md:pb-5">
-                            <h2 className="text-2xl md:text-3xl font-semibold text-gray-900 leading-tight">
+                            <h2 className="text-xl md:text-2xl font-semibold text-gray-900 leading-tight text-pretty">
                                 {ticket.title}
                                 <span className="text-gray-500 font-medium text-base ml-2">
                                     [#{ticket.ticket_number}]
@@ -240,6 +232,11 @@ const ViewTicket: React.FC<ViewTicketProps> = props => {
                                 <p className="text-sm text-gray-700 mt-1">
                                     {`${formatDate(ticket.createdAt)} • ${ticket.created_by_name}`}
                                 </p>
+                                {/* {ticket.assigned_by_name && (
+                                    <p className="text-sm text-gray-700 mt-1">
+                                        Assigned by: {ticket.assigned_by_name}
+                                    </p>
+                                )} */}
                             </div>
                             {ticket.deadline &&
                                 (canReviewTicket || canSubmitWork) && (
@@ -285,7 +282,7 @@ const ViewTicket: React.FC<ViewTicketProps> = props => {
                         </div>
 
                         <div className="mt-5 md:mt-6">
-                            <div className="py-1 text-gray-900 leading-7">
+                            <div className="py-1 text-gray-900 leading-7 text-balance">
                                 {parse(
                                     sanitizeHtml(ticket.description),
                                     options,

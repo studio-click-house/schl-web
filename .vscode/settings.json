@@ -1,11 +1,9 @@
 {
-    "eslint.workingDirectories": [
-        { "mode": "auto" }
-    ],
+    "eslint.workingDirectories": [{ "mode": "auto" }],
 
-    "editor.formatOnSave": false,
+    "editor.formatOnSave": true,
     "editor.defaultFormatter": "dbaeumer.vscode-eslint",
-    "prettier.enable": false,
+    "prettier.enable": true,
 
     "editor.codeActionsOnSave": {
         "source.fixAll.eslint": "always"

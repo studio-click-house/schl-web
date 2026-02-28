@@ -56,7 +56,7 @@ const ExtendableTd: React.FC<PropsType> = ({
                 )}
                 {data?.length > len && (
                     <small
-                        className="opacity-80 hover:cursor-pointer hover:underline hover:opacity-100 pl-1"
+                        className="opacity-80 hover:cursor-pointer hover:underline hover:opacity-100 pl-1 select-none"
                         onClick={toggleText}
                     >
                         {/* <br /> */}

@@ -602,6 +602,7 @@ const Nav: React.FC<PropsType> = props => {
                         !hasAny([
                             'ticket:create_ticket',
                             'ticket:review_works',
+                            'ticket:submit_daily_work',
                         ]) && 'hidden',
                     )}
                 >
@@ -636,16 +637,36 @@ const Nav: React.FC<PropsType> = props => {
                         </li>
                         <li
                             className={cn(
-                                !hasAny(['ticket:create_ticket', 'ticket:review_works']) && 'hidden',
+                                !hasAny([
+                                    'ticket:create_ticket',
+                                    'ticket:review_works',
+                                ]) && 'hidden',
                             )}
                         >
                             <Link
                                 className={cn(
                                     'block px-4 py-2 hover:bg-primary',
                                 )}
-                                href={'/tickets/ticket-list'}
+                                href={'/tickets/all-tickets'}
                             >
-                                Ticket List
+                                All Tickets
+                            </Link>
+                        </li>
+                        <li
+                            className={cn(
+                                !hasAny([
+                                    'ticket:submit_daily_work',
+                                    'ticket:review_works',
+                                ]) && 'hidden',
+                            )}
+                        >
+                            <Link
+                                className={cn(
+                                    'block px-4 py-2 hover:bg-primary',
+                                )}
+                                href={'/tickets/work-board'}
+                            >
+                                Work Board
                             </Link>
                         </li>
                     </ul>

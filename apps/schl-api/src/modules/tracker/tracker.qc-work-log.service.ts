@@ -18,7 +18,7 @@ export class TrackerQcWorkLogService {
         @InjectModel(QcWorkLog.name)
         private readonly qcWorkLogModel: Model<QcWorkLog>,
         private readonly trackerGateway: TrackerGateway,
-    ) { }
+    ) {}
 
     async syncQc(payload: SyncQcWorkLogDto) {
         if (!payload.employeeName) {
@@ -28,10 +28,8 @@ export class TrackerQcWorkLogService {
         try {
             const dateString = new Date().toISOString().split('T')[0] as string;
 
-            const filter = TrackerFactory.qcFilterFromSyncDto(
-                payload,
-                dateString,
-            );
+            const filter: Record<string, any> =
+                TrackerFactory.qcFilterFromSyncDto(payload, dateString);
 
             // ── Idempotency check: skip $inc if syncId already processed ──
             const syncId =
@@ -128,42 +126,35 @@ export class TrackerQcWorkLogService {
                 }
 
                 // Step 3: bulkWrite to update status + $inc time_spent for all files at once
-                const bulkOps: AnyBulkWriteOperation<QcWorkLog>[] =
-                    payload.files
-                        .map((f): AnyBulkWriteOperation<QcWorkLog> | null => {
-                            const fileName = f.fileName?.trim() || '';
-                            if (!fileName) return null;
+                const bulkOps: AnyBulkWriteOperation<QcWorkLog>[] = [];
+                for (const f of payload.files) {
+                    const fileName = f.fileName?.trim() || '';
+                    if (!fileName) continue;
 
-                            const $set: Record<string, any> =
-                                TrackerFactory.qcFileSetFromSyncFileDto(f);
-                            $set['files.$.file_status'] = payload.fileStatus;
+                    const $set: Record<string, any> =
+                        TrackerFactory.qcFileSetFromSyncFileDto(f);
+                    $set['files.$.file_status'] = payload.fileStatus;
 
-                            const $inc = skipInc
-                                ? {}
-                                : TrackerFactory.qcFileIncFromSyncFileDto(f);
+                    const $inc = skipInc
+                        ? {}
+                        : TrackerFactory.qcFileIncFromSyncFileDto(f);
 
-                            const update: Record<string, any> = {};
-                            if (Object.keys($set).length) update.$set = $set;
-                            if (Object.keys($inc).length) update.$inc = $inc;
+                    const update: Record<string, any> = {};
+                    if (Object.keys($set).length) update.$set = $set;
+                    if (Object.keys($inc).length) update.$inc = $inc;
 
-                            if (!Object.keys(update).length) return null;
+                    if (!Object.keys(update).length) continue;
 
-                            return {
-                                updateOne: {
-                                    filter: {
-                                        ...filter,
-                                        'files.file_name': fileName,
-                                    },
-                                    update,
-                                },
-                            };
-                        })
-                        .filter(
-                            (
-                                operation,
-                            ): operation is AnyBulkWriteOperation<QcWorkLog> =>
-                                operation !== null,
-                        );
+                    bulkOps.push({
+                        updateOne: {
+                            filter: {
+                                ...filter,
+                                'files.file_name': fileName,
+                            },
+                            update,
+                        },
+                    });
+                }
 
                 // Step 4: set started_at / completed_at only if missing
                 // (use $elemMatch so positional operator targets the correct file array element)

@@ -27,7 +27,6 @@ import { TrackerGateway } from './tracker.gateway';
     ],
     controllers: [TrackerController],
     providers: [
-        TrackerGateway,
         TrackerAuthService,
         TrackerQcWorkLogService,
         TrackerQueryService,

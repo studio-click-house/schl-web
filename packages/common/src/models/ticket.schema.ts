@@ -66,6 +66,15 @@ export class Ticket {
         e_id: string;
     }[];
 
+    // user who assigned the ticket (never stored on client)
+    // null when ticket created without assignees
+    @Prop({
+        ref: User.name,
+        type: mongoose.Schema.Types.ObjectId,
+        default: null,
+    })
+    assigned_by: mongoose.Types.ObjectId | null;
+
     @Prop({ type: Date, default: null })
     deadline: Date | null;
 
@@ -77,3 +86,8 @@ export class Ticket {
 }
 
 export const TicketSchema = SchemaFactory.createForClass(Ticket);
+
+// indexes to speed up common search queries
+TicketSchema.index({ 'assignees.db_id': 1 });
+TicketSchema.index({ created_by: 1, createdAt: -1 });
+TicketSchema.index({ deadline: 1 });

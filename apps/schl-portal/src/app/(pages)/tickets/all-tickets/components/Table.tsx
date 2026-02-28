@@ -19,25 +19,31 @@ import { useRouter } from 'nextjs-toploader/app';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
+import ExtendableTd from '@/components/ExtendableTd';
 import { CLOSED_TICKET_STATUSES } from '@repo/common/constants/ticket.constant';
 import { TicketDocument } from '@repo/common/models/ticket.schema';
 import { capitalize } from 'lodash';
+import { TicketFormDataType, validationSchema } from '../../schema';
 import {
     getTicketPriorityBadgeClass,
     getTicketStatusBadgeClass,
     getTicketTypeBadgeClass,
-} from '../../all-tickets/components/ticket-badge.helper';
-import { TicketFormDataType, validationSchema } from '../../schema';
+} from '../components/ticket-badge.helper';
 import DeleteButton from './Delete';
 import EditButton from './Edit';
 import FilterButton from './Filter';
+
+interface TicketData extends TicketDocument {
+    created_by_name?: string;
+    assigned_by_name?: string;
+}
 
 type TicketsState = {
     pagination: {
         count: number;
         pageCount: number;
     };
-    items: TicketDocument[];
+    items: TicketData[];
 };
 
 const Table = () => {
@@ -67,7 +73,7 @@ const Table = () => {
     const [page, setPage] = useState<number>(1);
     const [pageCount, setPageCount] = useState<number>(0);
     const [itemPerPage, setItemPerPage] = useState<number>(30);
-    const [loading, setIsLoading] = useState<boolean>(true);
+    const [loading, setLoading] = useState<boolean>(true);
     const [searchVersion, setSearchVersion] = useState<number>(0);
 
     const [filters, setFilters] = useState({
@@ -78,6 +84,9 @@ const Table = () => {
         fromDate: '',
         toDate: '',
         deadlineStatus: '',
+        createdBy: '',
+        assignees: [] as string[],
+        excludeClosed: false,
     });
 
     const getAllTickets = useCallback(
@@ -113,7 +122,7 @@ const Table = () => {
                 console.error(error);
                 toast.error('An error occurred while retrieving tickets data');
             } finally {
-                setIsLoading(false);
+                setLoading(false);
             }
         },
         [authedFetchApi],
@@ -137,7 +146,9 @@ const Table = () => {
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify(filters),
+                        body: JSON.stringify({
+                            ...filters,
+                        }),
                     },
                 );
 
@@ -152,7 +163,7 @@ const Table = () => {
                 console.error(error);
                 toast.error('An error occurred while retrieving tickets data');
             } finally {
-                setIsLoading(false);
+                setLoading(false);
             }
             return;
         },
@@ -192,7 +203,7 @@ const Table = () => {
 
     const editTicket = async (editedTicketData: TicketFormDataType) => {
         try {
-            setIsLoading(true);
+            setLoading(true);
             const parsed = validationSchema.safeParse(editedTicketData);
 
             if (!parsed.success) {
@@ -203,12 +214,13 @@ const Table = () => {
 
             const { _id, ...rest } = parsed.data;
 
-            const payload = {
-                ...rest,
-                deadline: rest.deadline
+            // convert deadline string to ISO or keep null when explicitly cleared
+            const payload: any = { ...rest };
+            if (rest.deadline !== undefined) {
+                payload.deadline = rest.deadline
                     ? new Date(rest.deadline).toISOString()
-                    : undefined,
-            };
+                    : null;
+            }
 
             const response = await authedFetchApi(
                 { path: `/v1/ticket/update-ticket/${_id}` },
@@ -231,7 +243,7 @@ const Table = () => {
             console.error(error);
             toast.error('An error occurred while updating the ticket');
         } finally {
-            setIsLoading(false);
+            setLoading(false);
         }
     };
 
@@ -306,6 +318,7 @@ const Table = () => {
                         submitHandler={handleSearch}
                         setFilters={setFilters}
                         filters={filters}
+                        canReviewTicket={canReviewTicket}
                         className="w-full justify-between sm:w-auto"
                     />
                 </div>
@@ -313,24 +326,61 @@ const Table = () => {
 
             {loading && <p className="text-center">Loading...</p>}
 
-            <div className="table-responsive text-nowrap text-base">
+            <div className="table-responsive text-md overflow-x-auto">
                 {!loading &&
                     (tickets?.items?.length !== 0 ? (
-                        <table className="table table-bordered table-striped">
+                        <table className="table table-bordered table-striped min-w-full">
+                            {/* match work-board column widths */}
+                            <colgroup>
+                                <col className="min-w-[40px]" />
+                                <col className="whitespace-nowrap min-w-[120px]" />
+                                <col className="whitespace-nowrap min-w-[120px]" />
+                                <col className="whitespace-nowrap min-w-[150px]" />
+                                <col className="whitespace-nowrap min-w-[150px]" />
+                                <col className="whitespace-nowrap min-w-[150px]" />
+                                <col className="whitespace-nowrap min-w-[150px]" />
+                                <col className="min-w-[300px]" />
+                                <col className="whitespace-nowrap min-w-[100px]" />
+                                <col className="whitespace-nowrap min-w-[100px]" />
+                                <col className="whitespace-nowrap min-w-[100px]" />
+                                <col className="whitespace-nowrap min-w-[80px]" />
+                            </colgroup>
                             <thead className="table-dark">
-                                <tr>
-                                    <th>#</th>
-                                    <th>Date</th>
-                                    <th>Ticket No</th>
-                                    <th>Title</th>
+                                <tr className="whitespace-nowrap">
+                                    <th className="whitespace-nowrap">#</th>
+                                    <th className="whitespace-nowrap">Date</th>
+                                    <th className="whitespace-nowrap">
+                                        Created By
+                                    </th>
+                                    <th className="whitespace-nowrap">
+                                        Ticket No
+                                    </th>
                                     {canReviewTicket && (
-                                        <th>Deadline</th>
+                                        <th className="whitespace-nowrap">
+                                            Assigned By
+                                        </th>
                                     )}
-                                    <th>Type</th>
-                                    <th>Priority</th>
-                                    <th>Status</th>
-
-                                    <th>Action</th>
+                                    {canReviewTicket && (
+                                        <th className="whitespace-nowrap">
+                                            Assigned To
+                                        </th>
+                                    )}
+                                    {canReviewTicket && (
+                                        <th className="whitespace-nowrap">
+                                            Deadline
+                                        </th>
+                                    )}
+                                    <th className="whitespace-nowrap">Title</th>
+                                    <th className="whitespace-nowrap">Type</th>
+                                    <th className="whitespace-nowrap">
+                                        Priority
+                                    </th>
+                                    <th className="whitespace-nowrap">
+                                        Status
+                                    </th>
+                                    <th className="whitespace-nowrap">
+                                        Action
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -352,20 +402,40 @@ const Table = () => {
                                                     1 +
                                                     itemPerPage * (page - 1)}
                                             </td>
-                                            <td>
-                                                {ticket.createdAt
-                                                    ? formatDate(
-                                                          ticket.createdAt,
-                                                      )
-                                                    : null}
+                                            <td className="whitespace-nowrap">
+                                                {ticket.createdAt &&
+                                                    formatDate(
+                                                        ticket.createdAt,
+                                                    )}
                                             </td>
-                                            <td>{ticket.ticket_number}</td>
-                                            <td className="text-wrap">
-                                                {ticket.title}
+
+                                            {canReviewTicket && (
+                                                <td className="text-balance">
+                                                    {ticket.created_by_name ||
+                                                        'N/A'}
+                                                </td>
+                                            )}
+                                            <td className="whitespace-nowrap">
+                                                {ticket.ticket_number}
                                             </td>
-                                            {canReviewTicket
-                                                 && (
-                                                <td className="text-nowrap">
+                                            {canReviewTicket && (
+                                                <td>
+                                                    {ticket.assigned_by_name ||
+                                                        'N/A'}
+                                                </td>
+                                            )}
+                                            {canReviewTicket && (
+                                                <td className="text-balance">
+                                                    {ticket.assignees &&
+                                                    ticket.assignees.length > 0
+                                                        ? ticket.assignees
+                                                              .map(a => a.name)
+                                                              .join(', ')
+                                                        : 'N/A'}
+                                                </td>
+                                            )}
+                                            {canReviewTicket && (
+                                                <td className="whitespace-nowrap">
                                                     {ticket.deadline
                                                         ? `${formatDate(ticket.deadline)} | ${formatTime(
                                                               formatTimestamp(
@@ -375,8 +445,10 @@ const Table = () => {
                                                         : 'N/A'}
                                                 </td>
                                             )}
+                                            <ExtendableTd data={ticket.title} />
+
                                             <td
-                                                className="uppercase text-wrap"
+                                                className="uppercase whitespace-nowrap"
                                                 style={{
                                                     verticalAlign: 'middle',
                                                 }}
@@ -391,7 +463,7 @@ const Table = () => {
                                                 />
                                             </td>
                                             <td
-                                                className="uppercase text-wrap"
+                                                className="uppercase whitespace-nowrap"
                                                 style={{
                                                     verticalAlign: 'middle',
                                                 }}
@@ -405,9 +477,8 @@ const Table = () => {
                                                     )}
                                                 />
                                             </td>
-
                                             <td
-                                                className="uppercase text-wrap"
+                                                className="uppercase whitespace-nowrap"
                                                 style={{
                                                     verticalAlign: 'middle',
                                                 }}
@@ -421,8 +492,9 @@ const Table = () => {
                                                     )}
                                                 />
                                             </td>
+
                                             <td
-                                                className="text-nowrap"
+                                                className="whitespace-nowrap"
                                                 style={{
                                                     verticalAlign: 'middle',
                                                 }}

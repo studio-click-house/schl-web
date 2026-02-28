@@ -116,6 +116,7 @@ export const authorizedRoutes: AuthorizedRoute[] = [
         permissions: [
             'ticket:create_ticket',
             'ticket:review_works',
+            'ticket:submit_daily_work',
         ],
         children: [
             {
@@ -124,9 +125,17 @@ export const authorizedRoutes: AuthorizedRoute[] = [
                 permissions: ['ticket:create_ticket'],
             },
             {
-                href: '/tickets/ticket-list',
-                label: 'Ticket List',
+                href: '/tickets/all-tickets',
+                label: 'All Tickets',
                 permissions: ['ticket:create_ticket', 'ticket:review_works'],
+            },
+            {
+                href: '/tickets/work-board',
+                label: 'Work Board',
+                permissions: [
+                    'ticket:submit_daily_work',
+                    'ticket:review_works',
+                ],
             },
         ],
     },
