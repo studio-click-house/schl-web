@@ -59,7 +59,10 @@ const Form: React.FC = () => {
                         ? resp.data
                         : resp.data.items || [];
                     const valid = (usersRaw as FullyPopulatedUser[]).filter(u =>
-                        hasPerm('ticket:submit_daily_work', u.role.permissions),
+                        hasPerm(
+                            'ticket:submit_work_update',
+                            u.role.permissions,
+                        ),
                     );
                     const options = valid.map(u => ({
                         label: `${u.employee.real_name} (${u.employee.e_id})`,

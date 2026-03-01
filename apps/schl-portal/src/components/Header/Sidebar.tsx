@@ -553,7 +553,7 @@ const Sidebar: React.FC<PropsType> = props => {
                     {hasAny([
                         'ticket:create_ticket',
                         'ticket:review_works',
-                        'ticket:submit_daily_work',
+                        'ticket:submit_work_update',
                     ]) && (
                         <>
                             <span
@@ -603,7 +603,7 @@ const Sidebar: React.FC<PropsType> = props => {
                                     </li>
                                 )}
                                 {hasAny([
-                                    'ticket:submit_daily_work',
+                                    'ticket:submit_work_update',
                                     'ticket:review_works',
                                 ]) && (
                                     <li>
@@ -616,9 +616,10 @@ const Sidebar: React.FC<PropsType> = props => {
                                         </Link>
                                     </li>
                                 )}
-                                                                {has(
+                                {hasAny([
                                     'ticket:review_works',
-                                ) && (
+                                    'ticket:submit_work_update',
+                                ]) && (
                                     <li>
                                         <Link
                                             href="/tickets/work-updates"

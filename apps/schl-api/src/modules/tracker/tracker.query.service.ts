@@ -423,7 +423,11 @@ export class TrackerQueryService {
                             },
                             is_active: {
                                 $max: {
-                                    $cond: [{ $eq: ['$logout_at', null] }, 1, 0],
+                                    $cond: [
+                                        { $eq: ['$logout_at', null] },
+                                        1,
+                                        0,
+                                    ],
                                 },
                             },
                         },
@@ -464,7 +468,12 @@ export class TrackerQueryService {
                         $addFields: {
                             total_duration_seconds: {
                                 $add: [
-                                    { $ifNull: ['$closed_duration_seconds', 0] },
+                                    {
+                                        $ifNull: [
+                                            '$closed_duration_seconds',
+                                            0,
+                                        ],
+                                    },
                                     { $ifNull: ['$active_elapsed_seconds', 0] },
                                 ],
                             },
@@ -522,7 +531,10 @@ export class TrackerQueryService {
 
             // Range behavior: when dateFrom/dateTo provided, fetch full range (no hours cutoff)
             if (requestedFrom && requestedTo) {
-                filter.date_today = { $gte: requestedFrom, $lte: requestedTo } as any;
+                filter.date_today = {
+                    $gte: requestedFrom,
+                    $lte: requestedTo,
+                } as any;
                 delete filter.updatedAt;
             } else {
                 const hasHoursWindow =
@@ -626,7 +638,12 @@ export class TrackerQueryService {
                         $addFields: {
                             total_duration_seconds: {
                                 $add: [
-                                    { $ifNull: ['$closed_duration_seconds', 0] },
+                                    {
+                                        $ifNull: [
+                                            '$closed_duration_seconds',
+                                            0,
+                                        ],
+                                    },
                                     { $ifNull: ['$active_elapsed_seconds', 0] },
                                 ],
                             },

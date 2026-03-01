@@ -39,8 +39,13 @@ const UserListPanel: React.FC<Props> = ({ selectedUser, onSelect }) => {
                     const raw = Array.isArray(resp.data)
                         ? resp.data
                         : resp.data?.items || [];
-                    const filtered: FullyPopulatedUser[] = (raw as any[]).filter(u =>
-                        hasPerm('ticket:submit_daily_work', u.role?.permissions || []),
+                    const filtered: FullyPopulatedUser[] = (
+                        raw as any[]
+                    ).filter(u =>
+                        hasPerm(
+                            'ticket:submit_work_update',
+                            u.role?.permissions || [],
+                        ),
                     );
                     setUsers(filtered);
                 } else {
@@ -68,14 +73,14 @@ const UserListPanel: React.FC<Props> = ({ selectedUser, onSelect }) => {
                     USER SELECTION
                 </h2>
             </div>
-                <input
-                    type="text"
-                    placeholder="Search users…"
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                    className="w-full px-4 py-3 mb-2 border-y border-x-0 border-gray-300 text-md focus:outline-none focus:ring-0"
-                />
-           
+            <input
+                type="text"
+                placeholder="Search users…"
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="w-full px-4 py-3 mb-2 border-y border-x-0 border-gray-300 text-md focus:outline-none focus:ring-0"
+            />
+
             <ul className="divide-y divide-gray-100">
                 <li>
                     <button
@@ -89,8 +94,11 @@ const UserListPanel: React.FC<Props> = ({ selectedUser, onSelect }) => {
                     >
                         <span>All</span>
                         <ChevronRight
-                            className={cn('ml-2 transition-opacity',
-                                selectedUser === '' ? 'opacity-100' : 'opacity-0',
+                            className={cn(
+                                'ml-2 transition-opacity',
+                                selectedUser === ''
+                                    ? 'opacity-100'
+                                    : 'opacity-0',
                             )}
                             size={16}
                         />
@@ -119,10 +127,16 @@ const UserListPanel: React.FC<Props> = ({ selectedUser, onSelect }) => {
                                     onClick={() => handleClick(idStr)}
                                 >
                                     <span className="flex justify-between items-center w-full">
-                                        <span>{u.employee.real_name} ({u.employee.e_id})</span>
+                                        <span>
+                                            {u.employee.real_name} (
+                                            {u.employee.e_id})
+                                        </span>
                                         <ChevronRight
-                                            className={cn('ml-2 transition-opacity',
-                                                selectedUser === idStr ? 'opacity-100' : 'opacity-0',
+                                            className={cn(
+                                                'ml-2 transition-opacity',
+                                                selectedUser === idStr
+                                                    ? 'opacity-100'
+                                                    : 'opacity-0',
                                             )}
                                             size={16}
                                         />

@@ -17,13 +17,13 @@ import Select from 'react-select';
 const baseZIndex = 50;
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { DailyUpdateFormData, dailyUpdateSchema } from './daily-update-schema';
+import { WorkUpdateFormData, dailyUpdateSchema } from './schema';
 
 interface PropsType {
-    submitHandler: (data: DailyUpdateFormData) => Promise<void>;
+    submitHandler: (data: WorkUpdateFormData) => Promise<void>;
 }
 
-export default function DailyUpdateModal(props: PropsType) {
+export default function WorkUpdateModal(props: PropsType) {
     const authedFetchApi = useAuthedFetchApi();
     const { data: session } = useSession();
     const [isOpen, setIsOpen] = useState(false);
@@ -39,7 +39,7 @@ export default function DailyUpdateModal(props: PropsType) {
         control,
         reset,
         formState: { errors },
-    } = useForm<DailyUpdateFormData>({
+    } = useForm<WorkUpdateFormData>({
         resolver: zodResolver(dailyUpdateSchema),
         defaultValues: {
             message: '',
@@ -100,7 +100,7 @@ export default function DailyUpdateModal(props: PropsType) {
         }
     };
 
-    const onSubmit = async (data: DailyUpdateFormData) => {
+    const onSubmit = async (data: WorkUpdateFormData) => {
         await props.submitHandler(data);
         handleResetForm();
         setIsOpen(false);
@@ -140,7 +140,7 @@ export default function DailyUpdateModal(props: PropsType) {
                 >
                     <header className="flex items-center align-middle justify-between px-4 py-2 border-b rounded-t">
                         <h3 className="text-gray-900 text-base lg:text-lg font-semibold uppercase">
-                            Daily Work Update
+                            Work Update
                         </h3>
                         <button
                             onClick={() => setIsOpen(false)}

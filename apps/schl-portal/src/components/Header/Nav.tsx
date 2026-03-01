@@ -602,7 +602,7 @@ const Nav: React.FC<PropsType> = props => {
                         !hasAny([
                             'ticket:create_ticket',
                             'ticket:review_works',
-                            'ticket:submit_daily_work',
+                            'ticket:submit_work_update',
                         ]) && 'hidden',
                     )}
                 >
@@ -655,7 +655,7 @@ const Nav: React.FC<PropsType> = props => {
                         <li
                             className={cn(
                                 !hasAny([
-                                    'ticket:submit_daily_work',
+                                    'ticket:submit_work_update',
                                     'ticket:review_works',
                                 ]) && 'hidden',
                             )}
@@ -669,11 +669,12 @@ const Nav: React.FC<PropsType> = props => {
                                 Work Board
                             </Link>
                         </li>
-                                                <li
+                        <li
                             className={cn(
-                                !has(
+                                !hasAny([
                                     'ticket:review_works',
-                                ) && 'hidden',
+                                    'ticket:submit_work_update',
+                                ]) && 'hidden',
                             )}
                         >
                             <Link

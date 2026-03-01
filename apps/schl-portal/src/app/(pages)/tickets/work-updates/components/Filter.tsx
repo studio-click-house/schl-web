@@ -98,7 +98,10 @@ const FilterButton: React.FC<Props> = props => {
                                 <label className="block uppercase tracking-wide text-gray-700 text-sm font-bold mb-2">
                                     Date Range
                                 </label>
-                                <div className="inline-flex w-full" role="group">
+                                <div
+                                    className="inline-flex w-full"
+                                    role="group"
+                                >
                                     <input
                                         className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded-s-md py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
                                         value={tempFilters.fromDate}

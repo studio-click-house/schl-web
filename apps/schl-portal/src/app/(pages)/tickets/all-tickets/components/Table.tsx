@@ -394,6 +394,10 @@ const Table = () => {
                                         !CLOSED_TICKET_STATUSES.includes(
                                             ticket.status,
                                         );
+                                    const canDeleteTicket = hasPerm(
+                                        'ticket:delete_ticket',
+                                        userPermissions,
+                                    );
 
                                     return (
                                         <tr key={ticket.ticket_number}>
@@ -501,8 +505,7 @@ const Table = () => {
                                             >
                                                 <div className="inline-block">
                                                     <div className="flex gap-2">
-                                                        {(canManage ||
-                                                            canReviewTicket) && (
+                                                        {canDeleteTicket && (
                                                             <DeleteButton
                                                                 ticketData={{
                                                                     _id: String(
@@ -583,6 +586,12 @@ const Table = () => {
                                                                         name: string;
                                                                         e_id: string;
                                                                     }[],
+                                                                    assigned_by:
+                                                                        ticket.assigned_by
+                                                                            ? String(
+                                                                                  ticket.assigned_by,
+                                                                              )
+                                                                            : null,
                                                                 }}
                                                             />
                                                         )}

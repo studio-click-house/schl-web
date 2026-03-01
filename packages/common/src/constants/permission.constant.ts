@@ -75,12 +75,20 @@ export const USER_PERMISSIONS = [
             // has permission to view all tickets and view, verify daily work updates of all employees, also has the permission to delete daily work and tickets created by any employee without approval
             {
                 value: 'ticket:review_works',
-                label: 'Review tickets',
+                label: 'Review tickets and work updates',
             },
             // has permission to submit daily work updates, can also edit and delete their own updates
             {
-                value: 'ticket:submit_daily_work',
-                label: 'Submit daily work',
+                value: 'ticket:submit_work_update',
+                label: 'Submit work update',
+            },
+            {
+                value: 'ticket:delete_ticket',
+                label: 'Delete ticket',
+            },
+            {
+                value: 'ticket:delete_work_update',
+                label: 'Delete work update',
             },
         ],
     },

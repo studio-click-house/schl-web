@@ -15,8 +15,8 @@ import {
     formatTimestamp,
 } from '@repo/common/utils/date-helpers';
 import { SquareArrowOutUpRight } from 'lucide-react';
+import WorkUpdateDelete from './Delete';
 import FilterButton from './Filter';
-import WorkUpdateDelete from './WorkUpdateDelete';
 
 interface WorkUpdate {
     _id: string;
@@ -59,6 +59,10 @@ const WorkUpdatesTable: React.FC<Props> = ({ selectedUser }) => {
         [userPermissions],
     );
 
+    const canDeleteWorkUpdate = useMemo(
+        () => userPermissions.includes('ticket:delete_work_update'),
+        [userPermissions],
+    );
 
     const getAllUpdates = useCallback(async () => {
         setLoading(true);
@@ -70,7 +74,7 @@ const WorkUpdatesTable: React.FC<Props> = ({ selectedUser }) => {
 
             const resp = await authedFetchApi<WorkUpdate[]>(
                 {
-                    path: '/v1/daily-update/search-daily-updates',
+                    path: '/v1/work-update/search-work-updates',
                     query: { paginated: false },
                 },
                 {
@@ -105,7 +109,7 @@ const WorkUpdatesTable: React.FC<Props> = ({ selectedUser }) => {
 
             const resp = await authedFetchApi<WorkUpdate[]>(
                 {
-                    path: '/v1/daily-update/search-daily-updates',
+                    path: '/v1/work-update/search-work-updates',
                     query: { paginated: false },
                 },
                 {
@@ -137,6 +141,31 @@ const WorkUpdatesTable: React.FC<Props> = ({ selectedUser }) => {
         }
     }, [getAllUpdates, getFilteredUpdates, isFiltered]);
 
+    const deleteWorkUpdate = async (workUpdateData: { _id: string }) => {
+        try {
+            const response = await authedFetchApi<{ message: string }>(
+                {
+                    path: `/v1/work-update/delete-work-update/${workUpdateData._id}`,
+                },
+                {
+                    method: 'DELETE',
+                },
+            );
+
+            if (response.ok) {
+                toast.success('Deleted the work update successfully', {
+                    id: 'success',
+                });
+                await fetchUpdates();
+            } else {
+                toastFetchError(response);
+            }
+        } catch (error) {
+            console.error(error);
+            toast.error('An error occurred while deleting the work update');
+        }
+    };
+
     useEffect(() => {
         fetchUpdates();
     }, [selectedUser, searchVersion, fetchUpdates]);
@@ -145,13 +174,6 @@ const WorkUpdatesTable: React.FC<Props> = ({ selectedUser }) => {
         setIsFiltered(true);
         setSearchVersion(v => v + 1);
     }, []);
-
-    useEffect(() => {
-        if (!canReviewWork) {
-            router.push('/');
-            return;
-        }
-    }, [canReviewWork, router]);
 
     return (
         <div className="w-full">
@@ -196,7 +218,10 @@ const WorkUpdatesTable: React.FC<Props> = ({ selectedUser }) => {
                                             )}`}
                                         </td>
                                         {!selectedUser && (
-                                            <td className="text-balance">{update.submitted_by_name || "N/A"}</td>
+                                            <td className="text-balance">
+                                                {update.submitted_by_name ||
+                                                    'N/A'}
+                                            </td>
                                         )}
                                         <td className="text-pretty">
                                             {update.message}
@@ -221,6 +246,16 @@ const WorkUpdatesTable: React.FC<Props> = ({ selectedUser }) => {
                                                                 size={16}
                                                             />
                                                         </Link>
+                                                    )}
+                                                    {canDeleteWorkUpdate && (
+                                                        <WorkUpdateDelete
+                                                            submitHandler={
+                                                                deleteWorkUpdate
+                                                            }
+                                                            workUpdateData={{
+                                                                _id: update._id,
+                                                            }}
+                                                        />
                                                     )}
                                                 </div>
                                             </div>
