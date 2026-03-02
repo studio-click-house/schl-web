@@ -14,6 +14,7 @@ import { LiveTrackingDataDto } from './dto/live-tracking-data.dto';
 import { TrackerAuthService } from './tracker.auth.service';
 import { TrackerQcWorkLogService } from './tracker.qc-work-log.service';
 import { TrackerQueryService } from './tracker.query.service';
+import { TrackerReportService } from './tracker.report.service';
 
 @Controller('tracker')
 export class TrackerController {
@@ -21,6 +22,7 @@ export class TrackerController {
         private readonly authService: TrackerAuthService,
         private readonly qcWorkLogService: TrackerQcWorkLogService,
         private readonly queryService: TrackerQueryService,
+        private readonly reportService: TrackerReportService,
     ) { }
 
     @Post('check-user')
@@ -50,7 +52,7 @@ export class TrackerController {
 
     @Post('report-file')
     reportFile(@Body() dto: ReportFileDto) {
-        return this.qcWorkLogService.reportFile(dto);
+        return this.reportService.reportFile(dto);
     }
 
     @Post('job-list')

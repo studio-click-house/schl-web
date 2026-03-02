@@ -225,9 +225,23 @@ export class TrackerQueryService {
         try {
             const requestedUsername =
                 dto?.username && dto.username.trim() ? dto.username.trim() : '';
-            const userRegex = requestedUsername
+
+            const escapeRegex = (value: string) =>
+                value.replace(/[.*+?^${}()|[\[\]\\]/g, '\\$&');
+
+            const normalizeUserKey = (value: string) => {
+                const trimmed = (value || '').trim();
+                if (!trimmed) return '';
+                const parts = trimmed.split('-');
+                const left = (parts[0] || '').trim();
+                return left || trimmed;
+            };
+
+            const requestedUserKey = normalizeUserKey(requestedUsername);
+
+            const userRegex = requestedUserKey
                 ? new RegExp(
-                      `^${requestedUsername.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}$`,
+                      `^${escapeRegex(requestedUserKey)}(\\s*-.*)?$`,
                       'i',
                   )
                 : null;

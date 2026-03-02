@@ -8,7 +8,6 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { QcWorkLog } from '@repo/common/models/qc-work-log.schema';
 import { AnyBulkWriteOperation, Model } from 'mongoose';
-import { ReportFileDto } from './dto/report-file.dto';
 import { SyncQcWorkLogDto } from './dto/sync-qc-work-log.dto';
 import { TrackerFactory } from './factories/tracker.factory';
 import { TrackerGateway } from './tracker.gateway';
@@ -48,7 +47,7 @@ export class TrackerQcWorkLogService {
                     )
                     .lean();
                 if (existing) {
-                    skipInc = true;
+                    return { success: true, deduped: true };
                 }
             }
 
@@ -144,7 +143,16 @@ export class TrackerQcWorkLogService {
 
                     const $set: Record<string, any> =
                         TrackerFactory.qcFileSetFromSyncFileDto(f);
-                    $set['files.$.file_status'] = payload.fileStatus;
+                    const statusLowerForFile = String(payload.fileStatus || '')
+                        .toLowerCase()
+                        .trim();
+                    // Important: do NOT overwrite every file's status to "paused".
+                    // Pause is a session-level state; if we write paused into files.$.file_status,
+                    // the DB loses the last known working file and the UI will drop the user
+                    // from Production/QC/Client tabs.
+                    if (statusLowerForFile !== 'paused') {
+                        $set['files.$.file_status'] = payload.fileStatus;
+                    }
 
                     const $inc = skipInc
                         ? {}
@@ -253,13 +261,59 @@ export class TrackerQcWorkLogService {
                 completedAt: f.completed_at ?? null,
             }));
 
+            const statusTokensWorking = new Set([
+                'working',
+                'in_progress',
+                'in progress',
+                'in-progress',
+                'inprogress',
+            ]);
+
+            const workingCount = accFiles.filter(f =>
+                statusTokensWorking.has(
+                    String((f as any)?.fileStatus ?? '')
+                        .trim()
+                        .toLowerCase(),
+                ),
+            ).length;
+
+            const payloadStatus = String(payload.fileStatus ?? '')
+                .trim()
+                .toLowerCase();
+            // IMPORTANT: UI expectation is:
+            // - paused => user should NOT appear in Production/QC/Client (inactive)
+            // - working => user appears in working tabs
+            // Therefore:
+            // - If payload says paused, we emit paused even if DB still has working files.
+            //   We also mask working file statuses in the emitted files list so client IsActive becomes false.
+            // - Otherwise, we derive 'working' from DB presence of working files.
+            const computedStatus = payloadStatus === 'paused'
+                ? 'paused'
+                : (workingCount > 0 ? 'working' : payloadStatus);
+
+            const emittedFiles = payloadStatus === 'paused'
+                ? accFiles.map(f => {
+                    const s = String((f as any)?.fileStatus ?? '')
+                        .trim()
+                        .toLowerCase();
+                    if (statusTokensWorking.has(s)) {
+                        return { ...f, fileStatus: 'paused' };
+                    }
+                    return f;
+                })
+                : accFiles;
+
+            const emittedWorkingCount = payloadStatus === 'paused'
+                ? 0
+                : workingCount;
+
             this.trackerGateway.broadcastTrackerUpdate('TRACKER_UPDATED', {
                 employeeName: payload.employeeName,
                 clientCode: payload.clientCode,
                 workType: payload.workType,
                 shift: payload.shift,
                 folderPath: payload.folderPath,
-                fileStatus: payload.fileStatus,
+                fileStatus: computedStatus,
                 timestamp: new Date().toISOString(),
                 // Accumulated totals from DB (in seconds)
                 total_times: updatedDoc?.total_times ?? 0,
@@ -269,7 +323,7 @@ export class TrackerQcWorkLogService {
                 pause_reasons: updatedDoc?.pause_reasons ?? [],
                 categories: updatedDoc?.categories ?? '',
                 // Full file list with accumulated time_spent
-                files: accFiles,
+                files: emittedFiles,
             });
 
             return { success: true };
@@ -280,63 +334,4 @@ export class TrackerQcWorkLogService {
             );
         }
     }
-
-    async reportFile(dto: ReportFileDto) {
-        if (!dto?.employeeName || !dto.employeeName.trim()) {
-            throw new BadRequestException('Missing employee name');
-        }
-        if (!dto?.dateToday || !dto.dateToday.trim()) {
-            throw new BadRequestException('Missing date');
-        }
-        if (!dto?.fileName || !dto.fileName.trim()) {
-            throw new BadRequestException('Missing file name');
-        }
-
-        try {
-            const filter = {
-                employee_name: dto.employeeName.toLowerCase(),
-                client_code: (dto.clientCode || 'unknown_client').toLowerCase(),
-                folder_path: (dto.folderPath || 'unknown_folder').trim(),
-                shift: (dto.shift || 'unknown_shift').toLowerCase(),
-                work_type: (dto.workType || 'qc').toLowerCase(),
-                date_today: dto.dateToday.trim(),
-            };
-
-            const fileName = dto.fileName.trim();
-            const report = (dto.report ?? '').trim();
-
-            const updateResult = await this.qcWorkLogModel.updateOne(
-                {
-                    ...filter,
-                    'files.file_name': fileName,
-                },
-                {
-                    $set: {
-                        'files.$.report': report,
-                    },
-                },
-            );
-
-            if (updateResult.matchedCount === 0) {
-                return { success: false };
-            }
-
-            this.trackerGateway.broadcastTrackerUpdate(
-                'TRACKER_REPORT_UPDATED',
-                {
-                    employeeName: filter.employee_name,
-                    fileName,
-                    report,
-                    timestamp: new Date().toISOString(),
-                },
-            );
-
-            return { success: true };
-        } catch (e) {
-            if (e instanceof HttpException) throw e;
-            throw new InternalServerErrorException('Unable to save report');
-        }
-    }
-
-    
 }

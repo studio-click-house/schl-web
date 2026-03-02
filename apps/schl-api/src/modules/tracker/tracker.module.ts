@@ -16,6 +16,7 @@ import { TrackerController } from './tracker.controller';
 import { TrackerGateway } from './tracker.gateway';
 import { TrackerQcWorkLogService } from './tracker.qc-work-log.service';
 import { TrackerQueryService } from './tracker.query.service';
+import { TrackerReportService } from './tracker.report.service';
 
 @Module({
     imports: [
@@ -31,6 +32,7 @@ import { TrackerQueryService } from './tracker.query.service';
     providers: [
         TrackerAuthService,
         TrackerQcWorkLogService,
+        TrackerReportService,
         TrackerQueryService,
         TrackerGateway,
     ],

@@ -47,6 +47,7 @@ export class TrackerGateway
         payload: { sessionId?: string; username?: string },
     ) {
         try {
+            const startedAt = Date.now();
             const sessionId =
                 typeof payload?.sessionId === 'string'
                     ? payload.sessionId.trim()
@@ -66,6 +67,7 @@ export class TrackerGateway
 
             const session = await this.userSessionModel
                 .findOne({ session_id: sessionId })
+                .select('session_id username user_type logout_at')
                 .lean()
                 .exec();
 
@@ -117,6 +119,12 @@ export class TrackerGateway
             void client.join('live-tracking');
             void client.join(`tracker-session:${sessionId}`);
             void client.join(`tracker-user:${username}`);
+
+            console.log(
+                `SUBSCRIBE_LIVE_TRACKING ok (client=${client.id}) in ${
+                    Date.now() - startedAt
+                }ms`,
+            );
 
             return {
                 ok: true,
