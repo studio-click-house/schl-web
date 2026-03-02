@@ -13,8 +13,7 @@ import { Server, Socket } from 'socket.io';
 
 @WebSocketGateway({ namespace: '/tracker', cors: { origin: '*' } })
 export class TrackerGateway
-    implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
-{
+    implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
     private readonly allowedLiveTrackingRoles = new Set([
         'admin',
         'superadmin',
@@ -24,7 +23,7 @@ export class TrackerGateway
     constructor(
         @InjectModel(UserSession.name)
         private readonly userSessionModel: Model<UserSession>,
-    ) {}
+    ) { }
 
     @WebSocketServer()
     server: Server;
@@ -89,7 +88,11 @@ export class TrackerGateway
             const sessionUsername = String(session.username || '')
                 .trim()
                 .toLowerCase();
-            if (!sessionUsername || sessionUsername !== username) {
+            if (
+                !sessionUsername ||
+                (sessionUsername !== username &&
+                    !sessionUsername.startsWith(`${username} -`))
+            ) {
                 client.emit('TRACKER_SUBSCRIBE_DENIED', {
                     reason: 'Session does not match username',
                 });

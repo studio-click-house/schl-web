@@ -443,6 +443,34 @@ export class OrderService {
         }
 
         const updateDoc = OrderFactory.fromUpdateDto(orderData, userSession);
+
+        console.log('UpdateDoc before QC check:', updateDoc);
+
+        // if production becomes equal to quantity on this update, mark type as qc
+        // regardless of what it was before. this mirrors the wait‑for‑qc filter
+        const nextQuantity =
+            updateDoc.quantity !== undefined
+                ? Number(updateDoc.quantity) || 0
+                : Number(existing.quantity) || 0;
+        const nextProduction =
+            updateDoc.production !== undefined
+                ? Number(updateDoc.production) || 0
+                : Number(existing.production) || 0;
+        const nextStatus =
+            updateDoc.status !== undefined
+                ? String(updateDoc.status).toLowerCase()
+                : String(existing.status || '').toLowerCase();
+
+        if (
+            nextProduction === nextQuantity &&
+            !['finished', 'correction'].includes(nextStatus) &&
+            !['test', 'qc'].includes(existing.type)
+        ) {
+            updateDoc.type = 'qc';
+        }
+
+        console.log('UpdateDoc after QC check:', updateDoc, updateDoc.type);
+
         const keys = Object.keys(updateDoc).filter(k => k !== 'updated_by');
         if (keys.length === 0) {
             throw new BadRequestException('No update fields provided');
@@ -970,8 +998,8 @@ export class OrderService {
             {
                 $match: {
                     status: { $nin: ['finished', 'correction'] },
-                    type: { $ne: 'test' },
-                    $expr: { $eq: ['$production', '$quantity'] },
+                    type: { $ne: 'test', $eq: 'qc' },
+                    // $expr: { $eq: ['$production', '$quantity'] },
                 },
             },
         ];

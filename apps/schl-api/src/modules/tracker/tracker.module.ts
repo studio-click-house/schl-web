@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AppUser, AppUserSchema } from '@repo/common/models/app-user.schema';
+import { Employee, EmployeeSchema } from '@repo/common/models/employee.schema';
 import { Order, OrderSchema } from '@repo/common/models/order.schema';
 import {
     QcWorkLog,
@@ -20,6 +21,7 @@ import { TrackerQueryService } from './tracker.query.service';
     imports: [
         MongooseModule.forFeature([
             { name: AppUser.name, schema: AppUserSchema },
+            { name: Employee.name, schema: EmployeeSchema },
             { name: QcWorkLog.name, schema: QcWorkLogSchema },
             { name: Order.name, schema: OrderSchema },
             { name: UserSession.name, schema: UserSessionSchema },
@@ -33,4 +35,4 @@ import { TrackerQueryService } from './tracker.query.service';
         TrackerGateway,
     ],
 })
-export class TrackerModule {}
+export class TrackerModule { }
