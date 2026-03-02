@@ -13,7 +13,8 @@ import { Server, Socket } from 'socket.io';
 
 @WebSocketGateway({ namespace: '/tracker', cors: { origin: '*' } })
 export class TrackerGateway
-    implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
+    implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
+{
     private readonly allowedLiveTrackingRoles = new Set([
         'admin',
         'superadmin',
@@ -23,7 +24,7 @@ export class TrackerGateway
     constructor(
         @InjectModel(UserSession.name)
         private readonly userSessionModel: Model<UserSession>,
-    ) { }
+    ) {}
 
     @WebSocketServer()
     server: Server;

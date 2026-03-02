@@ -21,7 +21,7 @@ export class TrackerQcWorkLogService {
         @InjectModel(QcWorkLog.name)
         private readonly qcWorkLogModel: Model<QcWorkLog>,
         private readonly trackerGateway: TrackerGateway,
-    ) { }
+    ) {}
 
     async syncQc(payload: SyncQcWorkLogDto) {
         if (!payload.employeeName) {
@@ -59,7 +59,9 @@ export class TrackerQcWorkLogService {
                 ? {}
                 : TrackerFactory.qcBucketIncFromSyncDto(payload);
 
-            const statusLower = String(payload.fileStatus || '').trim().toLowerCase();
+            const statusLower = String(payload.fileStatus || '')
+                .trim()
+                .toLowerCase();
             const isWorkingUpdate = workingTokens.includes(statusLower);
 
             const bucketUpdate: Record<string, any> = {
@@ -337,6 +339,4 @@ export class TrackerQcWorkLogService {
             throw new InternalServerErrorException('Unable to save report');
         }
     }
-
-    
 }

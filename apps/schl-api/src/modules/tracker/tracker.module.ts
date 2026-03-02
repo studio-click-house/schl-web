@@ -35,4 +35,4 @@ import { TrackerQueryService } from './tracker.query.service';
         TrackerGateway,
     ],
 })
-export class TrackerModule { }
+export class TrackerModule {}

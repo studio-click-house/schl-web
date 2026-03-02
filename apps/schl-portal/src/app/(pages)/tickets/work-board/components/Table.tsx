@@ -115,6 +115,7 @@ function Table() {
                                 ? [session?.user.db_id || '']
                                 : [],
                             excludeClosed: true,
+                            includeUnassigned: true,
                         }),
                     },
                 );
@@ -157,6 +158,7 @@ function Table() {
                                 ? [session?.user.db_id || '']
                                 : filters.assignees,
                             excludeClosed: true,
+                            includeUnassigned: true,
                         }),
                     },
                 );

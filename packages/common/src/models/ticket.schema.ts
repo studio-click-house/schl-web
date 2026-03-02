@@ -53,12 +53,13 @@ export class Ticket {
     @Prop({
         type: [
             {
-                name: String,
-                db_id: mongoose.Schema.Types.ObjectId,
-                e_id: String,
+                name: { type: String },
+                db_id: { type: mongoose.Schema.Types.ObjectId },
+                e_id: { type: String },
             },
         ],
         ref: User.name,
+        default: [],
     })
     assignees: {
         name: string;

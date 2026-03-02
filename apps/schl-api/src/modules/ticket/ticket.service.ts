@@ -230,12 +230,21 @@ export class TicketService {
             if (myTickets) {
                 query.created_by = new Types.ObjectId(userSession.db_id);
             } else if (
-                !hasPerm('ticket:review_works', userSession.permissions)
+                !hasAnyPerm(
+                    ['ticket:review_works', 'ticket:submit_work_update'],
+                    userSession.permissions,
+                )
             ) {
                 // users without the review_works permission only see their own tickets
                 query.created_by = new Types.ObjectId(userSession.db_id);
             }
         }
+
+        console.log(
+            'This is the assignees filter: ',
+            assignees,
+            filters.includeUnassigned,
+        );
 
         // assignee filter: any ticket whose assignees array includes one of the
         // selected users. can optionally include unassigned tickets as well.
@@ -298,6 +307,11 @@ export class TicketService {
                 },
             },
         };
+
+        console.log(
+            'Constructed query for ticket search: ',
+            JSON.stringify(query),
+        );
 
         const basePipeline: PipelineStage[] = [
             { $match: query } as PipelineStage,

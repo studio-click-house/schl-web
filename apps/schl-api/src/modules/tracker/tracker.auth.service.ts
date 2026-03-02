@@ -31,7 +31,7 @@ export class TrackerAuthService {
         private readonly qcWorkLogModel: Model<QcWorkLog>,
 
         private readonly trackerGateway: TrackerGateway,
-    ) { }
+    ) {}
 
     async checkUser(username: string) {
         try {
@@ -87,14 +87,18 @@ export class TrackerAuthService {
             let displayName = user.username;
             try {
                 const employee = await this.employeeModel
-                    .findOne({ e_id: { $regex: new RegExp(`^${user.username}$`, 'i') } })
+                    .findOne({
+                        e_id: { $regex: new RegExp(`^${user.username}$`, 'i') },
+                    })
                     .select('e_id real_name')
                     .lean()
                     .exec();
                 if (employee?.real_name) {
                     displayName = `${user.username} - ${employee.real_name}`;
                 }
-            } catch { /* fallback to username */ }
+            } catch {
+                /* fallback to username */
+            }
 
             await this.userSessionModel.create({
                 session_id: sessionId,
@@ -188,10 +192,9 @@ export class TrackerAuthService {
 
             await session.save();
 
-            this.trackerGateway.broadcastTrackerUpdate(
-                'TRACKER_UPDATED',
-                { reason: 'logout' },
-            );
+            this.trackerGateway.broadcastTrackerUpdate('TRACKER_UPDATED', {
+                reason: 'logout',
+            });
 
             this.trackerGateway.broadcastTrackerUpdate(
                 'TRACKER_SESSION_UPDATED',
