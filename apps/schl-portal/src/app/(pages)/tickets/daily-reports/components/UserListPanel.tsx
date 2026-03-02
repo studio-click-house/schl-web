@@ -43,7 +43,7 @@ const UserListPanel: React.FC<Props> = ({ selectedUser, onSelect }) => {
                         raw as any[]
                     ).filter(u =>
                         hasPerm(
-                            'ticket:submit_work_update',
+                            'ticket:submit_daily_report',
                             u.role?.permissions || [],
                         ),
                     );

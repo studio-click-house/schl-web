@@ -13,18 +13,28 @@ import {
     formatDate,
     formatTime,
     formatTimestamp,
+    getTodayDate,
 } from '@repo/common/utils/date-helpers';
-import { SquareArrowOutUpRight } from 'lucide-react';
-import WorkUpdateDelete from './Delete';
+import { cn } from '@repo/common/utils/general-utils';
+import {
+    BadgeCheck,
+    CheckCheck,
+    ClipboardClock,
+    ClockCheck,
+    SquareArrowOutUpRight,
+} from 'lucide-react';
+import DailyReportDelete from './Delete';
 import FilterButton from './Filter';
 
-interface WorkUpdate {
+interface DailyReport {
     _id: string;
     message: string;
     ticket?: { ticket_number: string };
     submitted_by_name?: string;
     submitted_by: string;
     createdAt: string;
+    is_verified?: boolean;
+    verified_by_name?: string | null;
 }
 
 // simple array of updates, filters handled separately
@@ -32,35 +42,33 @@ interface Props {
     selectedUser: string;
 }
 
-const WorkUpdatesTable: React.FC<Props> = ({ selectedUser }) => {
+const DailyReportsTable: React.FC<Props> = ({ selectedUser }) => {
     const authedFetchApi = useAuthedFetchApi();
     const { data: session } = useSession();
 
-    const [updates, setUpdates] = useState<WorkUpdate[]>([]);
+    const [updates, setUpdates] = useState<DailyReport[]>([]);
 
     const [loading, setLoading] = useState<boolean>(true);
 
     const [filters, setFilters] = useState({
-        fromDate: new Date().toISOString().substring(0, 10),
-        toDate: new Date().toISOString().substring(0, 10),
+        fromDate: getTodayDate(),
+        toDate: '',
     });
     const [isFiltered, setIsFiltered] = useState<boolean>(true);
     const [searchVersion, setSearchVersion] = useState<number>(0);
-
-    const router = useRouter();
 
     const userPermissions = useMemo(
         () => session?.user.permissions || [],
         [session?.user.permissions],
     );
 
-    const canReviewWork = useMemo(
-        () => userPermissions.includes('ticket:review_works'),
+    const canDeleteDailyReport = useMemo(
+        () => userPermissions.includes('ticket:delete_daily_report'),
         [userPermissions],
     );
 
-    const canDeleteWorkUpdate = useMemo(
-        () => userPermissions.includes('ticket:delete_work_update'),
+    const canVerifyDailyReport = useMemo(
+        () => userPermissions.includes('ticket:review_works'),
         [userPermissions],
     );
 
@@ -72,9 +80,9 @@ const WorkUpdatesTable: React.FC<Props> = ({ selectedUser }) => {
                 body.submitted_by = selectedUser;
             }
 
-            const resp = await authedFetchApi<WorkUpdate[]>(
+            const resp = await authedFetchApi<DailyReport[]>(
                 {
-                    path: '/v1/work-update/search-work-updates',
+                    path: '/v1/daily-report/search-daily-reports',
                     query: { paginated: false },
                 },
                 {
@@ -86,13 +94,13 @@ const WorkUpdatesTable: React.FC<Props> = ({ selectedUser }) => {
 
             if (resp.ok) {
                 setIsFiltered(false);
-                setUpdates(resp.data as WorkUpdate[]);
+                setUpdates(resp.data as DailyReport[]);
             } else {
                 toastFetchError(resp);
             }
         } catch (err) {
             console.error(err);
-            toast.error('Unable to load work updates');
+            toast.error('Unable to load daily reports');
         } finally {
             setLoading(false);
         }
@@ -107,9 +115,9 @@ const WorkUpdatesTable: React.FC<Props> = ({ selectedUser }) => {
             if (filters.fromDate) body.fromDate = filters.fromDate;
             if (filters.toDate) body.toDate = filters.toDate;
 
-            const resp = await authedFetchApi<WorkUpdate[]>(
+            const resp = await authedFetchApi<DailyReport[]>(
                 {
-                    path: '/v1/work-update/search-work-updates',
+                    path: '/v1/daily-report/search-daily-reports',
                     query: { paginated: false },
                 },
                 {
@@ -121,13 +129,13 @@ const WorkUpdatesTable: React.FC<Props> = ({ selectedUser }) => {
 
             if (resp.ok) {
                 setIsFiltered(true);
-                setUpdates(resp.data as WorkUpdate[]);
+                setUpdates(resp.data as DailyReport[]);
             } else {
                 toastFetchError(resp);
             }
         } catch (err) {
             console.error(err);
-            toast.error('Unable to load work updates');
+            toast.error('Unable to load daily reports');
         } finally {
             setLoading(false);
         }
@@ -141,11 +149,11 @@ const WorkUpdatesTable: React.FC<Props> = ({ selectedUser }) => {
         }
     }, [getAllUpdates, getFilteredUpdates, isFiltered]);
 
-    const deleteWorkUpdate = async (workUpdateData: { _id: string }) => {
+    const deleteDailyReport = async (dailyReportData: { _id: string }) => {
         try {
             const response = await authedFetchApi<{ message: string }>(
                 {
-                    path: `/v1/work-update/delete-work-update/${workUpdateData._id}`,
+                    path: `/v1/daily-report/delete-daily-report/${dailyReportData._id}`,
                 },
                 {
                     method: 'DELETE',
@@ -153,7 +161,7 @@ const WorkUpdatesTable: React.FC<Props> = ({ selectedUser }) => {
             );
 
             if (response.ok) {
-                toast.success('Deleted the work update successfully', {
+                toast.success('Deleted the daily report successfully', {
                     id: 'success',
                 });
                 await fetchUpdates();
@@ -162,7 +170,30 @@ const WorkUpdatesTable: React.FC<Props> = ({ selectedUser }) => {
             }
         } catch (error) {
             console.error(error);
-            toast.error('An error occurred while deleting the work update');
+            toast.error('An error occurred while deleting the daily report');
+        }
+    };
+
+    const verifyDailyReport = async (dailyReportData: { _id: string }) => {
+        try {
+            const response = await authedFetchApi<DailyReport>(
+                {
+                    path: `/v1/daily-report/verify-daily-report/${dailyReportData._id}`,
+                },
+                {
+                    method: 'POST',
+                },
+            );
+
+            if (response.ok) {
+                toast.success('Daily report verified', { id: 'success' });
+                await fetchUpdates();
+            } else {
+                toastFetchError(response);
+            }
+        } catch (error) {
+            console.error(error);
+            toast.error('An error occurred while verifying the daily report');
         }
     };
 
@@ -177,13 +208,37 @@ const WorkUpdatesTable: React.FC<Props> = ({ selectedUser }) => {
 
     return (
         <div className="w-full">
-            <div className="flex items-center mb-4 gap-2 justify-end">
-                <FilterButton
-                    filters={filters}
-                    setFilters={setFilters}
-                    submitHandler={handleSearch}
-                    loading={loading}
-                />
+            <div
+                className={cn(
+                    'flex flex-col mb-4 gap-2 sm:flex-row sm:justify-between items-center',
+                )}
+            >
+                {(filters.fromDate || filters.toDate) && (
+                    <div className="text-xl text-gray-900 font-semibold items-center">
+                        {filters.fromDate && (
+                            <span>
+                                <ClockCheck
+                                    size={23}
+                                    className="inline mb-1 mr-2"
+                                />
+                                {formatDate(filters.fromDate)}
+                                {filters.toDate && ` – `}
+                            </span>
+                        )}
+                        {filters.toDate && (
+                            <span>{formatDate(filters.toDate)}</span>
+                        )}
+                    </div>
+                )}
+
+                <div className="items-center flex gap-2">
+                    <FilterButton
+                        filters={filters}
+                        setFilters={setFilters}
+                        submitHandler={handleSearch}
+                        loading={loading}
+                    />
+                </div>
             </div>
             {loading && <p className="text-center">Loading...</p>}
             {!loading &&
@@ -194,6 +249,8 @@ const WorkUpdatesTable: React.FC<Props> = ({ selectedUser }) => {
                                 <col className="w-16" />
                                 <col className="w-52" />
                                 {!selectedUser && <col className="w-32" />}
+                                <col className="w-24" />
+                                <col className="w-32" />
                                 <col className="w-auto" />
                                 <col className="w-32" />
                             </colgroup>
@@ -202,6 +259,8 @@ const WorkUpdatesTable: React.FC<Props> = ({ selectedUser }) => {
                                     <th>S/N</th>
                                     <th>Date</th>
                                     {!selectedUser && <th>Submitted By</th>}
+                                    <th>Verified</th>
+                                    <th>Verified By</th>
                                     <th>Message</th>
                                     <th>Action</th>
                                 </tr>
@@ -223,6 +282,12 @@ const WorkUpdatesTable: React.FC<Props> = ({ selectedUser }) => {
                                                     'N/A'}
                                             </td>
                                         )}
+                                        <td className="text-balance">
+                                            {update.is_verified ? 'Yes' : 'No'}
+                                        </td>
+                                        <td className="text-balance">
+                                            {update.verified_by_name || 'N/A'}
+                                        </td>
                                         <td className="text-pretty">
                                             {update.message}
                                         </td>
@@ -247,12 +312,29 @@ const WorkUpdatesTable: React.FC<Props> = ({ selectedUser }) => {
                                                             />
                                                         </Link>
                                                     )}
-                                                    {canDeleteWorkUpdate && (
-                                                        <WorkUpdateDelete
+                                                    {canVerifyDailyReport &&
+                                                        !update.is_verified && (
+                                                            <button
+                                                                onClick={() =>
+                                                                    verifyDailyReport(
+                                                                        {
+                                                                            _id: update._id,
+                                                                        },
+                                                                    )
+                                                                }
+                                                                className="items-center gap-2 rounded-md bg-green-600 hover:opacity-90 hover:ring-2 hover:ring-green-600 transition duration-200 delay-300 hover:text-opacity-100 text-white p-2"
+                                                            >
+                                                                <CheckCheck
+                                                                    size={16}
+                                                                />
+                                                            </button>
+                                                        )}
+                                                    {canDeleteDailyReport && (
+                                                        <DailyReportDelete
                                                             submitHandler={
-                                                                deleteWorkUpdate
+                                                                deleteDailyReport
                                                             }
-                                                            workUpdateData={{
+                                                            dailyReportData={{
                                                                 _id: update._id,
                                                             }}
                                                         />
@@ -266,10 +348,10 @@ const WorkUpdatesTable: React.FC<Props> = ({ selectedUser }) => {
                         </table>
                     </div>
                 ) : (
-                    <NoData text="No work updates found" type={Type.danger} />
+                    <NoData text="No daily reports found" type={Type.danger} />
                 ))}
         </div>
     );
 };
 
-export default WorkUpdatesTable;
+export default DailyReportsTable;

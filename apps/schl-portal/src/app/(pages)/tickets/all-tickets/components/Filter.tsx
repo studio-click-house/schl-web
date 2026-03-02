@@ -19,6 +19,7 @@ import Select from 'react-select';
 const baseZIndex = 50;
 
 interface PropsType {
+    hideCreator?: boolean;
     className?: string;
     submitHandler: () => void;
     filters: {
@@ -126,7 +127,7 @@ export default function FilterButton(props: PropsType) {
                         : resp.data.items || [];
                     const valid = (usersRaw as any[]).filter(u =>
                         hasPerm(
-                            'ticket:submit_work_update',
+                            'ticket:submit_daily_report',
                             u.role?.permissions || [],
                         ),
                     );
@@ -328,11 +329,11 @@ export default function FilterButton(props: PropsType) {
                                 />
                             </div>
 
-                            {props.canReviewTicket && (
+                            {props.canReviewTicket && !props.hideCreator && (
                                 <>
                                     <div>
                                         <label className="uppercase tracking-wide text-gray-700 text-sm font-bold block mb-2">
-                                            Creator
+                                            Created By
                                         </label>
                                         <Select
                                             {...setClassNameAndIsDisabled(

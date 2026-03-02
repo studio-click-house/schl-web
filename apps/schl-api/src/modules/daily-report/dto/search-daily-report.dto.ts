@@ -9,7 +9,7 @@ import {
     Min,
 } from 'class-validator';
 
-export class SearchWorkUpdateQueryDto {
+export class SearchDailyReportQueryDto {
     @IsOptional()
     @Type(() => Number)
     @IsInt()
@@ -30,7 +30,7 @@ export class SearchWorkUpdateQueryDto {
     paginated: boolean = false;
 }
 
-export class SearchWorkUpdateBodyDto {
+export class SearchDailyReportBodyDto {
     @IsOptional()
     @IsString()
     submittedBy?: string;

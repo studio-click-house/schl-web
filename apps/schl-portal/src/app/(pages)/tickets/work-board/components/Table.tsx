@@ -31,8 +31,8 @@ import {
 } from '../../all-tickets/components/ticket-badge.helper';
 import { TicketFormDataType, validationSchema } from '../../schema';
 import StatusEdit from './StatusEdit';
-import WorkUpdateModal from './work-update/FormModal';
-import type { WorkUpdateFormData } from './work-update/schema';
+import DailyReportModal from './daily-report/FormModal';
+import type { DailyReportFormData } from './daily-report/schema';
 
 interface TicketData extends TicketDocument {
     created_by_name?: string;
@@ -91,7 +91,7 @@ function Table() {
     );
 
     const canSubmit = useMemo(
-        () => hasPerm('ticket:submit_work_update', userPermissions),
+        () => hasPerm('ticket:submit_daily_report', userPermissions),
         [userPermissions],
     );
 
@@ -189,11 +189,11 @@ function Table() {
         }
     }, [isFiltered, getAllTickets, getAllTicketsFiltered, page, itemPerPage]);
 
-    const createWorkUpdate = async (data: WorkUpdateFormData) => {
+    const createDailyReport = async (data: DailyReportFormData) => {
         try {
             const body = { ...data }; // ticket may be undefined
             const response = await authedFetchApi<{ message: string }>(
-                { path: '/v1/work-update/create-work-update' },
+                { path: '/v1/daily-report/create-daily-report' },
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -202,7 +202,7 @@ function Table() {
             );
 
             if (response.ok) {
-                toast.success('Submitted daily work update');
+                toast.success('Submitted daily daily report');
                 // await fetchTickets();
             } else {
                 toastFetchError(response);
@@ -290,7 +290,7 @@ function Table() {
                 )}
             >
                 {canSubmit && (
-                    <WorkUpdateModal submitHandler={createWorkUpdate} />
+                    <DailyReportModal submitHandler={createDailyReport} />
                 )}
 
                 <div className="items-center flex gap-2">
@@ -320,6 +320,7 @@ function Table() {
                         setFilters={setFilters}
                         filters={filters}
                         canReviewTicket={canReviewTicket}
+                        hideCreator={true}
                         className="w-full justify-between sm:w-auto"
                     />
                 </div>

@@ -60,7 +60,7 @@ const Form: React.FC = () => {
                         : resp.data.items || [];
                     const valid = (usersRaw as FullyPopulatedUser[]).filter(u =>
                         hasPerm(
-                            'ticket:submit_work_update',
+                            'ticket:submit_daily_report',
                             u.role.permissions,
                         ),
                     );

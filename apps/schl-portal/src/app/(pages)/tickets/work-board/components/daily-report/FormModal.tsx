@@ -17,13 +17,13 @@ import Select from 'react-select';
 const baseZIndex = 50;
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { WorkUpdateFormData, dailyUpdateSchema } from './schema';
+import { DailyReportFormData, dailyUpdateSchema } from './schema';
 
 interface PropsType {
-    submitHandler: (data: WorkUpdateFormData) => Promise<void>;
+    submitHandler: (data: DailyReportFormData) => Promise<void>;
 }
 
-export default function WorkUpdateModal(props: PropsType) {
+export default function DailyReportModal(props: PropsType) {
     const authedFetchApi = useAuthedFetchApi();
     const { data: session } = useSession();
     const [isOpen, setIsOpen] = useState(false);
@@ -39,7 +39,7 @@ export default function WorkUpdateModal(props: PropsType) {
         control,
         reset,
         formState: { errors },
-    } = useForm<WorkUpdateFormData>({
+    } = useForm<DailyReportFormData>({
         resolver: zodResolver(dailyUpdateSchema),
         defaultValues: {
             message: '',
@@ -100,7 +100,7 @@ export default function WorkUpdateModal(props: PropsType) {
         }
     };
 
-    const onSubmit = async (data: WorkUpdateFormData) => {
+    const onSubmit = async (data: DailyReportFormData) => {
         await props.submitHandler(data);
         handleResetForm();
         setIsOpen(false);
@@ -119,7 +119,7 @@ export default function WorkUpdateModal(props: PropsType) {
                 }}
                 className="flex justify-between items-center gap-2 rounded-md bg-primary hover:opacity-90 hover:ring-4 hover:ring-primary transition duration-200 delay-300 hover:text-opacity-100 text-white px-3 py-2"
             >
-                Submit Work Update
+                Submit Daily Report
                 <CirclePlus size={18} />
             </button>
 
@@ -140,7 +140,7 @@ export default function WorkUpdateModal(props: PropsType) {
                 >
                     <header className="flex items-center align-middle justify-between px-4 py-2 border-b rounded-t">
                         <h3 className="text-gray-900 text-base lg:text-lg font-semibold uppercase">
-                            Work Update
+                            Daily Report
                         </h3>
                         <button
                             onClick={() => setIsOpen(false)}

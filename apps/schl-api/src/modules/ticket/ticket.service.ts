@@ -231,7 +231,7 @@ export class TicketService {
                 query.created_by = new Types.ObjectId(userSession.db_id);
             } else if (
                 !hasAnyPerm(
-                    ['ticket:review_works', 'ticket:submit_work_update'],
+                    ['ticket:review_works', 'ticket:submit_daily_report'],
                     userSession.permissions,
                 )
             ) {
@@ -397,7 +397,7 @@ export class TicketService {
                     [
                         'ticket:create_ticket',
                         'ticket:review_works',
-                        'ticket:submit_work_update',
+                        'ticket:submit_daily_report',
                     ],
                     userSession.permissions,
                 )
@@ -421,7 +421,7 @@ export class TicketService {
                 if (!hasPerm('ticket:review_works', userSession.permissions)) {
                     if (
                         !hasPerm(
-                            'ticket:submit_work_update',
+                            'ticket:submit_daily_report',
                             userSession.permissions,
                         )
                     ) {
@@ -470,7 +470,7 @@ export class TicketService {
             throw new NotFoundException('Ticket not found');
         }
 
-        // Only owner or reviewer may update
+        // Only owner or reviewer may update the ticket
         if (
             !hasPerm('ticket:review_works', userSession.permissions) &&
             existing.created_by.toString() !== userSession.db_id
@@ -480,32 +480,69 @@ export class TicketService {
             );
         }
 
-        // allow modifying assigned_by when needed
         const patch = TicketFactory.fromUpdateDto(ticketData);
         if (Object.keys(patch).length === 0) {
             throw new BadRequestException('No update fields provided');
         }
 
-        // apply assignment logic when assignees list is changed
+        const assignedBy = existing.assigned_by?.toString() || null;
+        const currentUser = userSession.db_id;
+
+        // --- ASSIGNEE LOGIC ---
         if (patch.assignees !== undefined) {
-            const assignedBy = existing.assigned_by?.toString() || null;
-            const currentUser = userSession.db_id;
-            const isArray = Array.isArray(patch.assignees);
-            const isClearing = isArray && patch.assignees.length === 0;
-            const isAssigning = isArray && patch.assignees.length > 0;
+            const existingAssignees = (existing.assignees || [])
+                .map(a => a.db_id.toString())
+                .sort();
+            const newAssignees = (patch.assignees || [])
+                .map(a => a.db_id.toString())
+                .sort();
 
-            if (assignedBy !== null && assignedBy !== currentUser) {
-                throw new ForbiddenException(
-                    "You don't have permission to modify assignees",
-                );
+            const assigneesChanged =
+                existingAssignees.length !== newAssignees.length ||
+                existingAssignees.some((id, i) => id !== newAssignees[i]);
+
+            if (!assigneesChanged) {
+                delete patch.assignees; // ignore if unchanged
+            } else {
+                if (assignedBy !== null && assignedBy !== currentUser) {
+                    throw new ForbiddenException(
+                        "You don't have permission to modify assignees",
+                    );
+                }
+
+                // Clear assigned_by if assignees cleared
+                if (newAssignees.length === 0) {
+                    patch.assigned_by = null;
+                }
+
+                // Set assigned_by if first time assigning
+                if (newAssignees.length > 0 && assignedBy === null) {
+                    patch.assigned_by = new mongoose.Types.ObjectId(
+                        currentUser,
+                    );
+                }
             }
+        }
 
-            if (isClearing) {
-                patch.assigned_by = null;
-            }
+        // --- DEADLINE LOGIC ---
+        if (patch.deadline !== undefined) {
+            const existingDeadline = existing.deadline
+                ? new Date(existing.deadline).getTime()
+                : null;
+            const newDeadline = patch.deadline
+                ? new Date(patch.deadline).getTime()
+                : null;
 
-            if (isAssigning && assignedBy === null) {
-                patch.assigned_by = new mongoose.Types.ObjectId(currentUser);
+            const deadlineChanged = existingDeadline !== newDeadline;
+
+            if (!deadlineChanged) {
+                delete patch.deadline; // ignore if unchanged
+            } else {
+                if (assignedBy !== null && assignedBy !== currentUser) {
+                    throw new ForbiddenException(
+                        "You don't have permission to modify deadline",
+                    );
+                }
             }
         }
 
@@ -515,6 +552,7 @@ export class TicketService {
 
         if (!updated)
             throw new InternalServerErrorException('Unable to update ticket');
+
         return { message: 'Updated the ticket successfully' };
     }
 

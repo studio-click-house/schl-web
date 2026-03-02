@@ -29,7 +29,7 @@ export function getTicketStatusBadgeClass(status: string): string {
             return 'bg-red-600 text-white border-red-600 me-0';
         case 'rejected':
             return 'bg-red-700 text-white border-red-700 me-0';
-        case 'resolved':
+        case 'finished':
             return 'bg-emerald-600 text-white border-emerald-600 me-0';
         default:
             return 'bg-gray-600 text-white border-gray-600 me-0';

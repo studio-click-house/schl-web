@@ -81,7 +81,7 @@ const EditButton: React.FC<PropsType> = props => {
                     const usersRaw = resp.data;
                     const valid = usersRaw.filter(u =>
                         hasPerm(
-                            'ticket:submit_work_update',
+                            'ticket:submit_daily_report',
                             u.role.permissions,
                         ),
                     );

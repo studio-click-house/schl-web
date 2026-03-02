@@ -3,10 +3,10 @@
 import { hasPerm } from '@repo/common/utils/permission-check';
 import { useSession } from 'next-auth/react';
 import React, { useMemo, useState } from 'react';
-import WorkUpdatesTable from './components/Table';
+import DailyReportsTable from './components/Table';
 import UserListPanel from './components/UserListPanel';
 
-const TicketsWorkUpdatesPage: React.FC = () => {
+const TicketsDailyReportsPage: React.FC = () => {
     const { data: session } = useSession();
 
     const userPermissions = useMemo(
@@ -30,11 +30,11 @@ const TicketsWorkUpdatesPage: React.FC = () => {
                     />
                 )}
                 <div className="flex-1 w-full">
-                    <WorkUpdatesTable selectedUser={selectedUser} />
+                    <DailyReportsTable selectedUser={selectedUser} />
                 </div>
             </div>
         </div>
     );
 };
 
-export default TicketsWorkUpdatesPage;
+export default TicketsDailyReportsPage;
