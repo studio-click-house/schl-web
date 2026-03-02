@@ -3,10 +3,10 @@ import mongoose, { HydratedDocument } from 'mongoose';
 import { Ticket } from './ticket.schema';
 import { User } from './user.schema';
 
-export type DailyUpdateDocument = HydratedDocument<DailyUpdate>;
+export type WorkUpdateDocument = HydratedDocument<WorkUpdate>;
 
-@Schema({ timestamps: true, collection: 'daily_updates' })
-export class DailyUpdate {
+@Schema({ timestamps: true, collection: 'work_updates' })
+export class WorkUpdate {
     // who added this work  / update
     @Prop({
         index: true,
@@ -32,8 +32,8 @@ export class DailyUpdate {
     readonly updatedAt: Date;
 }
 
-export const DailyUpdateSchema = SchemaFactory.createForClass(DailyUpdate);
+export const WorkUpdateSchema = SchemaFactory.createForClass(WorkUpdate);
 
 // index ticket reference for lookups and compound with submitter if required
-DailyUpdateSchema.index({ ticket: 1 });
-DailyUpdateSchema.index({ submitted_by: 1, createdAt: -1 });
+WorkUpdateSchema.index({ ticket: 1 });
+WorkUpdateSchema.index({ submitted_by: 1, createdAt: -1 });

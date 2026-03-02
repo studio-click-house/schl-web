@@ -1,13 +1,13 @@
-import { DailyUpdate } from '@repo/common/models/daily-update.schema';
+import { WorkUpdate } from '@repo/common/models/work-update.schema';
 import mongoose from 'mongoose';
-import { CreateDailyUpdateBodyDto } from '../dto/create-daily-update.dto';
+import { CreateWorkUpdateBodyDto } from '../dto/create-work-update.dto';
 
-export class DailyUpdateFactory {
+export class WorkUpdateFactory {
     static fromCreateDto(
-        dto: CreateDailyUpdateBodyDto,
+        dto: CreateWorkUpdateBodyDto,
         submittedBy: string,
-    ): Partial<DailyUpdate> {
-        const payload: Partial<DailyUpdate> = {
+    ): Partial<WorkUpdate> {
+        const payload: Partial<WorkUpdate> = {
             message: dto.message.trim(),
             submitted_by: new mongoose.Types.ObjectId(submittedBy),
         };
@@ -17,8 +17,8 @@ export class DailyUpdateFactory {
         return payload;
     }
 
-    static fromUpdateDto(dto: Partial<CreateDailyUpdateBodyDto>) {
-        const patch: Partial<CreateDailyUpdateBodyDto> = {};
+    static fromUpdateDto(dto: Partial<CreateWorkUpdateBodyDto>) {
+        const patch: Partial<CreateWorkUpdateBodyDto> = {};
         if (dto.message !== undefined) {
             patch.message = dto.message.trim();
         }

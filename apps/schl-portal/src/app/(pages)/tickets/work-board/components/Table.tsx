@@ -30,9 +30,9 @@ import {
     getTicketTypeBadgeClass,
 } from '../../all-tickets/components/ticket-badge.helper';
 import { TicketFormDataType, validationSchema } from '../../schema';
-import type { DailyUpdateFormData } from './daily-update-schema';
-import DailyUpdateModal from './DailyUpdateModal';
 import StatusEdit from './StatusEdit';
+import WorkUpdateModal from './work-update/FormModal';
+import type { WorkUpdateFormData } from './work-update/schema';
 
 interface TicketData extends TicketDocument {
     created_by_name?: string;
@@ -91,7 +91,7 @@ function Table() {
     );
 
     const canSubmit = useMemo(
-        () => hasPerm('ticket:submit_daily_work', userPermissions),
+        () => hasPerm('ticket:submit_work_update', userPermissions),
         [userPermissions],
     );
 
@@ -187,11 +187,11 @@ function Table() {
         }
     }, [isFiltered, getAllTickets, getAllTicketsFiltered, page, itemPerPage]);
 
-    const createDailyUpdate = async (data: DailyUpdateFormData) => {
+    const createWorkUpdate = async (data: WorkUpdateFormData) => {
         try {
             const body = { ...data }; // ticket may be undefined
             const response = await authedFetchApi<{ message: string }>(
-                { path: '/v1/daily-update/create-daily-update' },
+                { path: '/v1/work-update/create-work-update' },
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -288,7 +288,7 @@ function Table() {
                 )}
             >
                 {canSubmit && (
-                    <DailyUpdateModal submitHandler={createDailyUpdate} />
+                    <WorkUpdateModal submitHandler={createWorkUpdate} />
                 )}
 
                 <div className="items-center flex gap-2">
@@ -495,6 +495,14 @@ function Table() {
                                                         />
                                                     </Link>
                                                     {canSubmit &&
+                                                        ticket.assignees.some(
+                                                            a =>
+                                                                String(
+                                                                    a.db_id,
+                                                                ) ===
+                                                                session?.user
+                                                                    .db_id,
+                                                        ) &&
                                                         (!ticket.deadline ||
                                                             moment(
                                                                 ticket.deadline,
@@ -564,6 +572,12 @@ function Table() {
                                                                     name: string;
                                                                     e_id: string;
                                                                 }[],
+                                                                assigned_by:
+                                                                    ticket.assigned_by
+                                                                        ? String(
+                                                                              ticket.assigned_by,
+                                                                          )
+                                                                        : null,
                                                             }}
                                                         />
                                                     )}

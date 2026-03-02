@@ -15,6 +15,10 @@ export const validationSchema = z.object({
     status: z.enum(TICKET_STATUSES).default('pending'),
     priority: z.enum(TICKET_PRIORITIES).default('low'),
     deadline: z.string().optional(),
+    assigned_by: z
+        .string()
+        .refine(val => mongoose.Types.ObjectId.isValid(val))
+        .nullish(),
     assignees: z
         .array(
             z.object({

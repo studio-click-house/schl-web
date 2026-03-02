@@ -14,4 +14,4 @@ export const dailyUpdateSchema = z.object({
         ),
 });
 
-export type DailyUpdateFormData = z.infer<typeof dailyUpdateSchema>;
+export type WorkUpdateFormData = z.infer<typeof dailyUpdateSchema>;

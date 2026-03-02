@@ -20,6 +20,7 @@ import {
     setMenuPortalTarget,
 } from '@repo/common/utils/select-helpers';
 import { SquarePen, X } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import React, { useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import Select from 'react-select';
@@ -39,6 +40,8 @@ const EditButton: React.FC<PropsType> = props => {
     const [isOpen, setIsOpen] = useState<boolean>(false);
     const popupRef = useRef<HTMLElement>(null);
     const formRef = useRef<HTMLFormElement>(null);
+    const { data: session } = useSession();
+
     const [assigneeOptions, setAssigneeOptions] = useState<
         {
             label: string;
@@ -77,7 +80,10 @@ const EditButton: React.FC<PropsType> = props => {
                 if (resp.ok && resp.data) {
                     const usersRaw = resp.data;
                     const valid = usersRaw.filter(u =>
-                        hasPerm('ticket:submit_daily_work', u.role.permissions),
+                        hasPerm(
+                            'ticket:submit_work_update',
+                            u.role.permissions,
+                        ),
                     );
                     const options = valid.map(u => ({
                         label: `${u.employee.real_name} (${u.employee.e_id})`,
@@ -122,6 +128,7 @@ const EditButton: React.FC<PropsType> = props => {
         register,
         handleSubmit,
         control,
+        watch,
         reset,
         formState: { errors },
     } = useForm<TicketFormDataType>({
@@ -353,6 +360,11 @@ const EditButton: React.FC<PropsType> = props => {
                                         <span className="uppercase">
                                             Assignees
                                         </span>
+                                        {errors.assignees && (
+                                            <span className="text-red-700 text-wrap block text-xs">
+                                                {errors.assignees.message}
+                                            </span>
+                                        )}
                                     </label>
                                     <Controller
                                         name="assignees"
@@ -364,6 +376,12 @@ const EditButton: React.FC<PropsType> = props => {
                                                     !props.canReviewTicket,
                                                 )}
                                                 isMulti
+                                                isDisabled={
+                                                    props.ticketData.assigned_by?.toString() !==
+                                                        session?.user.db_id &&
+                                                    props.ticketData
+                                                        .assigned_by !== null
+                                                }
                                                 options={assigneeOptions}
                                                 closeMenuOnSelect={false}
                                                 placeholder="Select assignee(s)"
@@ -399,19 +417,26 @@ const EditButton: React.FC<PropsType> = props => {
                                     />
                                 </div>
 
-                                <div>
-                                    <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
-                                        <span className="uppercase">
-                                            Deadline
-                                        </span>
-                                    </label>
-                                    <input
-                                        {...register('deadline')}
-                                        type="datetime-local"
-                                        disabled={!props.canReviewTicket}
-                                        className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
-                                    />
-                                </div>
+                                {props.canReviewTicket && (
+                                    <div>
+                                        <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
+                                            <span className="uppercase">
+                                                Deadline
+                                            </span>
+                                        </label>
+                                        <input
+                                            {...register('deadline')}
+                                            type="datetime-local"
+                                            disabled={
+                                                props.ticketData.assigned_by?.toString() !==
+                                                    session?.user.db_id &&
+                                                props.ticketData.assigned_by !==
+                                                    null
+                                            }
+                                            className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
+                                        />
+                                    </div>
+                                )}
                             </div>
                         )}
 

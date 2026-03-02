@@ -4,7 +4,7 @@ import { IsMongoId, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 const trimString = ({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : value;
 
-export class CreateDailyUpdateBodyDto {
+export class CreateWorkUpdateBodyDto {
     @Transform(trimString)
     @IsString()
     @IsNotEmpty()

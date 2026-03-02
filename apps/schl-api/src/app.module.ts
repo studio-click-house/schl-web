@@ -9,7 +9,6 @@ import { JwtStrategy } from './common/auth/jwt.strategy';
 import { ApprovalModule } from './modules/approval/approval.module';
 import { AttendanceModule } from './modules/attendance/attendance.module';
 import { ClientModule } from './modules/client/client.module';
-import { DailyUpdateModule } from './modules/daily-update/daily-update.module';
 import { DeviceUserModule } from './modules/device-user/device-user.module';
 import { EmployeeModule } from './modules/employee/employee.module';
 import { FtpModule } from './modules/ftp/ftp.module';
@@ -23,6 +22,7 @@ import { TicketModule } from './modules/ticket/ticket.module';
 import { TrackerModule } from './modules/tracker/tracker.module';
 import { UserModule } from './modules/user/user.module';
 import { ValidatorModule } from './modules/validator/validator.module';
+import { WorkUpdateModule } from './modules/work-update/work-update.module';
 
 @Module({
     imports: [
@@ -55,7 +55,7 @@ import { ValidatorModule } from './modules/validator/validator.module';
         OrderModule,
         ValidatorModule,
         TicketModule,
-        DailyUpdateModule,
+        WorkUpdateModule,
         TrackerModule,
         AttendanceModule,
         DeviceUserModule,

@@ -22,7 +22,7 @@ import {
     createRegexQuery,
 } from '@repo/common/utils/filter-helpers';
 import { hasAnyPerm, hasPerm } from '@repo/common/utils/permission-check';
-import { Model, PipelineStage, Types } from 'mongoose';
+import mongoose, { Model, PipelineStage, Types } from 'mongoose';
 import { CreateTicketBodyDto } from './dto/create-ticket.dto';
 import { SearchTicketsBodyDto } from './dto/search-tickets.dto';
 import { TicketFactory } from './factories/ticket.factory';
@@ -383,7 +383,7 @@ export class TicketService {
                     [
                         'ticket:create_ticket',
                         'ticket:review_works',
-                        'ticket:submit_daily_work',
+                        'ticket:submit_work_update',
                     ],
                     userSession.permissions,
                 )
@@ -407,7 +407,7 @@ export class TicketService {
                 if (!hasPerm('ticket:review_works', userSession.permissions)) {
                     if (
                         !hasPerm(
-                            'ticket:submit_daily_work',
+                            'ticket:submit_work_update',
                             userSession.permissions,
                         )
                     ) {
@@ -467,30 +467,31 @@ export class TicketService {
         }
 
         // allow modifying assigned_by when needed
-        const patch = TicketFactory.fromUpdateDto(ticketData) as Partial<
-            Ticket & { assigned_by?: Types.ObjectId | null }
-        >;
+        const patch = TicketFactory.fromUpdateDto(ticketData);
         if (Object.keys(patch).length === 0) {
             throw new BadRequestException('No update fields provided');
         }
 
         // apply assignment logic when assignees list is changed
         if (patch.assignees !== undefined) {
-            // if assignees are explicitly cleared, also clear assigned_by
-            if (
-                Array.isArray(patch.assignees) &&
-                patch.assignees.length === 0
-            ) {
+            const assignedBy = existing.assigned_by?.toString() || null;
+            const currentUser = userSession.db_id;
+            const isArray = Array.isArray(patch.assignees);
+            const isClearing = isArray && patch.assignees.length === 0;
+            const isAssigning = isArray && patch.assignees.length > 0;
+
+            if (assignedBy !== null && assignedBy !== currentUser) {
+                throw new ForbiddenException(
+                    "You don't have permission to modify assignees",
+                );
+            }
+
+            if (isClearing) {
                 patch.assigned_by = null;
-            } else {
-                // for any non-empty assignment change, record the current user
-                // unless they are already the one who assigned it
-                if (
-                    !existing.assigned_by ||
-                    existing.assigned_by.toString() !== userSession.db_id
-                ) {
-                    patch.assigned_by = new Types.ObjectId(userSession.db_id);
-                }
+            }
+
+            if (isAssigning && assignedBy === null) {
+                patch.assigned_by = new mongoose.Types.ObjectId(currentUser);
             }
         }
 
@@ -511,7 +512,7 @@ export class TicketService {
         if (!existing) throw new NotFoundException('Ticket not found');
 
         if (
-            !hasPerm('ticket:review_works', userSession.permissions) &&
+            !hasPerm('ticket:delete_ticket', userSession.permissions) &&
             existing.created_by.toString() !== userSession.db_id
         ) {
             throw new ForbiddenException(

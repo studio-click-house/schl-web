@@ -3,19 +3,16 @@
 import { Trash2, X } from 'lucide-react';
 import React, { useState } from 'react';
 
-type DeleteTicketData = {
+type WorkUpdateData = {
     _id: string;
 };
 
 interface PropsType {
-    ticketData: DeleteTicketData;
-    submitHandler: (ticketData: DeleteTicketData) => Promise<void>;
-    /** custom header text shown in confirmation dialog */
-    title?: string;
+    workUpdateData: WorkUpdateData;
+    submitHandler: (workUpdateData: WorkUpdateData) => Promise<void>;
 }
 const DeleteButton: React.FC<PropsType> = props => {
     const [isOpen, setIsOpen] = useState<boolean>(false);
-    const headerText = props.title || 'Delete Ticket';
 
     return (
         <>
@@ -36,7 +33,7 @@ const DeleteButton: React.FC<PropsType> = props => {
                 >
                     <header className="flex items-center align-middle justify-between px-4 py-2 border-b rounded-t">
                         <h3 className="text-gray-900 text-base lg:text-lg font-semibold  uppercase">
-                            {headerText}
+                            Delete Work Update
                         </h3>
                         <button
                             onClick={() => setIsOpen(false)}
@@ -48,7 +45,7 @@ const DeleteButton: React.FC<PropsType> = props => {
                     </header>
                     <div className="overflow-hidden max-h-[70vh] p-4">
                         <p className="text-base">
-                            Are you sure you want to delete this ticket?
+                            Are you sure you want to delete this work update?
                         </p>
                     </div>
                     <footer className="flex space-x-2 items-center px-4 py-2 border-t justify-end border-gray-200 rounded-b">
@@ -61,7 +58,7 @@ const DeleteButton: React.FC<PropsType> = props => {
                         </button>
                         <button
                             onClick={() => {
-                                props.submitHandler(props.ticketData);
+                                props.submitHandler(props.workUpdateData);
                                 setIsOpen(false);
                             }}
                             className="rounded-md bg-red-600 text-white  hover:opacity-90 hover:ring-2 hover:ring-red-600 transition duration-200 delay-300 hover:text-opacity-100 px-4 py-1"

@@ -553,7 +553,7 @@ const Sidebar: React.FC<PropsType> = props => {
                     {hasAny([
                         'ticket:create_ticket',
                         'ticket:review_works',
-                        'ticket:submit_daily_work',
+                        'ticket:submit_work_update',
                     ]) && (
                         <>
                             <span
@@ -603,7 +603,7 @@ const Sidebar: React.FC<PropsType> = props => {
                                     </li>
                                 )}
                                 {hasAny([
-                                    'ticket:submit_daily_work',
+                                    'ticket:submit_work_update',
                                     'ticket:review_works',
                                 ]) && (
                                     <li>
@@ -613,6 +613,20 @@ const Sidebar: React.FC<PropsType> = props => {
                                         >
                                             <ClipboardList className="w-6 h-6 mr-2" />
                                             Work Board
+                                        </Link>
+                                    </li>
+                                )}
+                                {hasAny([
+                                    'ticket:review_works',
+                                    'ticket:submit_work_update',
+                                ]) && (
+                                    <li>
+                                        <Link
+                                            href="/tickets/work-updates"
+                                            className="flex items-center w-full p-2 text-gray-900 transition duration-75 pl-11 group hover:bg-gray-100"
+                                        >
+                                            <ClipboardList className="w-6 h-6 mr-2" />
+                                            Work Updates
                                         </Link>
                                     </li>
                                 )}

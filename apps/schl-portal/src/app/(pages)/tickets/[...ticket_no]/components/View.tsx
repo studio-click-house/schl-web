@@ -119,7 +119,7 @@ const ViewTicket: React.FC<ViewTicketProps> = props => {
     );
 
     const canSubmitWork = useMemo(
-        () => hasPerm('ticket:submit_daily_work', userPermissions),
+        () => hasPerm('ticket:submit_work_update', userPermissions),
         [userPermissions],
     );
 

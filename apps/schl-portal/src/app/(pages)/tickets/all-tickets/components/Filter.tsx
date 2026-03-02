@@ -126,7 +126,7 @@ export default function FilterButton(props: PropsType) {
                         : resp.data.items || [];
                     const valid = (usersRaw as any[]).filter(u =>
                         hasPerm(
-                            'ticket:submit_daily_work',
+                            'ticket:submit_work_update',
                             u.role?.permissions || [],
                         ),
                     );

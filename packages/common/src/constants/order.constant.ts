@@ -20,9 +20,8 @@ export const typeOptions = [
     { value: 'general', label: 'General' },
     { value: 'test', label: 'Test' },
     { value: 'pending', label: 'Pending' },
-    { value: 'qc', label: 'QC' },
 ];
-export const ORDER_TYPES = ['general', 'test', 'pending', 'qc'] as const;
+export const ORDER_TYPES = ['general', 'test', 'pending'] as const;
 export type OrderType = (typeof ORDER_TYPES)[number];
 
 export const priorityOptions = [
