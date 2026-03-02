@@ -444,6 +444,8 @@ export class OrderService {
 
         const updateDoc = OrderFactory.fromUpdateDto(orderData, userSession);
 
+        console.log('UpdateDoc before QC check:', updateDoc);
+
         // if production becomes equal to quantity on this update, mark type as qc
         // regardless of what it was before. this mirrors the wait‑for‑qc filter
         const nextQuantity =
@@ -461,10 +463,13 @@ export class OrderService {
 
         if (
             nextProduction === nextQuantity &&
-            !['finished', 'correction'].includes(nextStatus)
+            !['finished', 'correction'].includes(nextStatus) &&
+            !['test', 'qc'].includes(existing.type)
         ) {
             updateDoc.type = 'qc';
         }
+
+        console.log('UpdateDoc after QC check:', updateDoc, updateDoc.type);
 
         const keys = Object.keys(updateDoc).filter(k => k !== 'updated_by');
         if (keys.length === 0) {
@@ -993,8 +998,8 @@ export class OrderService {
             {
                 $match: {
                     status: { $nin: ['finished', 'correction'] },
-                    type: { $ne: 'test' },
-                    $expr: { $eq: ['$production', '$quantity'] },
+                    type: { $ne: 'test', $eq: 'qc' },
+                    // $expr: { $eq: ['$production', '$quantity'] },
                 },
             },
         ];
