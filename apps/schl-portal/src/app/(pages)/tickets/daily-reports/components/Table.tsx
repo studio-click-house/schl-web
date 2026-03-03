@@ -68,7 +68,7 @@ const DailyReportsTable: React.FC<Props> = ({ selectedUser }) => {
     );
 
     const canVerifyDailyReport = useMemo(
-        () => userPermissions.includes('ticket:review_works'),
+        () => userPermissions.includes('ticket:review_reports'),
         [userPermissions],
     );
 

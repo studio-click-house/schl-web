@@ -12,8 +12,9 @@ import type { FullyPopulatedUser } from '@repo/common/types/populated-user.type'
 import { localDateTimeToISO } from '@repo/common/utils/date-helpers';
 import { hasPerm } from '@repo/common/utils/permission-check';
 import { setMenuPortalTarget } from '@repo/common/utils/select-helpers';
+import { CheckCircle, CloudUpload, Loader2 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import Select from 'react-select';
 import { toast } from 'sonner';
@@ -32,9 +33,13 @@ const Form: React.FC = () => {
     >([]);
 
     const canReviewTicket = useMemo(
-        () => hasPerm('ticket:review_works', session?.user.permissions || []),
+        () => hasPerm('ticket:review_tickets', session?.user.permissions || []),
         [session?.user.permissions],
     );
+
+    const [file, setFile] = useState<File | null>(null);
+    const [uploading, setUploading] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (!canReviewTicket) return;
@@ -82,14 +87,28 @@ const Form: React.FC = () => {
     }, [authedFetchApi, canReviewTicket]);
 
     const newStatusOption = useMemo(
-        () => statusOptions.find(option => option.value === 'pending') || null,
+        () => statusOptions.find(option => option.value === 'in-review') || null,
         [],
     );
+
+
+    const constructFileName = (file: File, ticket_no: string) => {
+        const file_name = file.name;
+        const file_ext = file_name.split('.').pop();
+        const file_name_without_ext = file_name
+            .split('.')
+            .slice(0, -1)
+            .join('.');
+        const ticket_no_sliced = ticket_no.replace('SCHL-', '');
+        const new_file_name = `${file_name_without_ext}_${ticket_no_sliced}.${file_ext}`;
+        return new_file_name;
+    };
 
     const {
         register,
         handleSubmit,
         control,
+        setValue,
         reset,
         formState: { errors },
     } = useForm<TicketFormDataType>({
@@ -97,10 +116,11 @@ const Form: React.FC = () => {
         defaultValues: {
             title: '',
             description: '',
-            type: 'bug',
-            status: 'pending',
+            type: 'complaint',
+            status: 'in-review',
             priority: 'low',
-            deadline: undefined,
+            deadline: null,
+            file_name: null,
             assignees: [],
         },
     });
@@ -121,7 +141,7 @@ const Form: React.FC = () => {
 
             const payload = {
                 ...rest,
-                deadline: localDateTimeToISO(rest.deadline),
+                deadline: rest.deadline ? localDateTimeToISO(rest.deadline) : null,
             };
 
             const response = await authedFetchApi(
@@ -137,15 +157,37 @@ const Form: React.FC = () => {
 
             if (response.ok) {
                 toast.success('Created new ticket successfully');
-                reset({
-                    title: '',
-                    description: '',
-                    type: 'bug',
-                    status: 'pending',
-                    priority: 'low',
-                    deadline: undefined,
-                    assignees: [],
-                });
+                const ticket = response.data as { ticket_no: string };
+
+                if (file) {
+                    const formData = new FormData();
+                    formData.append(
+                        'file',
+                        file,
+                        constructFileName(file, ticket.ticket_no),
+                    );
+
+                    const ftp_response = await authedFetchApi(
+                        {
+                            path: '/v1/ftp/upload',
+                            query: { folderName: 'ticket' },
+                        },
+                        {
+                            method: 'POST',
+                            body: formData,
+                        },
+                    );
+
+                    if (!ftp_response.ok) {
+                        toastFetchError(ftp_response);
+                        return;
+                    }
+
+                    toast.success('Attached file saved successfully in ftp');
+                }
+                reset();
+                setFile(null);
+
                 setEditorResetKey(prev => prev + 1);
             } else {
                 toastFetchError(response);
@@ -161,6 +203,63 @@ const Form: React.FC = () => {
     const onSubmit = async (data: TicketFormDataType) => {
         await createTicket(data);
     };
+
+
+    const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+            const allowedExtensions =
+                /\.(xls|xlsx|doc|docx|ppt|pptx|txt|pdf|zip|7z|rar)$/i;
+            const selectedFile = e.target.files?.[0];
+    
+            if (selectedFile && allowedExtensions.test(selectedFile.name)) {
+                setValue('file_name', selectedFile.name);
+                setUploading(true);
+                // Simulate a brief upload delay for UX
+                setTimeout(() => {
+                    setFile(selectedFile);
+                    setUploading(false);
+                }, 1000);
+            } else {
+                toast.error('Invalid file format');
+                setFile(null);
+            }
+    };
+    
+    // Drag and Drop Handlers
+    const handleDragOver = (e: React.DragEvent<HTMLLabelElement>) => {
+        e.preventDefault();
+    };
+
+    const handleDrop = (e: React.DragEvent<HTMLLabelElement>) => {
+        e.preventDefault();
+        const allowedExtensions =
+            /\.(xls|xlsx|doc|docx|ppt|pptx|txt|pdf|zip|7z|rar)$/i;
+        const droppedFiles = e.dataTransfer.files;
+        if (droppedFiles && droppedFiles.length > 0) {
+            const selectedFile = droppedFiles[0];
+            if (selectedFile && allowedExtensions.test(selectedFile.name)) {
+                setValue('file_name', selectedFile.name);
+                setUploading(true);
+                // Simulate a brief upload delay for UX
+                setTimeout(() => {
+                    setFile(selectedFile);
+                    setUploading(false);
+                }, 1000);
+            } else {
+                toast.error('Invalid file format');
+                setFile(null);
+            }
+            e.dataTransfer.clearData();
+        }
+    };
+
+    const clearFile = () => {
+        setFile(null);
+        setValue('file_name', '');
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    };
+
 
     return (
         <form onSubmit={handleSubmit(onSubmit)}>
@@ -209,13 +308,10 @@ const Form: React.FC = () => {
                                 placeholder="Ticket status"
                                 classNamePrefix="react-select"
                                 menuPortalTarget={setMenuPortalTarget}
-                                value={
-                                    canReviewTicket
-                                        ? statusOptions.find(
+                                value={statusOptions.find(
                                               option =>
                                                   option.value === field.value,
                                           ) || null
-                                        : newStatusOption
                                 }
                                 onChange={option =>
                                     field.onChange(option?.value || '')
@@ -345,6 +441,73 @@ const Form: React.FC = () => {
                     )}
                 />
             </div>
+                    <div>
+                        <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
+                            <span className="uppercase">Attach file</span>
+                        </label>
+        
+                        <div className="flex items-center justify-center w-full">
+                            <label
+                                htmlFor="dropzone-file"
+                                onDragOver={handleDragOver}
+                                onDrop={handleDrop}
+                                className="flex flex-col items-center justify-center w-full h-64 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100"
+                            >
+                                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                    {uploading ? (
+                                        <Loader2
+                                            size={32}
+                                            className="animate-spin text-blue-500 mb-4"
+                                        />
+                                    ) : file ? (
+                                        <CheckCircle
+                                            size={32}
+                                            className="text-green-500 mb-4"
+                                        />
+                                    ) : (
+                                        <CloudUpload
+                                            size={32}
+                                            className="w-10 h-10 mb-4 text-gray-500"
+                                        />
+                                    )}
+                                    <p className="mb-2 text-sm text-gray-500">
+                                        {uploading ? (
+                                            'Uploading...'
+                                        ) : file ? (
+                                            <span className="animate-fade-in">
+                                                {file.name}
+                                            </span>
+                                        ) : (
+                                            <span className="font-semibold">
+                                                Click to upload or drag and drop
+                                            </span>
+                                        )}
+                                    </p>
+                                    <p className="text-xs text-gray-500">
+                                        ( XLS, XLSX, DOC, DOCX, PPT, PPTX, TXT, PDF,
+                                        ZIP, 7Z, RAR )
+                                    </p>
+                                </div>
+                                <input
+                                    ref={fileInputRef}
+                                    id="dropzone-file"
+                                    type="file"
+                                    className="hidden"
+                                    accept=".xls,.xlsx,.doc,.docx,.ppt,.pptx,.txt,.pdf,.zip,.7z,.rar"
+                                    onChange={handleFileInput}
+                                />
+                            </label>
+                        </div>
+                        {file && !uploading && (
+                            <button
+                                type="button"
+                                onClick={clearFile}
+                                className="mt-2 text-sm text-red-600 hover:text-red-800"
+                            >
+                                Clear file
+                            </button>
+                        )}
+                    </div>
 
             <button
                 disabled={loading}

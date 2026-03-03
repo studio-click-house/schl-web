@@ -552,7 +552,8 @@ const Sidebar: React.FC<PropsType> = props => {
 
                     {hasAny([
                         'ticket:create_ticket',
-                        'ticket:review_works',
+                        'ticket:review_reports',
+                        'ticket:review_tickets',
                         'ticket:submit_daily_report',
                     ]) && (
                         <>
@@ -590,7 +591,7 @@ const Sidebar: React.FC<PropsType> = props => {
 
                                 {hasAny([
                                     'ticket:create_ticket',
-                                    'ticket:review_works',
+                                    'ticket:review_tickets',
                                 ]) && (
                                     <li>
                                         <Link
@@ -604,20 +605,19 @@ const Sidebar: React.FC<PropsType> = props => {
                                 )}
                                 {hasAny([
                                     'ticket:submit_daily_report',
-                                    'ticket:review_works',
                                 ]) && (
                                     <li>
                                         <Link
-                                            href="/tickets/work-board"
+                                            href="/tickets/pending-jobs"
                                             className="flex items-center w-full p-2 text-gray-900 transition duration-75 pl-11 group hover:bg-gray-100"
                                         >
                                             <ClipboardList className="w-6 h-6 mr-2" />
-                                            Work Board
+                                            Pending Jobs
                                         </Link>
                                     </li>
                                 )}
                                 {hasAny([
-                                    'ticket:review_works',
+                                    'ticket:review_reports',
                                     'ticket:submit_daily_report',
                                 ]) && (
                                     <li>

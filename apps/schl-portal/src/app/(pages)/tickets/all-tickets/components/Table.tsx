@@ -63,7 +63,7 @@ const Table = () => {
         [session?.user.permissions],
     );
     const canReviewTicket = useMemo(
-        () => hasPerm('ticket:review_works', userPermissions),
+        () => hasPerm('ticket:review_tickets', userPermissions),
         [userPermissions],
     );
 
@@ -330,7 +330,7 @@ const Table = () => {
                 {!loading &&
                     (tickets?.items?.length !== 0 ? (
                         <table className="table table-bordered table-striped min-w-full">
-                            {/* match work-board column widths */}
+                            {/* match pending-jobs column widths */}
                             <colgroup>
                                 <col className="min-w-[40px]" />
                                 <col className="whitespace-nowrap min-w-[120px]" />
@@ -389,11 +389,24 @@ const Table = () => {
                                         'ticket:create_ticket',
                                         userPermissions,
                                     );
-                                    const canEdit =
+
+                                    /*
+                                    if user has create ticket permission he can edit all tickets that are not closed
+                                    */
+                                    const canEditUsual =
                                         canManage &&
                                         !CLOSED_TICKET_STATUSES.includes(
                                             ticket.status,
                                         );
+                                    /*
+                                    if user has review ticket permission he can edit all tickets despite closed status expect the tickets where the ticket is assigned by him
+                                    */
+                                    const canEdit = canEditUsual
+                                        ? true
+                                        : canReviewTicket &&
+                                          String(ticket.assigned_by) ===
+                                              session?.user.db_id;
+
                                     const canDeleteTicket = hasPerm(
                                         'ticket:delete_ticket',
                                         userPermissions,
@@ -528,8 +541,9 @@ const Table = () => {
                                                             />
                                                         </Link>
 
-                                                        {(canEdit ||
-                                                            canReviewTicket) && (
+                                                        {(
+                                                            canEdit
+                                                        ) && (
                                                             <EditButton
                                                                 isLoading={
                                                                     loading

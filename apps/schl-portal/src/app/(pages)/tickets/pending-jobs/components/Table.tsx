@@ -22,14 +22,13 @@ import Link from 'next/link';
 import { useRouter } from 'nextjs-toploader/app';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import EditButton from '../../all-tickets/components/Edit';
-import FilterButton from '../../all-tickets/components/Filter';
 import {
     getTicketPriorityBadgeClass,
     getTicketStatusBadgeClass,
     getTicketTypeBadgeClass,
 } from '../../all-tickets/components/ticket-badge.helper';
 import { TicketFormDataType, validationSchema } from '../../schema';
+import FilterButton from './Filter';
 import StatusEdit from './StatusEdit';
 import DailyReportModal from './daily-report/FormModal';
 import type { DailyReportFormData } from './daily-report/schema';
@@ -74,26 +73,7 @@ function Table() {
         toDate: '',
         deadlineStatus: '',
         createdBy: '',
-        assignees: [] as string[],
-        excludeClosed: true,
     });
-
-    const userPermissions = useMemo(
-        () => session?.user.permissions || [],
-        [session?.user.permissions],
-    );
-
-    const router = useRouter();
-
-    const canReviewTicket = useMemo(
-        () => hasPerm('ticket:review_works', userPermissions),
-        [userPermissions],
-    );
-
-    const canSubmit = useMemo(
-        () => hasPerm('ticket:submit_daily_report', userPermissions),
-        [userPermissions],
-    );
 
     const getAllTickets = useCallback(
         async (page: number, itemPerPage: number) => {
@@ -111,11 +91,9 @@ function Table() {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            assignees: !canReviewTicket
-                                ? [session?.user.db_id || '']
-                                : [],
                             excludeClosed: true,
                             includeUnassigned: true,
+                            excludeInReview: true,
                         }),
                     },
                 );
@@ -134,7 +112,7 @@ function Table() {
                 setLoading(false);
             }
         },
-        [authedFetchApi, session?.user.db_id, canReviewTicket],
+        [authedFetchApi, session?.user.db_id],
     );
 
     const getAllTicketsFiltered = useCallback(
@@ -154,11 +132,9 @@ function Table() {
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             ...filters,
-                            assignees: !canReviewTicket
-                                ? [session?.user.db_id || '']
-                                : filters.assignees,
                             excludeClosed: true,
                             includeUnassigned: true,
+                            excludeInReview: true,
                         }),
                     },
                 );
@@ -178,7 +154,7 @@ function Table() {
             }
             return;
         },
-        [authedFetchApi, filters, session?.user.db_id, canReviewTicket],
+        [authedFetchApi, filters, session?.user.db_id],
     );
 
     const fetchTickets = useCallback(async () => {
@@ -283,15 +259,12 @@ function Table() {
         <>
             <div
                 className={cn(
-                    'flex flex-col mb-4 gap-2',
-                    canSubmit
-                        ? 'sm:flex-row sm:justify-between'
-                        : 'sm:justify-end sm:flex-row',
+                    'flex flex-col mb-4 gap-2 sm:flex-row sm:justify-between'
                 )}
             >
-                {canSubmit && (
+            
                     <DailyReportModal submitHandler={createDailyReport} />
-                )}
+            
 
                 <div className="items-center flex gap-2">
                     <Pagination
@@ -319,8 +292,6 @@ function Table() {
                         submitHandler={handleSearch}
                         setFilters={setFilters}
                         filters={filters}
-                        canReviewTicket={canReviewTicket}
-                        hideCreator={true}
                         className="w-full justify-between sm:w-auto"
                     />
                 </div>
@@ -337,9 +308,7 @@ function Table() {
                                 <col className="whitespace-nowrap min-w-[120px]" />
                                 <col className="whitespace-nowrap min-w-[120px]" />
                                 <col className="whitespace-nowrap min-w-[150px]" />
-                                {canReviewTicket && (
-                                    <col className="whitespace-nowrap min-w-[150px]" />
-                                )}
+                                <col className="whitespace-nowrap min-w-[150px]" />
                                 <col className="whitespace-nowrap min-w-[150px]" />
                                 <col className="min-w-[300px]" />
                                 <col className="whitespace-nowrap min-w-[100px]" />
@@ -352,16 +321,14 @@ function Table() {
                                     <th className="whitespace-nowrap">S/N</th>
                                     <th className="whitespace-nowrap">Date</th>
                                     <th className="whitespace-nowrap">
+                                        Created By
+                                    </th>
+                                    <th className="whitespace-nowrap">
                                         Ticket No
                                     </th>
                                     <th className="whitespace-nowrap">
                                         Assigned By
                                     </th>
-                                    {canReviewTicket && (
-                                        <th className="whitespace-nowrap">
-                                            Assigned To
-                                        </th>
-                                    )}
 
                                     <th className="whitespace-nowrap">
                                         Deadline
@@ -410,19 +377,6 @@ function Table() {
                                                 ? ticket.assigned_by_name
                                                 : 'N/A'}
                                         </td>
-                                        {canReviewTicket && (
-                                            <td className="text-balance">
-                                                {ticket.assignees &&
-                                                ticket.assignees.length > 0
-                                                    ? ticket.assignees
-                                                          .map(
-                                                              assignee =>
-                                                                  assignee.name,
-                                                          )
-                                                          .join(', ')
-                                                    : 'N/A'}
-                                            </td>
-                                        )}
                                         <td className="whitespace-nowrap">
                                             {ticket.deadline
                                                 ? `${formatDate(ticket.deadline)} | ${formatTime(
@@ -497,8 +451,7 @@ function Table() {
                                                             size={16}
                                                         />
                                                     </Link>
-                                                    {canSubmit &&
-                                                        ticket.assignees.some(
+                                                    {ticket.assignees.some(
                                                             a =>
                                                                 String(
                                                                     a.db_id,
@@ -524,66 +477,6 @@ function Table() {
                                                                 }
                                                             />
                                                         )}
-                                                    {canReviewTicket && (
-                                                        <EditButton
-                                                            isLoading={loading}
-                                                            canReviewTicket={
-                                                                canReviewTicket
-                                                            }
-                                                            submitHandler={
-                                                                editTicket
-                                                            }
-                                                            ticketData={{
-                                                                _id: String(
-                                                                    ticket._id,
-                                                                ),
-                                                                title: ticket.title,
-                                                                description:
-                                                                    ticket.description,
-                                                                type: ticket.type,
-                                                                status: ticket.status,
-                                                                priority:
-                                                                    ticket.priority,
-                                                                deadline:
-                                                                    ticket.deadline
-                                                                        ? typeof ticket.deadline ===
-                                                                          'string'
-                                                                            ? ticket.deadline
-                                                                            : ticket.deadline.toISOString()
-                                                                        : undefined,
-                                                                assignees: (
-                                                                    ticket.assignees ||
-                                                                    []
-                                                                )
-                                                                    .map(a => {
-                                                                        const id =
-                                                                            a.db_id;
-                                                                        if (!id)
-                                                                            return null;
-                                                                        return {
-                                                                            db_id: String(
-                                                                                id,
-                                                                            ),
-                                                                            name: a.name,
-                                                                            e_id: a.e_id,
-                                                                        };
-                                                                    })
-                                                                    .filter(
-                                                                        Boolean,
-                                                                    ) as {
-                                                                    db_id: string;
-                                                                    name: string;
-                                                                    e_id: string;
-                                                                }[],
-                                                                assigned_by:
-                                                                    ticket.assigned_by
-                                                                        ? String(
-                                                                              ticket.assigned_by,
-                                                                          )
-                                                                        : null,
-                                                            }}
-                                                        />
-                                                    )}
                                                 </div>
                                             </div>
                                         </td>
@@ -592,7 +485,7 @@ function Table() {
                             </tbody>
                         </table>
                     ) : (
-                        <NoData text="No Tickets Found" type={Type.danger} />
+                        <NoData text="No Jobs Found" type={Type.danger} />
                     ))}
             </div>
             <style jsx>

@@ -130,8 +130,8 @@ export const authorizedRoutes: AuthorizedRoute[] = [
                 permissions: ['ticket:create_ticket', 'ticket:review_works'],
             },
             {
-                href: '/tickets/work-board',
-                label: 'Work Board',
+                href: '/tickets/pending-jobs',
+                label: 'Pending Jobs',
                 permissions: [
                     'ticket:submit_daily_report',
                     'ticket:review_works',

@@ -9,7 +9,7 @@ type DeleteTicketData = {
 
 interface PropsType {
     ticketData: DeleteTicketData;
-    submitHandler: (ticketData: DeleteTicketData) => Promise<void>;
+    submitHandler: (ticketData: DeleteTicketData) => Promise<void>
     /** custom header text shown in confirmation dialog */
     title?: string;
 }

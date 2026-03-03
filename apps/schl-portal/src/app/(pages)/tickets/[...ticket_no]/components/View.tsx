@@ -2,12 +2,13 @@
 
 import Badge from '@/components/Badge';
 import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
-import { TicketDocument } from '@repo/common/models/ticket.schema';
+import { Ticket, TicketDocument } from '@repo/common/models/ticket.schema';
 import {
     formatDate,
     formatTime,
     formatTimestamp,
 } from '@repo/common/utils/date-helpers';
+import { constructFileName } from '@repo/common/utils/general-utils';
 import { hasPerm } from '@repo/common/utils/permission-check';
 import createDOMPurify from 'dompurify';
 import parse, {
@@ -38,7 +39,7 @@ interface ViewTicketProps {
     ticket_no: string;
 }
 
-interface TicketData extends TicketDocument {
+interface TicketData extends Ticket {
     created_by_name?: string;
     assigned_by_name?: string;
 }
@@ -190,6 +191,55 @@ const ViewTicket: React.FC<ViewTicketProps> = props => {
         }
     }, [authedFetchApi, ticket_no]);
 
+
+
+    const handleFileDownload = async () => {
+        if (!ticket || !ticket.file_name) {
+            return;
+        }
+
+        try {
+            const response = await authedFetchApi<Blob>(
+                {
+                    path: '/v1/ftp/download',
+                    query: {
+                        folderName: 'ticket',
+                        fileName: constructFileName(
+                            ticket.ticket_number,
+                            ticket.file_name,
+                        ),
+                    },
+                },
+                {
+                    method: 'GET',
+                },
+            );
+
+            if (!response.ok) {
+                toastFetchError(response, 'Error downloading the file');
+                return;
+            }
+
+            const blob = response.data;
+            if (!(blob instanceof Blob)) {
+                toast.error('Unexpected file response');
+                return;
+            }
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const anchor = document.createElement('a');
+            anchor.href = downloadUrl;
+            anchor.download = ticket.file_name;
+            document.body.appendChild(anchor);
+            anchor.click();
+            window.URL.revokeObjectURL(downloadUrl);
+            anchor.remove();
+        } catch (error) {
+            console.error(error);
+            toast.error('An error occurred while downloading the file');
+        }
+    };
+
+    
     useEffect(() => {
         if (!ticket_no) {
             setIsLoading(false);
@@ -287,6 +337,21 @@ const ViewTicket: React.FC<ViewTicketProps> = props => {
                                     sanitizeHtml(ticket.description),
                                     options,
                                 )}
+
+                                                    {ticket.file_name && (
+                        <div className="file-download text-lg font-semibold font-sans">
+                            <span className="font-semibold">Downloads: </span>{' '}
+                            <span
+                                onClick={handleFileDownload}
+                                className="underline font-mono downloadable-file hover:cursor-pointer has-tooltip"
+                            >
+                                {ticket.file_name}
+                                <span className="tooltip italic font-medium rounded-md text-xs shadow-lg p-1 px-2 bg-gray-100 ml-2">
+                                    Click to download
+                                </span>
+                            </span>
+                        </div>
+                    )}
                             </div>
                         </div>
                     </div>

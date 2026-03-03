@@ -15,7 +15,7 @@ const TicketsDailyReportsPage: React.FC = () => {
     );
 
     const [selectedUser, setSelectedUser] = useState<string>(
-        hasPerm('ticket:review_works', userPermissions)
+        hasPerm('ticket:review_reports', userPermissions)
             ? ''
             : session?.user.db_id || '',
     );
@@ -23,7 +23,7 @@ const TicketsDailyReportsPage: React.FC = () => {
     return (
         <div className="px-4 mt-8 mb-4">
             <div className="flex gap-4 items-start">
-                {hasPerm('ticket:review_works', userPermissions) && (
+                {hasPerm('ticket:review_reports', userPermissions) && (
                     <UserListPanel
                         selectedUser={selectedUser}
                         onSelect={setSelectedUser}

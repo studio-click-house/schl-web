@@ -43,7 +43,7 @@ export default function DailyReportModal(props: PropsType) {
         resolver: zodResolver(dailyUpdateSchema),
         defaultValues: {
             message: '',
-            ticket: undefined,
+            ticket: null,
         },
     });
 
@@ -107,7 +107,7 @@ export default function DailyReportModal(props: PropsType) {
     };
 
     const handleResetForm = () => {
-        reset({ message: '', ticket: undefined });
+        reset({ message: '', ticket: null });
     };
 
     return (

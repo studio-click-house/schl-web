@@ -19,9 +19,9 @@ export function getTicketTypeBadgeClass(type: string): string {
 
 export function getTicketStatusBadgeClass(status: string): string {
     switch (status) {
-        case 'pending':
+        case 'in-review':
             return 'bg-slate-600 text-white border-slate-600 me-0';
-        case 'reviewed':
+        case 'pending':
             return 'bg-orange-600 text-white border-orange-600 me-0';
         case 'in-progress':
             return 'bg-amber-600 text-white border-amber-600 me-0';

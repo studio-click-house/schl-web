@@ -109,4 +109,10 @@ export class SearchTicketsBodyDto {
     @IsOptional()
     @IsBoolean()
     excludeClosed?: boolean;
+
+    // when true, excludes tickets whose status is 'in-review'
+    @Transform(({ value }) => toBoolean(value, false))
+    @IsOptional()
+    @IsBoolean()
+    excludeInReview?: boolean;
 }

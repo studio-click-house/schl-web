@@ -164,6 +164,8 @@ export class TicketService {
             createdBy,
             assignees,
             excludeClosed,
+            includeUnassigned,
+            excludeInReview,
         } = filters;
 
         const normalizedFromDate: string | undefined =
@@ -174,7 +176,7 @@ export class TicketService {
             ticket_number?: ReturnType<typeof createRegexQuery>;
             title?: ReturnType<typeof createRegexQuery>;
             type?: string;
-            status?: string;
+            status?: string | Record<string, any>;
             priority?: string;
             createdAt?: { $gte?: Date; $lte?: Date };
             created_by?: Types.ObjectId;
@@ -221,7 +223,18 @@ export class TicketService {
 
         if (excludeClosed) {
             // this can stay at root since it will be ANDed with other root-level keys
-            query.status = { $nin: CLOSED_TICKET_STATUSES } as any;
+            query.status = { $nin: CLOSED_TICKET_STATUSES };
+        }
+
+        if (excludeInReview) {
+            const currentStatus =
+                query.status && typeof query.status === 'object'
+                    ? query.status
+                    : {};
+            query.status = {
+                ...currentStatus,
+                $ne: 'in-review',
+            };
         }
 
         if (createdBy) {
@@ -243,7 +256,7 @@ export class TicketService {
         console.log(
             'This is the assignees filter: ',
             assignees,
-            filters.includeUnassigned,
+            includeUnassigned,
         );
 
         // assignee filter: any ticket whose assignees array includes one of the
@@ -254,7 +267,7 @@ export class TicketService {
                 ids.push(new Types.ObjectId(id));
             }
             const orClauses: any[] = [{ 'assignees.db_id': { $in: ids } }];
-            if (filters.includeUnassigned) {
+            if (includeUnassigned) {
                 orClauses.push({ assignees: { $size: 0 } });
             }
             const clause = { $or: orClauses };
@@ -470,7 +483,6 @@ export class TicketService {
             throw new NotFoundException('Ticket not found');
         }
 
-        // Only owner or reviewer may update the ticket
         if (
             !hasPerm('ticket:review_works', userSession.permissions) &&
             existing.created_by.toString() !== userSession.db_id
@@ -488,59 +500,15 @@ export class TicketService {
         const assignedBy = existing.assigned_by?.toString() || null;
         const currentUser = userSession.db_id;
 
-        // --- ASSIGNEE LOGIC ---
         if (patch.assignees !== undefined) {
-            const existingAssignees = (existing.assignees || [])
-                .map(a => a.db_id.toString())
-                .sort();
-            const newAssignees = (patch.assignees || [])
-                .map(a => a.db_id.toString())
-                .sort();
-
-            const assigneesChanged =
-                existingAssignees.length !== newAssignees.length ||
-                existingAssignees.some((id, i) => id !== newAssignees[i]);
-
-            if (!assigneesChanged) {
-                delete patch.assignees; // ignore if unchanged
+            if (patch.assignees.length === 0) {
+                patch.assigned_by = null;
             } else {
-                if (assignedBy !== null && assignedBy !== currentUser) {
-                    throw new ForbiddenException(
-                        "You don't have permission to modify assignees",
-                    );
-                }
-
-                // Clear assigned_by if assignees cleared
-                if (newAssignees.length === 0) {
-                    patch.assigned_by = null;
-                }
-
-                // Set assigned_by if first time assigning
-                if (newAssignees.length > 0 && assignedBy === null) {
+                const hadNoAssignees =
+                    !existing.assignees || existing.assignees.length === 0;
+                if (hadNoAssignees && assignedBy === null) {
                     patch.assigned_by = new mongoose.Types.ObjectId(
                         currentUser,
-                    );
-                }
-            }
-        }
-
-        // --- DEADLINE LOGIC ---
-        if (patch.deadline !== undefined) {
-            const existingDeadline = existing.deadline
-                ? new Date(existing.deadline).getTime()
-                : null;
-            const newDeadline = patch.deadline
-                ? new Date(patch.deadline).getTime()
-                : null;
-
-            const deadlineChanged = existingDeadline !== newDeadline;
-
-            if (!deadlineChanged) {
-                delete patch.deadline; // ignore if unchanged
-            } else {
-                if (assignedBy !== null && assignedBy !== currentUser) {
-                    throw new ForbiddenException(
-                        "You don't have permission to modify deadline",
                     );
                 }
             }

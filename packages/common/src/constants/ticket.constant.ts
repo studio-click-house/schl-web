@@ -1,6 +1,6 @@
 export const TICKET_STATUSES = [
-    'pending', // just submitted
-    'reviewed', // someone checked and categorized it
+    'in-review', // just submitted
+    'pending', // waiting for assignee to start
     'in-progress', // work started
     'on-hold', // waiting for something
     'finished', // solution done
@@ -12,8 +12,8 @@ export type TicketStatus = (typeof TICKET_STATUSES)[number];
 export const CLOSED_TICKET_STATUSES: TicketStatus[] = ['finished', 'rejected'];
 
 export const statusOptions = [
+    { value: 'in-review', label: 'In Review' },
     { value: 'pending', label: 'Pending' },
-    { value: 'reviewed', label: 'Reviewed' },
     { value: 'in-progress', label: 'In Progress' },
     { value: 'on-hold', label: 'On Hold' },
     { value: 'finished', label: 'Finished' },
@@ -21,6 +21,7 @@ export const statusOptions = [
 ];
 
 export const TICKET_TYPES = [
+    'complaint',
     'bug',
     'feature',
     'improvement',
@@ -29,6 +30,7 @@ export const TICKET_TYPES = [
 export type TicketType = (typeof TICKET_TYPES)[number];
 
 export const typeOptions = [
+    { value: 'complaint', label: 'Complaint' },
     { value: 'bug', label: 'Bug' },
     { value: 'feature', label: 'Feature Request' },
     { value: 'improvement', label: 'Improvement' },
