@@ -27,6 +27,7 @@ export class TicketFactory {
                     ? new mongoose.Types.ObjectId(session.db_id)
                     : null,
             deadline: dto.deadline ? new Date(dto.deadline) : null,
+            file_name: dto.fileName?.trim() || null,
         };
     }
 
@@ -38,6 +39,8 @@ export class TicketFactory {
         if (dto.type !== undefined) patch.type = dto.type;
         if (dto.status !== undefined) patch.status = dto.status;
         if (dto.priority !== undefined) patch.priority = dto.priority;
+        if (dto.fileName !== undefined)
+            patch.file_name = dto.fileName?.trim() || null;
         if (dto.deadline !== undefined)
             patch.deadline = dto.deadline ? new Date(dto.deadline) : null;
         if (dto.assignees !== undefined) {
