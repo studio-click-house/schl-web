@@ -227,7 +227,7 @@ export class TrackerQueryService {
                 dto?.username && dto.username.trim() ? dto.username.trim() : '';
 
             const escapeRegex = (value: string) =>
-                value.replace(/[.*+?^${}()|[\[\]\\]/g, '\\$&');
+                value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
             const normalizeUserKey = (value: string) => {
                 const trimmed = (value || '').trim();
@@ -249,149 +249,9 @@ export class TrackerQueryService {
             const requestedDate =
                 dto.date && dto.date.trim() ? dto.date.trim() : '';
             const today = new Date().toISOString().split('T')[0] as string;
-            let usedDate = requestedDate || today;
+            const usedDate = requestedDate || today;
 
-            const loadBuckets = async (dateToUse: string) => {
-                const qc = await this.qcWorkLogModel
-                    .find(
-                        userRegex
-                            ? {
-                                  employee_name: { $regex: userRegex },
-                                  date_today: dateToUse,
-                              }
-                            : { date_today: dateToUse },
-                    )
-                    .select('client_code work_type files pause_time categories')
-                    .lean()
-                    .exec();
-
-                return { prod: [], qc };
-            };
-
-            let { prod: prodBuckets, qc: qcBuckets } =
-                await loadBuckets(usedDate);
-
-            if (
-                !requestedDate &&
-                prodBuckets.length === 0 &&
-                qcBuckets.length === 0
-            ) {
-                const lastQc = await this.qcWorkLogModel
-                    .findOne(
-                        userRegex
-                            ? { employee_name: { $regex: userRegex } }
-                            : {},
-                    )
-                    .sort({ date_today: -1, updatedAt: -1, createdAt: -1 })
-                    .select('date_today')
-                    .lean<{ date_today?: string }>()
-                    .exec();
-
-                const latest = [lastQc?.date_today]
-                    .filter((date): date is string => Boolean(date))
-                    .sort()
-                    .pop();
-
-                if (latest && latest !== usedDate) {
-                    usedDate = latest;
-                    const loaded = await loadBuckets(usedDate);
-                    prodBuckets = loaded.prod;
-                    qcBuckets = loaded.qc;
-                }
-            }
-
-            type ClientAgg = {
-                totalFiles: number;
-                workSeconds: number;
-                pauseSeconds: number;
-                avgSeconds: number;
-                lastWorkType?: string;
-                lastCategory?: string;
-            };
-
-            const byClient: Record<string, ClientAgg> = {};
-
-            const ensureClient = (client: string, workType: string) => {
-                const safeClient = (client || 'unknown_client').toString();
-                const safeWorkType = (
-                    workType || 'unknown_work_type'
-                ).toString();
-                const key = `${safeClient}|||${safeWorkType}`;
-                if (!byClient[key]) {
-                    byClient[key] = {
-                        totalFiles: 0,
-                        workSeconds: 0,
-                        pauseSeconds: 0,
-                        avgSeconds: 0,
-                        lastWorkType: '',
-                        lastCategory: '',
-                    };
-                }
-                return byClient[key];
-            };
-
-            type BucketFile = {
-                file_status?: string;
-                time_spent?: number;
-            };
-
-            type QcBucket = {
-                client_code?: string;
-                work_type?: string;
-                categories?: string;
-                files?: BucketFile[];
-                pause_time?: number;
-            };
-
-            const safeQcBuckets = (qcBuckets || []) as QcBucket[];
-
-            for (const b of safeQcBuckets) {
-                const client: string = String(b.client_code ?? '');
-                const workType = String(b.work_type ?? '');
-                const agg = ensureClient(client, workType);
-                const cat = String(b.categories ?? '').trim();
-
-                const files = Array.isArray(b.files) ? b.files : [];
-
-                const nonSkipFiles = files.filter(f => {
-                    try {
-                        const st = String(f?.file_status ?? '').trim();
-                        return !/^skip$/i.test(st);
-                    } catch {
-                        return true;
-                    }
-                });
-
-                agg.totalFiles += nonSkipFiles.length;
-                for (const f of nonSkipFiles) {
-                    agg.workSeconds += Number(f?.time_spent) || 0;
-                }
-
-                agg.pauseSeconds += Number(b.pause_time) || 0;
-                if (workType) agg.lastWorkType = workType;
-                if (cat) agg.lastCategory = cat;
-            }
-
-            let totalFiles = 0;
-            let totalWorkSeconds = 0;
-            let totalPauseSeconds = 0;
-
-            for (const v of Object.values(byClient)) {
-                totalFiles += v.totalFiles;
-                totalWorkSeconds += v.workSeconds;
-                totalPauseSeconds += v.pauseSeconds;
-            }
-
-            for (const v of Object.values(byClient)) {
-                v.avgSeconds =
-                    v.totalFiles > 0
-                        ? Math.floor(v.workSeconds / v.totalFiles)
-                        : 0;
-            }
-
-            const avgSeconds =
-                totalFiles > 0 ? Math.floor(totalWorkSeconds / totalFiles) : 0;
-
+            // Single query: fetch work logs for the date + user
             const workLogFilter = userRegex
                 ? {
                       employee_name: { $regex: userRegex },
@@ -399,122 +259,123 @@ export class TrackerQueryService {
                   }
                 : { date_today: usedDate };
 
-            const workLogs = await this.qcWorkLogModel
-                .find(workLogFilter)
-                .lean()
-                .exec();
+            const [workLogs, sessions] = await Promise.all([
+                this.qcWorkLogModel.find(workLogFilter).lean().exec(),
 
-            const sessionFilter: FilterQuery<UserSession> = {
-                session_date: usedDate,
-            };
-            if (userRegex) {
-                sessionFilter.username = { $regex: userRegex } as any;
-            }
-
-            const sessions = await this.userSessionModel
-                .aggregate([
-                    { $match: sessionFilter },
-                    {
-                        $group: {
-                            _id: '$username',
-                            username: { $first: '$username' },
-                            user_type: { $first: '$user_type' },
-                            session_date: { $first: '$session_date' },
-                            first_login_at: { $min: '$login_at' },
-                            last_login_at: { $max: '$login_at' },
-                            last_logout_at: { $max: '$logout_at' },
-                            closed_duration_seconds: {
-                                $sum: { $ifNull: ['$duration_session', 0] },
+                this.userSessionModel
+                    .aggregate([
+                        {
+                            $match: {
+                                session_date: usedDate,
+                                ...(userRegex
+                                    ? { username: { $regex: userRegex } as any }
+                                    : {}),
                             },
-                            active_login_at: {
-                                $max: {
-                                    $cond: [
-                                        { $eq: ['$logout_at', null] },
-                                        '$login_at',
-                                        null,
-                                    ],
+                        },
+                        {
+                            $group: {
+                                _id: '$username',
+                                username: { $first: '$username' },
+                                user_type: { $first: '$user_type' },
+                                session_date: { $first: '$session_date' },
+                                first_login_at: { $min: '$login_at' },
+                                last_login_at: { $max: '$login_at' },
+                                last_logout_at: { $max: '$logout_at' },
+                                closed_duration_seconds: {
+                                    $sum: {
+                                        $ifNull: ['$duration_session', 0],
+                                    },
+                                },
+                                active_login_at: {
+                                    $max: {
+                                        $cond: [
+                                            { $eq: ['$logout_at', null] },
+                                            '$login_at',
+                                            null,
+                                        ],
+                                    },
+                                },
+                                is_active: {
+                                    $max: {
+                                        $cond: [
+                                            { $eq: ['$logout_at', null] },
+                                            1,
+                                            0,
+                                        ],
+                                    },
                                 },
                             },
-                            is_active: {
-                                $max: {
+                        },
+                        {
+                            $addFields: {
+                                is_active: { $eq: ['$is_active', 1] },
+                                active_elapsed_seconds: {
                                     $cond: [
-                                        { $eq: ['$logout_at', null] },
-                                        1,
+                                        {
+                                            $and: [
+                                                { $eq: ['$is_active', 1] },
+                                                {
+                                                    $ne: [
+                                                        '$active_login_at',
+                                                        null,
+                                                    ],
+                                                },
+                                            ],
+                                        },
+                                        {
+                                            $max: [
+                                                0,
+                                                {
+                                                    $divide: [
+                                                        {
+                                                            $subtract: [
+                                                                '$$NOW',
+                                                                '$active_login_at',
+                                                            ],
+                                                        },
+                                                        1000,
+                                                    ],
+                                                },
+                                            ],
+                                        },
                                         0,
                                     ],
                                 },
                             },
                         },
-                    },
-                    {
-                        $addFields: {
-                            is_active: { $eq: ['$is_active', 1] },
-                            active_elapsed_seconds: {
-                                $cond: [
-                                    {
-                                        $and: [
-                                            { $eq: ['$is_active', 1] },
-                                            { $ne: ['$active_login_at', null] },
-                                        ],
-                                    },
-                                    {
-                                        $max: [
-                                            0,
-                                            {
-                                                $divide: [
-                                                    {
-                                                        $subtract: [
-                                                            '$$NOW',
-                                                            '$active_login_at',
-                                                        ],
-                                                    },
-                                                    1000,
-                                                ],
-                                            },
-                                        ],
-                                    },
-                                    0,
-                                ],
+                        {
+                            $addFields: {
+                                total_duration_seconds: {
+                                    $add: [
+                                        {
+                                            $ifNull: [
+                                                '$closed_duration_seconds',
+                                                0,
+                                            ],
+                                        },
+                                        {
+                                            $ifNull: [
+                                                '$active_elapsed_seconds',
+                                                0,
+                                            ],
+                                        },
+                                    ],
+                                },
                             },
                         },
-                    },
-                    {
-                        $addFields: {
-                            total_duration_seconds: {
-                                $add: [
-                                    {
-                                        $ifNull: [
-                                            '$closed_duration_seconds',
-                                            0,
-                                        ],
-                                    },
-                                    { $ifNull: ['$active_elapsed_seconds', 0] },
-                                ],
+                        {
+                            $sort: {
+                                is_active: -1,
+                                last_login_at: -1,
+                                last_logout_at: -1,
                             },
                         },
-                    },
-                    {
-                        $sort: {
-                            is_active: -1,
-                            last_login_at: -1,
-                            last_logout_at: -1,
-                        },
-                    },
-                ])
-                .exec();
+                    ])
+                    .exec(),
+            ]);
 
             return {
                 success: true,
-                data: {
-                    usedDate,
-                    totals: {
-                        totalFiles,
-                        totalWorkSeconds,
-                        totalPauseSeconds,
-                        avgSeconds,
-                    },
-                    byClient,
-                },
                 workLogs,
                 sessions,
             };

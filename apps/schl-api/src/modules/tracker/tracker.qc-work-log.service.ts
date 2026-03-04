@@ -20,7 +20,7 @@ export class TrackerQcWorkLogService {
         @InjectModel(QcWorkLog.name)
         private readonly qcWorkLogModel: Model<QcWorkLog>,
         private readonly trackerGateway: TrackerGateway,
-    ) { }
+    ) {}
 
     async syncQc(payload: SyncQcWorkLogDto) {
         if (!payload.employeeName) {
@@ -28,7 +28,6 @@ export class TrackerQcWorkLogService {
         }
 
         try {
-            const workingTokens = ['working', 'in_progress', 'in progress'];
             const dateString = new Date().toISOString().split('T')[0] as string;
 
             const filter: Record<string, any> =
@@ -37,7 +36,7 @@ export class TrackerQcWorkLogService {
             // ── Idempotency check: skip $inc if syncId already processed ──
             const syncId =
                 typeof payload.syncId === 'string' ? payload.syncId.trim() : '';
-            let skipInc = false;
+            const skipInc = false;
 
             if (syncId) {
                 const existing = await this.qcWorkLogModel
@@ -53,21 +52,24 @@ export class TrackerQcWorkLogService {
 
             // ── Bucket-level update (upsert) ──
             const bucketSet = TrackerFactory.qcBucketSetFromSyncDto(payload);
-            const bucketMax = TrackerFactory.qcBucketMaxFromSyncDto(payload);
+            // Server owns pause-reason lifecycle. Never overwrite history via $set.
+            if ((bucketSet as any)?.pause_reasons !== undefined) {
+                delete (bucketSet as any).pause_reasons;
+            }
+            const bucketMaxRaw = TrackerFactory.qcBucketMaxFromSyncDto();
+            const bucketMax = { ...bucketMaxRaw };
+            delete (bucketMax as any).pause_count;
+            delete (bucketMax as any).pause_time;
             const bucketInc = skipInc
                 ? {}
                 : TrackerFactory.qcBucketIncFromSyncDto(payload);
 
-            const statusLower = String(payload.fileStatus || '').trim().toLowerCase();
-            const isWorkingUpdate = workingTokens.includes(statusLower);
-
             const bucketUpdate: Record<string, any> = {
                 $setOnInsert: filter,
             };
-            if (Object.keys(bucketSet).length || isWorkingUpdate)
+            if (Object.keys(bucketSet).length)
                 bucketUpdate.$set = {
                     ...(bucketSet || {}),
-                    ...(isWorkingUpdate ? { last_heartbeat: new Date() } : {}),
                 };
             if (Object.keys(bucketMax).length) bucketUpdate.$max = bucketMax;
             if (Object.keys(bucketInc).length) bucketUpdate.$inc = bucketInc;
@@ -82,6 +84,18 @@ export class TrackerQcWorkLogService {
             await this.qcWorkLogModel.updateOne(filter, bucketUpdate, {
                 upsert: true,
             });
+
+            const statusLower = String(payload.fileStatus || '')
+                .trim()
+                .toLowerCase();
+
+            await this.reconcilePauseReasonLifecycle(
+                filter,
+                payload,
+                statusLower,
+            );
+
+            await this.refreshPauseAggregates(filter);
 
             // ── Per-file updates (fast: read once, push once, bulkWrite once) ──
             if (Array.isArray(payload.files) && payload.files.length > 0) {
@@ -287,25 +301,25 @@ export class TrackerQcWorkLogService {
             // - If payload says paused, we emit paused even if DB still has working files.
             //   We also mask working file statuses in the emitted files list so client IsActive becomes false.
             // - Otherwise, we derive 'working' from DB presence of working files.
-            const computedStatus = payloadStatus === 'paused'
-                ? 'paused'
-                : (workingCount > 0 ? 'working' : payloadStatus);
+            const computedStatus =
+                payloadStatus === 'paused'
+                    ? 'paused'
+                    : workingCount > 0
+                      ? 'working'
+                      : payloadStatus;
 
-            const emittedFiles = payloadStatus === 'paused'
-                ? accFiles.map(f => {
-                    const s = String((f as any)?.fileStatus ?? '')
-                        .trim()
-                        .toLowerCase();
-                    if (statusTokensWorking.has(s)) {
-                        return { ...f, fileStatus: 'paused' };
-                    }
-                    return f;
-                })
-                : accFiles;
-
-            const emittedWorkingCount = payloadStatus === 'paused'
-                ? 0
-                : workingCount;
+            const emittedFiles =
+                payloadStatus === 'paused'
+                    ? accFiles.map(f => {
+                          const s = String((f as any)?.fileStatus ?? '')
+                              .trim()
+                              .toLowerCase();
+                          if (statusTokensWorking.has(s)) {
+                              return { ...f, fileStatus: 'paused' };
+                          }
+                          return f;
+                      })
+                    : accFiles;
 
             this.trackerGateway.broadcastTrackerUpdate('TRACKER_UPDATED', {
                 employeeName: payload.employeeName,
@@ -333,5 +347,164 @@ export class TrackerQcWorkLogService {
                 'Unable to sync qc work log',
             );
         }
+    }
+
+    private extractLatestPauseReason(
+        pauseReasons?: { reason?: string; duration?: number }[],
+    ): { reason: string; duration: number } | null {
+        if (!Array.isArray(pauseReasons) || pauseReasons.length === 0) {
+            return null;
+        }
+
+        const latest = pauseReasons[pauseReasons.length - 1];
+        const reason = String(latest?.reason ?? '').trim();
+        if (!reason) {
+            return null;
+        }
+
+        const duration = Math.max(0, Number(latest?.duration) || 0);
+        return { reason, duration };
+    }
+
+    private async reconcilePauseReasonLifecycle(
+        filter: Record<string, any>,
+        payload: SyncQcWorkLogDto,
+        statusLower: string,
+    ) {
+        const pausedTokens = new Set(['pause', 'paused']);
+        const workingTokens = new Set([
+            'working',
+            'in_progress',
+            'in progress',
+            'in-progress',
+            'inprogress',
+        ]);
+
+        const isPausedUpdate = pausedTokens.has(statusLower);
+        const isResumeOrWorkingUpdate = workingTokens.has(statusLower);
+
+        if (!isPausedUpdate && !isResumeOrWorkingUpdate) {
+            return;
+        }
+
+        const latestIncoming = this.extractLatestPauseReason(
+            payload.pauseReasons,
+        );
+
+        const existing = await this.qcWorkLogModel
+            .findOne(filter, { pause_reasons: 1 })
+            .lean();
+
+        const existingReasons = Array.isArray((existing as any)?.pause_reasons)
+            ? ((existing as any).pause_reasons as any[])
+            : [];
+        const hasOpenPause = existingReasons.some(
+            pr => pr?.completed_at == null,
+        );
+
+        if (isPausedUpdate) {
+            if (!hasOpenPause && latestIncoming) {
+                const now = new Date();
+                const startedAt = new Date(
+                    now.getTime() - latestIncoming.duration * 1000,
+                );
+
+                await this.qcWorkLogModel.updateOne(
+                    {
+                        ...filter,
+                        pause_reasons: {
+                            $not: { $elemMatch: { completed_at: null } },
+                        },
+                    },
+                    {
+                        $push: {
+                            pause_reasons: {
+                                reason: latestIncoming.reason,
+                                duration: latestIncoming.duration,
+                                started_at: startedAt,
+                                completed_at: null,
+                            },
+                        },
+                    },
+                );
+                return;
+            }
+
+            if (hasOpenPause && latestIncoming) {
+                await this.qcWorkLogModel.updateOne(
+                    {
+                        ...filter,
+                        pause_reasons: { $elemMatch: { completed_at: null } },
+                    },
+                    {
+                        $set: {
+                            'pause_reasons.$[open].reason':
+                                latestIncoming.reason,
+                            'pause_reasons.$[open].duration':
+                                latestIncoming.duration,
+                        },
+                    },
+                    {
+                        arrayFilters: [{ 'open.completed_at': null }],
+                    },
+                );
+            }
+            return;
+        }
+
+        if (!hasOpenPause) {
+            return;
+        }
+
+        const closeSet: Record<string, any> = {
+            'pause_reasons.$[open].completed_at': new Date(),
+        };
+
+        if (latestIncoming) {
+            closeSet['pause_reasons.$[open].duration'] =
+                latestIncoming.duration;
+        }
+
+        await this.qcWorkLogModel.updateOne(
+            {
+                ...filter,
+                pause_reasons: { $elemMatch: { completed_at: null } },
+            },
+            {
+                $set: closeSet,
+            },
+            {
+                arrayFilters: [{ 'open.completed_at': null }],
+            },
+        );
+    }
+
+    private async refreshPauseAggregates(filter: Record<string, any>) {
+        const existing = await this.qcWorkLogModel
+            .findOne(filter, { pause_reasons: 1 })
+            .lean();
+
+        const reasons = Array.isArray((existing as any)?.pause_reasons)
+            ? ((existing as any).pause_reasons as Array<{
+                  duration?: number;
+              }>)
+            : [];
+
+        const pauseCount = reasons.length;
+        const pauseTime = reasons.reduce(
+            (sum, item) => sum + Math.max(0, Number(item?.duration) || 0),
+            0,
+        );
+
+        await this.qcWorkLogModel.updateOne(
+            filter,
+            {
+                $set: {
+                    pause_count: pauseCount,
+                    pause_time: pauseTime,
+                },
+            },
+            { upsert: true },
+        );
     }
 }

@@ -8,22 +8,22 @@ export class UserSession {
     @Prop({ type: String, required: true, unique: true, index: true })
     session_id: string;
 
-    @Prop({ type: Types.ObjectId, required: true, index: true })
+    @Prop({ type: Types.ObjectId, required: true })
     user_id: Types.ObjectId;
 
-    @Prop({ type: String, required: true, index: true })
+    @Prop({ type: String, required: true })
     username: string;
 
-    @Prop({ type: String, required: true, index: true })
+    @Prop({ type: String, required: true })
     user_type: string;
 
     @Prop({ type: String, required: true, index: true })
     session_date: string;
 
-    @Prop({ type: Date, required: true, index: true })
+    @Prop({ type: Date, required: true })
     login_at: Date;
 
-    @Prop({ type: Date, default: null, index: true })
+    @Prop({ type: Date, default: null })
     logout_at: Date | null;
 
     @Prop({ type: Number, default: null })
@@ -31,7 +31,3 @@ export class UserSession {
 }
 
 export const UserSessionSchema = SchemaFactory.createForClass(UserSession);
-
-UserSessionSchema.index({ user_id: 1, login_at: -1 });
-UserSessionSchema.index({ user_type: 1, session_date: 1, login_at: -1 });
-UserSessionSchema.index({ username: 1, session_date: 1, login_at: -1 });

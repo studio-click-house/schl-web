@@ -23,7 +23,7 @@ export class TrackerController {
         private readonly qcWorkLogService: TrackerQcWorkLogService,
         private readonly queryService: TrackerQueryService,
         private readonly reportService: TrackerReportService,
-    ) { }
+    ) {}
 
     @Post('check-user')
     checkUser(@Body() dto: CheckUserDto) {

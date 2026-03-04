@@ -16,7 +16,7 @@ export class TrackerReportService {
         @InjectModel(QcWorkLog.name)
         private readonly qcWorkLogModel: Model<QcWorkLog>,
         private readonly trackerGateway: TrackerGateway,
-    ) { }
+    ) {}
 
     async reportFile(dto: ReportFileDto) {
         if (!dto?.employeeName || !dto.employeeName.trim()) {

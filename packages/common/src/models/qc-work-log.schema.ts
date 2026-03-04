@@ -100,3 +100,6 @@ QcWorkLogSchema.index(
     },
     { unique: true },
 );
+
+// Speed up dashboard and live-tracking queries that filter by date
+QcWorkLogSchema.index({ date_today: 1 });

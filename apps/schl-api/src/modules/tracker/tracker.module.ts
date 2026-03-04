@@ -37,4 +37,4 @@ import { TrackerReportService } from './tracker.report.service';
         TrackerGateway,
     ],
 })
-export class TrackerModule { }
+export class TrackerModule {}

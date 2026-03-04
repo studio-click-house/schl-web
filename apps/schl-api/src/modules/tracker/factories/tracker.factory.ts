@@ -47,12 +47,8 @@ export class TrackerFactory {
         return set;
     }
 
-    static qcBucketMaxFromSyncDto(dto: SyncQcWorkLogDto) {
+    static qcBucketMaxFromSyncDto() {
         const max: Record<string, number> = {};
-        if (dto.pauseCount !== undefined)
-            max.pause_count = Number(dto.pauseCount) || 0;
-        if (dto.pauseTime !== undefined)
-            max.pause_time = Number(dto.pauseTime) || 0;
         return max;
     }
 
