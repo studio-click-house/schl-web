@@ -552,9 +552,7 @@ const Table = () => {
                                                             />
                                                         </Link>
 
-                                                        {(
-                                                            canEdit
-                                                        ) && (
+                                                        {canEdit && (
                                                             <EditButton
                                                                 isLoading={
                                                                     loading

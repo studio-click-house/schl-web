@@ -155,7 +155,9 @@ const EditButton: React.FC<PropsType> = props => {
         if (isOpen) {
             const formatted = {
                 ...props.ticketData,
-                deadline: props.ticketData.deadline ? isoToLocalDateTime(props.ticketData.deadline) : null,
+                deadline: props.ticketData.deadline
+                    ? isoToLocalDateTime(props.ticketData.deadline)
+                    : null,
             };
             reset(formatted);
         }
@@ -167,7 +169,9 @@ const EditButton: React.FC<PropsType> = props => {
                 onClick={() => {
                     const formatted = {
                         ...props.ticketData,
-                        deadline: props.ticketData.deadline ? isoToLocalDateTime(props.ticketData.deadline) : null,
+                        deadline: props.ticketData.deadline
+                            ? isoToLocalDateTime(props.ticketData.deadline)
+                            : null,
                     };
                     reset(formatted);
                     setIsOpen(true);

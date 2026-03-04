@@ -603,9 +603,7 @@ const Sidebar: React.FC<PropsType> = props => {
                                         </Link>
                                     </li>
                                 )}
-                                {hasAny([
-                                    'ticket:submit_daily_report',
-                                ]) && (
+                                {hasAny(['ticket:submit_daily_report']) && (
                                     <li>
                                         <Link
                                             href="/tickets/pending-jobs"

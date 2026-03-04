@@ -87,10 +87,10 @@ const Form: React.FC = () => {
     }, [authedFetchApi, canReviewTicket]);
 
     const newStatusOption = useMemo(
-        () => statusOptions.find(option => option.value === 'in-review') || null,
+        () =>
+            statusOptions.find(option => option.value === 'in-review') || null,
         [],
     );
-
 
     const constructFileName = (file: File, ticket_no: string) => {
         const file_name = file.name;
@@ -141,7 +141,9 @@ const Form: React.FC = () => {
 
             const payload = {
                 ...rest,
-                deadline: rest.deadline ? localDateTimeToISO(rest.deadline) : null,
+                deadline: rest.deadline
+                    ? localDateTimeToISO(rest.deadline)
+                    : null,
             };
 
             const response = await authedFetchApi(
@@ -204,26 +206,25 @@ const Form: React.FC = () => {
         await createTicket(data);
     };
 
-
     const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-            const allowedExtensions =
-                /\.(xls|xlsx|doc|docx|ppt|pptx|txt|pdf|zip|7z|rar)$/i;
-            const selectedFile = e.target.files?.[0];
-    
-            if (selectedFile && allowedExtensions.test(selectedFile.name)) {
-                setValue('file_name', selectedFile.name);
-                setUploading(true);
-                // Simulate a brief upload delay for UX
-                setTimeout(() => {
-                    setFile(selectedFile);
-                    setUploading(false);
-                }, 1000);
-            } else {
-                toast.error('Invalid file format');
-                setFile(null);
-            }
+        const allowedExtensions =
+            /\.(xls|xlsx|doc|docx|ppt|pptx|txt|pdf|zip|7z|rar)$/i;
+        const selectedFile = e.target.files?.[0];
+
+        if (selectedFile && allowedExtensions.test(selectedFile.name)) {
+            setValue('file_name', selectedFile.name);
+            setUploading(true);
+            // Simulate a brief upload delay for UX
+            setTimeout(() => {
+                setFile(selectedFile);
+                setUploading(false);
+            }, 1000);
+        } else {
+            toast.error('Invalid file format');
+            setFile(null);
+        }
     };
-    
+
     // Drag and Drop Handlers
     const handleDragOver = (e: React.DragEvent<HTMLLabelElement>) => {
         e.preventDefault();
@@ -259,7 +260,6 @@ const Form: React.FC = () => {
             fileInputRef.current.value = '';
         }
     };
-
 
     return (
         <form onSubmit={handleSubmit(onSubmit)}>
@@ -308,10 +308,10 @@ const Form: React.FC = () => {
                                 placeholder="Ticket status"
                                 classNamePrefix="react-select"
                                 menuPortalTarget={setMenuPortalTarget}
-                                value={statusOptions.find(
-                                              option =>
-                                                  option.value === field.value,
-                                          ) || null
+                                value={
+                                    statusOptions.find(
+                                        option => option.value === field.value,
+                                    ) || null
                                 }
                                 onChange={option =>
                                     field.onChange(option?.value || '')
@@ -441,73 +441,73 @@ const Form: React.FC = () => {
                     )}
                 />
             </div>
-                    <div>
-                        <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
-                            <span className="uppercase">Attach file</span>
-                        </label>
-        
-                        <div className="flex items-center justify-center w-full">
-                            <label
-                                htmlFor="dropzone-file"
-                                onDragOver={handleDragOver}
-                                onDrop={handleDrop}
-                                className="flex flex-col items-center justify-center w-full h-64 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100"
-                            >
-                                <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                    {uploading ? (
-                                        <Loader2
-                                            size={32}
-                                            className="animate-spin text-blue-500 mb-4"
-                                        />
-                                    ) : file ? (
-                                        <CheckCircle
-                                            size={32}
-                                            className="text-green-500 mb-4"
-                                        />
-                                    ) : (
-                                        <CloudUpload
-                                            size={32}
-                                            className="w-10 h-10 mb-4 text-gray-500"
-                                        />
-                                    )}
-                                    <p className="mb-2 text-sm text-gray-500">
-                                        {uploading ? (
-                                            'Uploading...'
-                                        ) : file ? (
-                                            <span className="animate-fade-in">
-                                                {file.name}
-                                            </span>
-                                        ) : (
-                                            <span className="font-semibold">
-                                                Click to upload or drag and drop
-                                            </span>
-                                        )}
-                                    </p>
-                                    <p className="text-xs text-gray-500">
-                                        ( XLS, XLSX, DOC, DOCX, PPT, PPTX, TXT, PDF,
-                                        ZIP, 7Z, RAR )
-                                    </p>
-                                </div>
-                                <input
-                                    ref={fileInputRef}
-                                    id="dropzone-file"
-                                    type="file"
-                                    className="hidden"
-                                    accept=".xls,.xlsx,.doc,.docx,.ppt,.pptx,.txt,.pdf,.zip,.7z,.rar"
-                                    onChange={handleFileInput}
+            <div>
+                <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
+                    <span className="uppercase">Attach file</span>
+                </label>
+
+                <div className="flex items-center justify-center w-full">
+                    <label
+                        htmlFor="dropzone-file"
+                        onDragOver={handleDragOver}
+                        onDrop={handleDrop}
+                        className="flex flex-col items-center justify-center w-full h-64 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100"
+                    >
+                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                            {uploading ? (
+                                <Loader2
+                                    size={32}
+                                    className="animate-spin text-blue-500 mb-4"
                                 />
-                            </label>
+                            ) : file ? (
+                                <CheckCircle
+                                    size={32}
+                                    className="text-green-500 mb-4"
+                                />
+                            ) : (
+                                <CloudUpload
+                                    size={32}
+                                    className="w-10 h-10 mb-4 text-gray-500"
+                                />
+                            )}
+                            <p className="mb-2 text-sm text-gray-500">
+                                {uploading ? (
+                                    'Uploading...'
+                                ) : file ? (
+                                    <span className="animate-fade-in">
+                                        {file.name}
+                                    </span>
+                                ) : (
+                                    <span className="font-semibold">
+                                        Click to upload or drag and drop
+                                    </span>
+                                )}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                                ( XLS, XLSX, DOC, DOCX, PPT, PPTX, TXT, PDF,
+                                ZIP, 7Z, RAR )
+                            </p>
                         </div>
-                        {file && !uploading && (
-                            <button
-                                type="button"
-                                onClick={clearFile}
-                                className="mt-2 text-sm text-red-600 hover:text-red-800"
-                            >
-                                Clear file
-                            </button>
-                        )}
-                    </div>
+                        <input
+                            ref={fileInputRef}
+                            id="dropzone-file"
+                            type="file"
+                            className="hidden"
+                            accept=".xls,.xlsx,.doc,.docx,.ppt,.pptx,.txt,.pdf,.zip,.7z,.rar"
+                            onChange={handleFileInput}
+                        />
+                    </label>
+                </div>
+                {file && !uploading && (
+                    <button
+                        type="button"
+                        onClick={clearFile}
+                        className="mt-2 text-sm text-red-600 hover:text-red-800"
+                    >
+                        Clear file
+                    </button>
+                )}
+            </div>
 
             <button
                 disabled={loading}

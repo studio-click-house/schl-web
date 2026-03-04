@@ -115,7 +115,11 @@ const ViewTicket: React.FC<ViewTicketProps> = props => {
     );
 
     const canReviewTicket = useMemo(
-        () => hasAnyPerm(['ticket:review_reports', 'ticket:review_tickets'], userPermissions),
+        () =>
+            hasAnyPerm(
+                ['ticket:review_reports', 'ticket:review_tickets'],
+                userPermissions,
+            ),
         [userPermissions],
     );
 
@@ -125,7 +129,7 @@ const ViewTicket: React.FC<ViewTicketProps> = props => {
     );
 
     const redirectBase = useMemo(() => {
-        return '/'
+        return '/';
     }, [userPermissions]);
 
     const router = useRouter();
@@ -189,8 +193,6 @@ const ViewTicket: React.FC<ViewTicketProps> = props => {
         }
     }, [authedFetchApi, ticket_no]);
 
-
-
     const handleFileDownload = async () => {
         if (!ticket || !ticket.file_name) {
             return;
@@ -237,7 +239,6 @@ const ViewTicket: React.FC<ViewTicketProps> = props => {
         }
     };
 
-    
     useEffect(() => {
         if (!ticket_no) {
             setIsLoading(false);
@@ -336,20 +337,22 @@ const ViewTicket: React.FC<ViewTicketProps> = props => {
                                     options,
                                 )}
 
-                                                    {ticket.file_name && (
-                        <div className="file-download text-lg font-semibold font-sans">
-                            <span className="font-semibold">Downloads: </span>{' '}
-                            <span
-                                onClick={handleFileDownload}
-                                className="underline font-mono downloadable-file hover:cursor-pointer has-tooltip"
-                            >
-                                {ticket.file_name}
-                                <span className="tooltip italic font-medium rounded-md text-xs shadow-lg p-1 px-2 bg-gray-100 ml-2">
-                                    Click to download
-                                </span>
-                            </span>
-                        </div>
-                    )}
+                                {ticket.file_name && (
+                                    <div className="file-download text-lg font-semibold font-sans">
+                                        <span className="font-semibold">
+                                            Downloads:{' '}
+                                        </span>{' '}
+                                        <span
+                                            onClick={handleFileDownload}
+                                            className="underline font-mono downloadable-file hover:cursor-pointer has-tooltip"
+                                        >
+                                            {ticket.file_name}
+                                            <span className="tooltip italic font-medium rounded-md text-xs shadow-lg p-1 px-2 bg-gray-100 ml-2">
+                                                Click to download
+                                            </span>
+                                        </span>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

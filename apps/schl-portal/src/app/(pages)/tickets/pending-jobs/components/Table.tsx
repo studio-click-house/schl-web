@@ -213,12 +213,10 @@ function Table() {
         <>
             <div
                 className={cn(
-                    'flex flex-col mb-4 gap-2 sm:flex-row sm:justify-between'
+                    'flex flex-col mb-4 gap-2 sm:flex-row sm:justify-between',
                 )}
             >
-            
-                    <DailyReportModal submitHandler={createDailyReport} />
-            
+                <DailyReportModal submitHandler={createDailyReport} />
 
                 <div className="items-center flex gap-2">
                     <Pagination
@@ -402,13 +400,10 @@ function Table() {
                                                         />
                                                     </Link>
                                                     {ticket.assignees.some(
-                                                            a =>
-                                                                String(
-                                                                    a.db_id,
-                                                                ) ===
-                                                                session?.user
-                                                                    .db_id,
-                                                        ) &&
+                                                        a =>
+                                                            String(a.db_id) ===
+                                                            session?.user.db_id,
+                                                    ) &&
                                                         (!ticket.deadline ||
                                                             moment(
                                                                 ticket.deadline,

@@ -79,7 +79,6 @@ export class Ticket {
     @Prop({ type: Date, default: null })
     deadline: Date | null;
 
-
     @Prop({ default: null, type: String })
     file_name: string | null;
 

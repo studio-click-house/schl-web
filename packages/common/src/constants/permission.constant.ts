@@ -78,7 +78,7 @@ export const USER_PERMISSIONS = [
                 label: 'Review tickets',
             },
 
-           {
+            {
                 value: 'ticket:review_reports',
                 label: 'Review daily reports',
             },

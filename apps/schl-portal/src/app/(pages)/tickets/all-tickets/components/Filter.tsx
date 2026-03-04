@@ -320,7 +320,8 @@ export default function FilterButton(props: PropsType) {
                                     {...setClassNameAndIsDisabled(isOpen)}
                                     options={statusOptions.filter(
                                         o =>
-                                            !props.hideInReviewStatus || o.value !== 'in-review'
+                                            !props.hideInReviewStatus ||
+                                            o.value !== 'in-review',
                                     )}
                                     classNamePrefix="react-select"
                                     menuPortalTarget={setMenuPortalTarget}
@@ -489,38 +490,37 @@ export default function FilterButton(props: PropsType) {
                                     </div>
                                 </>
                             )}
-                        <div className="md:col-span-2">
-                            <label className="inline-flex items-center gap-2 cursor-pointer">
-                                <input
-                                    id="excludeClosed"
-                                    name="excludeClosed"
-                                    type="checkbox"
-                                    checked={props.filters.excludeClosed}
-                                    onChange={handleCheckboxChange}
-                                    className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-                                />
-                                <span className="uppercase whitespace-nowrap select-none">
-                                    Exclude Closed Tickets
-                                </span>
-                            </label>
-                        </div>
+                            <div className="md:col-span-2">
+                                <label className="inline-flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        id="excludeClosed"
+                                        name="excludeClosed"
+                                        type="checkbox"
+                                        checked={props.filters.excludeClosed}
+                                        onChange={handleCheckboxChange}
+                                        className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                                    />
+                                    <span className="uppercase whitespace-nowrap select-none">
+                                        Exclude Closed Tickets
+                                    </span>
+                                </label>
+                            </div>
 
-                        <div className="md:col-span-2">
-                            <label className="inline-flex items-center gap-2 cursor-pointer">
-                                <input
-                                    id="excludeInReview"
-                                    name="excludeInReview"
-                                    type="checkbox"
-                                    checked={props.filters.excludeInReview}
-                                    onChange={handleCheckboxChange}
-                                    className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-                                />
-                                <span className="uppercase whitespace-nowrap select-none">
-                                    Exclude Review Tickets
-                                </span>
-                            </label>
-                        </div>
-
+                            <div className="md:col-span-2">
+                                <label className="inline-flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        id="excludeInReview"
+                                        name="excludeInReview"
+                                        type="checkbox"
+                                        checked={props.filters.excludeInReview}
+                                        onChange={handleCheckboxChange}
+                                        className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                                    />
+                                    <span className="uppercase whitespace-nowrap select-none">
+                                        Exclude Review Tickets
+                                    </span>
+                                </label>
+                            </div>
                         </div>
                     </div>
 
