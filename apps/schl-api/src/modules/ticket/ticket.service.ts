@@ -244,7 +244,7 @@ export class TicketService {
                 query.created_by = new Types.ObjectId(userSession.db_id);
             } else if (
                 !hasAnyPerm(
-                    ['ticket:review_works', 'ticket:submit_daily_report'],
+                    ['ticket:review_tickets', 'ticket:submit_daily_report'],
                     userSession.permissions,
                 )
             ) {
@@ -403,13 +403,42 @@ export class TicketService {
         return result;
     }
 
+    private canAccessTicket(ticket: Ticket, userSession: UserSession): boolean {
+        // owners always see their own tickets
+        if (
+            hasPerm('ticket:create_ticket', userSession.permissions) &&
+            String(ticket.created_by) === userSession.db_id
+        ) {
+            return true;
+        }
+
+        // reviewers/reports can see any ticket
+        if (
+            hasAnyPerm(
+                ['ticket:review_reports', 'ticket:review_tickets'],
+                userSession.permissions,
+            )
+        ) {
+            return true;
+        }
+        // daily reporters may also view tickets
+        if (
+            hasPerm('ticket:submit_daily_report', userSession.permissions) &&
+            ticket.assignees.some(a => String(a.db_id) === userSession.db_id)
+        ) {
+            return true;
+        }
+        return false;
+    }
+
     async getTicketByTicketNumber(ticketNo: string, userSession: UserSession) {
         try {
             if (
                 !hasAnyPerm(
                     [
                         'ticket:create_ticket',
-                        'ticket:review_works',
+                        'ticket:review_reports',
+                        'ticket:review_tickets',
                         'ticket:submit_daily_report',
                     ],
                     userSession.permissions,
@@ -430,23 +459,7 @@ export class TicketService {
                 throw new NotFoundException('Ticket not found');
             }
 
-            if (ticket.created_by.toString() !== userSession.db_id) {
-                if (!hasPerm('ticket:review_works', userSession.permissions)) {
-                    if (
-                        !hasPerm(
-                            'ticket:submit_daily_report',
-                            userSession.permissions,
-                        )
-                    ) {
-                        throw new ForbiddenException(
-                            "You don't have permission to view this ticket",
-                        );
-                    }
-
-                    throw new ForbiddenException(
-                        "You don't have permission to view this ticket",
-                    );
-                }
+            if (!this.canAccessTicket(ticket, userSession)) {
                 throw new ForbiddenException(
                     "You don't have permission to view this ticket",
                 );
@@ -484,7 +497,7 @@ export class TicketService {
         }
 
         if (
-            !hasPerm('ticket:review_works', userSession.permissions) &&
+            !hasAnyPerm(['ticket:review_tickets'], userSession.permissions) &&
             existing.created_by.toString() !== userSession.db_id
         ) {
             throw new ForbiddenException(

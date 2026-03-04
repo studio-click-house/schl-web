@@ -124,7 +124,7 @@ export class DailyReportService {
         // permission check up front
         if (
             !hasAnyPerm(
-                ['ticket:review_works', 'ticket:submit_daily_report'],
+                ['ticket:review_reports', 'ticket:submit_daily_report'],
                 userSession.permissions,
             )
         ) {
@@ -303,7 +303,7 @@ export class DailyReportService {
 
     async verifyDailyReport(id: string, userSession: UserSession) {
         // reuse review permission since no dedicated one exists yet
-        if (!hasPerm('ticket:review_works', userSession.permissions)) {
+        if (!hasPerm('ticket:review_reports', userSession.permissions)) {
             throw new ForbiddenException(
                 "You don't have permission to verify daily reports",
             );

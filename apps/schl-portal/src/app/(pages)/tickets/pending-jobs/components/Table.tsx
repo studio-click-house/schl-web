@@ -189,52 +189,6 @@ function Table() {
         }
     };
 
-    const editTicket = async (editedTicketData: TicketFormDataType) => {
-        try {
-            setLoading(true);
-            const parsed = validationSchema.safeParse(editedTicketData);
-
-            if (!parsed.success) {
-                console.error(parsed.error.issues.map(issue => issue.message));
-                toast.error('Invalid form data');
-                return;
-            }
-
-            const { _id, ...rest } = parsed.data;
-
-            // convert deadline string to ISO or keep null when explicitly cleared
-            const payload: any = { ...rest };
-            if (rest.deadline !== undefined) {
-                payload.deadline = rest.deadline
-                    ? new Date(rest.deadline).toISOString()
-                    : null;
-            }
-
-            const response = await authedFetchApi(
-                { path: `/v1/ticket/update-ticket/${_id}` },
-                {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(payload),
-                },
-            );
-
-            if (response.ok) {
-                toast.success('Updated the ticket data');
-                await fetchTickets();
-            } else {
-                toastFetchError(response);
-            }
-        } catch (error) {
-            console.error(error);
-            toast.error('An error occurred while updating the ticket');
-        } finally {
-            setLoading(false);
-        }
-    };
-
     usePaginationManager({
         page,
         itemPerPage,
@@ -309,7 +263,6 @@ function Table() {
                                 <col className="whitespace-nowrap min-w-[120px]" />
                                 <col className="whitespace-nowrap min-w-[150px]" />
                                 <col className="whitespace-nowrap min-w-[150px]" />
-                                <col className="whitespace-nowrap min-w-[150px]" />
                                 <col className="min-w-[300px]" />
                                 <col className="whitespace-nowrap min-w-[100px]" />
                                 <col className="whitespace-nowrap min-w-[100px]" />
@@ -320,9 +273,6 @@ function Table() {
                                 <tr className="bg-gray-50 whitespace-nowrap">
                                     <th className="whitespace-nowrap">S/N</th>
                                     <th className="whitespace-nowrap">Date</th>
-                                    <th className="whitespace-nowrap">
-                                        Created By
-                                    </th>
                                     <th className="whitespace-nowrap">
                                         Ticket No
                                     </th>

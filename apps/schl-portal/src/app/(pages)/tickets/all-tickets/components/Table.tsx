@@ -86,7 +86,8 @@ const Table = () => {
         deadlineStatus: '',
         createdBy: '',
         assignees: [] as string[],
-        excludeClosed: false,
+        excludeClosed: true,
+        excludeInReview: false,
     });
 
     const getAllTickets = useCallback(
@@ -107,7 +108,9 @@ const Table = () => {
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify({}),
+                        body: JSON.stringify({
+                            excludeClosed: true,
+                        }),
                     },
                 );
 
@@ -349,9 +352,11 @@ const Table = () => {
                                 <tr className="whitespace-nowrap">
                                     <th className="whitespace-nowrap">#</th>
                                     <th className="whitespace-nowrap">Date</th>
-                                    <th className="whitespace-nowrap">
-                                        Created By
-                                    </th>
+                                    {canReviewTicket && (
+                                        <th className="whitespace-nowrap">
+                                            Created By
+                                        </th>
+                                    )}
                                     <th className="whitespace-nowrap">
                                         Ticket No
                                     </th>
@@ -391,21 +396,27 @@ const Table = () => {
                                     );
 
                                     /*
-                                    if user has create ticket permission he can edit all tickets that are not closed
+                                    users with create-ticket permission may edit their own tickets
+                                    as long as the ticket isn't closed
                                     */
                                     const canEditUsual =
                                         canManage &&
                                         !CLOSED_TICKET_STATUSES.includes(
                                             ticket.status,
-                                        );
+                                        ) &&
+                                        String(ticket.created_by) ===
+                                            session?.user.db_id;
+
                                     /*
-                                    if user has review ticket permission he can edit all tickets despite closed status expect the tickets where the ticket is assigned by him
+                                    reviewers can edit a ticket if it is assigned to them
+                                    or if no one has been assigned yet (assigned_by null)
                                     */
-                                    const canEdit = canEditUsual
-                                        ? true
-                                        : canReviewTicket &&
-                                          String(ticket.assigned_by) ===
-                                              session?.user.db_id;
+                                    const canEdit =
+                                        canEditUsual ||
+                                        (canReviewTicket &&
+                                            (ticket.assigned_by === null ||
+                                                String(ticket.assigned_by) ===
+                                                    session?.user.db_id));
 
                                     const canDeleteTicket = hasPerm(
                                         'ticket:delete_ticket',

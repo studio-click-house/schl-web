@@ -9,7 +9,7 @@ import {
     formatTimestamp,
 } from '@repo/common/utils/date-helpers';
 import { constructFileName } from '@repo/common/utils/general-utils';
-import { hasPerm } from '@repo/common/utils/permission-check';
+import { hasAnyPerm, hasPerm } from '@repo/common/utils/permission-check';
 import createDOMPurify from 'dompurify';
 import parse, {
     DOMNode,
@@ -115,7 +115,7 @@ const ViewTicket: React.FC<ViewTicketProps> = props => {
     );
 
     const canReviewTicket = useMemo(
-        () => hasPerm('ticket:review_works', userPermissions),
+        () => hasAnyPerm(['ticket:review_reports', 'ticket:review_tickets'], userPermissions),
         [userPermissions],
     );
 
@@ -125,9 +125,7 @@ const ViewTicket: React.FC<ViewTicketProps> = props => {
     );
 
     const redirectBase = useMemo(() => {
-        return hasPerm('ticket:review_works', userPermissions)
-            ? '/tickets/all-tickets'
-            : '/tickets/my-tickets';
+        return '/'
     }, [userPermissions]);
 
     const router = useRouter();
