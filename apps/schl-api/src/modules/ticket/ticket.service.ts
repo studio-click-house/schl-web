@@ -312,21 +312,51 @@ export class TicketService {
                     $switch: {
                         branches: [
                             {
-                                // closed tickets first
-                                case: {
-                                    $in: ['$status', CLOSED_TICKET_STATUSES],
-                                },
-                                then: 0,
-                            },
-                            {
-                                // expired tickets next (deadline exists and <= now)
+                                // Overdue: not closed, deadline passed
                                 case: {
                                     $and: [
-                                        { $lte: ['$deadline', new Date()] },
+                                        {
+                                            $not: {
+                                                $in: [
+                                                    '$status',
+                                                    CLOSED_TICKET_STATUSES,
+                                                ],
+                                            },
+                                        },
                                         { $ne: ['$deadline', null] },
+                                        { $lte: ['$deadline', new Date()] },
                                     ],
                                 },
+                                then: 5,
+                            },
+                            {
+                                // In-Progress
+                                case: { $eq: ['$status', 'in-progress'] },
+                                then: 4,
+                            },
+                            {
+                                // Pending
+                                case: { $eq: ['$status', 'pending'] },
+                                then: 3,
+                            },
+                            {
+                                // In-Review
+                                case: { $eq: ['$status', 'in-review'] },
+                                then: 2,
+                            },
+                            {
+                                // Others (On-Hold, etc.) but not closed
+                                case: {
+                                    $not: {
+                                        $in: ['$status', CLOSED_TICKET_STATUSES],
+                                    },
+                                },
                                 then: 1,
+                            },
+                            {
+                                // Closed
+                                case: { $in: ['$status', CLOSED_TICKET_STATUSES] },
+                                then: 0,
                             },
                         ],
                         default: 2, // everything else

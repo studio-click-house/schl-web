@@ -176,7 +176,7 @@ export default function FilterButton(props: PropsType) {
             deadlineStatus: '',
             createdBy: '',
             assignees: [],
-            excludeClosed: true,
+            excludeClosed: false,
             excludeInReview: false,
         });
     };
@@ -498,7 +498,7 @@ export default function FilterButton(props: PropsType) {
                                         className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
                                     />
                                     <span className="uppercase whitespace-nowrap select-none">
-                                        Exclude Closed Tickets
+                                        Hide Closed Tickets
                                     </span>
                                 </label>
                             </div>
@@ -516,7 +516,7 @@ export default function FilterButton(props: PropsType) {
                                             className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
                                         />
                                         <span className="uppercase whitespace-nowrap select-none">
-                                            Exclude Review Tickets
+                                            Hide Review Tickets
                                         </span>
                                     </label>
                                 </div>

@@ -27,7 +27,6 @@ import { TicketFormDataType, validationSchema } from '../../schema';
 import {
     getTicketPriorityBadgeClass,
     getTicketStatusBadgeClass,
-    getTicketTypeBadgeClass,
 } from '../components/ticket-badge.helper';
 import DeleteButton from './Delete';
 import EditButton from './Edit';
@@ -86,7 +85,7 @@ const Table = () => {
         deadlineStatus: '',
         createdBy: '',
         assignees: [] as string[],
-        excludeClosed: true,
+        excludeClosed: false,
         excludeInReview: false,
     });
 
@@ -108,9 +107,7 @@ const Table = () => {
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify({
-                            excludeClosed: true,
-                        }),
+                        body: JSON.stringify({}),
                     },
                 );
 
@@ -181,7 +178,10 @@ const Table = () => {
         }
     }, [isFiltered, getAllTickets, getAllTicketsFiltered, page, itemPerPage]);
 
-    const deleteTicket = async (ticketData: { _id: string; file_name?: string }) => {
+    const deleteTicket = async (ticketData: {
+        _id: string;
+        file_name?: string;
+    }) => {
         try {
             const response = await authedFetchApi<{ message: string }>(
                 { path: `/v1/ticket/delete-ticket/${ticketData._id}` },
@@ -456,8 +456,21 @@ const Table = () => {
                                         userPermissions,
                                     );
 
+                                    const isOverdue =
+                                        ticket.deadline &&
+                                        new Date(ticket.deadline) <
+                                            new Date() &&
+                                        !CLOSED_TICKET_STATUSES.includes(
+                                            ticket.status,
+                                        );
+
                                     return (
-                                        <tr key={ticket.ticket_number}>
+                                        <tr
+                                            key={ticket.ticket_number}
+                                            className={cn(
+                                                isOverdue && 'table-danger',
+                                            )}
+                                        >
                                             <td>
                                                 {index +
                                                     1 +
@@ -518,9 +531,6 @@ const Table = () => {
                                                     value={capitalize(
                                                         ticket.type,
                                                     )}
-                                                    className={getTicketTypeBadgeClass(
-                                                        ticket.type,
-                                                    )}
                                                 />
                                             </td>
                                             <td
@@ -569,7 +579,8 @@ const Table = () => {
                                                                         ticket._id,
                                                                     ),
                                                                     file_name:
-                                                                        ticket.file_name ?? undefined,
+                                                                        ticket.file_name ??
+                                                                        undefined,
                                                                 }}
                                                                 submitHandler={
                                                                     deleteTicket

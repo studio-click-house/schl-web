@@ -25,7 +25,6 @@ import { toast } from 'sonner';
 import {
     getTicketPriorityBadgeClass,
     getTicketStatusBadgeClass,
-    getTicketTypeBadgeClass,
 } from '../../all-tickets/components/ticket-badge.helper';
 import { TicketFormDataType, validationSchema } from '../../schema';
 import FilterButton from './Filter';
@@ -346,9 +345,6 @@ function Table() {
                                         >
                                             <Badge
                                                 value={capitalize(ticket.type)}
-                                                className={getTicketTypeBadgeClass(
-                                                    ticket.type,
-                                                )}
                                             />
                                         </td>
                                         <td

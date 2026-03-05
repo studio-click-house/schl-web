@@ -38,6 +38,7 @@ interface DailyReport {
     createdAt: string;
     is_verified?: boolean;
     verified_by_name?: string | null;
+    updatedAt: string;
 }
 
 // simple array of updates, filters handled separately
@@ -280,7 +281,7 @@ const DailyReportsTable: React.FC<Props> = ({ selectedUser }) => {
                                 <col className="w-16" />
                                 <col className="w-52" />
                                 {!selectedUser && <col className="w-32" />}
-                                <col className="w-24" />
+                                <col className="w-52" />
                                 <col className="w-32" />
                                 <col className="w-auto" />
                                 <col className="w-32" />
@@ -290,7 +291,7 @@ const DailyReportsTable: React.FC<Props> = ({ selectedUser }) => {
                                     <th>S/N</th>
                                     <th>Date</th>
                                     {!selectedUser && <th>Submitted By</th>}
-                                    <th>Verified</th>
+                                    <th>Verified At</th>
                                     <th>Verified By</th>
                                     <th>Message</th>
                                     <th>Action</th>
@@ -313,8 +314,15 @@ const DailyReportsTable: React.FC<Props> = ({ selectedUser }) => {
                                                     'N/A'}
                                             </td>
                                         )}
+                                        {/* if a work update is verified that means edit permissions are revoked, so show the latest update time is the verified time */}
                                         <td className="text-balance">
-                                            {update.is_verified ? 'Yes' : 'No'}
+                                            {update.is_verified
+                                                ? `${formatDate(update.updatedAt)} | ${formatTime(
+                                                      formatTimestamp(
+                                                          update.updatedAt,
+                                                      ).time,
+                                                  )}`
+                                                : 'N/A'}
                                         </td>
                                         <td className="text-balance">
                                             {update.verified_by_name || 'N/A'}
