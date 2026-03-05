@@ -31,7 +31,7 @@ export class TrackerAuthService {
         private readonly qcWorkLogModel: Model<QcWorkLog>,
 
         private readonly trackerGateway: TrackerGateway,
-    ) {}
+    ) { }
 
     async checkUser(username: string) {
         try {
@@ -100,6 +100,52 @@ export class TrackerAuthService {
                 /* fallback to username */
             }
 
+            // ── Stale session cleanup ──────────────────────────
+            // If the user's previous session ended abruptly (app crash, task manager kill, power loss),
+            // logout_at will be null. We close it NOW (using current login time as the logout time for the old session)
+            // and mark any stuck 'working' files as 'walkout'.
+            try {
+                const staleSessions = await this.userSessionModel
+                    .find({
+                        user_id: user._id,
+                        logout_at: null,
+                    })
+                    .exec();
+
+                for (const stale of staleSessions) {
+                    stale.logout_at = now;
+                    stale.duration_session = Math.max(
+                        0,
+                        Math.floor((now.getTime() - stale.login_at.getTime()) / 1000)
+                    );
+                    await stale.save();
+                }
+
+                if (staleSessions.length > 0) {
+                    const staleDates = [
+                        ...new Set(staleSessions.map((s) => s.session_date)),
+                    ];
+
+                    const rawName = displayName.split('-')[0]!.trim();
+                    const nameRegex = new RegExp(
+                        `^${rawName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\s*-.*)?$`,
+                        'i',
+                    );
+
+                    await this.qcWorkLogModel.updateMany(
+                        {
+                            employee_name: { $regex: nameRegex },
+                            date_today: { $in: staleDates },
+                            'files.file_status': 'working',
+                        },
+                        { $set: { 'files.$[f].file_status': 'walkout' } },
+                        { arrayFilters: [{ 'f.file_status': 'working' }] },
+                    );
+                }
+            } catch {
+                /* best-effort — don't block login if cleanup fails */
+            }
+
             await this.userSessionModel.create({
                 session_id: sessionId,
                 user_id: user._id,
@@ -165,6 +211,26 @@ export class TrackerAuthService {
             );
 
             await session.save();
+
+            // Mark any remaining "working" files as "walkout" for this user+date
+            try {
+                const rawName = session.username.split('-')[0]!.trim();
+                const nameRegex = new RegExp(
+                    `^${rawName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\s*-.*)?$`,
+                    'i',
+                );
+                await this.qcWorkLogModel.updateMany(
+                    {
+                        employee_name: { $regex: nameRegex },
+                        date_today: session.session_date,
+                        'files.file_status': 'working',
+                    },
+                    { $set: { 'files.$[f].file_status': 'walkout' } },
+                    { arrayFilters: [{ 'f.file_status': 'working' }] },
+                );
+            } catch {
+                /* best-effort — don't block logout response */
+            }
 
             this.trackerGateway.broadcastTrackerUpdate('TRACKER_UPDATED', {
                 reason: 'logout',
