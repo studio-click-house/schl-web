@@ -67,7 +67,7 @@ const Form: React.FC<PropsType> = props => {
             qc1: 0,
             qc2: 0,
             comment: '',
-            type: 'general',
+            type: 'pending',
             status: 'running',
             folder_path: '',
             priority: 'medium',

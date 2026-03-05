@@ -13,6 +13,7 @@ import {
     setMenuPortalTarget,
 } from '@repo/common/utils/select-helpers';
 import { Filter, X } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import React, { useRef, useState } from 'react';
 import Select from 'react-select';
 
@@ -32,6 +33,7 @@ interface PropsType {
         createdBy: string;
         assignees: string[];
         excludeClosed: boolean;
+        excludeInReview: boolean;
     };
     setFilters: React.Dispatch<
         React.SetStateAction<{
@@ -45,6 +47,7 @@ interface PropsType {
             createdBy: string;
             assignees: string[];
             excludeClosed: boolean;
+            excludeInReview: boolean;
         }>
     >;
     isLoading: boolean;
@@ -62,6 +65,8 @@ export default function FilterButton(props: PropsType) {
     const [assigneeOptions, setAssigneeOptions] = useState<
         { label: string; value: string }[]
     >([]);
+
+    const { data: session } = useSession();
 
     React.useEffect(() => {
         const loadCreators = async () => {
@@ -126,7 +131,7 @@ export default function FilterButton(props: PropsType) {
                         : resp.data.items || [];
                     const valid = (usersRaw as any[]).filter(u =>
                         hasPerm(
-                            'ticket:submit_work_update',
+                            'ticket:submit_daily_report',
                             u.role?.permissions || [],
                         ),
                     );
@@ -154,6 +159,12 @@ export default function FilterButton(props: PropsType) {
         setFilters(prev => ({ ...prev, [name]: value }) as any);
     };
 
+    // checkboxes carry their state in `checked` instead of `value`
+    const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, checked } = e.target;
+        setFilters(prev => ({ ...prev, [name]: checked }) as any);
+    };
+
     const handleResetFilters = () => {
         setFilters({
             ticketNumber: '',
@@ -165,7 +176,8 @@ export default function FilterButton(props: PropsType) {
             deadlineStatus: '',
             createdBy: '',
             assignees: [],
-            excludeClosed: false,
+            excludeClosed: true,
+            excludeInReview: false,
         });
     };
 
@@ -332,7 +344,7 @@ export default function FilterButton(props: PropsType) {
                                 <>
                                     <div>
                                         <label className="uppercase tracking-wide text-gray-700 text-sm font-bold block mb-2">
-                                            Creator
+                                            Created By
                                         </label>
                                         <Select
                                             {...setClassNameAndIsDisabled(
@@ -474,6 +486,40 @@ export default function FilterButton(props: PropsType) {
                                         </div>
                                     </div>
                                 </>
+                            )}
+                            <div className="md:col-span-2">
+                                <label className="inline-flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        id="excludeClosed"
+                                        name="excludeClosed"
+                                        type="checkbox"
+                                        checked={props.filters.excludeClosed}
+                                        onChange={handleCheckboxChange}
+                                        className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                                    />
+                                    <span className="uppercase whitespace-nowrap select-none">
+                                        Exclude Closed Tickets
+                                    </span>
+                                </label>
+                            </div>
+                            {props.canReviewTicket && (
+                                <div className="md:col-span-2">
+                                    <label className="inline-flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            id="excludeInReview"
+                                            name="excludeInReview"
+                                            type="checkbox"
+                                            checked={
+                                                props.filters.excludeInReview
+                                            }
+                                            onChange={handleCheckboxChange}
+                                            className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                                        />
+                                        <span className="uppercase whitespace-nowrap select-none">
+                                            Exclude Review Tickets
+                                        </span>
+                                    </label>
+                                </div>
                             )}
                         </div>
                     </div>

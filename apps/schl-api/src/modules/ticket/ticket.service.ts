@@ -111,6 +111,30 @@ export class TicketService {
 
         try {
             const ticketNumber = await this.generateTicketNumber();
+
+            // apply filename suffixing and sanitization logic before creation
+            // so the DB record matches the eventually-uploaded FTP file.
+            if (body.fileName) {
+                const originalName = body.fileName.trim();
+                const lastDotIndex = originalName.lastIndexOf('.');
+                const nameWithoutExt =
+                    lastDotIndex !== -1
+                        ? originalName.substring(0, lastDotIndex)
+                        : originalName;
+                const ext =
+                    lastDotIndex !== -1
+                        ? originalName.substring(lastDotIndex + 1)
+                        : '';
+
+                const suffix = ticketNumber.replace('SCHL-', '');
+                const combinedName = ext
+                    ? `${nameWithoutExt}_${suffix}.${ext}`
+                    : `${nameWithoutExt}_${suffix}`;
+
+                // mimic FtpService sanitization: /[^a-zA-Z0-9._-]/g -> '_'
+                body.fileName = combinedName.replace(/[^a-zA-Z0-9._-]/g, '_');
+            }
+
             const payload = TicketFactory.fromCreateDto(
                 body,
                 userSession,
@@ -164,6 +188,8 @@ export class TicketService {
             createdBy,
             assignees,
             excludeClosed,
+            includeUnassigned,
+            excludeInReview,
         } = filters;
 
         const normalizedFromDate: string | undefined =
@@ -174,7 +200,7 @@ export class TicketService {
             ticket_number?: ReturnType<typeof createRegexQuery>;
             title?: ReturnType<typeof createRegexQuery>;
             type?: string;
-            status?: string;
+            status?: string | Record<string, any>;
             priority?: string;
             createdAt?: { $gte?: Date; $lte?: Date };
             created_by?: Types.ObjectId;
@@ -221,7 +247,18 @@ export class TicketService {
 
         if (excludeClosed) {
             // this can stay at root since it will be ANDed with other root-level keys
-            query.status = { $nin: CLOSED_TICKET_STATUSES } as any;
+            query.status = { $nin: CLOSED_TICKET_STATUSES };
+        }
+
+        if (excludeInReview) {
+            const currentStatus =
+                query.status && typeof query.status === 'object'
+                    ? query.status
+                    : {};
+            query.status = {
+                ...currentStatus,
+                $ne: 'in-review',
+            };
         }
 
         if (createdBy) {
@@ -230,12 +267,21 @@ export class TicketService {
             if (myTickets) {
                 query.created_by = new Types.ObjectId(userSession.db_id);
             } else if (
-                !hasPerm('ticket:review_works', userSession.permissions)
+                !hasAnyPerm(
+                    ['ticket:review_tickets', 'ticket:submit_daily_report'],
+                    userSession.permissions,
+                )
             ) {
                 // users without the review_works permission only see their own tickets
                 query.created_by = new Types.ObjectId(userSession.db_id);
             }
         }
+
+        console.log(
+            'This is the assignees filter: ',
+            assignees,
+            includeUnassigned,
+        );
 
         // assignee filter: any ticket whose assignees array includes one of the
         // selected users. can optionally include unassigned tickets as well.
@@ -245,7 +291,7 @@ export class TicketService {
                 ids.push(new Types.ObjectId(id));
             }
             const orClauses: any[] = [{ 'assignees.db_id': { $in: ids } }];
-            if (filters.includeUnassigned) {
+            if (includeUnassigned) {
                 orClauses.push({ assignees: { $size: 0 } });
             }
             const clause = { $or: orClauses };
@@ -298,6 +344,11 @@ export class TicketService {
                 },
             },
         };
+
+        console.log(
+            'Constructed query for ticket search: ',
+            JSON.stringify(query),
+        );
 
         const basePipeline: PipelineStage[] = [
             { $match: query } as PipelineStage,
@@ -376,14 +427,43 @@ export class TicketService {
         return result;
     }
 
+    private canAccessTicket(ticket: Ticket, userSession: UserSession): boolean {
+        // owners always see their own tickets
+        if (
+            hasPerm('ticket:create_ticket', userSession.permissions) &&
+            String(ticket.created_by) === userSession.db_id
+        ) {
+            return true;
+        }
+
+        // reviewers/reports can see any ticket
+        if (
+            hasAnyPerm(
+                ['ticket:review_reports', 'ticket:review_tickets'],
+                userSession.permissions,
+            )
+        ) {
+            return true;
+        }
+        // daily reporters may also view tickets
+        if (
+            hasPerm('ticket:submit_daily_report', userSession.permissions) &&
+            ticket.assignees.some(a => String(a.db_id) === userSession.db_id)
+        ) {
+            return true;
+        }
+        return false;
+    }
+
     async getTicketByTicketNumber(ticketNo: string, userSession: UserSession) {
         try {
             if (
                 !hasAnyPerm(
                     [
                         'ticket:create_ticket',
-                        'ticket:review_works',
-                        'ticket:submit_work_update',
+                        'ticket:review_reports',
+                        'ticket:review_tickets',
+                        'ticket:submit_daily_report',
                     ],
                     userSession.permissions,
                 )
@@ -403,23 +483,7 @@ export class TicketService {
                 throw new NotFoundException('Ticket not found');
             }
 
-            if (ticket.created_by.toString() !== userSession.db_id) {
-                if (!hasPerm('ticket:review_works', userSession.permissions)) {
-                    if (
-                        !hasPerm(
-                            'ticket:submit_work_update',
-                            userSession.permissions,
-                        )
-                    ) {
-                        throw new ForbiddenException(
-                            "You don't have permission to view this ticket",
-                        );
-                    }
-
-                    throw new ForbiddenException(
-                        "You don't have permission to view this ticket",
-                    );
-                }
+            if (!this.canAccessTicket(ticket, userSession)) {
                 throw new ForbiddenException(
                     "You don't have permission to view this ticket",
                 );
@@ -456,9 +520,8 @@ export class TicketService {
             throw new NotFoundException('Ticket not found');
         }
 
-        // Only owner or reviewer may update
         if (
-            !hasPerm('ticket:review_works', userSession.permissions) &&
+            !hasAnyPerm(['ticket:review_tickets'], userSession.permissions) &&
             existing.created_by.toString() !== userSession.db_id
         ) {
             throw new ForbiddenException(
@@ -466,32 +529,25 @@ export class TicketService {
             );
         }
 
-        // allow modifying assigned_by when needed
         const patch = TicketFactory.fromUpdateDto(ticketData);
         if (Object.keys(patch).length === 0) {
             throw new BadRequestException('No update fields provided');
         }
 
-        // apply assignment logic when assignees list is changed
+        const assignedBy = existing.assigned_by?.toString() || null;
+        const currentUser = userSession.db_id;
+
         if (patch.assignees !== undefined) {
-            const assignedBy = existing.assigned_by?.toString() || null;
-            const currentUser = userSession.db_id;
-            const isArray = Array.isArray(patch.assignees);
-            const isClearing = isArray && patch.assignees.length === 0;
-            const isAssigning = isArray && patch.assignees.length > 0;
-
-            if (assignedBy !== null && assignedBy !== currentUser) {
-                throw new ForbiddenException(
-                    "You don't have permission to modify assignees",
-                );
-            }
-
-            if (isClearing) {
+            if (patch.assignees.length === 0) {
                 patch.assigned_by = null;
-            }
-
-            if (isAssigning && assignedBy === null) {
-                patch.assigned_by = new mongoose.Types.ObjectId(currentUser);
+            } else {
+                const hadNoAssignees =
+                    !existing.assignees || existing.assignees.length === 0;
+                if (hadNoAssignees && assignedBy === null) {
+                    patch.assigned_by = new mongoose.Types.ObjectId(
+                        currentUser,
+                    );
+                }
             }
         }
 
@@ -501,6 +557,7 @@ export class TicketService {
 
         if (!updated)
             throw new InternalServerErrorException('Unable to update ticket');
+
         return { message: 'Updated the ticket successfully' };
     }
 

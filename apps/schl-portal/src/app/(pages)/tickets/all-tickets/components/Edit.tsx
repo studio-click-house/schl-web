@@ -81,7 +81,7 @@ const EditButton: React.FC<PropsType> = props => {
                     const usersRaw = resp.data;
                     const valid = usersRaw.filter(u =>
                         hasPerm(
-                            'ticket:submit_work_update',
+                            'ticket:submit_daily_report',
                             u.role.permissions,
                         ),
                     );
@@ -155,7 +155,9 @@ const EditButton: React.FC<PropsType> = props => {
         if (isOpen) {
             const formatted = {
                 ...props.ticketData,
-                deadline: isoToLocalDateTime(props.ticketData.deadline),
+                deadline: props.ticketData.deadline
+                    ? isoToLocalDateTime(props.ticketData.deadline)
+                    : null,
             };
             reset(formatted);
         }
@@ -167,7 +169,9 @@ const EditButton: React.FC<PropsType> = props => {
                 onClick={() => {
                     const formatted = {
                         ...props.ticketData,
-                        deadline: isoToLocalDateTime(props.ticketData.deadline),
+                        deadline: props.ticketData.deadline
+                            ? isoToLocalDateTime(props.ticketData.deadline)
+                            : null,
                     };
                     reset(formatted);
                     setIsOpen(true);
@@ -376,12 +380,6 @@ const EditButton: React.FC<PropsType> = props => {
                                                     !props.canReviewTicket,
                                                 )}
                                                 isMulti
-                                                isDisabled={
-                                                    props.ticketData.assigned_by?.toString() !==
-                                                        session?.user.db_id &&
-                                                    props.ticketData
-                                                        .assigned_by !== null
-                                                }
                                                 options={assigneeOptions}
                                                 closeMenuOnSelect={false}
                                                 placeholder="Select assignee(s)"
@@ -427,12 +425,6 @@ const EditButton: React.FC<PropsType> = props => {
                                         <input
                                             {...register('deadline')}
                                             type="datetime-local"
-                                            disabled={
-                                                props.ticketData.assigned_by?.toString() !==
-                                                    session?.user.db_id &&
-                                                props.ticketData.assigned_by !==
-                                                    null
-                                            }
                                             className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
                                         />
                                     </div>

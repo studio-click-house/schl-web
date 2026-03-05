@@ -21,6 +21,7 @@ export class TrackerQcWorkLogService {
         private readonly qcWorkLogModel: Model<QcWorkLog>,
         private readonly trackerGateway: TrackerGateway,
     ) {}
+    ) {}
 
     async syncQc(payload: SyncQcWorkLogDto) {
         if (!payload.employeeName) {

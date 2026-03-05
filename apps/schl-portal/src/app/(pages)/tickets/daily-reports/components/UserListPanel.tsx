@@ -43,10 +43,12 @@ const UserListPanel: React.FC<Props> = ({ selectedUser, onSelect }) => {
                         raw as any[]
                     ).filter(u =>
                         hasPerm(
-                            'ticket:submit_work_update',
+                            'ticket:submit_daily_report',
                             u.role?.permissions || [],
                         ),
                     );
+                    console.log('Raw users:', raw);
+                    console.log('Filtered users:', filtered);
                     setUsers(filtered);
                 } else {
                     toastFetchError(resp);
@@ -65,6 +67,8 @@ const UserListPanel: React.FC<Props> = ({ selectedUser, onSelect }) => {
     const handleClick = (id: string) => {
         onSelect(id);
     };
+
+    console.log(users);
 
     return (
         <aside className="w-1/4 max-h-[70vh] overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-sm text-base">

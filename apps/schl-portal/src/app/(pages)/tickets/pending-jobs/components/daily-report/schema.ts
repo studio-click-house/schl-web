@@ -7,11 +7,12 @@ export const dailyUpdateSchema = z.object({
         .min(1, 'Message is required'),
     ticket: z
         .string()
-        .optional()
         .refine(
-            val => !val || mongoose.Types.ObjectId.isValid(val),
+            val => mongoose.Types.ObjectId.isValid(val),
             'Invalid ticket id',
-        ),
+        )
+        .nullable()
+        .optional(),
 });
 
-export type WorkUpdateFormData = z.infer<typeof dailyUpdateSchema>;
+export type DailyReportFormData = z.infer<typeof dailyUpdateSchema>;

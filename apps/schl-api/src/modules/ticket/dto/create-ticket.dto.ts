@@ -65,6 +65,10 @@ export class CreateTicketBodyDto {
     deadline?: string;
 
     @IsOptional()
+    @IsString()
+    fileName?: string | null;
+
+    @IsOptional()
     @IsArray()
     @ValidateNested({ each: true })
     @Type(() => AssigneeDto)

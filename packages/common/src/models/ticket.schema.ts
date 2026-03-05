@@ -53,12 +53,13 @@ export class Ticket {
     @Prop({
         type: [
             {
-                name: String,
-                db_id: mongoose.Schema.Types.ObjectId,
-                e_id: String,
+                name: { type: String },
+                db_id: { type: mongoose.Schema.Types.ObjectId },
+                e_id: { type: String },
             },
         ],
         ref: User.name,
+        default: [],
     })
     assignees: {
         name: string;
@@ -77,6 +78,9 @@ export class Ticket {
 
     @Prop({ type: Date, default: null })
     deadline: Date | null;
+
+    @Prop({ default: null, type: String })
+    file_name: string | null;
 
     @Prop({ type: Date })
     readonly createdAt: Date;

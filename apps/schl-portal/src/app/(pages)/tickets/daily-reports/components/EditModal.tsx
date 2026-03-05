@@ -1,29 +1,40 @@
 'use client';
 
-import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
-import { cn } from '@repo/common/utils/general-utils';
-import { hasPerm } from '@repo/common/utils/permission-check';
+import { useAuthedFetchApi } from '@/lib/api-client';
+import { zodResolver } from '@hookform/resolvers/zod';
 import {
     setCalculatedZIndex,
     setClassNameAndIsDisabled,
     setMenuPortalTarget,
 } from '@repo/common/utils/select-helpers';
-import { CirclePlus, X } from 'lucide-react';
+import { SquarePen, X } from 'lucide-react';
 import { useSession } from 'next-auth/react';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import Select from 'react-select';
+import {
+    DailyReportFormData,
+    dailyUpdateSchema,
+} from '../../pending-jobs/components/daily-report/schema';
 
 const baseZIndex = 50;
 
-import { zodResolver } from '@hookform/resolvers/zod';
-import { WorkUpdateFormData, dailyUpdateSchema } from './schema';
-
-interface PropsType {
-    submitHandler: (data: WorkUpdateFormData) => Promise<void>;
+interface ReportData {
+    _id: string;
+    message: string;
+    ticket?: { ticket_number: string; _id?: string };
+    ticket_id?: string; // mongo id of the ticket, if available
 }
 
-export default function WorkUpdateModal(props: PropsType) {
+interface PropsType {
+    reportData: ReportData;
+    canReviewReports: boolean;
+    submitHandler: (
+        data: DailyReportFormData & { _id: string },
+    ) => Promise<void>;
+}
+
+export default function EditDailyReportModal(props: PropsType) {
     const authedFetchApi = useAuthedFetchApi();
     const { data: session } = useSession();
     const [isOpen, setIsOpen] = useState(false);
@@ -39,20 +50,42 @@ export default function WorkUpdateModal(props: PropsType) {
         control,
         reset,
         formState: { errors },
-    } = useForm<WorkUpdateFormData>({
+    } = useForm<DailyReportFormData>({
         resolver: zodResolver(dailyUpdateSchema),
         defaultValues: {
-            message: '',
-            ticket: undefined,
+            message: props.reportData.message,
+            ticket: props.reportData.ticket_id ?? null,
         },
     });
 
-    // fetch ticket options when modal opens
+    // reset form values whenever the modal opens (in case parent data changed)
+    useEffect(() => {
+        if (isOpen) {
+            reset({
+                message: props.reportData.message,
+                ticket: props.reportData.ticket_id ?? null,
+            });
+        }
+    }, [isOpen, props.reportData, reset]);
+
+    // load ticket options when the modal opens
     useEffect(() => {
         if (!isOpen) return;
         const loadTickets = async () => {
             try {
                 if (!session?.user.db_id) return;
+
+                const body: Record<string, any> = {
+                    excludeClosed: true,
+                    excludeInReview: true,
+                };
+
+                if (!props.canReviewReports) {
+                    // non-reviewers: only tickets assigned to them or unassigned
+                    body.assignees = [session.user.db_id];
+                    body.includeUnassigned = true;
+                }
+
                 const resp = await authedFetchApi<{
                     pagination?: any;
                     items: any[];
@@ -64,14 +97,10 @@ export default function WorkUpdateModal(props: PropsType) {
                     {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            excludeClosed: true,
-                            assignees: [session.user.db_id],
-                            includeUnassigned: true,
-                            deadlineStatus: 'not-overdue',
-                        }),
+                        body: JSON.stringify(body),
                     },
                 );
+
                 if (resp.ok && resp.data) {
                     const items = Array.isArray(resp.data)
                         ? resp.data
@@ -87,7 +116,7 @@ export default function WorkUpdateModal(props: PropsType) {
             }
         };
         loadTickets();
-    }, [isOpen, authedFetchApi, session?.user.db_id]);
+    }, [isOpen, authedFetchApi, session?.user.db_id, props.canReviewReports]);
 
     const handleClickOutside = (e: React.MouseEvent<HTMLDivElement>) => {
         if (
@@ -100,27 +129,18 @@ export default function WorkUpdateModal(props: PropsType) {
         }
     };
 
-    const onSubmit = async (data: WorkUpdateFormData) => {
-        await props.submitHandler(data);
-        handleResetForm();
+    const onSubmit = async (data: DailyReportFormData) => {
+        await props.submitHandler({ ...data, _id: props.reportData._id });
         setIsOpen(false);
-    };
-
-    const handleResetForm = () => {
-        reset({ message: '', ticket: undefined });
     };
 
     return (
         <>
             <button
-                onClick={() => {
-                    handleResetForm();
-                    setIsOpen(true);
-                }}
-                className="flex justify-between items-center gap-2 rounded-md bg-primary hover:opacity-90 hover:ring-4 hover:ring-primary transition duration-200 delay-300 hover:text-opacity-100 text-white px-3 py-2"
+                onClick={() => setIsOpen(true)}
+                className="rounded-md bg-blue-600 hover:opacity-90 hover:ring-2 hover:ring-blue-600 transition duration-200 delay-300 hover:text-opacity-100 text-white p-2 items-center"
             >
-                Submit Work Update
-                <CirclePlus size={18} />
+                <SquarePen size={16} />
             </button>
 
             <section
@@ -140,12 +160,12 @@ export default function WorkUpdateModal(props: PropsType) {
                 >
                     <header className="flex items-center align-middle justify-between px-4 py-2 border-b rounded-t">
                         <h3 className="text-gray-900 text-base lg:text-lg font-semibold uppercase">
-                            Work Update
+                            Edit Daily Report
                         </h3>
                         <button
                             onClick={() => setIsOpen(false)}
                             type="button"
-                            className="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 ml-auto inline-flex items-center "
+                            className="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 ml-auto inline-flex items-center"
                         >
                             <X size={18} />
                         </button>
@@ -158,7 +178,7 @@ export default function WorkUpdateModal(props: PropsType) {
                     >
                         <div className="grid grid-cols-1 gap-y-4">
                             <div>
-                                <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
+                                <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
                                     <span className="uppercase">Message*</span>
                                     <span className="text-red-700 text-wrap block text-xs">
                                         {errors.message &&
@@ -199,7 +219,9 @@ export default function WorkUpdateModal(props: PropsType) {
                                                 ) || null
                                             }
                                             onChange={opt =>
-                                                field.onChange(opt?.value)
+                                                field.onChange(
+                                                    opt?.value ?? null,
+                                                )
                                             }
                                             isClearable
                                         />
@@ -208,23 +230,22 @@ export default function WorkUpdateModal(props: PropsType) {
                             </div>
                         </div>
                     </form>
+
                     <footer className="flex items-center px-4 py-2 border-t justify-end gap-6 border-gray-200 rounded-b">
                         <div className="space-x-2 justify-end">
                             <button
-                                onClick={() => {
-                                    handleResetForm();
-                                }}
-                                className="rounded-md bg-gray-600 text-white  hover:opacity-90 hover:ring-2 hover:ring-gray-600 transition duration-200 delay-300 hover:text-opacity-100 px-8 py-2 uppercase"
+                                onClick={() => setIsOpen(false)}
+                                className="rounded-md bg-gray-600 text-white hover:opacity-90 hover:ring-2 hover:ring-gray-600 transition duration-200 delay-300 hover:text-opacity-100 px-8 py-2 uppercase"
                                 type="button"
                             >
-                                Reset
+                                Cancel
                             </button>
                             <button
-                                className="rounded-md bg-blue-600 text-white   hover:opacity-90 hover:ring-2 hover:ring-blue-600 transition duration-200 delay-300 hover:text-opacity-100 px-8 py-2 uppercase"
+                                className="rounded-md bg-blue-600 text-white hover:opacity-90 hover:ring-2 hover:ring-blue-600 transition duration-200 delay-300 hover:text-opacity-100 px-8 py-2 uppercase"
                                 type="button"
                                 onClick={() => formRef.current?.requestSubmit()}
                             >
-                                Submit
+                                Save
                             </button>
                         </div>
                     </footer>

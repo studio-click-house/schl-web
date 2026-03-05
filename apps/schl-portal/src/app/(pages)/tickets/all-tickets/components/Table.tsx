@@ -63,7 +63,7 @@ const Table = () => {
         [session?.user.permissions],
     );
     const canReviewTicket = useMemo(
-        () => hasPerm('ticket:review_works', userPermissions),
+        () => hasPerm('ticket:review_tickets', userPermissions),
         [userPermissions],
     );
 
@@ -86,7 +86,8 @@ const Table = () => {
         deadlineStatus: '',
         createdBy: '',
         assignees: [] as string[],
-        excludeClosed: false,
+        excludeClosed: true,
+        excludeInReview: false,
     });
 
     const getAllTickets = useCallback(
@@ -107,7 +108,9 @@ const Table = () => {
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify({}),
+                        body: JSON.stringify({
+                            excludeClosed: true,
+                        }),
                     },
                 );
 
@@ -178,7 +181,7 @@ const Table = () => {
         }
     }, [isFiltered, getAllTickets, getAllTicketsFiltered, page, itemPerPage]);
 
-    const deleteTicket = async (ticketData: { _id: string }) => {
+    const deleteTicket = async (ticketData: { _id: string; file_name?: string }) => {
         try {
             const response = await authedFetchApi<{ message: string }>(
                 { path: `/v1/ticket/delete-ticket/${ticketData._id}` },
@@ -188,9 +191,42 @@ const Table = () => {
             );
 
             if (response.ok) {
-                toast.success('Deleted the ticket successfully', {
-                    id: 'success',
-                });
+                if (ticketData.file_name) {
+                    const ftpDeleteConfirmation = confirm(
+                        'Delete attached file from the FTP server?',
+                    );
+                    if (ftpDeleteConfirmation) {
+                        const ftp_response = await authedFetchApi<{
+                            message: string;
+                        }>(
+                            {
+                                path: '/v1/ftp/delete',
+                                query: {
+                                    folderName: 'ticket',
+                                    fileName: ticketData.file_name,
+                                },
+                            },
+                            {
+                                method: 'DELETE',
+                            },
+                        );
+                        if (ftp_response.ok) {
+                            toast.success(
+                                'Deleted the ticket and its attached file from FTP server',
+                            );
+                        } else {
+                            toastFetchError(ftp_response);
+                        }
+                    } else {
+                        toast.success('Deleted the ticket successfully', {
+                            id: 'success',
+                        });
+                    }
+                } else {
+                    toast.success('Deleted the ticket successfully', {
+                        id: 'success',
+                    });
+                }
                 await fetchTickets();
             } else {
                 toastFetchError(response);
@@ -330,7 +366,7 @@ const Table = () => {
                 {!loading &&
                     (tickets?.items?.length !== 0 ? (
                         <table className="table table-bordered table-striped min-w-full">
-                            {/* match work-board column widths */}
+                            {/* match pending-jobs column widths */}
                             <colgroup>
                                 <col className="min-w-[40px]" />
                                 <col className="whitespace-nowrap min-w-[120px]" />
@@ -349,9 +385,11 @@ const Table = () => {
                                 <tr className="whitespace-nowrap">
                                     <th className="whitespace-nowrap">#</th>
                                     <th className="whitespace-nowrap">Date</th>
-                                    <th className="whitespace-nowrap">
-                                        Created By
-                                    </th>
+                                    {canReviewTicket && (
+                                        <th className="whitespace-nowrap">
+                                            Created By
+                                        </th>
+                                    )}
                                     <th className="whitespace-nowrap">
                                         Ticket No
                                     </th>
@@ -389,11 +427,30 @@ const Table = () => {
                                         'ticket:create_ticket',
                                         userPermissions,
                                     );
-                                    const canEdit =
+
+                                    /*
+                                    users with create-ticket permission may edit their own tickets
+                                    as long as the ticket isn't closed
+                                    */
+                                    const canEditUsual =
                                         canManage &&
                                         !CLOSED_TICKET_STATUSES.includes(
                                             ticket.status,
-                                        );
+                                        ) &&
+                                        String(ticket.created_by) ===
+                                            session?.user.db_id;
+
+                                    /*
+                                    reviewers can edit a ticket if it is assigned to them
+                                    or if no one has been assigned yet (assigned_by null)
+                                    */
+                                    const canEdit =
+                                        canEditUsual ||
+                                        (canReviewTicket &&
+                                            (ticket.assigned_by === null ||
+                                                String(ticket.assigned_by) ===
+                                                    session?.user.db_id));
+
                                     const canDeleteTicket = hasPerm(
                                         'ticket:delete_ticket',
                                         userPermissions,
@@ -511,6 +568,8 @@ const Table = () => {
                                                                     _id: String(
                                                                         ticket._id,
                                                                     ),
+                                                                    file_name:
+                                                                        ticket.file_name ?? undefined,
                                                                 }}
                                                                 submitHandler={
                                                                     deleteTicket
@@ -528,8 +587,7 @@ const Table = () => {
                                                             />
                                                         </Link>
 
-                                                        {(canEdit ||
-                                                            canReviewTicket) && (
+                                                        {canEdit && (
                                                             <EditButton
                                                                 isLoading={
                                                                     loading
@@ -557,7 +615,7 @@ const Table = () => {
                                                                               'string'
                                                                                 ? ticket.deadline
                                                                                 : ticket.deadline.toISOString()
-                                                                            : undefined,
+                                                                            : null,
                                                                     assignees: (
                                                                         ticket.assignees ||
                                                                         []
@@ -592,6 +650,8 @@ const Table = () => {
                                                                                   ticket.assigned_by,
                                                                               )
                                                                             : null,
+                                                                    file_name:
+                                                                        ticket.file_name,
                                                                 }}
                                                             />
                                                         )}

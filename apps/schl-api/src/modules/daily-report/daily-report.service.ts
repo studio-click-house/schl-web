@@ -7,42 +7,45 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
+import { DailyReport } from '@repo/common/models/daily-report.schema';
 import { Employee } from '@repo/common/models/employee.schema';
 import { Ticket } from '@repo/common/models/ticket.schema';
 import { User } from '@repo/common/models/user.schema';
-import { WorkUpdate } from '@repo/common/models/work-update.schema';
 import { UserSession } from '@repo/common/types/user-session.type';
 import { applyDateRange } from '@repo/common/utils/date-helpers';
 import { hasAnyPerm, hasPerm } from '@repo/common/utils/permission-check';
 import mongoose, { Model, PipelineStage } from 'mongoose';
-import { CreateWorkUpdateBodyDto } from './dto/create-work-update.dto';
-import { SearchWorkUpdateBodyDto } from './dto/search-work-update.dto';
-import { WorkUpdateFactory } from './factories/work-update.factory';
+import { CreateDailyReportBodyDto } from './dto/create-daily-report.dto';
+import { SearchDailyReportBodyDto } from './dto/search-daily-report.dto';
+import { DailyReportFactory } from './factories/daily-report.factory';
 
-export type WorkUpdatePagination = {
+export type DailyReportPagination = {
     page: number;
     itemsPerPage: number;
     paginated: boolean;
 };
 
-export interface WorkUpdateWithName extends WorkUpdate {
+export interface DailyReportWithName extends DailyReport {
     submitted_by_name?: string | null;
     ticket_number?: string;
+    verified_by_name?: string | null;
 }
 
-type AggregatedWorkUpdate =
-    | (WorkUpdate & {
+type AggregatedDailyReport =
+    | (DailyReport & {
           ticket?: { ticket_number?: string };
           ticket_number?: string;
-          submitted_by?: mongoose.Types.ObjectId;
+          ticket_id?: mongoose.Types.ObjectId;
+          submitted_by?: mongoose.Types.ObjectId | string;
+          verified_by?: mongoose.Types.ObjectId | string;
       })
     | Record<string, unknown>; // fallback to keep pipeline flexible
 
 @Injectable()
-export class WorkUpdateService {
+export class DailyReportService {
     constructor(
-        @InjectModel(WorkUpdate.name)
-        private readonly dailyUpdateModel: Model<WorkUpdate>,
+        @InjectModel(DailyReport.name)
+        private readonly dailyUpdateModel: Model<DailyReport>,
         @InjectModel(Ticket.name)
         private readonly ticketModel: Model<Ticket>,
         @InjectModel(User.name)
@@ -51,14 +54,14 @@ export class WorkUpdateService {
         private readonly employeeModel: Model<Employee>,
     ) {}
 
-    async createWorkUpdate(
-        body: CreateWorkUpdateBodyDto,
+    async createDailyReport(
+        body: CreateDailyReportBodyDto,
         userSession: UserSession,
     ) {
-        // permission to submit daily work
-        if (!hasPerm('ticket:submit_work_update', userSession.permissions)) {
+        // permission to submit daily report
+        if (!hasPerm('ticket:submit_daily_report', userSession.permissions)) {
             throw new ForbiddenException(
-                "You don't have permission to submit daily work",
+                "You don't have permission to submit daily report",
             );
         }
 
@@ -90,7 +93,7 @@ export class WorkUpdateService {
         }
 
         try {
-            const payload = WorkUpdateFactory.fromCreateDto(
+            const payload = DailyReportFactory.fromCreateDto(
                 body,
                 userSession.db_id,
             );
@@ -99,35 +102,35 @@ export class WorkUpdateService {
         } catch (e) {
             if (e instanceof Error) {
                 throw new InternalServerErrorException(
-                    'Unable to create work update',
+                    'Unable to create daily report',
                 );
             }
             throw new InternalServerErrorException(
-                'Unable to create work update',
+                'Unable to create daily report',
             );
         }
     }
 
-    async searchWorkUpdates(
-        filters: SearchWorkUpdateBodyDto,
-        pagination: WorkUpdatePagination,
+    async searchDailyReports(
+        filters: SearchDailyReportBodyDto,
+        pagination: DailyReportPagination,
         userSession: UserSession,
     ): Promise<
-        | WorkUpdateWithName[]
+        | DailyReportWithName[]
         | {
               pagination: { count: number; pageCount: number };
-              items: WorkUpdateWithName[];
+              items: DailyReportWithName[];
           }
     > {
         // permission check up front
         if (
             !hasAnyPerm(
-                ['ticket:review_works', 'ticket:submit_work_update'],
+                ['ticket:review_reports', 'ticket:submit_daily_report'],
                 userSession.permissions,
             )
         ) {
             throw new ForbiddenException(
-                "You don't have permission to view work updates",
+                "You don't have permission to view daily reports",
             );
         }
 
@@ -147,7 +150,7 @@ export class WorkUpdateService {
                 filters.toDate,
             );
 
-            console.log('Querying work updates with', { query, pagination });
+            console.log('Querying daily reports with', { query, pagination });
 
             // pipeline: match + sort, then ticket lookup; user name resolved
             // post-aggregation to avoid unnecessary lookups and permit using the
@@ -177,37 +180,49 @@ export class WorkUpdateService {
                 {
                     $addFields: {
                         ticket_number: '$ticket.ticket_number',
+                        ticket_id: '$ticket._id',
                     },
                 },
 
-                {
-                    $project: {
-                        'ticket._id': 0,
-                        // leave submitted_by alone (objectid) for later use
-                    },
-                },
             ];
 
             const transformItems = async (
-                docs: AggregatedWorkUpdate[],
-            ): Promise<WorkUpdateWithName[]> => {
+                docs: AggregatedDailyReport[],
+            ): Promise<DailyReportWithName[]> => {
                 return Promise.all(
                     docs.map(async d => {
-                        const id: string = d.submitted_by?.toString() ?? '';
-                        const name = id ? await this.resolveUserName(id) : '';
+                        const submitterId: string =
+                            d.submitted_by?.toString() ?? '';
+                        const submittedName = submitterId
+                            ? await this.resolveUserName(submitterId)
+                            : '';
+
+                        const verifierId: string =
+                            d.verified_by?.toString() ?? '';
+                        const verifiedName = verifierId
+                            ? await this.resolveUserName(verifierId)
+                            : '';
+
                         const rest: any = { ...d };
-                        delete rest.submitted_by;
+                        // we keep submitted_by as string for frontend permission checks
+                        rest.submitted_by = submitterId;
+                        rest.verified_by = verifierId;
+                        if (d.ticket_id) {
+                            rest.ticket_id = d.ticket_id.toString();
+                        }
+
                         return {
                             ...rest,
-                            submitted_by_name: name || null,
-                        } as WorkUpdateWithName;
+                            submitted_by_name: submittedName || null,
+                            verified_by_name: verifiedName || null,
+                        } as DailyReportWithName;
                     }),
                 );
             };
 
             if (!paginated) {
                 const raw =
-                    await this.dailyUpdateModel.aggregate<AggregatedWorkUpdate>(
+                    await this.dailyUpdateModel.aggregate<AggregatedDailyReport>(
                         pipeline,
                     );
                 const items = await transformItems(raw);
@@ -224,7 +239,7 @@ export class WorkUpdateService {
             const count = countResult[0]?.count || 0;
 
             const rawItems =
-                await this.dailyUpdateModel.aggregate<AggregatedWorkUpdate>([
+                await this.dailyUpdateModel.aggregate<AggregatedDailyReport>([
                     ...pipeline,
                     ...pipeline,
                     { $skip: (page - 1) * itemsPerPage },
@@ -242,7 +257,7 @@ export class WorkUpdateService {
         } catch (e) {
             if (e instanceof HttpException) throw e;
             throw new InternalServerErrorException(
-                'Unable to search work updates',
+                'Unable to search daily reports',
             );
         }
     }
@@ -271,10 +286,10 @@ export class WorkUpdateService {
         return employee?.real_name || '';
     }
 
-    async deleteWorkUpdate(id: string, userSession: UserSession) {
-        if (!hasPerm('ticket:delete_work_update', userSession.permissions)) {
+    async deleteDailyReport(id: string, userSession: UserSession) {
+        if (!hasPerm('ticket:delete_daily_report', userSession.permissions)) {
             throw new ForbiddenException(
-                "You don't have permission to delete work updates",
+                "You don't have permission to delete daily reports",
             );
         }
 
@@ -285,4 +300,111 @@ export class WorkUpdateService {
         }
         return { message: 'Deleted' };
     }
+
+    async verifyDailyReport(id: string, userSession: UserSession) {
+        // reuse review permission since no dedicated one exists yet
+        if (!hasPerm('ticket:review_reports', userSession.permissions)) {
+            throw new ForbiddenException(
+                "You don't have permission to verify daily reports",
+            );
+        }
+
+        const report = await this.dailyUpdateModel.findById(id).exec();
+        if (!report) {
+            throw new NotFoundException('Daily report not found');
+        }
+
+        if (report.is_verified) {
+            // already verified; nothing to do
+            return report;
+        }
+
+        report.is_verified = true;
+        report.verified_by = new mongoose.Types.ObjectId(userSession.db_id);
+        try {
+            await report.save();
+            return report;
+        } catch (e) {
+            throw new InternalServerErrorException(
+                'Unable to verify daily report',
+            );
+        }
+    }
+    async updateDailyReport(
+        id: string,
+        body: Partial<CreateDailyReportBodyDto>,
+        userSession: UserSession,
+    ): Promise<{ message: string }> {
+        const report = await this.dailyUpdateModel.findById(id).exec();
+        if (!report) {
+            throw new NotFoundException('Daily report not found');
+        }
+
+        // only the owner or a reviewer can edit
+        const isOwner = report.submitted_by.toString() === userSession.db_id;
+        const isReviewer = hasPerm(
+            'ticket:review_reports',
+            userSession.permissions,
+        );
+        if (!isOwner && !isReviewer) {
+            throw new ForbiddenException(
+                "You don't have permission to edit this daily report",
+            );
+        }
+
+        // verified reports are immutable
+        if (report.is_verified) {
+            throw new BadRequestException(
+                'Cannot edit a verified daily report',
+            );
+        }
+
+        // validate ticket reference if it was changed
+        if (body.ticket !== undefined && body.ticket !== null) {
+            const ticket = await this.ticketModel
+                .findById(body.ticket)
+                .lean()
+                .exec();
+            if (!ticket) {
+                throw new NotFoundException('Referenced ticket not found');
+            }
+
+            if (ticket.deadline && new Date(ticket.deadline) < new Date()) {
+                throw new BadRequestException(
+                    'Cannot reference overdue ticket',
+                );
+            }
+
+            // for non-reviewers the ticket must be assigned to them or unassigned
+            if (!isReviewer) {
+                const assignees: any[] = ticket.assignees || [];
+                if (assignees.length > 0) {
+                    const assignedIds = assignees.map(a => String(a.db_id));
+                    if (!assignedIds.includes(userSession.db_id)) {
+                        throw new ForbiddenException(
+                            'Ticket not assigned to you',
+                        );
+                    }
+                }
+            }
+        }
+
+        const patch = DailyReportFactory.fromUpdateDto(body);
+        if (Object.keys(patch).length === 0) {
+            throw new BadRequestException('No update fields provided');
+        }
+
+        const updated = await this.dailyUpdateModel
+            .findByIdAndUpdate(id, { $set: patch }, { new: true })
+            .exec();
+
+        if (!updated) {
+            throw new InternalServerErrorException(
+                'Unable to update daily report',
+            );
+        }
+
+        return { message: 'Updated the daily report successfully' };
+    }
 }
+

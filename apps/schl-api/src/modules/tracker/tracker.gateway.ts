@@ -12,6 +12,8 @@ import { Server, Socket } from 'socket.io';
 export class TrackerGateway
     implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
 {
+    implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
+{
     private readonly allowedLiveTrackingRoles = new Set([
         'admin',
         'superadmin',

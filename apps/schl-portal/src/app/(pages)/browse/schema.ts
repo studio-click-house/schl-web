@@ -39,7 +39,7 @@ export const validationSchema = z.object({
     qc1: z.coerce.number().default(0),
     qc2: z.coerce.number().default(0),
     comment: z.string().default(''),
-    type: z.enum(ORDER_TYPES).default('general'),
+    type: z.enum(ORDER_TYPES).default('pending'),
     status: z.enum(ORDER_STATUSES).default('running'),
     folder_path: z.string().default(''),
     priority: z.enum(ORDER_PRIORITIES).default('medium'),

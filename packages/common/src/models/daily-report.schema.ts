@@ -3,10 +3,10 @@ import mongoose, { HydratedDocument } from 'mongoose';
 import { Ticket } from './ticket.schema';
 import { User } from './user.schema';
 
-export type WorkUpdateDocument = HydratedDocument<WorkUpdate>;
+export type DailyReportDocument = HydratedDocument<DailyReport>;
 
-@Schema({ timestamps: true, collection: 'work_updates' })
-export class WorkUpdate {
+@Schema({ timestamps: true, collection: 'daily_reports' })
+export class DailyReport {
     // who added this work  / update
     @Prop({
         index: true,
@@ -25,6 +25,16 @@ export class WorkUpdate {
     })
     ticket: mongoose.Types.ObjectId;
 
+    @Prop({ type: Boolean, default: false })
+    is_verified: boolean;
+
+    @Prop({
+        type: mongoose.Schema.Types.ObjectId,
+        ref: User.name,
+        default: null,
+    })
+    verified_by: mongoose.Types.ObjectId;
+
     @Prop({ type: Date })
     readonly createdAt: Date;
 
@@ -32,8 +42,8 @@ export class WorkUpdate {
     readonly updatedAt: Date;
 }
 
-export const WorkUpdateSchema = SchemaFactory.createForClass(WorkUpdate);
+export const DailyReportSchema = SchemaFactory.createForClass(DailyReport);
 
 // index ticket reference for lookups and compound with submitter if required
-WorkUpdateSchema.index({ ticket: 1 });
-WorkUpdateSchema.index({ submitted_by: 1, createdAt: -1 });
+DailyReportSchema.index({ ticket: 1 });
+DailyReportSchema.index({ submitted_by: 1, createdAt: -1 });
