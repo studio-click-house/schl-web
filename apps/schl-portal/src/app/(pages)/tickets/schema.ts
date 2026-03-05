@@ -14,8 +14,8 @@ export const validationSchema = z.object({
     }),
     status: z.enum(TICKET_STATUSES).default('in-review'),
     priority: z.enum(TICKET_PRIORITIES).default('low'),
-    deadline: z.string().optional().nullish(),
-    file_name: z.string().optional().nullish(),
+    deadline: z.string().optional().nullish().default(null),
+    file_name: z.string().optional().nullish().default(null),
     assigned_by: z
         .string()
         .refine(val => mongoose.Types.ObjectId.isValid(val))

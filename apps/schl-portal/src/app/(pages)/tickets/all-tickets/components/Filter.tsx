@@ -13,14 +13,13 @@ import {
     setMenuPortalTarget,
 } from '@repo/common/utils/select-helpers';
 import { Filter, X } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import React, { useRef, useState } from 'react';
 import Select from 'react-select';
 
 const baseZIndex = 50;
 
 interface PropsType {
-    hideCreator?: boolean;
-    hideInReviewStatus?: boolean;
     className?: string;
     submitHandler: () => void;
     filters: {
@@ -66,6 +65,8 @@ export default function FilterButton(props: PropsType) {
     const [assigneeOptions, setAssigneeOptions] = useState<
         { label: string; value: string }[]
     >([]);
+
+    const { data: session } = useSession();
 
     React.useEffect(() => {
         const loadCreators = async () => {
@@ -318,11 +319,7 @@ export default function FilterButton(props: PropsType) {
                                 </label>
                                 <Select
                                     {...setClassNameAndIsDisabled(isOpen)}
-                                    options={statusOptions.filter(
-                                        o =>
-                                            !props.hideInReviewStatus ||
-                                            o.value !== 'in-review',
-                                    )}
+                                    options={statusOptions}
                                     classNamePrefix="react-select"
                                     menuPortalTarget={setMenuPortalTarget}
                                     styles={setCalculatedZIndex(baseZIndex)}
@@ -343,7 +340,7 @@ export default function FilterButton(props: PropsType) {
                                 />
                             </div>
 
-                            {props.canReviewTicket && !props.hideCreator && (
+                            {props.canReviewTicket && (
                                 <>
                                     <div>
                                         <label className="uppercase tracking-wide text-gray-700 text-sm font-bold block mb-2">
@@ -505,22 +502,25 @@ export default function FilterButton(props: PropsType) {
                                     </span>
                                 </label>
                             </div>
-
-                            <div className="md:col-span-2">
-                                <label className="inline-flex items-center gap-2 cursor-pointer">
-                                    <input
-                                        id="excludeInReview"
-                                        name="excludeInReview"
-                                        type="checkbox"
-                                        checked={props.filters.excludeInReview}
-                                        onChange={handleCheckboxChange}
-                                        className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-                                    />
-                                    <span className="uppercase whitespace-nowrap select-none">
-                                        Exclude Review Tickets
-                                    </span>
-                                </label>
-                            </div>
+                            {props.canReviewTicket && (
+                                <div className="md:col-span-2">
+                                    <label className="inline-flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            id="excludeInReview"
+                                            name="excludeInReview"
+                                            type="checkbox"
+                                            checked={
+                                                props.filters.excludeInReview
+                                            }
+                                            onChange={handleCheckboxChange}
+                                            className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                                        />
+                                        <span className="uppercase whitespace-nowrap select-none">
+                                            Exclude Review Tickets
+                                        </span>
+                                    </label>
+                                </div>
+                            )}
                         </div>
                     </div>
 

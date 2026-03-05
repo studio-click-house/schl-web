@@ -16,7 +16,7 @@
         "editor.defaultFormatter": "dbaeumer.vscode-eslint"
     },
     "[typescriptreact]": {
-        "editor.defaultFormatter": "rvest.vs-code-prettier-eslint"
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
     },
     "[javascriptreact]": {
         "editor.defaultFormatter": "dbaeumer.vscode-eslint"
@@ -43,5 +43,8 @@
     "typescript.disableAutomaticTypeAcquisition": true,
     "typescript.tsserver.maxTsServerMemory": 4096,
 
-    "eslint.run": "onSave"
+    "eslint.run": "onSave",
+    "[markdown]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    }
 }

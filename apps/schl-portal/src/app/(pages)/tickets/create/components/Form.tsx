@@ -8,6 +8,7 @@ import {
     statusOptions,
     typeOptions,
 } from '@repo/common/constants/ticket.constant';
+import { Ticket } from '@repo/common/models/ticket.schema';
 import type { FullyPopulatedUser } from '@repo/common/types/populated-user.type';
 import { localDateTimeToISO } from '@repo/common/utils/date-helpers';
 import { hasPerm } from '@repo/common/utils/permission-check';
@@ -92,17 +93,6 @@ const Form: React.FC = () => {
         [],
     );
 
-    const constructFileName = (file: File, ticket_no: string) => {
-        const file_name = file.name;
-        const file_ext = file_name.split('.').pop();
-        const file_name_without_ext = file_name
-            .split('.')
-            .slice(0, -1)
-            .join('.');
-        const ticket_no_sliced = ticket_no.replace('SCHL-', '');
-        const new_file_name = `${file_name_without_ext}_${ticket_no_sliced}.${file_ext}`;
-        return new_file_name;
-    };
 
     const {
         register,
@@ -159,15 +149,12 @@ const Form: React.FC = () => {
 
             if (response.ok) {
                 toast.success('Created new ticket successfully');
-                const ticket = response.data as { ticket_no: string };
+                const ticket = response.data as Ticket;
+
 
                 if (file) {
                     const formData = new FormData();
-                    formData.append(
-                        'file',
-                        file,
-                        constructFileName(file, ticket.ticket_no),
-                    );
+                    formData.append('file', file, ticket.file_name || file.name);
 
                     const ftp_response = await authedFetchApi(
                         {
@@ -179,6 +166,8 @@ const Form: React.FC = () => {
                             body: formData,
                         },
                     );
+
+                    console.log('FTP upload response', ftp_response);
 
                     if (!ftp_response.ok) {
                         toastFetchError(ftp_response);

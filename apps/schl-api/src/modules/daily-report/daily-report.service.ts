@@ -35,8 +35,9 @@ type AggregatedDailyReport =
     | (DailyReport & {
           ticket?: { ticket_number?: string };
           ticket_number?: string;
-          submitted_by?: mongoose.Types.ObjectId;
-          verified_by?: mongoose.Types.ObjectId;
+          ticket_id?: mongoose.Types.ObjectId;
+          submitted_by?: mongoose.Types.ObjectId | string;
+          verified_by?: mongoose.Types.ObjectId | string;
       })
     | Record<string, unknown>; // fallback to keep pipeline flexible
 
@@ -179,15 +180,10 @@ export class DailyReportService {
                 {
                     $addFields: {
                         ticket_number: '$ticket.ticket_number',
+                        ticket_id: '$ticket._id',
                     },
                 },
 
-                {
-                    $project: {
-                        'ticket._id': 0,
-                        // leave submitted_by alone (objectid) for later use
-                    },
-                },
             ];
 
             const transformItems = async (
@@ -208,8 +204,12 @@ export class DailyReportService {
                             : '';
 
                         const rest: any = { ...d };
-                        delete rest.submitted_by;
-                        delete rest.verified_by;
+                        // we keep submitted_by as string for frontend permission checks
+                        rest.submitted_by = submitterId;
+                        rest.verified_by = verifierId;
+                        if (d.ticket_id) {
+                            rest.ticket_id = d.ticket_id.toString();
+                        }
 
                         return {
                             ...rest,
@@ -330,4 +330,81 @@ export class DailyReportService {
             );
         }
     }
+    async updateDailyReport(
+        id: string,
+        body: Partial<CreateDailyReportBodyDto>,
+        userSession: UserSession,
+    ): Promise<{ message: string }> {
+        const report = await this.dailyUpdateModel.findById(id).exec();
+        if (!report) {
+            throw new NotFoundException('Daily report not found');
+        }
+
+        // only the owner or a reviewer can edit
+        const isOwner = report.submitted_by.toString() === userSession.db_id;
+        const isReviewer = hasPerm(
+            'ticket:review_reports',
+            userSession.permissions,
+        );
+        if (!isOwner && !isReviewer) {
+            throw new ForbiddenException(
+                "You don't have permission to edit this daily report",
+            );
+        }
+
+        // verified reports are immutable
+        if (report.is_verified) {
+            throw new BadRequestException(
+                'Cannot edit a verified daily report',
+            );
+        }
+
+        // validate ticket reference if it was changed
+        if (body.ticket !== undefined && body.ticket !== null) {
+            const ticket = await this.ticketModel
+                .findById(body.ticket)
+                .lean()
+                .exec();
+            if (!ticket) {
+                throw new NotFoundException('Referenced ticket not found');
+            }
+
+            if (ticket.deadline && new Date(ticket.deadline) < new Date()) {
+                throw new BadRequestException(
+                    'Cannot reference overdue ticket',
+                );
+            }
+
+            // for non-reviewers the ticket must be assigned to them or unassigned
+            if (!isReviewer) {
+                const assignees: any[] = ticket.assignees || [];
+                if (assignees.length > 0) {
+                    const assignedIds = assignees.map(a => String(a.db_id));
+                    if (!assignedIds.includes(userSession.db_id)) {
+                        throw new ForbiddenException(
+                            'Ticket not assigned to you',
+                        );
+                    }
+                }
+            }
+        }
+
+        const patch = DailyReportFactory.fromUpdateDto(body);
+        if (Object.keys(patch).length === 0) {
+            throw new BadRequestException('No update fields provided');
+        }
+
+        const updated = await this.dailyUpdateModel
+            .findByIdAndUpdate(id, { $set: patch }, { new: true })
+            .exec();
+
+        if (!updated) {
+            throw new InternalServerErrorException(
+                'Unable to update daily report',
+            );
+        }
+
+        return { message: 'Updated the daily report successfully' };
+    }
 }
+

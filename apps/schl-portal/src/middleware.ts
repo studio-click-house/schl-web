@@ -6,6 +6,7 @@ import {
     AuthorizedRoute,
     isRouteAuthorized,
 } from './route';
+import { getClientIp } from './utils/ip';
 
 const PUBLIC_ROUTES = ['/login', '/forbidden'];
 const ROOT = '/login';
@@ -23,14 +24,12 @@ export default authMiddleware((req: any) => {
     const userPermissions: Permissions[] = req.auth?.user?.permissions || [];
 
     // --- Client IP ---
-    const forwardedFor = req.headers['x-forwarded-for'];
-    const ipFromForwarded = Array.isArray(forwardedFor)
-        ? forwardedFor[0]
-        : forwardedFor?.split(',')[0];
+    const clientIp = getClientIp(req);
 
-    const clientIp =
-        ipFromForwarded ||
-        (process.env.NODE_ENV === 'development' ? '127.0.0.1' : null);
+    console.log('ALLOWED_IPS', ALLOWED_IPS);
+    console.log('clientIp', clientIp);
+    
+
 
     // --- Route checks ---
     const isAuthenticated = !!req.auth;

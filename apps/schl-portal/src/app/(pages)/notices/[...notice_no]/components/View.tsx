@@ -1,8 +1,8 @@
 'use client';
 import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
+import { Download, File, FileArchive, FileImage, FileSpreadsheet, FileText } from 'lucide-react';
 
 import { formatDate } from '@repo/common/utils/date-helpers';
-import { constructFileName } from '@repo/common/utils/general-utils';
 
 import type { EmployeeDepartment } from '@repo/common/constants/employee.constant';
 import { hasPerm } from '@repo/common/utils/permission-check';
@@ -188,10 +188,7 @@ const ViewNotice: React.FC<ViewNoticeProps> = props => {
                     path: '/v1/ftp/download',
                     query: {
                         folderName: 'notice',
-                        fileName: constructFileName(
-                            notice.file_name,
-                            notice.notice_no,
-                        ),
+                        fileName: notice.file_name,
                     },
                 },
                 {
@@ -262,17 +259,37 @@ const ViewNotice: React.FC<ViewNoticeProps> = props => {
                     {parse(sanitizeHtml(notice.description), options)}
 
                     {notice.file_name && (
-                        <div className="file-download text-lg font-semibold font-sans">
-                            <span className="font-semibold">Downloads: </span>{' '}
-                            <span
+                        <div className="mt-6 pt-5 border-t border-gray-100">
+                            <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">
+                                Attachment
+                            </p>
+                            <button
                                 onClick={handleFileDownload}
-                                className="underline font-mono downloadable-file hover:cursor-pointer has-tooltip"
+                                className="group flex items-center gap-3 w-full sm:w-auto max-w-sm px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 hover:bg-blue-50 hover:border-blue-300 transition-all duration-200 text-left"
+                                title={`Download ${notice.file_name}`}
                             >
-                                {notice.file_name}
-                                <span className="tooltip italic font-medium rounded-md text-xs shadow-lg p-1 px-2 bg-gray-100 ml-2">
-                                    Click to download
+                                <span className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-lg bg-white border border-gray-200 group-hover:border-blue-200 text-gray-400 group-hover:text-blue-500 transition-colors duration-200">
+                                    {(() => {
+                                        const ext = notice.file_name.split('.').pop()?.toLowerCase();
+                                        if (['xls', 'xlsx', 'csv'].includes(ext || '')) return <FileSpreadsheet size={18} />;
+                                        if (['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'].includes(ext || '')) return <FileImage size={18} />;
+                                        if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext || '')) return <FileArchive size={18} />;
+                                        if (['pdf', 'doc', 'docx', 'txt'].includes(ext || '')) return <FileText size={18} />;
+                                        return <File size={18} />;
+                                    })()}
                                 </span>
-                            </span>
+                                <span className="flex-1 min-w-0">
+                                    <span className="block text-sm font-medium text-gray-700 group-hover:text-blue-700 truncate transition-colors duration-200">
+                                        {notice.file_name}
+                                    </span>
+                                    <span className="block text-xs text-gray-400 group-hover:text-blue-400 transition-colors duration-200 mt-0.5">
+                                        Click to download
+                                    </span>
+                                </span>
+                                <span className="flex-shrink-0 text-gray-300 group-hover:text-blue-400 transition-colors duration-200">
+                                    <Download size={16} />
+                                </span>
+                            </button>
                         </div>
                     )}
                 </div>

@@ -6,7 +6,7 @@ import NoData, { Type } from '@/components/NoData';
 import Pagination from '@/components/Pagination';
 import { usePaginationManager } from '@/hooks/usePaginationManager';
 import { formatDate } from '@repo/common/utils/date-helpers';
-import { cn, constructFileName } from '@repo/common/utils/general-utils';
+import { cn } from '@repo/common/utils/general-utils';
 
 import type { Permissions } from '@repo/common/types/permission.type';
 import { isExemptDepartment as isExemptDept } from '@repo/common/utils/general-utils';
@@ -177,10 +177,6 @@ const Table = () => {
                 if (noticeData.file_name) {
                     console.log(
                         'Deleting file from ftp server',
-                        constructFileName(
-                            noticeData.file_name,
-                            noticeData.notice_no,
-                        ),
                         noticeData.file_name,
                         noticeData.notice_no,
                     );
@@ -196,10 +192,7 @@ const Table = () => {
                                 path: '/v1/ftp/delete',
                                 query: {
                                     folderName: 'notice',
-                                    fileName: constructFileName(
-                                        noticeData.file_name,
-                                        noticeData.notice_no,
-                                    ),
+                                    fileName: noticeData.file_name,
                                 },
                             },
                             {

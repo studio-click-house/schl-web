@@ -75,16 +75,6 @@ const Form: React.FC = () => {
         }
     }, [isExemptDepartment, setValue, userDepartment]);
 
-    const constructFileName = (file: File, notice_no: string) => {
-        const file_name = file.name;
-        const file_ext = file_name.split('.').pop();
-        const file_name_without_ext = file_name
-            .split('.')
-            .slice(0, -1)
-            .join('.');
-        const new_file_name = `${file_name_without_ext}_${notice_no}.${file_ext}`;
-        return new_file_name;
-    };
 
     async function createNotice(noticeData: NoticeDataType) {
         try {
@@ -123,15 +113,11 @@ const Form: React.FC = () => {
             );
 
             if (response.ok) {
-                const notice = response.data as { notice_no: string };
+                const notice = response.data as { notice_no: string; file_name?: string };
                 toast.success('Created new notice successfully');
                 if (file) {
                     const formData = new FormData();
-                    formData.append(
-                        'file',
-                        file,
-                        constructFileName(file, notice.notice_no),
-                    );
+                    formData.append('file', file, notice.file_name || file.name);
 
                     const ftp_response = await authedFetchApi(
                         {

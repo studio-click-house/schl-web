@@ -23,13 +23,16 @@ import {
     ClockCheck,
     SquareArrowOutUpRight,
 } from 'lucide-react';
+import { DailyReportFormData } from '../../pending-jobs/components/daily-report/schema';
 import DailyReportDelete from './Delete';
+import EditDailyReportModal from './EditModal';
 import FilterButton from './Filter';
 
 interface DailyReport {
     _id: string;
     message: string;
     ticket?: { ticket_number: string };
+    ticket_id?: string;
     submitted_by_name?: string;
     submitted_by: string;
     createdAt: string;
@@ -197,6 +200,34 @@ const DailyReportsTable: React.FC<Props> = ({ selectedUser }) => {
         }
     };
 
+    const updateDailyReport = async (
+        data: DailyReportFormData & { _id: string },
+    ) => {
+        try {
+            const { _id, ...body } = data;
+            const response = await authedFetchApi<{ message: string }>(
+                {
+                    path: `/v1/daily-report/update-daily-report/${_id}`,
+                },
+                {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                },
+            );
+
+            if (response.ok) {
+                toast.success('Updated the daily report');
+                await fetchUpdates();
+            } else {
+                toastFetchError(response);
+            }
+        } catch (error) {
+            console.error(error);
+            toast.error('An error occurred while updating the daily report');
+        }
+    };
+
     useEffect(() => {
         fetchUpdates();
     }, [selectedUser, searchVersion, fetchUpdates]);
@@ -328,6 +359,23 @@ const DailyReportsTable: React.FC<Props> = ({ selectedUser }) => {
                                                                     size={16}
                                                                 />
                                                             </button>
+                                                        )}
+                                                    {!update.is_verified &&
+                                                        (canVerifyDailyReport ||
+                                                            session?.user
+                                                                .db_id ===
+                                                                update.submitted_by) && (
+                                                            <EditDailyReportModal
+                                                                reportData={
+                                                                    update
+                                                                }
+                                                                canReviewReports={
+                                                                    canVerifyDailyReport
+                                                                }
+                                                                submitHandler={
+                                                                    updateDailyReport
+                                                                }
+                                                            />
                                                         )}
                                                     {canDeleteDailyReport && (
                                                         <DailyReportDelete

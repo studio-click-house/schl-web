@@ -5,6 +5,7 @@ import React, { useState } from 'react';
 
 type DeleteTicketData = {
     _id: string;
+    file_name?: string;
 };
 
 interface PropsType {

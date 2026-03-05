@@ -17,13 +17,15 @@ export class DailyReportFactory {
         return payload;
     }
 
-    static fromUpdateDto(dto: Partial<CreateDailyReportBodyDto>) {
-        const patch: Partial<CreateDailyReportBodyDto> = {};
+    static fromUpdateDto(dto: Partial<CreateDailyReportBodyDto>): Partial<DailyReport> {
+        const patch: Partial<DailyReport> = {};
         if (dto.message !== undefined) {
             patch.message = dto.message.trim();
         }
         if (dto.ticket !== undefined) {
-            patch.ticket = dto.ticket;
+            patch.ticket = dto.ticket
+                ? new mongoose.Types.ObjectId(dto.ticket)
+                : undefined;
         }
         return patch;
     }

@@ -111,6 +111,30 @@ export class TicketService {
 
         try {
             const ticketNumber = await this.generateTicketNumber();
+
+            // apply filename suffixing and sanitization logic before creation
+            // so the DB record matches the eventually-uploaded FTP file.
+            if (body.fileName) {
+                const originalName = body.fileName.trim();
+                const lastDotIndex = originalName.lastIndexOf('.');
+                const nameWithoutExt =
+                    lastDotIndex !== -1
+                        ? originalName.substring(0, lastDotIndex)
+                        : originalName;
+                const ext =
+                    lastDotIndex !== -1
+                        ? originalName.substring(lastDotIndex + 1)
+                        : '';
+
+                const suffix = ticketNumber.replace('SCHL-', '');
+                const combinedName = ext
+                    ? `${nameWithoutExt}_${suffix}.${ext}`
+                    : `${nameWithoutExt}_${suffix}`;
+
+                // mimic FtpService sanitization: /[^a-zA-Z0-9._-]/g -> '_'
+                body.fileName = combinedName.replace(/[^a-zA-Z0-9._-]/g, '_');
+            }
+
             const payload = TicketFactory.fromCreateDto(
                 body,
                 userSession,

@@ -4,6 +4,7 @@ import {
     Delete,
     Param,
     Post,
+    Put,
     Query,
     Req,
 } from '@nestjs/common';
@@ -61,5 +62,14 @@ export class DailyReportController {
         @Req() req: Request & { user: UserSession },
     ) {
         return this.dailyUpdateService.verifyDailyReport(id, req.user);
+    }
+
+    @Put('update-daily-report/:id')
+    updateDailyReport(
+        @Param() { id }: IdParamDto,
+        @Body() body: Partial<CreateDailyReportBodyDto>,
+        @Req() req: Request & { user: UserSession },
+    ) {
+        return this.dailyUpdateService.updateDailyReport(id, body, req.user);
     }
 }
