@@ -1,6 +1,13 @@
 'use client';
 import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
-import { Download, File, FileArchive, FileImage, FileSpreadsheet, FileText } from 'lucide-react';
+import {
+    Download,
+    File,
+    FileArchive,
+    FileImage,
+    FileSpreadsheet,
+    FileText,
+} from 'lucide-react';
 
 import { formatDate } from '@repo/common/utils/date-helpers';
 
@@ -270,11 +277,48 @@ const ViewNotice: React.FC<ViewNoticeProps> = props => {
                             >
                                 <span className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-lg bg-white border border-gray-200 group-hover:border-blue-200 text-gray-400 group-hover:text-blue-500 transition-colors duration-200">
                                     {(() => {
-                                        const ext = notice.file_name.split('.').pop()?.toLowerCase();
-                                        if (['xls', 'xlsx', 'csv'].includes(ext || '')) return <FileSpreadsheet size={18} />;
-                                        if (['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'].includes(ext || '')) return <FileImage size={18} />;
-                                        if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext || '')) return <FileArchive size={18} />;
-                                        if (['pdf', 'doc', 'docx', 'txt'].includes(ext || '')) return <FileText size={18} />;
+                                        const ext = notice.file_name
+                                            .split('.')
+                                            .pop()
+                                            ?.toLowerCase();
+                                        if (
+                                            ['xls', 'xlsx', 'csv'].includes(
+                                                ext || '',
+                                            )
+                                        )
+                                            return (
+                                                <FileSpreadsheet size={18} />
+                                            );
+                                        if (
+                                            [
+                                                'jpg',
+                                                'jpeg',
+                                                'png',
+                                                'gif',
+                                                'svg',
+                                                'webp',
+                                            ].includes(ext || '')
+                                        )
+                                            return <FileImage size={18} />;
+                                        if (
+                                            [
+                                                'zip',
+                                                'rar',
+                                                '7z',
+                                                'tar',
+                                                'gz',
+                                            ].includes(ext || '')
+                                        )
+                                            return <FileArchive size={18} />;
+                                        if (
+                                            [
+                                                'pdf',
+                                                'doc',
+                                                'docx',
+                                                'txt',
+                                            ].includes(ext || '')
+                                        )
+                                            return <FileText size={18} />;
                                         return <File size={18} />;
                                     })()}
                                 </span>

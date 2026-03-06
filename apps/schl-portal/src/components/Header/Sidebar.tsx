@@ -603,14 +603,17 @@ const Sidebar: React.FC<PropsType> = props => {
                                         </Link>
                                     </li>
                                 )}
-                                {hasAny(['ticket:submit_daily_report']) && (
+                                {hasAny([
+                                    'ticket:submit_daily_report',
+                                    'ticket:review_tickets',
+                                ]) && (
                                     <li>
                                         <Link
-                                            href="/tickets/pending-jobs"
+                                            href="/tickets/active-jobs"
                                             className="flex items-center w-full p-2 text-gray-900 transition duration-75 pl-11 group hover:bg-gray-100"
                                         >
                                             <ClipboardList className="w-6 h-6 mr-2" />
-                                            Pending Jobs
+                                            Active Jobs
                                         </Link>
                                     </li>
                                 )}

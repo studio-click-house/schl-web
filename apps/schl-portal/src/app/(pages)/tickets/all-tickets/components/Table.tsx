@@ -366,7 +366,6 @@ const Table = () => {
                 {!loading &&
                     (tickets?.items?.length !== 0 ? (
                         <table className="table table-bordered table-striped min-w-full">
-                            {/* match pending-jobs column widths */}
                             <colgroup>
                                 <col className="min-w-[40px]" />
                                 <col className="whitespace-nowrap min-w-[120px]" />

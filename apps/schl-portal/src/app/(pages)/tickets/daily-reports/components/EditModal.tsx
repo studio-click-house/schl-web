@@ -15,7 +15,7 @@ import Select from 'react-select';
 import {
     DailyReportFormData,
     dailyUpdateSchema,
-} from '../../pending-jobs/components/daily-report/schema';
+} from '../../active-jobs/components/daily-report/schema';
 
 const baseZIndex = 50;
 

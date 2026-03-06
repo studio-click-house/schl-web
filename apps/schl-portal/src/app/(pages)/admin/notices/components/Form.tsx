@@ -75,7 +75,6 @@ const Form: React.FC = () => {
         }
     }, [isExemptDepartment, setValue, userDepartment]);
 
-
     async function createNotice(noticeData: NoticeDataType) {
         try {
             setLoading(true);
@@ -113,11 +112,18 @@ const Form: React.FC = () => {
             );
 
             if (response.ok) {
-                const notice = response.data as { notice_no: string; file_name?: string };
+                const notice = response.data as {
+                    notice_no: string;
+                    file_name?: string;
+                };
                 toast.success('Created new notice successfully');
                 if (file) {
                     const formData = new FormData();
-                    formData.append('file', file, notice.file_name || file.name);
+                    formData.append(
+                        'file',
+                        file,
+                        notice.file_name || file.name,
+                    );
 
                     const ftp_response = await authedFetchApi(
                         {

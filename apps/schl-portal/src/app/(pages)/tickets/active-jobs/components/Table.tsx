@@ -6,6 +6,7 @@ import NoData, { Type } from '@/components/NoData';
 import Pagination from '@/components/Pagination';
 import { usePaginationManager } from '@/hooks/usePaginationManager';
 import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
+import { CLOSED_TICKET_STATUSES } from '@repo/common/constants/ticket.constant';
 import { TicketDocument } from '@repo/common/models/ticket.schema';
 import {
     formatDate,
@@ -22,6 +23,7 @@ import Link from 'next/link';
 import { useRouter } from 'nextjs-toploader/app';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import EditButton from '../../all-tickets/components/Edit';
 import {
     getTicketPriorityBadgeClass,
     getTicketStatusBadgeClass,
@@ -57,6 +59,19 @@ function Table() {
     const authedFetchApi = useAuthedFetchApi();
     const { data: session } = useSession();
 
+    const userPermissions = useMemo(
+        () => session?.user.permissions || [],
+        [session?.user.permissions],
+    );
+    const canReviewTicket = useMemo(
+        () => hasPerm('ticket:review_tickets', userPermissions),
+        [userPermissions],
+    );
+    const canSubmitDailyReport = useMemo(
+        () => hasPerm('ticket:submit_daily_report', userPermissions),
+        [userPermissions],
+    );
+
     const [page, setPage] = useState<number>(1);
     const [pageCount, setPageCount] = useState<number>(0);
     const [itemPerPage, setItemPerPage] = useState<number>(30);
@@ -72,6 +87,7 @@ function Table() {
         toDate: '',
         deadlineStatus: '',
         createdBy: '',
+        assignees: [] as string[],
     });
 
     const getAllTickets = useCallback(
@@ -93,6 +109,9 @@ function Table() {
                             excludeClosed: true,
                             includeUnassigned: true,
                             excludeInReview: true,
+                            assignees: canReviewTicket
+                                ? []
+                                : [session?.user.db_id],
                         }),
                     },
                 );
@@ -132,8 +151,13 @@ function Table() {
                         body: JSON.stringify({
                             ...filters,
                             excludeClosed: true,
-                            includeUnassigned: true,
+                            includeUnassigned: canReviewTicket
+                                ? filters.assignees.length === 0
+                                : true,
                             excludeInReview: true,
+                            assignees: canReviewTicket
+                                ? filters.assignees
+                                : [session?.user.db_id],
                         }),
                     },
                 );
@@ -185,6 +209,52 @@ function Table() {
         } catch (error) {
             console.error(error);
             toast.error('An error occurred while submitting update');
+        }
+    };
+
+    const editTicket = async (editedTicketData: TicketFormDataType) => {
+        try {
+            setLoading(true);
+            const parsed = validationSchema.safeParse(editedTicketData);
+
+            if (!parsed.success) {
+                console.error(parsed.error.issues.map(issue => issue.message));
+                toast.error('Invalid form data');
+                return;
+            }
+
+            const { _id, ...rest } = parsed.data;
+
+            // convert deadline string to ISO or keep null when explicitly cleared
+            const payload: any = { ...rest };
+            if (rest.deadline !== undefined) {
+                payload.deadline = rest.deadline
+                    ? new Date(rest.deadline).toISOString()
+                    : null;
+            }
+
+            const response = await authedFetchApi(
+                { path: `/v1/ticket/update-ticket/${_id}` },
+                {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload),
+                },
+            );
+
+            if (response.ok) {
+                toast.success('Updated the ticket data');
+                await fetchTickets();
+            } else {
+                toastFetchError(response);
+            }
+        } catch (error) {
+            console.error(error);
+            toast.error('An error occurred while updating the ticket');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -243,6 +313,7 @@ function Table() {
                         submitHandler={handleSearch}
                         setFilters={setFilters}
                         filters={filters}
+                        canReviewTicket={canReviewTicket}
                         className="w-full justify-between sm:w-auto"
                     />
                 </div>
@@ -259,6 +330,9 @@ function Table() {
                                 <col className="whitespace-nowrap min-w-[120px]" />
                                 <col className="whitespace-nowrap min-w-[120px]" />
                                 <col className="whitespace-nowrap min-w-[150px]" />
+                                {canReviewTicket && (
+                                    <col className="whitespace-nowrap min-w-[150px]" />
+                                )}
                                 <col className="whitespace-nowrap min-w-[150px]" />
                                 <col className="min-w-[300px]" />
                                 <col className="whitespace-nowrap min-w-[100px]" />
@@ -276,6 +350,11 @@ function Table() {
                                     <th className="whitespace-nowrap">
                                         Assigned By
                                     </th>
+                                    {canReviewTicket && (
+                                        <th className="whitespace-nowrap">
+                                            Assigned To
+                                        </th>
+                                    )}
 
                                     <th className="whitespace-nowrap">
                                         Deadline
@@ -324,6 +403,16 @@ function Table() {
                                                 ? ticket.assigned_by_name
                                                 : 'N/A'}
                                         </td>
+                                        {canReviewTicket && (
+                                            <td className="text-balance">
+                                                {ticket.assignees &&
+                                                ticket.assignees.length > 0
+                                                    ? ticket.assignees
+                                                          .map(a => a.name)
+                                                          .join(', ')
+                                                    : 'N/A'}
+                                            </td>
+                                        )}
                                         <td className="whitespace-nowrap">
                                             {ticket.deadline
                                                 ? `${formatDate(ticket.deadline)} | ${formatTime(
@@ -395,11 +484,30 @@ function Table() {
                                                             size={16}
                                                         />
                                                     </Link>
-                                                    {ticket.assignees.some(
-                                                        a =>
-                                                            String(a.db_id) ===
-                                                            session?.user.db_id,
-                                                    ) &&
+                                                    {canReviewTicket && (
+                                                        <EditButton
+                                                            isLoading={loading}
+                                                            canReviewTicket={
+                                                                canReviewTicket
+                                                            }
+                                                            ticketData={
+                                                                ticket as any
+                                                            }
+                                                            submitHandler={
+                                                                editTicket
+                                                            }
+                                                        />
+                                                    )}
+                                                    {!canReviewTicket &&
+                                                        canSubmitDailyReport &&
+                                                        ticket.assignees?.some(
+                                                            a =>
+                                                                String(
+                                                                    a.db_id,
+                                                                ) ===
+                                                                session?.user
+                                                                    .db_id,
+                                                        ) &&
                                                         (!ticket.deadline ||
                                                             moment(
                                                                 ticket.deadline,
@@ -426,7 +534,10 @@ function Table() {
                             </tbody>
                         </table>
                     ) : (
-                        <NoData text="No Jobs Found" type={Type.danger} />
+                        <NoData
+                            text="No Active Jobs Found"
+                            type={Type.danger}
+                        />
                     ))}
             </div>
             <style jsx>

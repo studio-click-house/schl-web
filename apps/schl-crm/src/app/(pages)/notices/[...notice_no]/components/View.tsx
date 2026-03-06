@@ -104,7 +104,6 @@ const ViewNotice: React.FC<ViewNoticeProps> = props => {
         routerRef.current = router;
     }, [router]);
 
-
     const getNotice = useCallback(async () => {
         try {
             setIsLoading(true);

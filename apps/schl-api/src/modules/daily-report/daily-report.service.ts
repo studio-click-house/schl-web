@@ -183,7 +183,6 @@ export class DailyReportService {
                         ticket_id: '$ticket._id',
                     },
                 },
-
             ];
 
             const transformItems = async (
@@ -407,4 +406,3 @@ export class DailyReportService {
         return { message: 'Updated the daily report successfully' };
     }
 }
-

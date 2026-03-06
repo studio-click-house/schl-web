@@ -23,7 +23,7 @@ import {
     ClockCheck,
     SquareArrowOutUpRight,
 } from 'lucide-react';
-import { DailyReportFormData } from '../../pending-jobs/components/daily-report/schema';
+import { DailyReportFormData } from '../../active-jobs/components/daily-report/schema';
 import DailyReportDelete from './Delete';
 import EditDailyReportModal from './EditModal';
 import FilterButton from './Filter';

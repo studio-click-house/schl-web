@@ -28,8 +28,6 @@ export default authMiddleware((req: any) => {
 
     console.log('ALLOWED_IPS', ALLOWED_IPS);
     console.log('clientIp', clientIp);
-    
-
 
     // --- Route checks ---
     const isAuthenticated = !!req.auth;

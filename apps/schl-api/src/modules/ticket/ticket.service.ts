@@ -348,14 +348,19 @@ export class TicketService {
                                 // Others (On-Hold, etc.) but not closed
                                 case: {
                                     $not: {
-                                        $in: ['$status', CLOSED_TICKET_STATUSES],
+                                        $in: [
+                                            '$status',
+                                            CLOSED_TICKET_STATUSES,
+                                        ],
                                     },
                                 },
                                 then: 1,
                             },
                             {
                                 // Closed
-                                case: { $in: ['$status', CLOSED_TICKET_STATUSES] },
+                                case: {
+                                    $in: ['$status', CLOSED_TICKET_STATUSES],
+                                },
                                 then: 0,
                             },
                         ],

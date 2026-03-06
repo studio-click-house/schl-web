@@ -31,7 +31,7 @@ export class TrackerAuthService {
         private readonly qcWorkLogModel: Model<QcWorkLog>,
 
         private readonly trackerGateway: TrackerGateway,
-    ) { }
+    ) {}
 
     async checkUser(username: string) {
         try {
@@ -116,14 +116,16 @@ export class TrackerAuthService {
                     stale.logout_at = now;
                     stale.duration_session = Math.max(
                         0,
-                        Math.floor((now.getTime() - stale.login_at.getTime()) / 1000)
+                        Math.floor(
+                            (now.getTime() - stale.login_at.getTime()) / 1000,
+                        ),
                     );
                     await stale.save();
                 }
 
                 if (staleSessions.length > 0) {
                     const staleDates = [
-                        ...new Set(staleSessions.map((s) => s.session_date)),
+                        ...new Set(staleSessions.map(s => s.session_date)),
                     ];
 
                     const rawName = displayName.split('-')[0]!.trim();

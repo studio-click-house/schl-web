@@ -34,6 +34,7 @@ interface PropsType {
         toDate: string;
         deadlineStatus: string;
         createdBy: string;
+        assignees: string[];
     };
     setFilters: React.Dispatch<
         React.SetStateAction<{
@@ -45,9 +46,11 @@ interface PropsType {
             toDate: string;
             deadlineStatus: string;
             createdBy: string;
+            assignees: string[];
         }>
     >;
     isLoading: boolean;
+    canReviewTicket: boolean;
 }
 
 export default function FilterButton(props: PropsType) {
@@ -58,6 +61,52 @@ export default function FilterButton(props: PropsType) {
     const [creatorOptions, setCreatorOptions] = useState<
         { label: string; value: string }[]
     >([]);
+    const [assigneeOptions, setAssigneeOptions] = useState<
+        { label: string; value: string }[]
+    >([]);
+
+    React.useEffect(() => {
+        if (!props.canReviewTicket) return;
+        const loadAssignees = async () => {
+            try {
+                const resp = await authedFetchApi<any>(
+                    {
+                        path: '/v1/user/search-users',
+                        query: { page: 1, itemsPerPage: 100, paginated: false },
+                    },
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            employee_expanded: true,
+                            role_expanded: true,
+                        }),
+                    },
+                );
+                if (resp.ok && resp.data) {
+                    const usersRaw = Array.isArray(resp.data)
+                        ? resp.data
+                        : resp.data.items || [];
+                    const valid = (usersRaw as any[]).filter(u =>
+                        hasPerm(
+                            'ticket:submit_daily_report',
+                            u.role?.permissions || [],
+                        ),
+                    );
+                    const options = valid.map(u => ({
+                        label: u.employee?.real_name
+                            ? `${u.employee.real_name} (${u.employee.e_id})`
+                            : u.name || 'Unknown',
+                        value: String(u._id),
+                    }));
+                    setAssigneeOptions(options);
+                }
+            } catch (e) {
+                console.error('failed loading assignees', e);
+            }
+        };
+        loadAssignees();
+    }, [authedFetchApi, props.canReviewTicket]);
 
     React.useEffect(() => {
         const loadCreators = async () => {
@@ -115,6 +164,7 @@ export default function FilterButton(props: PropsType) {
             toDate: '',
             deadlineStatus: '',
             createdBy: '',
+            assignees: [],
         });
     };
 
@@ -303,6 +353,36 @@ export default function FilterButton(props: PropsType) {
                                     isClearable
                                 />
                             </div>
+
+                            {props.canReviewTicket && (
+                                <div>
+                                    <label className="uppercase tracking-wide text-gray-700 text-sm font-bold block mb-2">
+                                        Assigned to
+                                    </label>
+                                    <Select
+                                        {...setClassNameAndIsDisabled(isOpen)}
+                                        isMulti
+                                        options={assigneeOptions}
+                                        classNamePrefix="react-select"
+                                        menuPortalTarget={setMenuPortalTarget}
+                                        styles={setCalculatedZIndex(baseZIndex)}
+                                        value={assigneeOptions.filter(o =>
+                                            props.filters.assignees.includes(
+                                                o.value,
+                                            ),
+                                        )}
+                                        onChange={opts =>
+                                            setFilters(prev => ({
+                                                ...prev,
+                                                assignees: opts
+                                                    ? opts.map(o => o.value)
+                                                    : [],
+                                            }))
+                                        }
+                                        isClearable
+                                    />
+                                </div>
+                            )}
 
                             <div className="w-full">
                                 <label className="uppercase tracking-wide text-gray-700 text-sm font-bold flex gap-2 mb-2">

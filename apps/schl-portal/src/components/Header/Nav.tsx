@@ -655,17 +655,19 @@ const Nav: React.FC<PropsType> = props => {
                         </li>
                         <li
                             className={cn(
-                                !hasAny(['ticket:submit_daily_report']) &&
-                                    'hidden',
+                                !hasAny([
+                                    'ticket:submit_daily_report',
+                                    'ticket:review_tickets',
+                                ]) && 'hidden',
                             )}
                         >
                             <Link
                                 className={cn(
                                     'block px-4 py-2 hover:bg-primary',
                                 )}
-                                href={'/tickets/pending-jobs'}
+                                href={'/tickets/active-jobs'}
                             >
-                                Pending Jobs
+                                Active Jobs
                             </Link>
                         </li>
                         <li

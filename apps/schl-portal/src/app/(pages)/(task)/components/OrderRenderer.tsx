@@ -2,6 +2,7 @@ import ClickToCopy from '@/components/CopyText';
 import ExtendableTd from '@/components/ExtendableTd';
 import { OrderDocument } from '@repo/common/models/order.schema';
 import { formatDate, formatTime } from '@repo/common/utils/date-helpers';
+import { cn } from '@repo/common/utils/general-utils';
 import { hasPerm } from '@repo/common/utils/permission-check';
 import moment from 'moment-timezone';
 import { useSession } from 'next-auth/react';
@@ -150,7 +151,12 @@ const OrderRenderer: React.FC<OrderRendererProps> = props => {
                         // />
                     }
                 </td>
-                <td className="capitalize text-wrap">
+                <td
+                    className={cn(
+                        'capitalize text-wrap',
+                        props.order.type === 'pending' && 'text-red-700',
+                    )}
+                >
                     {/* <Badge value={props.order.type} /> */}
                     {props.order.type}
                 </td>

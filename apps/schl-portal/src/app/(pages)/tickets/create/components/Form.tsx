@@ -93,7 +93,6 @@ const Form: React.FC = () => {
         [],
     );
 
-
     const {
         register,
         handleSubmit,
@@ -151,10 +150,13 @@ const Form: React.FC = () => {
                 toast.success('Created new ticket successfully');
                 const ticket = response.data as Ticket;
 
-
                 if (file) {
                     const formData = new FormData();
-                    formData.append('file', file, ticket.file_name || file.name);
+                    formData.append(
+                        'file',
+                        file,
+                        ticket.file_name || file.name,
+                    );
 
                     const ftp_response = await authedFetchApi(
                         {
