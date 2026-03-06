@@ -35,7 +35,6 @@ type TicketsPagination = {
 
 type TicketWithName = Ticket & {
     created_by_name?: string;
-    assigned_by_name?: string;
 };
 
 // when we run aggregation for custom sorting we temporarily add sortPriority
@@ -189,7 +188,6 @@ export class TicketService {
             assignees,
             excludeClosed,
             includeUnassigned,
-            excludeInReview,
         } = filters;
 
         const normalizedFromDate: string | undefined =
@@ -248,17 +246,6 @@ export class TicketService {
         if (excludeClosed) {
             // this can stay at root since it will be ANDed with other root-level keys
             query.status = { $nin: CLOSED_TICKET_STATUSES };
-        }
-
-        if (excludeInReview) {
-            const currentStatus =
-                query.status && typeof query.status === 'object'
-                    ? query.status
-                    : {};
-            query.status = {
-                ...currentStatus,
-                $ne: 'in-review',
-            };
         }
 
         if (createdBy) {
@@ -330,21 +317,6 @@ export class TicketService {
                                 then: 5,
                             },
                             {
-                                // In-Progress
-                                case: { $eq: ['$status', 'in-progress'] },
-                                then: 4,
-                            },
-                            {
-                                // Pending
-                                case: { $eq: ['$status', 'pending'] },
-                                then: 3,
-                            },
-                            {
-                                // In-Review
-                                case: { $eq: ['$status', 'in-review'] },
-                                then: 2,
-                            },
-                            {
                                 // Others (On-Hold, etc.) but not closed
                                 case: {
                                     $not: {
@@ -411,20 +383,12 @@ export class TicketService {
             const tickets: TicketWithName[] = await Promise.all(
                 items.map(async (t: AggregatedTicket) => {
                     const createdById: string = t.created_by?.toString() ?? '';
-                    const assignedById: string = t.assigned_by
-                        ? t.assigned_by.toString()
-                        : '';
                     const createdName = await this.resolveUserName(createdById);
-                    const assignedName = assignedById
-                        ? await this.resolveUserName(assignedById)
-                        : '';
                     const { sortPriority: _sortPriority, ...rest } = t;
                     void _sortPriority;
                     return {
                         ...rest,
-                        assigned_by: rest.assigned_by ?? null,
                         created_by_name: createdName,
-                        assigned_by_name: assignedName,
                     };
                 }),
             );
@@ -444,18 +408,12 @@ export class TicketService {
         const result: TicketWithName[] = await Promise.all(
             items.map(async (t: AggregatedTicket) => {
                 const createdById: string = t.created_by?.toString() ?? '';
-                const assignedById: string = t.assigned_by?.toString() ?? '';
                 const createdName = await this.resolveUserName(createdById);
-                const assignedName = assignedById
-                    ? await this.resolveUserName(assignedById)
-                    : '';
                 const { sortPriority: _sortPriority, ...rest } = t;
                 void _sortPriority;
                 return {
                     ...rest,
-                    assigned_by: rest.assigned_by ?? null,
                     created_by_name: createdName,
-                    assigned_by_name: assignedName,
                 };
             }),
         );
@@ -527,17 +485,10 @@ export class TicketService {
             const createdByName = await this.resolveUserName(
                 ticket.created_by.toString(),
             );
-            const assignedById: string = ticket.assigned_by
-                ? ticket.assigned_by.toString()
-                : '';
-            const assignedByName = assignedById
-                ? await this.resolveUserName(assignedById)
-                : '';
 
             return {
                 ...ticket.toObject(),
                 created_by_name: createdByName,
-                assigned_by_name: assignedByName,
             };
         } catch (err: unknown) {
             if (err instanceof HttpException) throw err;
@@ -567,23 +518,6 @@ export class TicketService {
         const patch = TicketFactory.fromUpdateDto(ticketData);
         if (Object.keys(patch).length === 0) {
             throw new BadRequestException('No update fields provided');
-        }
-
-        const assignedBy = existing.assigned_by?.toString() || null;
-        const currentUser = userSession.db_id;
-
-        if (patch.assignees !== undefined) {
-            if (patch.assignees.length === 0) {
-                patch.assigned_by = null;
-            } else {
-                const hadNoAssignees =
-                    !existing.assignees || existing.assignees.length === 0;
-                if (hadNoAssignees && assignedBy === null) {
-                    patch.assigned_by = new mongoose.Types.ObjectId(
-                        currentUser,
-                    );
-                }
-            }
         }
 
         const updated = await this.ticketModel

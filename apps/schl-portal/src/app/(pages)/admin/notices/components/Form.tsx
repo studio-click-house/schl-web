@@ -164,7 +164,7 @@ const Form: React.FC = () => {
 
     const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
         const allowedExtensions =
-            /\.(xls|xlsx|doc|docx|ppt|pptx|txt|pdf|zip|7z|rar)$/i;
+            /\.(xls|xlsx|doc|docx|ppt|pptx|txt|pdf|zip|7z|rar|jpg|jpeg|png|gif|svg)$/i;
         const selectedFile = e.target.files?.[0];
 
         if (selectedFile && allowedExtensions.test(selectedFile.name)) {
@@ -189,7 +189,7 @@ const Form: React.FC = () => {
     const handleDrop = (e: React.DragEvent<HTMLLabelElement>) => {
         e.preventDefault();
         const allowedExtensions =
-            /\.(xls|xlsx|doc|docx|ppt|pptx|txt|pdf|zip|7z|rar)$/i;
+            /\.(xls|xlsx|doc|docx|ppt|pptx|txt|pdf|zip|7z|rar|jpg|jpeg|png|gif|svg)$/i;
         const droppedFiles = e.dataTransfer.files;
         if (droppedFiles && droppedFiles.length > 0) {
             const selectedFile = droppedFiles[0];
@@ -347,7 +347,7 @@ const Form: React.FC = () => {
                             </p>
                             <p className="text-xs text-gray-500">
                                 ( XLS, XLSX, DOC, DOCX, PPT, PPTX, TXT, PDF,
-                                ZIP, 7Z, RAR )
+                                ZIP, 7Z, RAR, JPG, JPEG, PNG, GIF, SVG )
                             </p>
                         </div>
                         <input
@@ -355,7 +355,7 @@ const Form: React.FC = () => {
                             id="dropzone-file"
                             type="file"
                             className="hidden"
-                            accept=".xls,.xlsx,.doc,.docx,.ppt,.pptx,.txt,.pdf,.zip,.7z,.rar"
+                            accept=".xls,.xlsx,.doc,.docx,.ppt,.pptx,.txt,.pdf,.zip,.7z,.rar,.jpg,.jpeg,.png,.gif,.svg"
                             onChange={handleFileInput}
                         />
                     </label>

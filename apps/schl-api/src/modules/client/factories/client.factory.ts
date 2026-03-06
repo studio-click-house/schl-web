@@ -10,7 +10,7 @@ export class ClientFactory {
         return {
             client_code: dto.clientCode.trim(),
             client_name: dto.clientName.trim(),
-            marketer: dto.marketer.trim(),
+            marketer: dto.marketer?.trim() ?? null,
             contact_person: dto.contactPerson.trim(),
             contact_number: dto.contactNumber.trim(),
             email: dto.email.toLowerCase().trim(),

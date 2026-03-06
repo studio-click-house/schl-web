@@ -15,8 +15,8 @@ export class Client {
     @Prop({ required: [true, 'Client name is required'] })
     client_name: string; // client or company name
 
-    @Prop({ required: [true, 'Marketer is required'] })
-    marketer: string; // company provided name of the marketer (employee)
+    @Prop({ default: null })
+    marketer: string | null; // company provided name of the marketer (employee)
 
     @Prop({ required: [true, 'Contact person is required'] })
     contact_person: string;

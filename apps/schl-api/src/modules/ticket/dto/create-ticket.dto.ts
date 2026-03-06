@@ -68,9 +68,9 @@ export class CreateTicketBodyDto {
     @IsString()
     fileName?: string | null;
 
-    @IsOptional()
     @IsArray()
+    @IsNotEmpty()
     @ValidateNested({ each: true })
     @Type(() => AssigneeDto)
-    assignees?: AssigneeDto[];
+    assignees: AssigneeDto[];
 }

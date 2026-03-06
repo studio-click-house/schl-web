@@ -36,7 +36,6 @@ import type { DailyReportFormData } from './daily-report/schema';
 
 interface TicketData extends TicketDocument {
     created_by_name?: string;
-    assigned_by_name?: string;
 }
 
 type TicketsState = {
@@ -108,7 +107,6 @@ function Table() {
                         body: JSON.stringify({
                             excludeClosed: true,
                             includeUnassigned: true,
-                            excludeInReview: true,
                             assignees: canReviewTicket
                                 ? []
                                 : [session?.user.db_id],
@@ -154,7 +152,6 @@ function Table() {
                             includeUnassigned: canReviewTicket
                                 ? filters.assignees.length === 0
                                 : true,
-                            excludeInReview: true,
                             assignees: canReviewTicket
                                 ? filters.assignees
                                 : [session?.user.db_id],
@@ -330,9 +327,6 @@ function Table() {
                                 <col className="whitespace-nowrap min-w-[120px]" />
                                 <col className="whitespace-nowrap min-w-[120px]" />
                                 <col className="whitespace-nowrap min-w-[150px]" />
-                                {canReviewTicket && (
-                                    <col className="whitespace-nowrap min-w-[150px]" />
-                                )}
                                 <col className="whitespace-nowrap min-w-[150px]" />
                                 <col className="min-w-[300px]" />
                                 <col className="whitespace-nowrap min-w-[100px]" />
@@ -348,13 +342,8 @@ function Table() {
                                         Ticket No
                                     </th>
                                     <th className="whitespace-nowrap">
-                                        Assigned By
+                                        Assigned To
                                     </th>
-                                    {canReviewTicket && (
-                                        <th className="whitespace-nowrap">
-                                            Assigned To
-                                        </th>
-                                    )}
 
                                     <th className="whitespace-nowrap">
                                         Deadline
@@ -399,20 +388,13 @@ function Table() {
                                             )}
                                         </td>
                                         <td className="text-balance">
-                                            {ticket.assigned_by_name
-                                                ? ticket.assigned_by_name
+                                            {ticket.assignees &&
+                                            ticket.assignees.length > 0
+                                                ? ticket.assignees
+                                                      .map(a => a.name)
+                                                      .join(', ')
                                                 : 'N/A'}
                                         </td>
-                                        {canReviewTicket && (
-                                            <td className="text-balance">
-                                                {ticket.assignees &&
-                                                ticket.assignees.length > 0
-                                                    ? ticket.assignees
-                                                          .map(a => a.name)
-                                                          .join(', ')
-                                                    : 'N/A'}
-                                            </td>
-                                        )}
                                         <td className="whitespace-nowrap">
                                             {ticket.deadline
                                                 ? `${formatDate(ticket.deadline)} | ${formatTime(

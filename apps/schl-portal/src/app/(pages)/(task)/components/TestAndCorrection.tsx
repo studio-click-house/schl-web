@@ -4,6 +4,7 @@ import ExtendableTd from '@/components/ExtendableTd';
 import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import type { OrderDocument } from '@repo/common/models/order.schema';
 import { formatDate, formatTime } from '@repo/common/utils/date-helpers';
+import { cn } from '@repo/common/utils/general-utils';
 import { hasPerm } from '@repo/common/utils/permission-check';
 import 'flowbite';
 import { initFlowbite } from 'flowbite';
@@ -140,18 +141,19 @@ function TestAndCorrection() {
                                                 : null}
                                         </td>
 
-                                        <td
-                                            className="uppercase text-wrap"
-                                            style={{ verticalAlign: 'middle' }}
-                                        >
+                                        <td className="capitalize text-wrap">
                                             {order.task
                                                 ?.split('+')
                                                 .map((task, index) => {
+                                                    // return <Badge key={index} value={task} />;
                                                     return (
-                                                        <Badge
-                                                            key={index}
-                                                            value={task}
-                                                        />
+                                                        `${task}` +
+                                                        (index !==
+                                                        order.task.split('+')
+                                                            .length -
+                                                            1
+                                                            ? ', '
+                                                            : '')
                                                     );
                                                 })}
                                         </td>
@@ -167,44 +169,20 @@ function TestAndCorrection() {
                                                 }
                                             />
                                         </td>
-
-                                        <td
-                                            className="uppercase text-nowrap"
-                                            style={{ verticalAlign: 'middle' }}
-                                        >
-                                            {order.priority && (
-                                                <Badge
-                                                    value={order.priority}
-                                                    className={
-                                                        order.priority == 'high'
-                                                            ? 'bg-orange-600 text-white border-orange-600'
-                                                            : order.priority ==
-                                                                'medium'
-                                                              ? 'bg-yellow-600 text-white border-yellow-600'
-                                                              : 'bg-green-600 text-white border-green-600'
-                                                    }
-                                                />
-                                            )}
-                                        </td>
-
-                                        <td
-                                            className="uppercase text-wrap"
-                                            style={{ verticalAlign: 'middle' }}
-                                        >
-                                            {order.type && (
-                                                <Badge value={order.type} />
-                                            )}
+                                        <td className="capitalize text-nowrap">
+                                            {order.priority}
                                         </td>
                                         <td
-                                            className="uppercase text-wrap"
-                                            style={{ verticalAlign: 'middle' }}
-                                        >
-                                            {order.status && (
-                                                <Badge
-                                                    value={order.status}
-                                                    className="bg-amber-600 text-white border-amber-600"
-                                                />
+                                            className={cn(
+                                                order.type === 'pending'
+                                                    ? 'capitalize text-wrap bg-red-600 text-white border-red-600'
+                                                    : 'capitalize text-wrap',
                                             )}
+                                        >
+                                            {order.type}
+                                        </td>
+                                        <td className="capitalize text-nowrap">
+                                            {order.status}
                                         </td>
                                         <ExtendableTd data={order.comment} />
                                     </tr>

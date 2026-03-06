@@ -123,6 +123,7 @@ export class ReportService {
             const match: Record<string, any> = {
                 is_lead: false,
                 createdAt: { $gte: startDate, $lte: endDate },
+                marketer_name: { $ne: null, $gt: '' },
             };
             if (marketerName) match.marketer_name = marketerName;
 
@@ -214,6 +215,7 @@ export class ReportService {
                     $gte: startWindow,
                     $lte: endWindow,
                 },
+                marketer_name: { $ne: null, $gt: '' },
             };
             if (marketerName) onboardMatch.marketer_name = marketerName;
 
@@ -299,7 +301,10 @@ export class ReportService {
                 result[key] = 0;
             }
 
-            const testMatch: Record<string, any> = { is_lead: false };
+            const testMatch: Record<string, any> = {
+                is_lead: false,
+                marketer_name: { $ne: null, $gt: '' },
+            };
             if (marketerName) testMatch.marketer_name = marketerName;
 
             const rows = await this.reportModel
@@ -449,7 +454,10 @@ export class ReportService {
             }
 
             // Build aggregation pipelines for each metric and run in a single aggregate via $facet
-            const callsMatch: Record<string, any> = { is_lead: false };
+            const callsMatch: Record<string, any> = {
+                is_lead: false,
+                marketer_name: { $ne: null, $gt: '' },
+            };
             if (onlyMarketerName) callsMatch.marketer_name = onlyMarketerName;
             const callsPipeline: any[] = [
                 { $match: callsMatch },
@@ -464,7 +472,10 @@ export class ReportService {
                 $group: { _id: '$marketer_name', count: { $sum: 1 } },
             });
 
-            const testsMatch: Record<string, any> = { is_lead: false };
+            const testsMatch: Record<string, any> = {
+                is_lead: false,
+                marketer_name: { $ne: null, $gt: '' },
+            };
             if (onlyMarketerName) testsMatch.marketer_name = onlyMarketerName;
             const testsPipeline: any[] = [
                 { $match: testsMatch },
@@ -479,7 +490,10 @@ export class ReportService {
                 $group: { _id: '$marketer_name', count: { $sum: 1 } },
             });
 
-            const leadsMatch: Record<string, any> = { is_lead: true };
+            const leadsMatch: Record<string, any> = {
+                is_lead: true,
+                marketer_name: { $ne: null, $gt: '' },
+            };
             if (onlyMarketerName) leadsMatch.marketer_name = onlyMarketerName;
             const leadsPipeline: any[] = [{ $match: leadsMatch }];
             if (hasFrom || hasTo) {
@@ -496,6 +510,7 @@ export class ReportService {
             const prospectsMatch: Record<string, any> = {
                 is_lead: false,
                 is_prospected: true,
+                marketer_name: { $ne: null, $gt: '' },
             };
             if (onlyMarketerName)
                 prospectsMatch.marketer_name = onlyMarketerName;
@@ -514,6 +529,7 @@ export class ReportService {
             const clientsMatch: Record<string, any> = {
                 is_lead: false,
                 client_status: 'approved',
+                marketer_name: { $ne: null, $gt: '' },
             };
             if (onlyMarketerName) clientsMatch.marketer_name = onlyMarketerName;
             const clientsPipeline: any[] = [{ $match: clientsMatch }];

@@ -15,7 +15,7 @@ import { hasPerm } from '@repo/common/utils/permission-check';
 import { setMenuPortalTarget } from '@repo/common/utils/select-helpers';
 import { CheckCircle, CloudUpload, Loader2 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import Select from 'react-select';
 import { toast } from 'sonner';
@@ -41,9 +41,7 @@ const Form: React.FC = () => {
     const [file, setFile] = useState<File | null>(null);
     const [uploading, setUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
-
     useEffect(() => {
-        if (!canReviewTicket) return;
         const loadUsers = async () => {
             try {
                 const resp = await authedFetchApi<{
@@ -85,11 +83,10 @@ const Form: React.FC = () => {
             }
         };
         loadUsers();
-    }, [authedFetchApi, canReviewTicket]);
+    }, [authedFetchApi]);
 
     const newStatusOption = useMemo(
-        () =>
-            statusOptions.find(option => option.value === 'in-review') || null,
+        () => statusOptions.find(option => option.value === 'pending') || null,
         [],
     );
 
@@ -106,7 +103,7 @@ const Form: React.FC = () => {
             title: '',
             description: '',
             type: 'complaint',
-            status: 'in-review',
+            status: 'pending',
             priority: 'low',
             deadline: null,
             file_name: null,
@@ -199,7 +196,7 @@ const Form: React.FC = () => {
 
     const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
         const allowedExtensions =
-            /\.(xls|xlsx|doc|docx|ppt|pptx|txt|pdf|zip|7z|rar)$/i;
+            /\.(xls|xlsx|doc|docx|ppt|pptx|txt|pdf|zip|7z|rar|jpg|jpeg|png|gif|svg)$/i;
         const selectedFile = e.target.files?.[0];
 
         if (selectedFile && allowedExtensions.test(selectedFile.name)) {
@@ -224,7 +221,7 @@ const Form: React.FC = () => {
     const handleDrop = (e: React.DragEvent<HTMLLabelElement>) => {
         e.preventDefault();
         const allowedExtensions =
-            /\.(xls|xlsx|doc|docx|ppt|pptx|txt|pdf|zip|7z|rar)$/i;
+            /\.(xls|xlsx|doc|docx|ppt|pptx|txt|pdf|zip|7z|rar|jpg|jpeg|png|gif|svg)$/i;
         const droppedFiles = e.dataTransfer.files;
         if (droppedFiles && droppedFiles.length > 0) {
             const selectedFile = droppedFiles[0];
@@ -307,7 +304,6 @@ const Form: React.FC = () => {
                                 onChange={option =>
                                     field.onChange(option?.value || '')
                                 }
-                                isDisabled={!canReviewTicket}
                             />
                         )}
                     />
@@ -338,7 +334,6 @@ const Form: React.FC = () => {
                                 onChange={option =>
                                     field.onChange(option?.value || '')
                                 }
-                                isDisabled={!canReviewTicket}
                             />
                         )}
                     />
@@ -361,56 +356,55 @@ const Form: React.FC = () => {
                     />
                 </div>
             </div>
-            {canReviewTicket && (
-                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-x-3 mb-4 gap-y-4">
-                    <div>
-                        <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
-                            <span className="uppercase">Assignees</span>
-                        </label>
-                        <Controller
-                            name="assignees"
-                            control={control}
-                            render={({ field }) => (
-                                <Select
-                                    {...field}
-                                    isMulti
-                                    options={assigneeOptions}
-                                    closeMenuOnSelect={false}
-                                    placeholder="Select assignee(s)"
-                                    classNamePrefix="react-select"
-                                    menuPortalTarget={setMenuPortalTarget}
-                                    value={
-                                        assigneeOptions.filter(option =>
-                                            field.value?.some(
-                                                v =>
-                                                    v.db_id ===
-                                                    option.value.db_id,
-                                            ),
-                                        ) || null
-                                    }
-                                    onChange={selected =>
-                                        field.onChange(
-                                            selected
-                                                ? selected.map(o => o.value)
-                                                : [],
-                                        )
-                                    }
-                                />
-                            )}
-                        />
-                    </div>
-                    <div>
-                        <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
-                            <span className="uppercase">Deadline</span>
-                        </label>
-                        <input
-                            {...register('deadline')}
-                            type="datetime-local"
-                            className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
-                        />
-                    </div>
+            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-x-3 mb-4 gap-y-4">
+                <div>
+                    <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
+                        <span className="uppercase">Assignees*</span>
+                        <span className="text-red-700 text-wrap block text-xs">
+                            {errors.assignees && errors.assignees.message}
+                        </span>
+                    </label>
+                    <Controller
+                        name="assignees"
+                        control={control}
+                        render={({ field }) => (
+                            <Select
+                                {...field}
+                                isMulti
+                                options={assigneeOptions}
+                                closeMenuOnSelect={false}
+                                placeholder="Select assignee(s)"
+                                classNamePrefix="react-select"
+                                menuPortalTarget={setMenuPortalTarget}
+                                value={
+                                    assigneeOptions.filter(option =>
+                                        field.value?.some(
+                                            v => v.db_id === option.value.db_id,
+                                        ),
+                                    ) || null
+                                }
+                                onChange={selected =>
+                                    field.onChange(
+                                        selected
+                                            ? selected.map(o => o.value)
+                                            : [],
+                                    )
+                                }
+                            />
+                        )}
+                    />
                 </div>
-            )}
+                <div>
+                    <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
+                        <span className="uppercase">Deadline</span>
+                    </label>
+                    <input
+                        {...register('deadline')}
+                        type="datetime-local"
+                        className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
+                    />
+                </div>
+            </div>
 
             <div className="mb-4">
                 <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
@@ -476,7 +470,7 @@ const Form: React.FC = () => {
                             </p>
                             <p className="text-xs text-gray-500">
                                 ( XLS, XLSX, DOC, DOCX, PPT, PPTX, TXT, PDF,
-                                ZIP, 7Z, RAR )
+                                ZIP, 7Z, RAR, JPG, JPEG, PNG, GIF, SVG )
                             </p>
                         </div>
                         <input
@@ -484,7 +478,7 @@ const Form: React.FC = () => {
                             id="dropzone-file"
                             type="file"
                             className="hidden"
-                            accept=".xls,.xlsx,.doc,.docx,.ppt,.pptx,.txt,.pdf,.zip,.7z,.rar"
+                            accept=".xls,.xlsx,.doc,.docx,.ppt,.pptx,.txt,.pdf,.zip,.7z,.rar,.jpg,.jpeg,.png,.gif,.svg"
                             onChange={handleFileInput}
                         />
                     </label>

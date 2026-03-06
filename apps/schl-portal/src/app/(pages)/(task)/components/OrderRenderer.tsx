@@ -1,3 +1,4 @@
+import Badge from '@/components/Badge';
 import ClickToCopy from '@/components/CopyText';
 import ExtendableTd from '@/components/ExtendableTd';
 import { OrderDocument } from '@repo/common/models/order.schema';
@@ -137,27 +138,15 @@ const OrderRenderer: React.FC<OrderRendererProps> = props => {
                     />
                 </td>
                 <td className="capitalize text-nowrap">
-                    {
-                        props.order.priority
-                        // <Badge
-                        //   value={props.order.priority}
-                        //   className={
-                        //     props.order.priority == 'High'
-                        //       ? 'bg-orange-600 text-white border-orange-600'
-                        //       : props.order.priority == 'Medium'
-                        //         ? 'bg-yellow-600 text-white border-yellow-600'
-                        //         : 'bg-green-600 text-white border-green-600'
-                        //   }
-                        // />
-                    }
+                    {props.order.priority}
                 </td>
                 <td
                     className={cn(
-                        'capitalize text-wrap',
-                        props.order.type === 'pending' && 'text-red-700',
+                        props.order.type === 'pending'
+                            ? 'capitalize text-wrap bg-red-600 text-white border-red-600'
+                            : 'capitalize text-wrap',
                     )}
                 >
-                    {/* <Badge value={props.order.type} /> */}
                     {props.order.type}
                 </td>
 

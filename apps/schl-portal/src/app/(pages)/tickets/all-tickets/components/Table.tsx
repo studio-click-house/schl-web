@@ -34,7 +34,6 @@ import FilterButton from './Filter';
 
 interface TicketData extends TicketDocument {
     created_by_name?: string;
-    assigned_by_name?: string;
 }
 
 type TicketsState = {
@@ -373,7 +372,6 @@ const Table = () => {
                                 <col className="whitespace-nowrap min-w-[150px]" />
                                 <col className="whitespace-nowrap min-w-[150px]" />
                                 <col className="whitespace-nowrap min-w-[150px]" />
-                                <col className="whitespace-nowrap min-w-[150px]" />
                                 <col className="min-w-[300px]" />
                                 <col className="whitespace-nowrap min-w-[100px]" />
                                 <col className="whitespace-nowrap min-w-[100px]" />
@@ -392,11 +390,6 @@ const Table = () => {
                                     <th className="whitespace-nowrap">
                                         Ticket No
                                     </th>
-                                    {canReviewTicket && (
-                                        <th className="whitespace-nowrap">
-                                            Assigned By
-                                        </th>
-                                    )}
                                     {canReviewTicket && (
                                         <th className="whitespace-nowrap">
                                             Assigned To
@@ -446,8 +439,8 @@ const Table = () => {
                                     const canEdit =
                                         canEditUsual ||
                                         (canReviewTicket &&
-                                            (ticket.assigned_by === null ||
-                                                String(ticket.assigned_by) ===
+                                            (ticket.created_by === null ||
+                                                String(ticket.created_by) ===
                                                     session?.user.db_id));
 
                                     const canDeleteTicket = hasPerm(
@@ -491,12 +484,6 @@ const Table = () => {
                                             <td className="whitespace-nowrap">
                                                 {ticket.ticket_number}
                                             </td>
-                                            {canReviewTicket && (
-                                                <td>
-                                                    {ticket.assigned_by_name ||
-                                                        'N/A'}
-                                                </td>
-                                            )}
                                             {canReviewTicket && (
                                                 <td className="text-balance">
                                                     {ticket.assignees &&
@@ -654,12 +641,6 @@ const Table = () => {
                                                                         name: string;
                                                                         e_id: string;
                                                                     }[],
-                                                                    assigned_by:
-                                                                        ticket.assigned_by
-                                                                            ? String(
-                                                                                  ticket.assigned_by,
-                                                                              )
-                                                                            : null,
                                                                     file_name:
                                                                         ticket.file_name,
                                                                 }}

@@ -47,7 +47,6 @@ interface ViewTicketProps {
 
 interface TicketData extends Ticket {
     created_by_name?: string;
-    assigned_by_name?: string;
 }
 
 const options: HTMLReactParserOptions = {
@@ -284,11 +283,6 @@ const ViewTicket: React.FC<ViewTicketProps> = props => {
                                 <p className="text-sm text-gray-700 mt-1">
                                     {`${formatDate(ticket.createdAt)} • ${ticket.created_by_name}`}
                                 </p>
-                                {/* {ticket.assigned_by_name && (
-                                    <p className="text-sm text-gray-700 mt-1">
-                                        Assigned by: {ticket.assigned_by_name}
-                                    </p>
-                                )} */}
                             </div>
                             {ticket.deadline &&
                                 (canReviewTicket || canSubmitWork) && (

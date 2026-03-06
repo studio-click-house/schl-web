@@ -12,14 +12,11 @@ export const validationSchema = z.object({
     type: z.enum(TICKET_TYPES, {
         required_error: 'Ticket type is required',
     }),
-    status: z.enum(TICKET_STATUSES).default('in-review'),
+    status: z.enum(TICKET_STATUSES).default('pending'),
     priority: z.enum(TICKET_PRIORITIES).default('low'),
     deadline: z.string().optional().nullish().default(null),
     file_name: z.string().optional().nullish().default(null),
-    assigned_by: z
-        .string()
-        .refine(val => mongoose.Types.ObjectId.isValid(val))
-        .nullish(),
+
     assignees: z
         .array(
             z.object({
@@ -28,7 +25,7 @@ export const validationSchema = z.object({
                 e_id: z.string(),
             }),
         )
-        .optional(),
+        .min(1, 'At least one assignee is required'),
     _id: z.optional(
         z.string().refine(val => {
             return mongoose.Types.ObjectId.isValid(val);

@@ -1,5 +1,4 @@
 export const TICKET_STATUSES = [
-    'in-review', // just submitted
     'pending', // waiting for assignee to start
     'in-progress', // work started
     'on-hold', // waiting for something
@@ -12,7 +11,6 @@ export type TicketStatus = (typeof TICKET_STATUSES)[number];
 export const CLOSED_TICKET_STATUSES: TicketStatus[] = ['finished', 'rejected'];
 
 export const statusOptions = [
-    { value: 'in-review', label: 'In Review' },
     { value: 'pending', label: 'Pending' },
     { value: 'in-progress', label: 'In Progress' },
     { value: 'on-hold', label: 'On Hold' },

@@ -139,10 +139,7 @@ const StatusEdit: React.FC<Props> = ({
                                             className="react-select"
                                             options={statusOptions.filter(
                                                 o =>
-                                                    ![
-                                                        ...CLOSED_TICKET_STATUSES,
-                                                        'in-review',
-                                                    ].includes(
+                                                    !CLOSED_TICKET_STATUSES.includes(
                                                         o.value as TicketStatus,
                                                     ),
                                             )}

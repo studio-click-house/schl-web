@@ -15,17 +15,13 @@ export class TicketFactory {
             title: dto.title.trim(),
             description: dto.description.trim(),
             type: dto.type,
-            status: dto.status,
-            priority: dto.priority,
+            status: dto.status || 'pending',
+            priority: dto.priority || 'low',
             assignees: dto.assignees?.map(assignee => ({
                 name: assignee.name,
                 e_id: assignee.e_id,
                 db_id: new mongoose.Types.ObjectId(assignee.db_id),
             })),
-            assigned_by:
-                dto.assignees && dto.assignees.length > 0
-                    ? new mongoose.Types.ObjectId(session.db_id)
-                    : null,
             deadline: dto.deadline ? new Date(dto.deadline) : null,
             file_name: dto.fileName?.trim() || null,
         };
