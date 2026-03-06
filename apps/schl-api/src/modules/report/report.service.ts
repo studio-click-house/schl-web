@@ -911,9 +911,7 @@ export class ReportService {
                     if (!lastOrderDateStr) {
                         return orderFrequency === 'irregular';
                     }
-                    const lastOrderDate = moment(
-                        lastOrderDateStr as string | Date,
-                    );
+                    const lastOrderDate = moment(lastOrderDateStr);
                     const daysSince = now.diff(lastOrderDate, 'days');
                     if (orderFrequency === 'consistent') return daysSince <= 14;
                     if (orderFrequency === 'regular')
@@ -954,10 +952,7 @@ export class ReportService {
                 if (!lastOrderDate) {
                     return orderFrequency === 'irregular';
                 }
-                const daysSince = now.diff(
-                    moment(lastOrderDate as string | Date),
-                    'days',
-                );
+                const daysSince = now.diff(moment(lastOrderDate), 'days');
                 if (orderFrequency === 'consistent') return daysSince <= 14;
                 if (orderFrequency === 'regular')
                     return daysSince >= 15 && daysSince <= 29;
