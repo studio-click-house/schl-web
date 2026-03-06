@@ -67,21 +67,34 @@ export const USER_PERMISSIONS = [
     {
         label: 'Ticket',
         options: [
+            // has permission to create tickets and view, edit, delete tickets created by themselves
             {
                 value: 'ticket:create_ticket',
                 label: 'Create ticket',
             },
+            // has permission to view all tickets and view, verify daily daily reports of all employees, also has the permission to delete daily report and tickets created by any employee without approval
             {
-                value: 'ticket:view_my_tickets',
-                label: 'View my tickets',
+                value: 'ticket:review_tickets',
+                label: 'Review tickets',
+            },
+
+            {
+                value: 'ticket:review_reports',
+                label: 'Review daily reports',
+            },
+
+            // has permission to submit daily daily reports, can also edit and delete their own updates
+            {
+                value: 'ticket:submit_daily_report',
+                label: 'Submit daily report',
             },
             {
-                value: 'ticket:review_queue',
-                label: 'Review ticket queue',
+                value: 'ticket:delete_ticket',
+                label: 'Delete ticket',
             },
             {
-                value: 'ticket:view_ticket',
-                label: 'View ticket details',
+                value: 'ticket:delete_daily_report',
+                label: 'Delete daily report',
             },
         ],
     },

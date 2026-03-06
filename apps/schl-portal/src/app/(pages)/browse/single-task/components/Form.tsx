@@ -92,6 +92,14 @@ const Form: React.FC<PropsType> = props => {
 
     const finishOrder = async (orderData: OrderDataType) => {
         try {
+            if (
+                !confirm(
+                    'Are you sure you want to mark this order as finished?',
+                )
+            ) {
+                return;
+            }
+
             setLoading(prevData => ({ ...prevData, finishOrder: true }));
 
             if (

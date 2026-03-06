@@ -9,10 +9,10 @@ export type ReportDocument = HydratedDocument<Report>;
 
 @Schema({ timestamps: true })
 export class Report {
-    @Prop({ required: [true, 'Marketer id is required'] })
+    @Prop({ default: null })
     marketer_id: string;
 
-    @Prop({ required: [true, 'Marketer name is required'] })
+    @Prop({ default: null })
     marketer_name: string;
 
     @Prop({ required: [true, 'Calling date is required'] })

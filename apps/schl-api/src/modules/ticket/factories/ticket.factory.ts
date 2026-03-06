@@ -4,49 +4,48 @@ import mongoose from 'mongoose';
 import { CreateTicketBodyDto } from '../dto/create-ticket.dto';
 
 export class TicketFactory {
-    private static normalizeTags(tags: unknown): string[] {
-        if (Array.isArray(tags)) {
-            return tags
-                .map(tag => String(tag).trim())
-                .filter(tag => tag.length > 0);
-        }
-
-        if (typeof tags === 'string') {
-            return tags
-                .split(',')
-                .map(tag => tag.trim())
-                .filter(tag => tag.length > 0);
-        }
-
-        return [];
-    }
-
     static fromCreateDto(
         dto: CreateTicketBodyDto,
         session: UserSession,
         ticketNumber: string,
-    ): Partial<Ticket> {
+    ) {
         return {
             ticket_number: ticketNumber,
-            opened_by: new mongoose.Types.ObjectId(session.db_id),
+            created_by: new mongoose.Types.ObjectId(session.db_id),
             title: dto.title.trim(),
             description: dto.description.trim(),
             type: dto.type,
-            status: dto.status ?? 'new',
-            tags: TicketFactory.normalizeTags(dto.tags),
-            checked_by: null,
+            status: dto.status || 'pending',
+            priority: dto.priority || 'low',
+            assignees: dto.assignees?.map(assignee => ({
+                name: assignee.name,
+                e_id: assignee.e_id,
+                db_id: new mongoose.Types.ObjectId(assignee.db_id),
+            })),
+            deadline: dto.deadline ? new Date(dto.deadline) : null,
+            file_name: dto.fileName?.trim() || null,
         };
     }
 
-    static fromUpdateDto(dto: Partial<CreateTicketBodyDto>): Partial<Ticket> {
+    static fromUpdateDto(dto: Partial<CreateTicketBodyDto>) {
         const patch: Partial<Ticket> = {};
         if (dto.title !== undefined) patch.title = dto.title.trim();
         if (dto.description !== undefined)
             patch.description = dto.description.trim();
         if (dto.type !== undefined) patch.type = dto.type;
         if (dto.status !== undefined) patch.status = dto.status;
-        if (dto.tags !== undefined)
-            patch.tags = TicketFactory.normalizeTags(dto.tags);
+        if (dto.priority !== undefined) patch.priority = dto.priority;
+        if (dto.fileName !== undefined)
+            patch.file_name = dto.fileName?.trim() || null;
+        if (dto.deadline !== undefined)
+            patch.deadline = dto.deadline ? new Date(dto.deadline) : null;
+        if (dto.assignees !== undefined) {
+            patch.assignees = dto.assignees.map(a => ({
+                name: a.name,
+                e_id: a.e_id,
+                db_id: new mongoose.Types.ObjectId(a.db_id),
+            }));
+        }
         return patch;
     }
 }

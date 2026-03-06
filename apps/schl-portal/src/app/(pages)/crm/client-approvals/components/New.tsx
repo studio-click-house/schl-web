@@ -89,7 +89,7 @@ const EditButton: React.FC<PropsType> = props => {
 
             <section
                 onClick={handleClickOutside}
-                className={`fixed z-${baseZIndex} inset-0 flex justify-center items-center transition-colors ${isOpen ? 'visible bg-black/20 disable-page-scroll' : 'invisible'} `}
+                className={`fixed z-${baseZIndex} inset-0 flex justify-center items-center transition-colors ${isOpen ? 'visible bg-black/20 disable-page-scroll pointer-events-auto' : 'invisible pointer-events-none'} `}
             >
                 <article
                     ref={popupRef}
@@ -160,9 +160,8 @@ const EditButton: React.FC<PropsType> = props => {
                                 </label>
                                 <input
                                     {...register('marketer')}
-                                    className="appearance-none block w-full bg-gray-100 cursor-not-allowed text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
+                                    className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
                                     type="text"
-                                    disabled={true}
                                     placeholder="Enter marketer name"
                                 />
                             </div>

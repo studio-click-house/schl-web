@@ -1,20 +1,40 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AppUser, AppUserSchema } from '@repo/common/models/app-user.schema';
+import { Employee, EmployeeSchema } from '@repo/common/models/employee.schema';
 import { Order, OrderSchema } from '@repo/common/models/order.schema';
-import { WorkLog, WorkLogSchema } from '@repo/common/models/work-log.schema';
+import {
+    QcWorkLog,
+    QcWorkLogSchema,
+} from '@repo/common/models/qc-work-log.schema';
+import {
+    UserSession,
+    UserSessionSchema,
+} from '@repo/common/models/user-session.schema';
+import { TrackerAuthService } from './tracker.auth.service';
 import { TrackerController } from './tracker.controller';
-import { TrackerService } from './tracker.service';
+import { TrackerGateway } from './tracker.gateway';
+import { TrackerQcWorkLogService } from './tracker.qc-work-log.service';
+import { TrackerQueryService } from './tracker.query.service';
+import { TrackerReportService } from './tracker.report.service';
 
 @Module({
     imports: [
         MongooseModule.forFeature([
             { name: AppUser.name, schema: AppUserSchema },
-            { name: WorkLog.name, schema: WorkLogSchema },
+            { name: Employee.name, schema: EmployeeSchema },
+            { name: QcWorkLog.name, schema: QcWorkLogSchema },
             { name: Order.name, schema: OrderSchema },
+            { name: UserSession.name, schema: UserSessionSchema },
         ]),
     ],
     controllers: [TrackerController],
-    providers: [TrackerService],
+    providers: [
+        TrackerAuthService,
+        TrackerQcWorkLogService,
+        TrackerReportService,
+        TrackerQueryService,
+        TrackerGateway,
+    ],
 })
 export class TrackerModule {}

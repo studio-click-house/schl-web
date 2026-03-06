@@ -20,7 +20,7 @@ export const validationSchema = z.object({
         'Client code must be in the format "0000_XX" or "0000_XX-YY"',
     ),
     client_name: nonEmptyString('Client name'),
-    marketer: nonEmptyString('Marketer'),
+    marketer: z.string().optional().default(''),
     contact_person: nonEmptyString('Contact person'),
     contact_number: nonEmptyString('Contact number'),
     email: nonEmptyString('Email'),

@@ -9,7 +9,7 @@ export const validationSchema = z.object({
     notice_no: z.string().min(1, 'Notice number is required'),
     title: z.string().min(1, 'Title is required'),
     description: z.string().min(1, 'Description is required'),
-    file_name: z.optional(z.string()).default(''),
+    file_name: z.string().optional().nullish().default(null),
     updated_by: z.optional(z.string()).nullable().default(null),
     _id: z.optional(
         z.string().refine(val => {

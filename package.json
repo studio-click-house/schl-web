@@ -1,30 +1,30 @@
 {
-  "name": "schl-web",
-  "private": true,
-  "scripts": {
-    "build": "turbo run build --ui stream",
-    "dev": "turbo run dev --parallel --ui stream",
-    "lint": "turbo run lint --ui stream",
-    "check-types": "turbo run check-types --ui stream",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\""
-  },
-  "devDependencies": {
-    "prettier": "^3.8.1",
-    "prettier-plugin-tailwindcss": "^0.6.14",
-    "turbo": "^2.8.9"
-  },
-  "packageManager": "pnpm@10.29.1",
-  "engines": {
-    "node": ">=18",
-    "pnpm": ">=9.0.6"
-  },
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
-  "dependencies": {
-    "@types/cookie-parser": "^1.4.10",
-    "camelcase-keys": "^10.0.2",
-    "cookie-parser": "^1.4.7"
-  }
+    "name": "schl-web",
+    "private": true,
+    "scripts": {
+        "build": "turbo run build --ui stream",
+        "dev": "turbo run dev --parallel --ui stream",
+        "lint": "turbo run lint --ui stream",
+        "check-types": "turbo run check-types --ui stream",
+        "format": "prettier --write \"**/*.{ts,tsx,md}\""
+    },
+    "devDependencies": {
+        "prettier": "^3.8.1",
+        "prettier-plugin-tailwindcss": "^0.6.14",
+        "turbo": "^2.8.13"
+    },
+    "packageManager": "pnpm@10.30.3",
+    "engines": {
+        "node": ">=18",
+        "pnpm": ">=9.0.6"
+    },
+    "workspaces": [
+        "apps/*",
+        "packages/*"
+    ],
+    "dependencies": {
+        "@types/cookie-parser": "^1.4.10",
+        "camelcase-keys": "^10.0.2",
+        "cookie-parser": "^1.4.7"
+    }
 }

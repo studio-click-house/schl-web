@@ -125,9 +125,9 @@ export const authorizedRoutes: AuthorizedRoute[] = [
         label: 'Tickets',
         permissions: [
             'ticket:create_ticket',
-            'ticket:view_my_tickets',
-            'ticket:review_queue',
-            'ticket:view_ticket',
+            'ticket:review_reports',
+            'ticket:review_tickets',
+            'ticket:submit_daily_report',
         ],
         children: [
             {
@@ -136,14 +136,25 @@ export const authorizedRoutes: AuthorizedRoute[] = [
                 permissions: ['ticket:create_ticket'],
             },
             {
-                href: '/tickets/my-tickets',
-                label: 'My Tickets',
-                permissions: ['ticket:view_my_tickets'],
+                href: '/tickets/all-tickets',
+                label: 'All Tickets',
+                permissions: ['ticket:create_ticket', 'ticket:review_tickets'],
             },
             {
-                href: '/tickets/review-queue',
-                label: 'Review Queue',
-                permissions: ['ticket:review_queue'],
+                href: '/tickets/active-jobs',
+                label: 'Active Jobs',
+                permissions: [
+                    'ticket:submit_daily_report',
+                    'ticket:review_tickets',
+                ],
+            },
+            {
+                href: '/tickets/daily-reports',
+                label: 'Daily Reports',
+                permissions: [
+                    'ticket:review_reports',
+                    'ticket:submit_daily_report',
+                ],
             },
         ],
     },

@@ -134,6 +134,9 @@ export class OrderService {
             'status',
             createRegexQuery(status, { exact: true }),
         );
+        if (invFlag) {
+            (query as any).type = { $ne: 'test' };
+        }
 
         const searchQuery: QueryShape = { ...query };
 
@@ -388,6 +391,10 @@ export class OrderService {
 
         try {
             existing.status = 'finished';
+            // if previous type was qc, change to general on finish
+            if (existing.type === 'qc') {
+                existing.type = 'general';
+            }
             await existing.save();
             return {
                 message: 'Changed the status of the order successfully',
@@ -443,6 +450,35 @@ export class OrderService {
         }
 
         const updateDoc = OrderFactory.fromUpdateDto(orderData, userSession);
+
+        // if production becomes equal to quantity on this update, mark type as qc
+        // regardless of what it was before. this mirrors the wait‑for‑qc filter
+        const nextQuantity =
+            updateDoc.quantity !== undefined
+                ? Number(updateDoc.quantity) || 0
+                : Number(existing.quantity) || 0;
+        const nextProduction =
+            updateDoc.production !== undefined
+                ? Number(updateDoc.production) || 0
+                : Number(existing.production) || 0;
+        const nextStatus =
+            updateDoc.status !== undefined
+                ? String(updateDoc.status).toLowerCase()
+                : String(existing.status || '').toLowerCase();
+
+        if (
+            nextProduction === nextQuantity &&
+            !['finished', 'correction'].includes(nextStatus) &&
+            !['test', 'qc'].includes(existing.type)
+        ) {
+            updateDoc.type = 'qc';
+        }
+
+        // if status is updated to finish then change the type to general (only if previous type was QC)
+        if (nextStatus === 'finished' && existing.type === 'qc') {
+            updateDoc.type = 'general';
+        }
+
         const keys = Object.keys(updateDoc).filter(k => k !== 'updated_by');
         if (keys.length === 0) {
             throw new BadRequestException('No update fields provided');
@@ -535,6 +571,7 @@ export class OrderService {
                 $match: {
                     client_code: { $in: clientCodes },
                     download_date: { $gte: startDate, $lte: endDate },
+                    type: { $ne: 'test' },
                 },
             },
             {
@@ -671,6 +708,7 @@ export class OrderService {
             query.toDate,
             { asString: true },
         );
+        orderQuery.type = { $ne: 'test' };
 
         // Load client -> country mapping once (needed to resolve non-common countries)
         const clientsAll = await this.clientModel
@@ -740,7 +778,7 @@ export class OrderService {
         const { from, to } = getDateRange(days);
 
         // Build query using string comparison because download_date is stored as "YYYY-MM-DD"
-        const orderQuery: Record<string, any> = {};
+        const orderQuery: Record<string, any> = { type: { $ne: 'test' } };
         applyDateRange(orderQuery, 'download_date', from, to, {
             asString: true,
         });
@@ -868,7 +906,7 @@ export class OrderService {
         const { from, to } = getDateRange(days);
 
         // Query orders in range
-        const orderQuery: Record<string, any> = {};
+        const orderQuery: Record<string, any> = { type: { $ne: 'test' } };
         applyDateRange(orderQuery, 'download_date', from, to, {
             asString: true,
         });
@@ -970,8 +1008,8 @@ export class OrderService {
             {
                 $match: {
                     status: { $nin: ['finished', 'correction'] },
-                    type: { $ne: 'test' },
-                    $expr: { $eq: ['$production', '$quantity'] },
+                    type: { $ne: 'test', $eq: 'qc' },
+                    // $expr: { $eq: ['$production', '$quantity'] },
                 },
             },
         ];

@@ -30,7 +30,7 @@ const Form: React.FC = () => {
     const { data: session } = useSession();
     const userDepartment = session?.user.department;
     const isExemptDepartment = useMemo(
-        () => isExemptDept(userDepartment as any),
+        () => isExemptDept(userDepartment),
         [userDepartment],
     );
     const [file, setFile] = useState<File | null>(null);
@@ -75,17 +75,6 @@ const Form: React.FC = () => {
         }
     }, [isExemptDepartment, setValue, userDepartment]);
 
-    const constructFileName = (file: File, notice_no: string) => {
-        const file_name = file.name;
-        const file_ext = file_name.split('.').pop();
-        const file_name_without_ext = file_name
-            .split('.')
-            .slice(0, -1)
-            .join('.');
-        const new_file_name = `${file_name_without_ext}_${notice_no}.${file_ext}`;
-        return new_file_name;
-    };
-
     async function createNotice(noticeData: NoticeDataType) {
         try {
             setLoading(true);
@@ -123,14 +112,17 @@ const Form: React.FC = () => {
             );
 
             if (response.ok) {
-                const notice = response.data as { notice_no: string };
+                const notice = response.data as {
+                    notice_no: string;
+                    file_name?: string;
+                };
                 toast.success('Created new notice successfully');
                 if (file) {
                     const formData = new FormData();
                     formData.append(
                         'file',
                         file,
-                        constructFileName(file, notice.notice_no),
+                        notice.file_name || file.name,
                     );
 
                     const ftp_response = await authedFetchApi(
@@ -172,7 +164,7 @@ const Form: React.FC = () => {
 
     const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
         const allowedExtensions =
-            /\.(xls|xlsx|doc|docx|ppt|pptx|txt|pdf|zip|7z|rar)$/i;
+            /\.(xls|xlsx|doc|docx|ppt|pptx|txt|pdf|zip|7z|rar|jpg|jpeg|png|gif|svg)$/i;
         const selectedFile = e.target.files?.[0];
 
         if (selectedFile && allowedExtensions.test(selectedFile.name)) {
@@ -197,7 +189,7 @@ const Form: React.FC = () => {
     const handleDrop = (e: React.DragEvent<HTMLLabelElement>) => {
         e.preventDefault();
         const allowedExtensions =
-            /\.(xls|xlsx|doc|docx|ppt|pptx|txt|pdf|zip|7z|rar)$/i;
+            /\.(xls|xlsx|doc|docx|ppt|pptx|txt|pdf|zip|7z|rar|jpg|jpeg|png|gif|svg)$/i;
         const droppedFiles = e.dataTransfer.files;
         if (droppedFiles && droppedFiles.length > 0) {
             const selectedFile = droppedFiles[0];
@@ -273,7 +265,7 @@ const Form: React.FC = () => {
                         {...register('notice_no')}
                         className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
                         type="text"
-                        placeholder='e.g. "SCH-20251231-001"'
+                        placeholder='e.g. "SCHL-N202601-0001"'
                     />
                 </div>
                 <div>
@@ -355,7 +347,7 @@ const Form: React.FC = () => {
                             </p>
                             <p className="text-xs text-gray-500">
                                 ( XLS, XLSX, DOC, DOCX, PPT, PPTX, TXT, PDF,
-                                ZIP, 7Z, RAR )
+                                ZIP, 7Z, RAR, JPG, JPEG, PNG, GIF, SVG )
                             </p>
                         </div>
                         <input
@@ -363,7 +355,7 @@ const Form: React.FC = () => {
                             id="dropzone-file"
                             type="file"
                             className="hidden"
-                            accept=".xls,.xlsx,.doc,.docx,.ppt,.pptx,.txt,.pdf,.zip,.7z,.rar"
+                            accept=".xls,.xlsx,.doc,.docx,.ppt,.pptx,.txt,.pdf,.zip,.7z,.rar,.jpg,.jpeg,.png,.gif,.svg"
                             onChange={handleFileInput}
                         />
                     </label>

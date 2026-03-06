@@ -4,19 +4,18 @@ import type { Permissions } from '@repo/common/types/permission.type';
 import { cn } from '@repo/common/utils/general-utils';
 import { hasAnyPerm, hasPerm } from '@repo/common/utils/permission-check';
 import {
-    BriefcaseBusiness,
     Building,
     Building2,
     CalendarClock,
     CalendarPlus,
+    CalendarPlus2,
     CalendarRange,
+    Calendars,
     ChartBarBig,
     ChartNoAxesCombined,
     ChevronDown,
     CirclePause,
     ClipboardList,
-    ClipboardPlus,
-    FilePlus,
     FilePlus2,
     FileSliders,
     Flag,
@@ -25,12 +24,11 @@ import {
     KeyRound,
     LayoutList,
     Lightbulb,
+    ListChecks,
     LogOutIcon,
     Map,
     Megaphone,
     Menu,
-    MessageSquareText,
-    MessagesSquare,
     ScrollText,
     Shield,
     Signature,
@@ -38,6 +36,9 @@ import {
     SquareSigma,
     Table2,
     TableOfContents,
+    TicketCheck,
+    TicketPlus,
+    Tickets,
     UserCog,
     UserRoundPen,
     Users,
@@ -647,8 +648,9 @@ const Sidebar: React.FC<PropsType> = props => {
 
                     {hasAny([
                         'ticket:create_ticket',
-                        'ticket:view_my_tickets',
-                        'ticket:review_queue',
+                        'ticket:review_reports',
+                        'ticket:review_tickets',
+                        'ticket:submit_daily_report',
                     ]) && (
                         <>
                             <span
@@ -662,7 +664,7 @@ const Sidebar: React.FC<PropsType> = props => {
                                 data-collapse-toggle="dropdown-parent-5"
                             >
                                 <span className="flex items-center">
-                                    <MessagesSquare className="w-6 h-6 mr-2" />
+                                    <Tickets className="w-6 h-6 mr-2" />
                                     <span>Tickets</span>
                                 </span>
                                 <ChevronDown size={17} />
@@ -677,30 +679,51 @@ const Sidebar: React.FC<PropsType> = props => {
                                             href="/tickets/create"
                                             className="flex items-center w-full p-2 text-gray-900 transition duration-75 pl-11 group hover:bg-gray-100"
                                         >
-                                            <ClipboardPlus className="w-6 h-6 mr-2" />
+                                            <TicketPlus className="w-6 h-6 mr-2" />
                                             Create Ticket
                                         </Link>
                                     </li>
                                 )}
-                                {has('ticket:view_my_tickets') && (
+
+                                {hasAny([
+                                    'ticket:create_ticket',
+                                    'ticket:review_tickets',
+                                ]) && (
                                     <li>
                                         <Link
-                                            href="/tickets/my-tickets"
+                                            href="/tickets/all-tickets"
                                             className="flex items-center w-full p-2 text-gray-900 transition duration-75 pl-11 group hover:bg-gray-100"
                                         >
-                                            <MessageSquareText className="w-6 h-6 mr-2" />
-                                            My Tickets
+                                            <TicketCheck className="w-6 h-6 mr-2" />
+                                            All Tickets
                                         </Link>
                                     </li>
                                 )}
-                                {has('ticket:review_queue') && (
+                                {hasAny([
+                                    'ticket:submit_daily_report',
+                                    'ticket:review_tickets',
+                                ]) && (
                                     <li>
                                         <Link
-                                            href="/tickets/review-queue"
+                                            href="/tickets/active-jobs"
                                             className="flex items-center w-full p-2 text-gray-900 transition duration-75 pl-11 group hover:bg-gray-100"
                                         >
                                             <ClipboardList className="w-6 h-6 mr-2" />
-                                            Review Queue
+                                            Active Jobs
+                                        </Link>
+                                    </li>
+                                )}
+                                {hasAny([
+                                    'ticket:review_reports',
+                                    'ticket:submit_daily_report',
+                                ]) && (
+                                    <li>
+                                        <Link
+                                            href="/tickets/daily-reports"
+                                            className="flex items-center w-full p-2 text-gray-900 transition duration-75 pl-11 group hover:bg-gray-100"
+                                        >
+                                            <ClipboardList className="w-6 h-6 mr-2" />
+                                            Daily Reports
                                         </Link>
                                     </li>
                                 )}

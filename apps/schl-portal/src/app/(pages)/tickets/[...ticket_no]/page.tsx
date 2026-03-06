@@ -1,14 +1,8 @@
 import React from 'react';
 import ViewTicket from './components/View';
 
-const TicketView = ({
-    params,
-}: {
-    params: { ticket_no: string | string[] };
-}) => {
-    const ticket_no = Array.isArray(params.ticket_no)
-        ? params.ticket_no[0] || ''
-        : params.ticket_no;
+const TicketView = ({ params }: { params: { ticket_no: string } }) => {
+    const ticket_no = params.ticket_no || '';
 
     return (
         <>

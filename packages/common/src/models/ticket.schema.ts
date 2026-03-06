@@ -1,8 +1,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { HydratedDocument } from 'mongoose';
 import {
+    TICKET_PRIORITIES,
     TICKET_STATUSES,
     TICKET_TYPES,
+    type TicketPriority,
     type TicketStatus,
     type TicketType,
 } from '../constants/ticket.constant';
@@ -28,7 +30,7 @@ export class Ticket {
         ref: User.name,
         type: mongoose.Schema.Types.ObjectId,
     })
-    opened_by: mongoose.Types.ObjectId;
+    created_by: mongoose.Types.ObjectId;
 
     @Prop({ required: true })
     title: string;
@@ -39,18 +41,37 @@ export class Ticket {
     @Prop({ enum: TICKET_STATUSES, required: true })
     status: TicketStatus;
 
-    @Prop({ type: [String], default: [] })
-    tags: string[];
-
     @Prop({ enum: TICKET_TYPES, required: true })
     type: TicketType;
 
     @Prop({
-        type: mongoose.Schema.Types.ObjectId,
-        ref: User.name,
-        default: null,
+        enum: TICKET_PRIORITIES,
+        required: true,
     })
-    checked_by: mongoose.Types.ObjectId | null;
+    priority: TicketPriority;
+
+    @Prop({
+        type: [
+            {
+                name: { type: String },
+                db_id: { type: mongoose.Schema.Types.ObjectId },
+                e_id: { type: String },
+            },
+        ],
+        ref: User.name,
+        default: [],
+    })
+    assignees: {
+        name: string;
+        db_id: mongoose.Types.ObjectId;
+        e_id: string;
+    }[];
+
+    @Prop({ type: Date, default: null })
+    deadline: Date | null;
+
+    @Prop({ default: null, type: String })
+    file_name: string | null;
 
     @Prop({ type: Date })
     readonly createdAt: Date;
@@ -60,3 +81,8 @@ export class Ticket {
 }
 
 export const TicketSchema = SchemaFactory.createForClass(Ticket);
+
+// indexes to speed up common search queries
+TicketSchema.index({ 'assignees.db_id': 1 });
+TicketSchema.index({ created_by: 1, createdAt: -1 });
+TicketSchema.index({ deadline: 1 });

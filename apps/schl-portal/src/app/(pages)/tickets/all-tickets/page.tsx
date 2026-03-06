@@ -4,7 +4,7 @@ import Table from './components/Table';
 const MyTicketsPage = async () => {
     return (
         <>
-            <div className="px-4 mt-8 mb-4 container">
+            <div className="px-4 mt-8 mb-4">
                 <Table />
             </div>
         </>

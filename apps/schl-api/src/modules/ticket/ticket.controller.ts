@@ -12,6 +12,7 @@ import {
 import { UserSession } from '@repo/common/types/user-session.type';
 import { IdParamDto } from '../../common/dto/id-param.dto';
 import { CreateTicketBodyDto } from './dto/create-ticket.dto';
+
 import {
     SearchTicketsBodyDto,
     SearchTicketsQueryDto,
@@ -30,25 +31,6 @@ export class TicketController {
         return this.ticketService.createTicket(body, req.user);
     }
 
-    @Get('get-ticket/:id')
-    getTicketById(
-        @Param() { id }: IdParamDto,
-        @Req() req: Request & { user: UserSession },
-    ) {
-        return this.ticketService.getTicketById(id, req.user);
-    }
-
-    @Get('get-ticket')
-    getTicketByTicketNumber(
-        @Req() req: Request & { user: UserSession },
-        @Query() query: { ticketNo: string },
-    ) {
-        return this.ticketService.getTicketByTicketNumber(
-            query.ticketNo,
-            req.user,
-        );
-    }
-
     @Post('search-tickets')
     searchTickets(
         @Query() query: SearchTicketsQueryDto,
@@ -64,6 +46,17 @@ export class TicketController {
             body,
             pagination,
             query.myTickets || false,
+            req.user,
+        );
+    }
+
+    @Get('get-ticket')
+    getTicketByTicketNumber(
+        @Req() req: Request & { user: UserSession },
+        @Query() query: { ticketNo: string },
+    ) {
+        return this.ticketService.getTicketByTicketNumber(
+            query.ticketNo,
             req.user,
         );
     }

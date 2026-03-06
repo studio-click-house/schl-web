@@ -147,7 +147,7 @@ const EditButton: React.FC<PropsType> = props => {
                 setValue('employee._id', employee._id.toString() || '');
                 setValue(
                     'employee.company_provided_name',
-                    employee.company_provided_name || '',
+                    employee.company_provided_name || null,
                 );
             } else {
                 toast.info('No employee found with the code provided');
@@ -190,7 +190,7 @@ const EditButton: React.FC<PropsType> = props => {
 
             <section
                 onClick={handleClickOutside}
-                className={`fixed z-${baseZIndex} inset-0 flex justify-center items-center transition-colors ${isOpen ? 'visible bg-black/20 disable-page-scroll' : 'invisible'} `}
+                className={`fixed z-${baseZIndex} inset-0 flex justify-center items-center transition-colors ${isOpen ? 'visible bg-black/20 disable-page-scroll pointer-events-auto' : 'invisible pointer-events-none'} `}
             >
                 <article
                     ref={popupRef}

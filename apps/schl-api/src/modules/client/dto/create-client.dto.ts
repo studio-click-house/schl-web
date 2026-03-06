@@ -31,8 +31,8 @@ export class CreateClientBodyDto {
     clientName: string;
 
     @IsString()
-    @IsNotEmpty()
-    marketer: string;
+    @IsOptional()
+    marketer?: string;
 
     @IsString()
     @IsNotEmpty()

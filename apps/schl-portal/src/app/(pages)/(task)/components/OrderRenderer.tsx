@@ -1,7 +1,9 @@
+import Badge from '@/components/Badge';
 import ClickToCopy from '@/components/CopyText';
 import ExtendableTd from '@/components/ExtendableTd';
 import { OrderDocument } from '@repo/common/models/order.schema';
 import { formatDate, formatTime } from '@repo/common/utils/date-helpers';
+import { cn } from '@repo/common/utils/general-utils';
 import { hasPerm } from '@repo/common/utils/permission-check';
 import moment from 'moment-timezone';
 import { useSession } from 'next-auth/react';
@@ -118,7 +120,7 @@ const OrderRenderer: React.FC<OrderRendererProps> = props => {
                         return (
                             `${task}` +
                             (index !== props.order.task.split('+').length - 1
-                                ? ' + '
+                                ? ', '
                                 : '')
                         );
                     })}
@@ -136,22 +138,15 @@ const OrderRenderer: React.FC<OrderRendererProps> = props => {
                     />
                 </td>
                 <td className="capitalize text-nowrap">
-                    {
-                        props.order.priority
-                        // <Badge
-                        //   value={props.order.priority}
-                        //   className={
-                        //     props.order.priority == 'High'
-                        //       ? 'bg-orange-600 text-white border-orange-600'
-                        //       : props.order.priority == 'Medium'
-                        //         ? 'bg-yellow-600 text-white border-yellow-600'
-                        //         : 'bg-green-600 text-white border-green-600'
-                        //   }
-                        // />
-                    }
+                    {props.order.priority}
                 </td>
-                <td className="capitalize text-wrap">
-                    {/* <Badge value={props.order.type} /> */}
+                <td
+                    className={cn(
+                        props.order.type === 'pending'
+                            ? 'capitalize text-wrap bg-red-600 text-white border-red-600'
+                            : 'capitalize text-wrap',
+                    )}
+                >
                     {props.order.type}
                 </td>
 

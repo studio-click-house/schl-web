@@ -11,7 +11,6 @@ import { ApprovalModule } from './modules/approval/approval.module';
 import { AttendanceFlagModule } from './modules/attendance-flag/attendance-flag.module';
 import { AttendanceModule } from './modules/attendance/attendance.module';
 import { ClientModule } from './modules/client/client.module';
-import { DepartmentModule } from './modules/department/department.module';
 import { DeviceUserModule } from './modules/device-user/device-user.module';
 import { EmployeeModule } from './modules/employee/employee.module';
 import { FtpModule } from './modules/ftp/ftp.module';
@@ -62,6 +61,7 @@ import { ValidatorModule } from './modules/validator/validator.module';
         OrderModule,
         ValidatorModule,
         TicketModule,
+        DailyReportModule,
         TrackerModule,
         AttendanceModule,
         AttendanceFlagModule,

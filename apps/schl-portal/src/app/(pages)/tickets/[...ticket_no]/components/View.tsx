@@ -2,8 +2,14 @@
 
 import Badge from '@/components/Badge';
 import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
-import { formatDate } from '@repo/common/utils/date-helpers';
-import DOMPurify from 'dompurify';
+import { Ticket, TicketDocument } from '@repo/common/models/ticket.schema';
+import {
+    formatDate,
+    formatTime,
+    formatTimestamp,
+} from '@repo/common/utils/date-helpers';
+import { hasAnyPerm, hasPerm } from '@repo/common/utils/permission-check';
+import createDOMPurify from 'dompurify';
 import parse, {
     DOMNode,
     domToReact,
@@ -11,24 +17,36 @@ import parse, {
     HTMLReactParserOptions,
 } from 'html-react-parser';
 import { capitalize } from 'lodash';
+import {
+    ClockFading,
+    Download,
+    File,
+    FileArchive,
+    FileImage,
+    FileSpreadsheet,
+    FileText,
+} from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import { useRouter } from 'nextjs-toploader/app';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 import { toast } from 'sonner';
+import {
+    getTicketPriorityBadgeClass,
+    getTicketStatusBadgeClass,
+} from '../../all-tickets/components/ticket-badge.helper';
 
 interface ViewTicketProps {
     ticket_no: string;
 }
 
-interface Ticket {
-    ticket_number: string;
-    title: string;
-    description: string;
-    type: string;
-    status: string;
-    tags: string[];
-    opened_by_name?: string;
-    createdAt: string;
-    updatedAt: string;
+interface TicketData extends Ticket {
+    created_by_name?: string;
 }
 
 const options: HTMLReactParserOptions = {
@@ -81,21 +99,43 @@ const options: HTMLReactParserOptions = {
     },
 };
 
+const sanitizeHtml = (html: string): string => {
+    if (typeof window === 'undefined') {
+        return html;
+    }
+
+    return createDOMPurify(window).sanitize(html);
+};
+
 const ViewTicket: React.FC<ViewTicketProps> = props => {
     const ticket_no = decodeURIComponent(props.ticket_no);
 
-    const [ticket, setTicket] = useState<Ticket>({
-        ticket_number: '',
-        title: '',
-        description: '',
-        type: '',
-        status: '',
-        tags: [],
-        opened_by_name: '',
-        createdAt: '',
-        updatedAt: '',
-    });
-    const [isLoading, setIsLoading] = useState(false);
+    const [ticket, setTicket] = useState<TicketData | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+
+    const { data: session } = useSession();
+    const userPermissions = useMemo(
+        () => session?.user.permissions || [],
+        [session?.user.permissions],
+    );
+
+    const canReviewTicket = useMemo(
+        () =>
+            hasAnyPerm(
+                ['ticket:review_reports', 'ticket:review_tickets'],
+                userPermissions,
+            ),
+        [userPermissions],
+    );
+
+    const canSubmitWork = useMemo(
+        () => hasPerm('ticket:submit_daily_report', userPermissions),
+        [userPermissions],
+    );
+
+    const redirectBase = useMemo(() => {
+        return '/';
+    }, [userPermissions]);
 
     const router = useRouter();
     const routerRef = useRef(router);
@@ -111,7 +151,7 @@ const ViewTicket: React.FC<ViewTicketProps> = props => {
         try {
             setIsLoading(true);
 
-            const response = await authedFetchApi<Ticket>(
+            const response = await authedFetchApi<TicketData>(
                 {
                     path: '/v1/ticket/get-ticket',
                     query: {
@@ -134,8 +174,7 @@ const ViewTicket: React.FC<ViewTicketProps> = props => {
                         id: 'ticket-error',
                     });
                     routerRef.current.replace(
-                        process.env.NEXT_PUBLIC_BASE_URL +
-                            '/tickets/my-tickets',
+                        process.env.NEXT_PUBLIC_BASE_URL + redirectBase,
                     );
                     return;
                 }
@@ -145,25 +184,68 @@ const ViewTicket: React.FC<ViewTicketProps> = props => {
             } else {
                 toastFetchError(response, 'Failed to retrieve ticket');
                 routerRef.current.replace(
-                    process.env.NEXT_PUBLIC_BASE_URL + '/tickets/my-tickets',
+                    process.env.NEXT_PUBLIC_BASE_URL + redirectBase,
                 );
             }
         } catch (error) {
             console.error(error);
             toast.error('An error occurred while retrieving the ticket');
             routerRef.current.replace(
-                process.env.NEXT_PUBLIC_BASE_URL + '/tickets/my-tickets',
+                process.env.NEXT_PUBLIC_BASE_URL + redirectBase,
             );
         } finally {
             setIsLoading(false);
         }
     }, [authedFetchApi, ticket_no]);
 
+    const handleFileDownload = async () => {
+        if (!ticket || !ticket.file_name) {
+            return;
+        }
+
+        try {
+            const response = await authedFetchApi<Blob>(
+                {
+                    path: '/v1/ftp/download',
+                    query: {
+                        folderName: 'ticket',
+                        fileName: ticket.file_name,
+                    },
+                },
+                {
+                    method: 'GET',
+                },
+            );
+
+            if (!response.ok) {
+                toastFetchError(response, 'Error downloading the file');
+                return;
+            }
+
+            const blob = response.data;
+            if (!(blob instanceof Blob)) {
+                toast.error('Unexpected file response');
+                return;
+            }
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const anchor = document.createElement('a');
+            anchor.href = downloadUrl;
+            anchor.download = ticket.file_name;
+            document.body.appendChild(anchor);
+            anchor.click();
+            window.URL.revokeObjectURL(downloadUrl);
+            anchor.remove();
+        } catch (error) {
+            console.error(error);
+            toast.error('An error occurred while downloading the file');
+        }
+    };
+
     useEffect(() => {
         if (!ticket_no) {
             setIsLoading(false);
             routerRef.current.replace(
-                process.env.NEXT_PUBLIC_BASE_URL + '/tickets/my-tickets',
+                process.env.NEXT_PUBLIC_BASE_URL + redirectBase,
             );
             return;
         }
@@ -176,57 +258,64 @@ const ViewTicket: React.FC<ViewTicketProps> = props => {
         getTicket();
     }, [getTicket, ticket_no]);
 
-    const typeBadgeClass =
-        ticket.type === 'bug'
-            ? 'bg-orange-600 text-white border-orange-600 me-0'
-            : ticket.type === 'feature'
-              ? 'bg-blue-600 text-white border-blue-600 me-0'
-              : 'bg-green-600 text-white border-green-600 me-0';
+    const typeBadgeClass = '';
+    const statusBadgeClass = ticket
+        ? getTicketStatusBadgeClass(ticket.status)
+        : '';
 
-    const statusBadgeClass =
-        ticket.status === 'accepted'
-            ? 'bg-green-600 text-white border-green-600 me-0'
-            : ticket.status === 'rejected'
-              ? 'bg-red-600 text-white border-red-600 me-0'
-              : ticket.status === 'in-review'
-                ? 'bg-amber-600 text-white border-amber-600 me-0'
-                : 'bg-gray-600 text-white border-gray-600 me-0';
-
+    if (isLoading || !ticket) {
+        return <p className="text-center">Loading...</p>;
+    }
     return (
         <>
-            {isLoading ? <p className="text-center">Loading...</p> : null}
-
-            {!isLoading && (
+            {ticket && (
                 <div className="container mt-8 md:mt-12 mb-6 max-w-5xl">
                     <div className="rounded-lg border border-gray-200 bg-white p-4 md:p-6">
                         <div className="border-b border-gray-200 pb-4 md:pb-5">
-                            <h2 className="text-2xl md:text-3xl font-semibold text-gray-900 leading-tight">
+                            <h2 className="text-xl md:text-2xl font-semibold text-gray-900 leading-tight text-pretty">
                                 {ticket.title}
-                                <span className="text-gray-500 font-medium ml-2">
+                                <span className="text-gray-500 font-medium text-base ml-2">
                                     [#{ticket.ticket_number}]
                                 </span>
                             </h2>
 
                             <div className="mt-3 space-y-1 text-sm text-gray-600">
-                                <p>
-                                    {ticket.createdAt
-                                        ? formatDate(ticket.createdAt)
-                                        : ''}
-                                </p>
-                                <p>
-                                    <span className="font-semibold text-gray-700">
-                                        Opened By:
-                                    </span>{' '}
-                                    {ticket.opened_by_name ||
-                                        'Unknown Employee'}
+                                <p className="text-sm text-gray-700 mt-1">
+                                    {`${formatDate(ticket.createdAt)} • ${ticket.created_by_name}`}
                                 </p>
                             </div>
+                            {ticket.deadline &&
+                                (canReviewTicket || canSubmitWork) && (
+                                    <div className="flex items-center text-center gap-1 mt-2 text-sm text-red-600">
+                                        <ClockFading
+                                            size={18}
+                                            className="me-1"
+                                        />
+                                        <span>
+                                            {ticket.deadline
+                                                ? `${formatDate(ticket.deadline)} | ${formatTime(
+                                                      formatTimestamp(
+                                                          ticket.deadline,
+                                                      ).time,
+                                                  )}`
+                                                : 'N/A'}
+                                        </span>
+                                    </div>
+                                )}
 
                             <div className="flex flex-wrap gap-2 mt-4 uppercase">
                                 {ticket.type ? (
                                     <Badge
                                         value={capitalize(ticket.type)}
                                         className={typeBadgeClass}
+                                    />
+                                ) : null}
+                                {ticket.priority ? (
+                                    <Badge
+                                        value={capitalize(ticket.priority)}
+                                        className={getTicketPriorityBadgeClass(
+                                            ticket.priority,
+                                        )}
                                     />
                                 ) : null}
                                 {ticket.status ? (
@@ -239,24 +328,100 @@ const ViewTicket: React.FC<ViewTicketProps> = props => {
                         </div>
 
                         <div className="mt-5 md:mt-6">
-                            <p className="text-xs font-semibold tracking-wider uppercase text-gray-500 mb-3">
-                                Activity
-                            </p>
-                            <div className="pl-4 border-l-2 border-gray-200 text-gray-900 leading-7">
+                            <div className="py-1 text-gray-900 leading-7 text-balance">
                                 {parse(
-                                    DOMPurify.sanitize(ticket.description),
+                                    sanitizeHtml(ticket.description),
                                     options,
                                 )}
-                            </div>
-                        </div>
 
-                        <div className="mt-6 pt-4 border-t border-gray-200">
-                            <p className="text-sm text-gray-700">
-                                <span className="font-semibold">Tags:</span>{' '}
-                                {ticket.tags.length > 0
-                                    ? ticket.tags.join(', ')
-                                    : 'No tags'}
-                            </p>
+                                {ticket.file_name && (
+                                    <div className="mt-6 pt-5 border-t border-gray-100">
+                                        <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">
+                                            Attachment
+                                        </p>
+                                        <button
+                                            onClick={handleFileDownload}
+                                            className="group flex items-center gap-3 w-full sm:w-auto max-w-sm px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 hover:bg-blue-50 hover:border-blue-300 transition-all duration-200 text-left"
+                                            title={`Download ${ticket.file_name}`}
+                                        >
+                                            <span className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-lg bg-white border border-gray-200 group-hover:border-blue-200 text-gray-400 group-hover:text-blue-500 transition-colors duration-200">
+                                                {(() => {
+                                                    const ext = ticket
+                                                        .file_name!.split('.')
+                                                        .pop()
+                                                        ?.toLowerCase();
+                                                    if (
+                                                        [
+                                                            'xls',
+                                                            'xlsx',
+                                                            'csv',
+                                                        ].includes(ext || '')
+                                                    )
+                                                        return (
+                                                            <FileSpreadsheet
+                                                                size={18}
+                                                            />
+                                                        );
+                                                    if (
+                                                        [
+                                                            'jpg',
+                                                            'jpeg',
+                                                            'png',
+                                                            'gif',
+                                                            'svg',
+                                                            'webp',
+                                                        ].includes(ext || '')
+                                                    )
+                                                        return (
+                                                            <FileImage
+                                                                size={18}
+                                                            />
+                                                        );
+                                                    if (
+                                                        [
+                                                            'zip',
+                                                            'rar',
+                                                            '7z',
+                                                            'tar',
+                                                            'gz',
+                                                        ].includes(ext || '')
+                                                    )
+                                                        return (
+                                                            <FileArchive
+                                                                size={18}
+                                                            />
+                                                        );
+                                                    if (
+                                                        [
+                                                            'pdf',
+                                                            'doc',
+                                                            'docx',
+                                                            'txt',
+                                                        ].includes(ext || '')
+                                                    )
+                                                        return (
+                                                            <FileText
+                                                                size={18}
+                                                            />
+                                                        );
+                                                    return <File size={18} />;
+                                                })()}
+                                            </span>
+                                            <span className="flex-1 min-w-0">
+                                                <span className="block text-sm font-medium text-gray-700 group-hover:text-blue-700 truncate transition-colors duration-200">
+                                                    {ticket.file_name}
+                                                </span>
+                                                <span className="block text-xs text-gray-400 group-hover:text-blue-400 transition-colors duration-200 mt-0.5">
+                                                    Click to download
+                                                </span>
+                                            </span>
+                                            <span className="flex-shrink-0 text-gray-300 group-hover:text-blue-400 transition-colors duration-200">
+                                                <Download size={16} />
+                                            </span>
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>

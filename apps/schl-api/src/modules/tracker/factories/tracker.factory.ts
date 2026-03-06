@@ -1,46 +1,88 @@
-import { SyncWorkLogDto } from '../dto/sync-work-log.dto';
+import { SyncQcWorkLogDto } from '../dto/sync-qc-work-log.dto';
 
 export class TrackerFactory {
-    private static derivePauseReasons(dto: SyncWorkLogDto) {
-        if (Array.isArray(dto.pauseReasons) && dto.pauseReasons.length) {
-            return dto.pauseReasons
+    private static derivePauseReasons(
+        pauseReasons?: { reason: string; duration: number }[],
+    ) {
+        if (Array.isArray(pauseReasons) && pauseReasons.length) {
+            const completedAt = new Date();
+            return pauseReasons
                 .filter(p => p && typeof p.reason === 'string')
                 .map(p => ({
                     reason: p.reason.trim(),
                     duration: Number(p.duration) || 0,
+                    started_at: new Date(
+                        completedAt.getTime() -
+                            (Number(p.duration) || 0) * 1000,
+                    ),
+                    completed_at: completedAt,
                 }))
                 .filter(p => p.reason);
         }
         return [];
     }
 
-    static fromSyncDto(dto: SyncWorkLogDto) {
+    static qcFilterFromSyncDto(dto: SyncQcWorkLogDto, dateString: string) {
         return {
-            file_name: dto.fileName.trim(),
-            file_status: dto.fileStatus.trim(),
-            time_spent: dto.timeSpent || 0,
-            pause_count: dto.pauseCount || 0,
-            pause_time: dto.pauseTime || 0,
-            pause_reasons: this.derivePauseReasons(dto),
-            categories: dto.categories?.trim() || '',
-            started_at: dto.startedAt ? new Date(dto.startedAt) : new Date(),
-            completed_at: dto.completedAt ? new Date(dto.completedAt) : null,
+            employee_name: dto.employeeName.toLowerCase(),
+            client_code: (dto.clientCode || 'unknown_client').toLowerCase(),
+            folder_path: (dto.folderPath || 'unknown_folder').trim(),
+            shift: (dto.shift || 'unknown_shift').toLowerCase(),
+            work_type: (dto.workType || 'qc').toLowerCase(),
+            date_today: dateString,
         };
     }
 
-    static fromSyncUpdateDto(dto: SyncWorkLogDto) {
-        const patch: Record<string, unknown> = {};
+    static qcBucketSetFromSyncDto(dto: SyncQcWorkLogDto) {
+        const set: Record<string, any> = {};
 
-        if (dto.fileStatus) patch.file_status = dto.fileStatus;
-        if (dto.timeSpent !== undefined) patch.time_spent = dto.timeSpent;
-        if (dto.pauseCount !== undefined) patch.pause_count = dto.pauseCount;
-        if (dto.pauseTime !== undefined) patch.pause_time = dto.pauseTime;
+        if (dto.estimateTime !== undefined)
+            set.estimate_time = dto.estimateTime;
+        if (dto.categories !== undefined)
+            set.categories = dto.categories?.trim() || '';
+
         if (dto.pauseReasons !== undefined)
-            patch.pause_reasons = this.derivePauseReasons(dto);
-        if (dto.categories) patch.categories = dto.categories;
-        if (dto.completedAt) patch.completed_at = new Date(dto.completedAt);
-        if (dto.startedAt) patch.started_at = new Date(dto.startedAt);
+            set.pause_reasons = this.derivePauseReasons(dto.pauseReasons);
 
-        return patch;
+        return set;
+    }
+
+    static qcBucketMaxFromSyncDto() {
+        const max: Record<string, number> = {};
+        return max;
+    }
+
+    static qcBucketIncFromSyncDto(dto: SyncQcWorkLogDto) {
+        const inc: Record<string, number> = {};
+        if (dto.totalTimes !== undefined)
+            inc.total_times = Number(dto.totalTimes) || 0;
+        return inc;
+    }
+
+    static qcFileSetFromSyncFileDto(fileDto: { timeSpent?: number }) {
+        void fileDto;
+        const $set: Record<string, any> = {};
+        return $set;
+    }
+
+    static qcFileIncFromSyncFileDto(fileDto: { timeSpent?: number }) {
+        const $inc: Record<string, number> = {};
+        if (fileDto.timeSpent !== undefined)
+            $inc['files.$.time_spent'] = Number(fileDto.timeSpent) || 0;
+        return $inc;
+    }
+
+    static qcFileDocFromSyncFileDto(
+        fileName: string,
+        fileDto: {
+            timeSpent?: number;
+        },
+    ) {
+        const fileDoc: Record<string, any> = {
+            file_name: fileName,
+        };
+        if (fileDto.timeSpent !== undefined)
+            fileDoc.time_spent = fileDto.timeSpent;
+        return fileDoc;
     }
 }

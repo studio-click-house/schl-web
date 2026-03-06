@@ -1,4 +1,6 @@
 import type { Permissions } from '@repo/common/types/permission.type';
+import { FullyPopulatedUser } from '@repo/common/types/populated-user.type';
+import { fetchApi } from '@repo/common/utils/general-utils';
 import jwt from 'jsonwebtoken';
 import type { NextAuthConfig } from 'next-auth';
 import { UserSessionType } from './auth';
@@ -83,16 +85,40 @@ export const authConfig: NextAuthConfig = {
                         ACCESS_TOKEN_REFRESH_BUFFER_SECONDS * 1000
             ) {
                 try {
-                    token.accessToken = signAccessToken({
-                        real_name: token.real_name as string,
-                        db_id: token.db_id as string,
-                        db_role_id: token.db_role_id as string,
-                        permissions: (token.permissions as Permissions[]) || [],
-                        e_id: token.e_id as string,
-                        department: token.department as any,
-                    });
-                    token.accessTokenExpires =
-                        Date.now() + ACCESS_TOKEN_TTL_SECONDS * 1000;
+                    // Fetch fresh permissions from the backend to support session revocation and permission updates
+                    const res = await fetchApi<FullyPopulatedUser>(
+                        {
+                            path: `/v1/user/get-user/${token.db_id}`,
+                            query: { expanded: 'true' },
+                        },
+                        {},
+                        token.accessToken as string,
+                    );
+
+                    if (res.ok && res.data) {
+                        const userData = res.data;
+                        token.db_id = userData._id.toString();
+                        token.db_role_id = userData.role._id;
+                        token.real_name = userData.employee.real_name;
+                        token.permissions = userData.role.permissions || [];
+                        token.e_id = userData.employee.e_id;
+                        token.department = userData.employee.department;
+
+                        token.accessToken = signAccessToken({
+                            real_name: token.real_name as string,
+                            db_id: token.db_id as string,
+                            db_role_id: token.db_role_id as string,
+                            permissions:
+                                (token.permissions as Permissions[]) || [],
+                            e_id: token.e_id as string,
+                            department: token.department as any,
+                        });
+                        token.accessTokenExpires =
+                            Date.now() + ACCESS_TOKEN_TTL_SECONDS * 1000;
+                    } else {
+                        // If user is not found or deactivated, return error to log them out
+                        token.error = 'RefreshAccessTokenError';
+                    }
                 } catch (e) {
                     console.error('Failed to refresh access token', e);
                     token.error = 'RefreshAccessTokenError';

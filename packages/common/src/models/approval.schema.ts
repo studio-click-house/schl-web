@@ -119,3 +119,7 @@ export class Approval {
 }
 
 export const ApprovalSchema = SchemaFactory.createForClass(Approval);
+
+ApprovalSchema.index({ status: 1, createdAt: -1 });
+ApprovalSchema.index({ req_by: 1, createdAt: -1 });
+ApprovalSchema.index({ target_model: 1, action: 1, createdAt: -1 });

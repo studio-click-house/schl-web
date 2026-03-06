@@ -79,6 +79,32 @@ export class NoticeService {
                 );
             }
 
+            // apply filename suffixing and sanitization logic before creation
+            // so the DB record matches the eventually-uploaded FTP file.
+            if (noticeData.fileName) {
+                const originalName = noticeData.fileName.trim();
+                const lastDotIndex = originalName.lastIndexOf('.');
+                const nameWithoutExt =
+                    lastDotIndex !== -1
+                        ? originalName.substring(0, lastDotIndex)
+                        : originalName;
+                const ext =
+                    lastDotIndex !== -1
+                        ? originalName.substring(lastDotIndex + 1)
+                        : '';
+
+                const suffix = noticeData.noticeNo.replace('SCHL-', '');
+                const combinedName = ext
+                    ? `${nameWithoutExt}_${suffix}.${ext}`
+                    : `${nameWithoutExt}_${suffix}`;
+
+                // mimic FtpService sanitization: /[^a-zA-Z0-9._-]/g -> '_'
+                noticeData.fileName = combinedName.replace(
+                    /[^a-zA-Z0-9._-]/g,
+                    '_',
+                );
+            }
+
             const doc = NoticeFactory.fromCreateDto(noticeData);
             const created = await this.noticeModel.create(doc);
             if (!created) {

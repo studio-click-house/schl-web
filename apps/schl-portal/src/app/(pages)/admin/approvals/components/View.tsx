@@ -140,7 +140,7 @@ const ViewButton: React.FC<PropsType> = props => {
 
             <section
                 onClick={handleClickOutside}
-                className={`fixed z-${baseZIndex} inset-0 flex justify-center items-center transition-colors ${isOpen ? 'visible bg-black/20 disable-page-scroll' : 'invisible'} `}
+                className={`fixed z-${baseZIndex} inset-0 flex justify-center items-center transition-colors ${isOpen ? 'visible bg-black/20 disable-page-scroll pointer-events-auto' : 'invisible pointer-events-none'} `}
             >
                 <article
                     ref={popupRef}
@@ -155,7 +155,7 @@ const ViewButton: React.FC<PropsType> = props => {
                             <p className="text-xs text-gray-400">
                                 Requested by{' '}
                                 <span className="font-bold">
-                                    {String(approvalData.req_by?.real_name)}
+                                    {String(approvalData.req_by_name)}
                                 </span>{' '}
                                 • {formatDate(approvalData.createdAt)}
                             </p>
@@ -511,7 +511,7 @@ const ViewButton: React.FC<PropsType> = props => {
                             <div className="flex flex-wrap justify-start items-center me-auto text-gray-400">
                                 <span>Checked by </span>
                                 <span className="font-semibold mx-1">
-                                    {String(approvalData.rev_by?.real_name)}
+                                    {String(approvalData.rev_by_name)}
                                 </span>
                                 <span>on </span>
                                 <span className="font-semibold mx-1">

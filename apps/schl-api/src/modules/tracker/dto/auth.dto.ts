@@ -1,5 +1,11 @@
 import { IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
 
+export class CheckUserDto {
+    @IsString()
+    @IsNotEmpty()
+    username: string;
+}
+
 export class LoginTrackerDto {
     @IsString()
     @IsNotEmpty()
@@ -19,4 +25,10 @@ export class SetPasswordDto {
     @IsNotEmpty()
     @MinLength(4)
     password: string;
+}
+
+export class LogoutTrackerDto {
+    @IsString()
+    @IsNotEmpty()
+    sessionId: string;
 }

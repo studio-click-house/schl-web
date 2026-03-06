@@ -4,11 +4,18 @@ import NoticeBodyEditor from '@/components/RichText/RichTextEditor';
 import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
+    priorityOptions,
     statusOptions,
     typeOptions,
 } from '@repo/common/constants/ticket.constant';
+import { Ticket } from '@repo/common/models/ticket.schema';
+import type { FullyPopulatedUser } from '@repo/common/types/populated-user.type';
+import { localDateTimeToISO } from '@repo/common/utils/date-helpers';
+import { hasPerm } from '@repo/common/utils/permission-check';
 import { setMenuPortalTarget } from '@repo/common/utils/select-helpers';
-import { useMemo, useState } from 'react';
+import { CheckCircle, CloudUpload, Loader2 } from 'lucide-react';
+import { useSession } from 'next-auth/react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import Select from 'react-select';
 import { toast } from 'sonner';
@@ -16,11 +23,70 @@ import { TicketFormDataType, validationSchema } from '../../schema';
 
 const Form: React.FC = () => {
     const authedFetchApi = useAuthedFetchApi();
+    const { data: session } = useSession();
     const [loading, setLoading] = useState(false);
     const [editorResetKey, setEditorResetKey] = useState(0);
+    const [assigneeOptions, setAssigneeOptions] = useState<
+        {
+            label: string;
+            value: { db_id: string; name: string; e_id: string };
+        }[]
+    >([]);
+
+    const canReviewTicket = useMemo(
+        () => hasPerm('ticket:review_tickets', session?.user.permissions || []),
+        [session?.user.permissions],
+    );
+
+    const [file, setFile] = useState<File | null>(null);
+    const [uploading, setUploading] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    useEffect(() => {
+        const loadUsers = async () => {
+            try {
+                const resp = await authedFetchApi<{
+                    pagination?: { count: number; pageCount: number };
+                    items: FullyPopulatedUser[];
+                }>(
+                    {
+                        path: '/v1/user/search-users',
+                        query: { page: 1, itemsPerPage: 100, paginated: false },
+                    },
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ employee_expanded: true }),
+                    },
+                );
+                if (resp.ok && resp.data) {
+                    const usersRaw = Array.isArray(resp.data)
+                        ? resp.data
+                        : resp.data.items || [];
+                    const valid = (usersRaw as FullyPopulatedUser[]).filter(u =>
+                        hasPerm(
+                            'ticket:submit_daily_report',
+                            u.role.permissions,
+                        ),
+                    );
+                    const options = valid.map(u => ({
+                        label: `${u.employee.real_name} (${u.employee.e_id})`,
+                        value: {
+                            db_id: String(u._id),
+                            name: u.employee.real_name,
+                            e_id: u.employee.e_id,
+                        },
+                    }));
+                    setAssigneeOptions(options);
+                }
+            } catch (e) {
+                console.error('failed loading assignees', e);
+            }
+        };
+        loadUsers();
+    }, [authedFetchApi]);
 
     const newStatusOption = useMemo(
-        () => statusOptions.find(option => option.value === 'new') || null,
+        () => statusOptions.find(option => option.value === 'pending') || null,
         [],
     );
 
@@ -28,6 +94,7 @@ const Form: React.FC = () => {
         register,
         handleSubmit,
         control,
+        setValue,
         reset,
         formState: { errors },
     } = useForm<TicketFormDataType>({
@@ -35,9 +102,12 @@ const Form: React.FC = () => {
         defaultValues: {
             title: '',
             description: '',
-            type: 'bug',
-            status: 'new',
-            tags: '',
+            type: 'complaint',
+            status: 'pending',
+            priority: 'low',
+            deadline: null,
+            file_name: null,
+            assignees: [],
         },
     });
 
@@ -53,16 +123,13 @@ const Form: React.FC = () => {
                 return;
             }
 
-            const { tags, _id, createdAt, updatedAt, __v, ...rest } =
-                parsed.data;
+            const { _id, createdAt, updatedAt, __v, ...rest } = parsed.data;
 
             const payload = {
                 ...rest,
-                status: 'new',
-                tags: tags
-                    .split(',')
-                    .map(tag => tag.trim())
-                    .filter(Boolean),
+                deadline: rest.deadline
+                    ? localDateTimeToISO(rest.deadline)
+                    : null,
             };
 
             const response = await authedFetchApi(
@@ -78,13 +145,39 @@ const Form: React.FC = () => {
 
             if (response.ok) {
                 toast.success('Created new ticket successfully');
-                reset({
-                    title: '',
-                    description: '',
-                    type: 'bug',
-                    status: 'new',
-                    tags: '',
-                });
+                const ticket = response.data as Ticket;
+
+                if (file) {
+                    const formData = new FormData();
+                    formData.append(
+                        'file',
+                        file,
+                        ticket.file_name || file.name,
+                    );
+
+                    const ftp_response = await authedFetchApi(
+                        {
+                            path: '/v1/ftp/upload',
+                            query: { folderName: 'ticket' },
+                        },
+                        {
+                            method: 'POST',
+                            body: formData,
+                        },
+                    );
+
+                    console.log('FTP upload response', ftp_response);
+
+                    if (!ftp_response.ok) {
+                        toastFetchError(ftp_response);
+                        return;
+                    }
+
+                    toast.success('Attached file saved successfully in ftp');
+                }
+                reset();
+                setFile(null);
+
                 setEditorResetKey(prev => prev + 1);
             } else {
                 toastFetchError(response);
@@ -101,9 +194,64 @@ const Form: React.FC = () => {
         await createTicket(data);
     };
 
+    const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const allowedExtensions =
+            /\.(xls|xlsx|doc|docx|ppt|pptx|txt|pdf|zip|7z|rar|jpg|jpeg|png|gif|svg)$/i;
+        const selectedFile = e.target.files?.[0];
+
+        if (selectedFile && allowedExtensions.test(selectedFile.name)) {
+            setValue('file_name', selectedFile.name);
+            setUploading(true);
+            // Simulate a brief upload delay for UX
+            setTimeout(() => {
+                setFile(selectedFile);
+                setUploading(false);
+            }, 1000);
+        } else {
+            toast.error('Invalid file format');
+            setFile(null);
+        }
+    };
+
+    // Drag and Drop Handlers
+    const handleDragOver = (e: React.DragEvent<HTMLLabelElement>) => {
+        e.preventDefault();
+    };
+
+    const handleDrop = (e: React.DragEvent<HTMLLabelElement>) => {
+        e.preventDefault();
+        const allowedExtensions =
+            /\.(xls|xlsx|doc|docx|ppt|pptx|txt|pdf|zip|7z|rar|jpg|jpeg|png|gif|svg)$/i;
+        const droppedFiles = e.dataTransfer.files;
+        if (droppedFiles && droppedFiles.length > 0) {
+            const selectedFile = droppedFiles[0];
+            if (selectedFile && allowedExtensions.test(selectedFile.name)) {
+                setValue('file_name', selectedFile.name);
+                setUploading(true);
+                // Simulate a brief upload delay for UX
+                setTimeout(() => {
+                    setFile(selectedFile);
+                    setUploading(false);
+                }, 1000);
+            } else {
+                toast.error('Invalid file format');
+                setFile(null);
+            }
+            e.dataTransfer.clearData();
+        }
+    };
+
+    const clearFile = () => {
+        setFile(null);
+        setValue('file_name', '');
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    };
+
     return (
         <form onSubmit={handleSubmit(onSubmit)}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 mb-4 gap-y-4">
+            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-x-3 mb-4 gap-y-4">
                 <div>
                     <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
                         <span className="uppercase">Ticket Type*</span>
@@ -138,18 +286,60 @@ const Form: React.FC = () => {
                     <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
                         <span className="uppercase">Status</span>
                     </label>
-                    <Select
-                        options={statusOptions}
-                        closeMenuOnSelect={true}
-                        placeholder="Ticket status"
-                        classNamePrefix="react-select"
-                        menuPortalTarget={setMenuPortalTarget}
-                        value={newStatusOption}
-                        isDisabled={true}
+                    <Controller
+                        name="status"
+                        control={control}
+                        render={({ field }) => (
+                            <Select
+                                options={statusOptions}
+                                closeMenuOnSelect={true}
+                                placeholder="Ticket status"
+                                classNamePrefix="react-select"
+                                menuPortalTarget={setMenuPortalTarget}
+                                value={
+                                    statusOptions.find(
+                                        option => option.value === field.value,
+                                    ) || null
+                                }
+                                onChange={option =>
+                                    field.onChange(option?.value || '')
+                                }
+                            />
+                        )}
                     />
                 </div>
 
-                <div className="md:col-span-2">
+                <div>
+                    <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
+                        <span className="uppercase">Priority</span>
+                        <span className="text-red-700 text-wrap block text-xs">
+                            {errors.priority && errors.priority.message}
+                        </span>
+                    </label>
+                    <Controller
+                        name="priority"
+                        control={control}
+                        render={({ field }) => (
+                            <Select
+                                options={priorityOptions}
+                                closeMenuOnSelect={true}
+                                placeholder="Ticket priority"
+                                classNamePrefix="react-select"
+                                menuPortalTarget={setMenuPortalTarget}
+                                value={
+                                    priorityOptions.find(
+                                        option => option.value === field.value,
+                                    ) || null
+                                }
+                                onChange={option =>
+                                    field.onChange(option?.value || '')
+                                }
+                            />
+                        )}
+                    />
+                </div>
+
+                <div className="md:col-span-3">
                     <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
                         <span className="uppercase">Ticket Title*</span>
                         <span className="text-red-700 text-wrap block text-xs">
@@ -165,26 +355,53 @@ const Form: React.FC = () => {
                         placeholder="Title of the ticket"
                     />
                 </div>
-
-                <div className="md:col-span-2">
-                    <div className="mb-2">
-                        <label className="uppercase tracking-wide text-gray-700 text-sm font-bold flex gap-2">
-                            Tags
-                            <span className="cursor-pointer has-tooltip">
-                                &#9432;
-                                <span className="tooltip italic font-medium rounded-md text-xs shadow-lg p-1 px-2 bg-gray-100 ml-2 normal-case">
-                                    Add tags separated by comma
-                                </span>
-                            </span>
-                        </label>
-                    </div>
+            </div>
+            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-x-3 mb-4 gap-y-4">
+                <div>
+                    <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
+                        <span className="uppercase">Assignees*</span>
+                        <span className="text-red-700 text-wrap block text-xs">
+                            {errors.assignees && errors.assignees.message}
+                        </span>
+                    </label>
+                    <Controller
+                        name="assignees"
+                        control={control}
+                        render={({ field }) => (
+                            <Select
+                                {...field}
+                                isMulti
+                                options={assigneeOptions}
+                                closeMenuOnSelect={false}
+                                placeholder="Select assignee(s)"
+                                classNamePrefix="react-select"
+                                menuPortalTarget={setMenuPortalTarget}
+                                value={
+                                    assigneeOptions.filter(option =>
+                                        field.value?.some(
+                                            v => v.db_id === option.value.db_id,
+                                        ),
+                                    ) || null
+                                }
+                                onChange={selected =>
+                                    field.onChange(
+                                        selected
+                                            ? selected.map(o => o.value)
+                                            : [],
+                                    )
+                                }
+                            />
+                        )}
+                    />
+                </div>
+                <div>
+                    <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
+                        <span className="uppercase">Deadline</span>
+                    </label>
                     <input
-                        {...register('tags')}
-                        autoComplete="off"
-                        autoCorrect="off"
+                        {...register('deadline')}
+                        type="datetime-local"
                         className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
-                        type="text"
-                        placeholder="e.g. portal, auth, login"
                     />
                 </div>
             </div>
@@ -208,6 +425,73 @@ const Form: React.FC = () => {
                         />
                     )}
                 />
+            </div>
+            <div>
+                <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
+                    <span className="uppercase">Attach file</span>
+                </label>
+
+                <div className="flex items-center justify-center w-full">
+                    <label
+                        htmlFor="dropzone-file"
+                        onDragOver={handleDragOver}
+                        onDrop={handleDrop}
+                        className="flex flex-col items-center justify-center w-full h-64 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100"
+                    >
+                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                            {uploading ? (
+                                <Loader2
+                                    size={32}
+                                    className="animate-spin text-blue-500 mb-4"
+                                />
+                            ) : file ? (
+                                <CheckCircle
+                                    size={32}
+                                    className="text-green-500 mb-4"
+                                />
+                            ) : (
+                                <CloudUpload
+                                    size={32}
+                                    className="w-10 h-10 mb-4 text-gray-500"
+                                />
+                            )}
+                            <p className="mb-2 text-sm text-gray-500">
+                                {uploading ? (
+                                    'Uploading...'
+                                ) : file ? (
+                                    <span className="animate-fade-in">
+                                        {file.name}
+                                    </span>
+                                ) : (
+                                    <span className="font-semibold">
+                                        Click to upload or drag and drop
+                                    </span>
+                                )}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                                ( XLS, XLSX, DOC, DOCX, PPT, PPTX, TXT, PDF,
+                                ZIP, 7Z, RAR, JPG, JPEG, PNG, GIF, SVG )
+                            </p>
+                        </div>
+                        <input
+                            ref={fileInputRef}
+                            id="dropzone-file"
+                            type="file"
+                            className="hidden"
+                            accept=".xls,.xlsx,.doc,.docx,.ppt,.pptx,.txt,.pdf,.zip,.7z,.rar,.jpg,.jpeg,.png,.gif,.svg"
+                            onChange={handleFileInput}
+                        />
+                    </label>
+                </div>
+                {file && !uploading && (
+                    <button
+                        type="button"
+                        onClick={clearFile}
+                        className="mt-2 text-sm text-red-600 hover:text-red-800"
+                    >
+                        Clear file
+                    </button>
+                )}
             </div>
 
             <button

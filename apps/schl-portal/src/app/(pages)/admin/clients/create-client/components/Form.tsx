@@ -151,7 +151,7 @@ const Form: React.FC<PropsType> = props => {
                 </div>
                 <div>
                     <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 ">
-                        <span className="uppercase">Marketer Name*</span>
+                        <span className="uppercase">Marketer Name</span>
                         <span className="text-red-700 text-wrap block text-xs">
                             {errors.marketer && errors.marketer?.message}
                         </span>
@@ -163,6 +163,7 @@ const Form: React.FC<PropsType> = props => {
                         render={({ field }) => (
                             <Select
                                 options={marketerOptions}
+                                isClearable={true}
                                 closeMenuOnSelect={true}
                                 placeholder="Select marketer"
                                 classNamePrefix="react-select"
