@@ -13,6 +13,7 @@ import { User, UserSchema } from '@repo/common/models/user.schema';
 
 import { ApprovalController } from './approval.controller';
 
+import { OrderLog, OrderLogSchema } from '@repo/common/models/order-log.schema';
 import { ApprovalService } from './approval.service';
 
 @Module({
@@ -26,6 +27,7 @@ import { ApprovalService } from './approval.service';
             { name: Schedule.name, schema: ScheduleSchema },
             { name: Employee.name, schema: EmployeeSchema },
             { name: Role.name, schema: RoleSchema },
+            { name: OrderLog.name, schema: OrderLogSchema },
         ]),
     ],
 

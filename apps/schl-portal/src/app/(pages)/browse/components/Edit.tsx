@@ -1,5 +1,7 @@
 'use client';
 
+import { useAuthedFetchApi } from '@/lib/api-client';
+
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
     priorityOptions,
@@ -20,7 +22,13 @@ import 'flowbite';
 import { initFlowbite } from 'flowbite';
 import { SquarePen, X } from 'lucide-react';
 import { useSession } from 'next-auth/react';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import Select from 'react-select';
 import { toast } from 'sonner';
@@ -72,6 +80,30 @@ const EditButton: React.FC<PropsType> = props => {
         () => session?.user.permissions || [],
         [session?.user.permissions],
     );
+
+    const authedFetchApi = useAuthedFetchApi();
+    const [lastLog, setLastLog] = useState<any>(null);
+
+    const fetchLastLog = useCallback(async () => {
+        if (!props.orderData._id) return;
+        try {
+            const response = await authedFetchApi(
+                { path: `/v1/order/${props.orderData._id}/last-log` },
+                { method: 'GET' },
+            );
+            if (response.ok) {
+                setLastLog(response.data);
+            }
+        } catch (error) {
+            console.error('Failed to fetch last log:', error);
+        }
+    }, [authedFetchApi, props.orderData._id]);
+
+    useEffect(() => {
+        if (isOpen) {
+            fetchLastLog();
+        }
+    }, [isOpen, fetchLastLog]);
 
     const {
         watch,
@@ -679,16 +711,22 @@ const EditButton: React.FC<PropsType> = props => {
                     <footer
                         className={cn(
                             'flex items-center px-4 py-2 border-t justify-between gap-6 border-gray-200 rounded-b',
-                            !watch('updated_by') && 'justify-end',
+                            !lastLog && 'justify-end',
                         )}
                     >
-                        {watch('updated_by') && (
+                        {lastLog && (
                             <div className="flex justify-start items-center me-auto text-gray-400">
                                 <span className="me-1">Last updated by </span>
 
-                                <span className="font-semibold">
-                                    {watch('updated_by')}
-                                </span>
+                                <a
+                                    href={`/order-logs/${props.orderData._id}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="font-semibold text-blue-600 hover:underline"
+                                >
+                                    {lastLog.user?.employee?.real_name ||
+                                        'System'}
+                                </a>
                             </div>
                         )}
                         <div className="space-x-2 justify-end">

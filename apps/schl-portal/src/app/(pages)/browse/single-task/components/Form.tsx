@@ -5,11 +5,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { hasPerm } from '@repo/common/utils/permission-check';
 import { setMenuPortalTarget } from '@repo/common/utils/select-helpers';
 import { useSession } from 'next-auth/react';
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import Select from 'react-select';
 
 import { BookCheck, Redo2, SquarePen, Trash2 } from 'lucide-react';
+import Link from 'next/link';
 import { useRouter } from 'nextjs-toploader/app';
 import { toast } from 'sonner';
 import {
@@ -33,10 +34,30 @@ const Form: React.FC<PropsType> = props => {
         finishOrder: false,
     });
     const { data: session } = useSession();
+    const [lastLog, setLastLog] = useState<any>(null);
     const userPermissions = useMemo(
         () => session?.user.permissions || [],
         [session?.user.permissions],
     );
+
+    const fetchLastLog = useCallback(async () => {
+        if (!props.orderData._id) return;
+        try {
+            const response = await authedFetchApi(
+                { path: `/v1/order/${props.orderData._id}/last-log` },
+                { method: 'GET' },
+            );
+            if (response.ok) {
+                setLastLog(response.data);
+            }
+        } catch (error) {
+            console.error('Failed to fetch last log:', error);
+        }
+    }, [authedFetchApi, props.orderData._id]);
+
+    useEffect(() => {
+        fetchLastLog();
+    }, [fetchLastLog]);
 
     const router = useRouter();
 
@@ -663,13 +684,16 @@ const Form: React.FC<PropsType> = props => {
                     </button>
                 )}
 
-                {watch('updated_by') && (
+                {lastLog && (
                     <div className="flex justify-start items-center me-auto text-gray-400">
                         <span className="me-1">Last updated by </span>
 
-                        <span className="font-semibold">
-                            {watch('updated_by')}
-                        </span>
+                        <Link
+                            href={`/order-logs/${props.orderData._id}`}
+                            className="font-semibold text-blue-600 hover:underline"
+                        >
+                            {lastLog.user?.employee?.real_name || 'Unknown'}
+                        </Link>
                     </div>
                 )}
             </div>

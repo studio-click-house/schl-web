@@ -9,7 +9,11 @@ import { InjectModel } from '@nestjs/mongoose';
 import { CLIENT_COMMON_COUNTRY } from '@repo/common/constants/client.constant';
 import { Client } from '@repo/common/models/client.schema';
 import { Invoice } from '@repo/common/models/invoice.schema';
-import { Order } from '@repo/common/models/order.schema';
+import {
+    OrderLog,
+    OrderLogDocument,
+} from '@repo/common/models/order-log.schema';
+import { Order, OrderDocument } from '@repo/common/models/order.schema';
 import { UserSession } from '@repo/common/types/user-session.type';
 import { applyDateRange, getDateRange } from '@repo/common/utils/date-helpers';
 import {
@@ -33,10 +37,18 @@ import {
 } from './dto/search-orders.dto';
 import { OrderFactory } from './factories/order.factory';
 
+export interface OrdersByCountryResponse {
+    details: any[];
+    totalFiles: number;
+}
+
 @Injectable()
 export class OrderService {
     constructor(
-        @InjectModel(Order.name) private readonly orderModel: Model<Order>,
+        @InjectModel(Order.name)
+        private readonly orderModel: Model<OrderDocument>,
+        @InjectModel(OrderLog.name)
+        private readonly orderLogModel: Model<OrderLogDocument>,
         @InjectModel(Client.name) private readonly clientModel: Model<Client>,
         @InjectModel(Invoice.name)
         private readonly invoiceModel: Model<Invoice>,
@@ -342,13 +354,21 @@ export class OrderService {
             );
         }
         try {
-            const payload = OrderFactory.fromCreateDto(orderData, userSession);
+            const payload = OrderFactory.fromCreateDto(orderData);
             const created = await this.orderModel.create(payload);
             if (!created) {
                 throw new InternalServerErrorException(
                     'Failed to create order',
                 );
             }
+
+            // Log the 'Create' action
+            await this.orderLogModel.create({
+                order: created._id,
+                action: 'Create',
+                user: userSession.db_id,
+            });
+
             return created;
         } catch (e) {
             if (e instanceof HttpException) throw e;
@@ -396,6 +416,14 @@ export class OrderService {
                 existing.type = 'general';
             }
             await existing.save();
+
+            // Log the 'Finish' action
+            await this.orderLogModel.create({
+                order: existing._id,
+                action: 'Finish',
+                user: userSession.db_id,
+            });
+
             return {
                 message: 'Changed the status of the order successfully',
             };
@@ -422,6 +450,14 @@ export class OrderService {
         try {
             existing.status = 'correction';
             await existing.save();
+
+            // Log the 'Redo' action
+            await this.orderLogModel.create({
+                order: existing._id,
+                action: 'Redo',
+                user: userSession.db_id,
+            });
+
             return {
                 message: 'Changed the status of the order successfully',
             };
@@ -449,7 +485,7 @@ export class OrderService {
             throw new BadRequestException('Order not found');
         }
 
-        const updateDoc = OrderFactory.fromUpdateDto(orderData, userSession);
+        const updateDoc = OrderFactory.fromUpdateDto(orderData);
 
         // if production becomes equal to quantity on this update, mark type as qc
         // regardless of what it was before. this mirrors the wait‑for‑qc filter
@@ -479,7 +515,7 @@ export class OrderService {
             updateDoc.type = 'general';
         }
 
-        const keys = Object.keys(updateDoc).filter(k => k !== 'updated_by');
+        const keys = Object.keys(updateDoc);
         if (keys.length === 0) {
             throw new BadRequestException('No update fields provided');
         }
@@ -495,6 +531,27 @@ export class OrderService {
                     'Failed to update order',
                 );
             }
+
+            // Log the transition-aware action
+            let action = 'Update';
+            const prevStatus = existing.status?.toLowerCase();
+            const nextStatusStr = nextStatus;
+
+            if (nextStatusStr === 'finished' && prevStatus !== 'finished') {
+                action = 'Finish';
+            } else if (
+                nextStatusStr === 'correction' &&
+                prevStatus !== 'correction'
+            ) {
+                action = 'Redo';
+            }
+
+            await this.orderLogModel.create({
+                order: updated._id,
+                action,
+                user: userSession.db_id,
+            });
+
             return updated;
         } catch (e) {
             if (e instanceof HttpException) throw e;
@@ -692,7 +749,7 @@ export class OrderService {
         country: string,
         query: OrdersByCountryQueryDto,
         userSession: UserSession,
-    ) {
+    ): Promise<OrdersByCountryResponse> {
         if (!hasPerm('fileflow:view_page', userSession.permissions)) {
             throw new ForbiddenException(
                 "You don't have permission to view orders",
@@ -978,7 +1035,7 @@ export class OrderService {
 
         const orders = (await this.orderModel
             .aggregate(pipeline)
-            .exec()) as Array<Partial<Order>>;
+            .exec()) as OrderDocument[];
 
         if (!orders)
             return [] as Array<Partial<Order> & { timeDifference: number }>;
@@ -1016,7 +1073,7 @@ export class OrderService {
 
         const orders = (await this.orderModel
             .aggregate(pipeline)
-            .exec()) as Array<Partial<Order>>;
+            .exec()) as OrderDocument[];
         if (!orders)
             return [] as Array<Partial<Order> & { timeDifference: number }>;
 
@@ -1054,7 +1111,7 @@ export class OrderService {
 
         const orders = (await this.orderModel
             .aggregate(pipeline)
-            .exec()) as Array<Partial<Order>>;
+            .exec()) as OrderDocument[];
         if (!orders)
             return [] as Array<Partial<Order> & { timeDifference: number }>;
 
@@ -1090,5 +1147,57 @@ export class OrderService {
         }
 
         return order;
+    }
+
+    async getOrderLogs(orderId: string, userSession: UserSession) {
+        if (
+            !hasAnyPerm(
+                ['browse:view_page', 'task:view_page'],
+                userSession.permissions,
+            )
+        ) {
+            throw new ForbiddenException(
+                "You don't have permission to view order logs",
+            );
+        }
+
+        return this.orderLogModel
+            .find({ order: orderId })
+            .populate({
+                path: 'user',
+                select: 'employee',
+                populate: {
+                    path: 'employee',
+                    select: 'real_name',
+                },
+            })
+            .sort({ createdAt: -1 })
+            .exec();
+    }
+
+    async getLastOrderLog(orderId: string, userSession: UserSession) {
+        if (
+            !hasAnyPerm(
+                ['browse:view_page', 'task:view_page'],
+                userSession.permissions,
+            )
+        ) {
+            throw new ForbiddenException(
+                "You don't have permission to view order logs",
+            );
+        }
+
+        return this.orderLogModel
+            .findOne({ order: orderId })
+            .populate({
+                path: 'user',
+                select: 'employee',
+                populate: {
+                    path: 'employee',
+                    select: 'real_name',
+                },
+            })
+            .sort({ createdAt: -1 })
+            .exec();
     }
 }

@@ -43,7 +43,6 @@ export const validationSchema = z.object({
     status: z.enum(ORDER_STATUSES).default('running'),
     folder_path: z.string().default(''),
     priority: z.enum(ORDER_PRIORITIES).default('medium'),
-    updated_by: z.string().nullable().default(null),
     _id: z.optional(
         z.string().refine(val => {
             return mongoose.Types.ObjectId.isValid(val);

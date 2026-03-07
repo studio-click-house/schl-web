@@ -70,9 +70,6 @@ export class Order {
     @Prop({ default: 'medium', enum: ORDER_PRIORITIES })
     priority: OrderPriority;
 
-    @Prop({ type: String, default: null })
-    updated_by: string | null;
-
     readonly createdAt: Date;
 
     readonly updatedAt: Date;
