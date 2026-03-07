@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Client, ClientSchema } from '@repo/common/models/client.schema';
 import { Invoice, InvoiceSchema } from '@repo/common/models/invoice.schema';
+import { OrderLog, OrderLogSchema } from '@repo/common/models/order-log.schema';
 import { Order, OrderSchema } from '@repo/common/models/order.schema';
 import { OrderController } from './order.controller';
 
@@ -11,6 +12,7 @@ import { OrderService } from './order.service';
     imports: [
         MongooseModule.forFeature([
             { name: Order.name, schema: OrderSchema },
+            { name: OrderLog.name, schema: OrderLogSchema },
             { name: Client.name, schema: ClientSchema },
             { name: Invoice.name, schema: InvoiceSchema },
         ]),

@@ -10,6 +10,7 @@ import {
     Req,
 } from '@nestjs/common';
 import { UserSession } from '@repo/common/types/user-session.type';
+import { Request } from 'express';
 import {
     ClientCodeParamDto,
     ClientCodeRequiredParamDto,
@@ -27,7 +28,7 @@ import {
     SearchOrdersBodyDto,
     SearchOrdersQueryDto,
 } from './dto/search-orders.dto';
-import { OrderService } from './order.service';
+import { OrdersByCountryResponse, OrderService } from './order.service';
 
 @Controller('order')
 export class OrderController {
@@ -117,7 +118,7 @@ export class OrderController {
         @Query() query: OrdersByCountryQueryDto,
         @Param() { country }: OrdersByCountryParamDto,
         @Req() req: Request & { user: UserSession },
-    ) {
+    ): Promise<OrdersByCountryResponse> {
         return this.orderService.ordersByCountry(country, query, req.user);
     }
 
@@ -150,6 +151,22 @@ export class OrderController {
     @Get('rework-orders')
     reworkOrders(@Req() req: Request & { user: UserSession }) {
         return this.orderService.reworkOrders(req.user);
+    }
+
+    @Get(':id/logs')
+    getOrderLogs(
+        @Param() { id }: IdParamDto,
+        @Req() req: Request & { user: UserSession },
+    ) {
+        return this.orderService.getOrderLogs(id, req.user);
+    }
+
+    @Get(':id/last-log')
+    getLastOrderLog(
+        @Param() { id }: IdParamDto,
+        @Req() req: Request & { user: UserSession },
+    ) {
+        return this.orderService.getLastOrderLog(id, req.user);
     }
 
     @Get(':id')

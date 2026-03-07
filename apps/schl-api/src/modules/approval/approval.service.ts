@@ -10,6 +10,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Approval } from '@repo/common/models/approval.schema';
 import { Client } from '@repo/common/models/client.schema';
 import { Employee } from '@repo/common/models/employee.schema';
+import { OrderLog } from '@repo/common/models/order-log.schema';
 import { Order } from '@repo/common/models/order.schema';
 import { Report } from '@repo/common/models/report.schema';
 import { Role } from '@repo/common/models/role.schema';
@@ -51,6 +52,8 @@ export class ApprovalService {
         private readonly roleModel: Model<Role>,
         @InjectModel(Order.name)
         private readonly orderModel: Model<Order>,
+        @InjectModel(OrderLog.name)
+        private readonly orderLogModel: Model<OrderLog>,
         @InjectModel(Client.name)
         private readonly clientModel: Model<Client>,
         @InjectModel(Schedule.name)
@@ -594,6 +597,15 @@ export class ApprovalService {
 
         // All remaining supported actions are deletes
         if (action === 'delete') {
+            if (target_model === 'Order' && object_id) {
+                // Log the 'Delete' action before deleting the order
+                await this.orderLogModel.create({
+                    order: object_id,
+                    action: 'Delete',
+                    user: reviewerSession.db_id,
+                });
+            }
+
             const result = await this.deleteByTargetModel(
                 target_model,
                 object_id,
