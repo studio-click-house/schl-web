@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+    output: "standalone",
     eslint: {
         // Next.js bundled lint runner is not yet compatible with ESLint 9; disable it and rely on custom lint script.
         ignoreDuringBuilds: true,
