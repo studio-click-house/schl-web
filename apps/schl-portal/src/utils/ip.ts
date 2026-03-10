@@ -6,6 +6,10 @@ export function getClientIp(req: NextRequest): string | null {
         return '127.0.0.1';
     }
 
+    // Cloudflare passes the true client IP in this header when proxying (orange cloud)
+    const cfIp = req.headers.get('cf-connecting-ip');
+    if (cfIp) return cfIp.trim();
+
     // headers are case-insensitive; NextRequest exposes them lower-cased
     const xff = req.headers.get('x-forwarded-for');
     if (xff) {
