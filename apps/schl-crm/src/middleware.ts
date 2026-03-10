@@ -63,17 +63,27 @@ export default authMiddleware((req: any) => {
     }
 
     // 2. Forbidden page handling
-    if (!isAuthenticated && pathname === FORBIDDEN_REDIRECT) {
-        return NextResponse.redirect(new URL(ROOT, nextUrl));
-    }
+    if (pathname === FORBIDDEN_REDIRECT) {
+        if (!isAuthenticated) {
+            return NextResponse.redirect(new URL(ROOT, nextUrl));
+        }
 
-    if (
-        isAuthenticated &&
-        pathname === FORBIDDEN_REDIRECT &&
-        (ALLOWED_IPS.includes(clientIp || '') ||
-            userPermissions.includes('settings:bypass_ip_restrictions'))
-    ) {
-        return NextResponse.redirect(new URL('/', nextUrl));
+        const isIpAllowed =
+            ALLOWED_IPS.includes(clientIp || '') ||
+            userPermissions.includes('settings:bypass_ip_restrictions');
+
+        const rootRoute = ALL_ROUTES.find(r => r.href === '/');
+        const hasRootPermission =
+            rootRoute && isRouteAuthorized(rootRoute, userPermissions);
+
+        // Only redirect away from /forbidden to / if they actually have access to the root page,
+        // otherwise they will get stuck in an infinite loop bouncing between / and /forbidden
+        if (isIpAllowed && hasRootPermission) {
+            return NextResponse.redirect(new URL('/', nextUrl));
+        }
+
+        // If they are on /forbidden and don't have access to /, let them stay on /forbidden
+        return NextResponse.next();
     }
 
     // 3. Login page handling
