@@ -52,6 +52,7 @@ export class Attendance {
         required: [true, 'Status is required'],
         type: String,
         enum: ATTENDANCE_STATUSES,
+        index: true,
     })
     status: AttendanceStatus;
 
@@ -68,6 +69,7 @@ export class Attendance {
         required: [true, 'Employee is required'],
         ref: 'Employee',
         type: mongoose.Schema.Types.ObjectId,
+        index: true,
     })
     employee: mongoose.Types.ObjectId; // reference to employee document, resolved from device-user mapping
 
@@ -99,3 +101,6 @@ AttendanceSchema.index(
         partialFilterExpression: { out_time: null },
     },
 );
+
+// Optimize querying an employee's attendance over a date range (most common HR dashboard query)
+AttendanceSchema.index({ employee: 1, shift_date: -1 });

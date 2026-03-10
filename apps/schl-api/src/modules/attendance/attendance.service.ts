@@ -674,13 +674,17 @@ export class AttendanceService {
                 ? { _id: filters.employeeId }
                 : { status: { $in: ['active', 'on-leave'] } };
 
+            if (filters.department) {
+                employeeQuery.department = filters.department;
+            }
+
             const [employees, employeeCount] = await Promise.all([
                 this.employeeModel
                     .find(employeeQuery)
                     .select(
                         'real_name e_id designation department status branch',
                     )
-                    .sort({ real_name: 1 })
+                    .sort({ e_id: 1 })
                     .skip(skip)
                     .limit(limit)
                     .lean()
@@ -862,9 +866,10 @@ export class AttendanceService {
                 ['A', 10],
             ]);
 
-            const items: any[] = [];
+            const groupedItems: any[] = [];
 
             for (const employee of employees) {
+                const records: any[] = [];
                 for (const dateKey of dates) {
                     const key = `${employee._id.toString()}_${dateKey}`;
                     const existing = attendanceByKey.get(key);
@@ -875,9 +880,8 @@ export class AttendanceService {
                     const virtualRank = precedence.get(virtualCode) || 0;
 
                     if (existing && existingRank >= virtualRank) {
-                        items.push({
+                        records.push({
                             ...existing,
-                            employee,
                             is_virtual: false,
                         });
                     } else {
@@ -886,9 +890,8 @@ export class AttendanceService {
                             .startOf('day')
                             .toDate();
 
-                        items.push({
+                        records.push({
                             _id: `virtual_${employee._id.toString()}_${dateKey}`,
-                            employee,
                             shift_date: shiftDate,
                             in_time: null,
                             out_time: null,
@@ -913,28 +916,29 @@ export class AttendanceService {
                         });
                     }
                 }
+
+                records.sort((a, b) => {
+                    const aDate = moment
+                        .tz(a.shift_date || a.in_time, 'Asia/Dhaka')
+                        .valueOf();
+                    const bDate = moment
+                        .tz(b.shift_date || b.in_time, 'Asia/Dhaka')
+                        .valueOf();
+                    return aDate - bDate; // Sort chronologically
+                });
+
+                groupedItems.push({
+                    employee,
+                    records,
+                });
             }
-
-            items.sort((a, b) => {
-                const aDate = moment
-                    .tz(a.shift_date || a.in_time, 'Asia/Dhaka')
-                    .valueOf();
-                const bDate = moment
-                    .tz(b.shift_date || b.in_time, 'Asia/Dhaka')
-                    .valueOf();
-
-                if (bDate !== aDate) return bDate - aDate;
-                const aName = a.employee?.real_name || '';
-                const bName = b.employee?.real_name || '';
-                return aName.localeCompare(bName);
-            });
 
             const response = {
                 pagination: {
                     count: employeeCount,
                     pageCount: Math.ceil(employeeCount / limit),
                 },
-                items,
+                items: groupedItems,
             };
 
             if (!pagination.paginated) {

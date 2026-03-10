@@ -12,6 +12,8 @@ import {
 import Badge from '@/components/Badge';
 import HiddenText from '@/components/HiddenText';
 import NoData, { Type } from '@/components/NoData';
+import Pagination from '@/components/Pagination';
+import { usePaginationManager } from '@/hooks/usePaginationManager';
 import { EmployeeDocument } from '@repo/common/models/employee.schema';
 import { formatDate } from '@repo/common/utils/date-helpers';
 import { Calendar, CirclePlus } from 'lucide-react';
@@ -24,11 +26,25 @@ import DeleteButton from './Delete';
 import EditButton from './Edit';
 import FilterButton from './Filter';
 
+type EmployeesState = {
+    pagination: {
+        count: number;
+        pageCount: number;
+    };
+    items: EmployeeDocument[];
+};
+
 const Table = () => {
-    const [employees, setEmployees] = useState<EmployeeDocument[]>([]);
+    const authedFetchApi = useAuthedFetchApi();
+    const [employees, setEmployees] = useState<EmployeesState>({
+        pagination: {
+            count: 0,
+            pageCount: 0,
+        },
+        items: [],
+    });
 
     const { data: session } = useSession();
-    const authedFetchApi = useAuthedFetchApi();
 
     const userPermissions = useMemo(
         () => session?.user.permissions || [],
@@ -36,13 +52,13 @@ const Table = () => {
     );
 
     const router = useRouter();
-    const [totalPayOut, setTotalPayOut] = useState({
-        salary_gross: 0,
-        bonus_eid_ul_fitr: 0,
-        bonus_eid_ul_adha: 0,
-    });
 
+    const [isFiltered, setIsFiltered] = useState<boolean>(false);
+    const [page, setPage] = useState<number>(1);
+    const [pageCount, setPageCount] = useState<number>(0);
+    const [itemPerPage, setItemPerPage] = useState<number>(30);
     const [loading, setLoading] = useState<boolean>(true);
+    const [searchVersion, setSearchVersion] = useState<number>(0);
 
     const [filters, setFilters] = useState({
         bloodGroup: '',
@@ -50,109 +66,88 @@ const Table = () => {
         generalSearchString: '',
     });
 
-    const getTotalPayOut = (employees: EmployeeDocument[]) => {
-        const totalPayOut = {
-            salary_gross: 0,
-            bonus_eid_ul_fitr: 0,
-            bonus_eid_ul_adha: 0,
-        };
+    const getAllEmployees = useCallback(
+        async (page: number, itemPerPage: number) => {
+            try {
+                const response = await authedFetchApi<EmployeesState>(
+                    {
+                        path: '/v1/employee/search-employees',
+                        query: {
+                            page,
+                            itemsPerPage: itemPerPage,
+                            paginated: true,
+                        },
+                    },
+                    {
+                        method: 'POST',
+                        headers: {
+                            Accept: '*/*',
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({}),
+                        cache: 'no-store',
+                    },
+                );
 
-        employees.forEach((employee: EmployeeDocument) => {
-            if (['active', 'on-leave'].includes(employee.status)) {
-                totalPayOut.salary_gross += employee.gross_salary;
-                totalPayOut.bonus_eid_ul_fitr += employee.bonus_eid_ul_fitr;
-                totalPayOut.bonus_eid_ul_adha += employee.bonus_eid_ul_adha;
+                if (response.ok) {
+                    setEmployees(response.data);
+                    setIsFiltered(false);
+                    setPageCount(response.data.pagination.pageCount);
+                } else {
+                    toastFetchError(response);
+                }
+            } catch (error) {
+                console.error(error);
+                toast.error('An error occurred while retrieving employees data');
+            } finally {
+                setLoading(false);
             }
-        });
+        },
+        [authedFetchApi],
+    );
 
-        return totalPayOut;
-    };
-
-    const [isFiltered, setIsFiltered] = useState<boolean>(false);
-
-    const getAllEmployees = useCallback(async () => {
-        try {
-            // setLoading(true);
-
-            const response = await authedFetchApi<EmployeeDocument[]>(
-                {
-                    path: '/v1/employee/search-employees',
-                    query: {
-                        paginated: false,
-                        // filtered: false
+    const getAllEmployeesFiltered = useCallback(
+        async (page: number, itemPerPage: number) => {
+            try {
+                const response = await authedFetchApi<EmployeesState>(
+                    {
+                        path: '/v1/employee/search-employees',
+                        query: {
+                            page,
+                            itemsPerPage: itemPerPage,
+                            paginated: true,
+                        },
                     },
-                },
-                {
-                    method: 'POST',
-                    headers: {
-                        Accept: '*/*',
-                        'Content-Type': 'application/json',
+                    {
+                        method: 'POST',
+                        headers: {
+                            Accept: '*/*',
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            ...filters,
+                        }),
+                        cache: 'no-store',
                     },
-                    body: JSON.stringify({}),
-                    cache: 'no-store',
-                },
-            );
+                );
 
-            if (response.ok) {
-                setIsFiltered(false);
-                const employees = response.data;
-                console.log('FILTERED EMPLOYEES: ', employees);
-                setEmployees(employees);
-
-                setTotalPayOut(getTotalPayOut(employees));
-            } else {
-                toastFetchError(response);
+                if (response.ok) {
+                    setEmployees(response.data);
+                    setIsFiltered(true);
+                    setPageCount(response.data.pagination.pageCount);
+                } else {
+                    toastFetchError(response);
+                }
+            } catch (error) {
+                console.error(error);
+                toast.error('An error occurred while retrieving employees data');
+            } finally {
+                setLoading(false);
             }
-        } catch (error) {
-            console.error(error);
-            toast.error('An error occurred while retrieving employees data');
-        } finally {
-            setLoading(false);
-        }
-    }, [authedFetchApi]);
-
-    const getAllEmployeesFiltered = useCallback(async () => {
-        try {
-            // setLoading(true);
-
-            const response = await authedFetchApi<EmployeeDocument[]>(
-                {
-                    path: '/v1/employee/search-employees',
-                    query: {
-                        paginated: false,
-                        // filtered: true
-                    },
-                },
-                {
-                    method: 'POST',
-                    headers: {
-                        Accept: '*/*',
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        ...filters,
-                    }),
-                    cache: 'no-store',
-                },
-            );
-
-            if (response.ok) {
-                const employees = response.data;
-                console.log('FILTERED EMPLOYEES: ', employees);
-                setEmployees(employees);
-                setTotalPayOut(getTotalPayOut(employees));
-                setIsFiltered(true);
-            } else {
-                toastFetchError(response);
-            }
-        } catch (error) {
-            console.error(error);
-            toast.error('An error occurred while retrieving employees data');
-        } finally {
-            setLoading(false);
-        }
-        return;
-    }, [authedFetchApi, filters]);
+            return;
+        },
+        [authedFetchApi, filters],
+    );
 
     async function deleteEmployee(employeeData: EmployeeDocument) {
         try {
@@ -183,6 +178,14 @@ const Table = () => {
         }
         return;
     }
+
+    const fetchEmployees = useCallback(async () => {
+        if (!isFiltered) {
+            await getAllEmployees(page, itemPerPage);
+        } else {
+            await getAllEmployeesFiltered(page, itemPerPage);
+        }
+    }, [isFiltered, getAllEmployees, getAllEmployeesFiltered, page, itemPerPage]);
 
     async function editEmployee(
         editedEmployeeData: zod_EmployeeDataType,
@@ -228,8 +231,7 @@ const Table = () => {
             if (response.ok) {
                 toast.success('Updated the employee data');
 
-                if (!isFiltered) await getAllEmployees();
-                else await getAllEmployeesFiltered();
+                await fetchEmployees();
             } else {
                 toastFetchError(response);
             }
@@ -241,16 +243,24 @@ const Table = () => {
         }
     }
 
-    const fetchEmployees = useCallback(async () => {
-        if (!isFiltered) {
-            await getAllEmployees();
-        } else {
-            await getAllEmployeesFiltered();
-        }
-    }, [isFiltered, getAllEmployees, getAllEmployeesFiltered]);
+    usePaginationManager({
+        page,
+        itemPerPage,
+        pageCount,
+        setPage,
+        triggerFetch: fetchEmployees,
+    });
 
     useEffect(() => {
-        fetchEmployees();
+        if (searchVersion > 0 && isFiltered && page === 1) {
+            fetchEmployees();
+        }
+    }, [searchVersion, isFiltered, page, fetchEmployees]);
+
+    const handleSearch = useCallback(() => {
+        setIsFiltered(true);
+        setPage(1);
+        setSearchVersion(v => v + 1);
     }, []);
 
     return (
@@ -279,11 +289,29 @@ const Table = () => {
                 )}
 
                 <div className="items-center flex gap-2">
-                    {/* pagination controls removed for this page */}
+                    <Pagination
+                        page={page}
+                        pageCount={pageCount}
+                        setPage={setPage}
+                        isLoading={loading}
+                    />
+
+                    <select
+                        value={itemPerPage}
+                        onChange={e =>
+                            setItemPerPage(parseInt(e.target.value, 10))
+                        }
+                        required
+                        className="appearance-none cursor-pointer px-4 py-2 bg-gray-50 text-gray-700 border border-gray-200 rounded-md leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
+                    >
+                        <option value={30}>30</option>
+                        <option value={50}>50</option>
+                        <option value={100}>100</option>
+                    </select>
 
                     <FilterButton
                         loading={loading}
-                        submitHandler={getAllEmployeesFiltered}
+                        submitHandler={handleSearch}
                         setFilters={setFilters}
                         filters={filters}
                         className="w-full justify-between sm:w-auto"
@@ -293,10 +321,10 @@ const Table = () => {
 
             {loading ? <p className="text-center">Loading...</p> : <></>}
 
-            <div className="table-responsive text-nowrap text-base">
+            <div className="table-responsive text-nowrap text-base overflow-x-auto">
                 {!loading &&
-                    (employees?.length !== 0 ? (
-                        <table className="table border table-bordered table-striped">
+                    (employees?.items?.length !== 0 ? (
+                        <table className="table border table-bordered table-striped min-w-full">
                             <thead className="table-dark">
                                 <tr>
                                     <th>S/N</th>
@@ -316,9 +344,13 @@ const Table = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {employees?.map((employee, index) => (
+                                {employees?.items?.map((employee, index) => (
                                     <tr key={String(employee._id)}>
-                                        <td>{index + 1}</td>
+                                        <td>
+                                            {index +
+                                                1 +
+                                                itemPerPage * (page - 1)}
+                                        </td>
                                         <td className="text-wrap">
                                             {employee.e_id}
                                         </td>
@@ -422,42 +454,6 @@ const Table = () => {
                                     </tr>
                                 ))}
                             </tbody>
-                            <tfoot className="table-dark">
-                                <tr>
-                                    <td></td>
-                                    <td></td>
-                                    <td>
-                                        <div className="font-semibold flex gap-2 items-center">
-                                            <span>SALARY (GROSS):</span>
-                                            <HiddenText>
-                                                {totalPayOut.salary_gross.toLocaleString()}{' '}
-                                                BDT
-                                            </HiddenText>
-                                        </div>
-                                    </td>
-                                    <td colSpan={2}></td>
-                                    <td>
-                                        <div className="font-semibold flex gap-2 items-center">
-                                            <span>BONUS (EID-UL-FITR):</span>
-                                            <HiddenText>
-                                                {totalPayOut.bonus_eid_ul_fitr.toLocaleString()}{' '}
-                                                BDT
-                                            </HiddenText>
-                                        </div>
-                                    </td>
-                                    <td colSpan={3}></td>
-                                    <td>
-                                        <div className="font-semibold flex gap-2 items-center">
-                                            <span>BONUS (EID-UL-ADHA):</span>
-                                            <HiddenText>
-                                                {totalPayOut.bonus_eid_ul_adha.toLocaleString()}{' '}
-                                                BDT
-                                            </HiddenText>
-                                        </div>
-                                    </td>
-                                    <td></td>
-                                </tr>
-                            </tfoot>
                         </table>
                     ) : (
                         <NoData text="No Employees Found" type={Type.danger} />
@@ -478,3 +474,4 @@ const Table = () => {
 };
 
 export default Table;
+

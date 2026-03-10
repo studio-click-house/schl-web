@@ -6,11 +6,46 @@ import Pagination from '@/components/Pagination';
 import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import { AttendanceDocument } from '@repo/common/models/attendance.schema';
 import { EmployeeDocument } from '@repo/common/models/employee.schema';
-import { cn } from '@repo/common/utils/general-utils';
+import { cn, generateAvatar } from '@repo/common/utils/general-utils';
 import { hasPerm } from '@repo/common/utils/permission-check';
+import { Minus, Plus, UserRound, Users } from 'lucide-react';
 import moment from 'moment-timezone';
 import { useSession } from 'next-auth/react';
+
+const EmployeeAvatar = ({ employee }: { employee: any }) => {
+    const [avatarUri, setAvatarUri] = useState<string>('');
+
+    useEffect(() => {
+        let isMounted = true;
+        const fetchAvatar = async () => {
+            const uri = await generateAvatar(employee?.real_name || '');
+            if (isMounted) setAvatarUri(uri);
+        };
+        fetchAvatar();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [employee?.real_name]);
+
+    return (
+        <div className="flex-shrink-0 w-10 h-10 rounded-full border border-gray-200 overflow-hidden bg-gray-100 flex items-center justify-center">
+            {avatarUri ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                    src={avatarUri}
+                    alt="avatar"
+                    className="w-full h-full object-cover"
+                />
+            ) : (
+                <UserRound size={20} className="text-gray-400" />
+            )}
+        </div>
+    );
+};
+
 import Link from 'next/link';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { formatOT } from '../utils/ot-helpers';
@@ -27,12 +62,17 @@ type AttendanceWithRelations = AttendanceDocument & {
     flag?: any;
 };
 
+type GroupedAttendance = {
+    employee: EmployeeDocument | string | any;
+    records: AttendanceWithRelations[];
+};
+
 type AttendanceResponse = {
     pagination: {
         count: number;
         pageCount: number;
     };
-    items: AttendanceWithRelations[];
+    items: GroupedAttendance[];
 };
 
 type EmployeeOption = {
@@ -49,13 +89,24 @@ const getDefaultDateRange = (): { fromDate: string; toDate: string } => {
 };
 
 const Table = ({ queryEmployeeId }: AttendanceTableProps) => {
-    const [attendanceData, setAttendanceData] = useState<
-        AttendanceWithRelations[]
-    >([]);
+    const [attendanceData, setAttendanceData] = useState<GroupedAttendance[]>(
+        [],
+    );
     const [employeeOptions, setEmployeeOptions] = useState<EmployeeOption[]>(
         [],
     );
     const [pageCount, setPageCount] = useState<number>(0);
+    const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+
+    const toggleRow = useCallback((employeeId: string) => {
+        setExpandedRows(prev => {
+            const newSet = new Set<string>();
+            if (!prev.has(employeeId)) {
+                newSet.add(employeeId);
+            }
+            return newSet;
+        });
+    }, []);
 
     const { data: session } = useSession();
     const userPermissions = useMemo(
@@ -64,6 +115,9 @@ const Table = ({ queryEmployeeId }: AttendanceTableProps) => {
     );
 
     const authedFetchApi = useAuthedFetchApi();
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
 
     const [loading, setLoading] = useState<boolean>(true);
     const [page, setPage] = useState<number>(1);
@@ -77,8 +131,10 @@ const Table = ({ queryEmployeeId }: AttendanceTableProps) => {
         employeeId: string;
         fromDate: string;
         toDate: string;
+        department: string;
     }>({
         employeeId: initialEmployeeId,
+        department: '',
         ...baseDateRange,
     });
 
@@ -86,8 +142,10 @@ const Table = ({ queryEmployeeId }: AttendanceTableProps) => {
         employeeId: string;
         fromDate: string;
         toDate: string;
+        department: string;
     }>({
         employeeId: initialEmployeeId,
+        department: '',
         ...baseDateRange,
     });
 
@@ -149,6 +207,7 @@ const Table = ({ queryEmployeeId }: AttendanceTableProps) => {
                         employeeId: effectiveEmployeeId,
                         fromDate: appliedFilters.fromDate,
                         toDate: appliedFilters.toDate,
+                        department: appliedFilters.department || undefined,
                     }),
                     cache: 'no-store',
                 },
@@ -171,6 +230,7 @@ const Table = ({ queryEmployeeId }: AttendanceTableProps) => {
         appliedFilters.employeeId,
         appliedFilters.fromDate,
         appliedFilters.toDate,
+        appliedFilters.department,
         authedFetchApi,
         itemPerPage,
         page,
@@ -187,7 +247,16 @@ const Table = ({ queryEmployeeId }: AttendanceTableProps) => {
     const handleSearch = useCallback(() => {
         setAppliedFilters(filters);
         setPage(1);
-    }, [filters]);
+
+        if (searchParams.has('employeeId')) {
+            const params = new URLSearchParams(searchParams.toString());
+            params.delete('employeeId');
+            const queryString = params.toString();
+            router.replace(
+                `${pathname}${queryString ? `?${queryString}` : ''}`,
+            );
+        }
+    }, [filters, searchParams, pathname, router]);
 
     const deleteAttendance = useCallback(
         async (attendance: AttendanceDocument) => {
@@ -286,12 +355,13 @@ const Table = ({ queryEmployeeId }: AttendanceTableProps) => {
                     'sm:flex-row sm:justify-between',
                 )}
             >
-                <div className="flex flex-col sm:flex-row items-center gap-2">
+                <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
                     <Link
                         href="/accountancy/employees"
-                        className="flex justify-between items-center gap-2 rounded-md bg-blue-600 hover:opacity-90 hover:ring-4 hover:ring-blue-600 transition duration-200 delay-300 hover:text-opacity-100 text-white px-3 py-2"
+                        className="flex justify-between items-center gap-2 rounded-md bg-blue-600 hover:opacity-90 hover:ring-4 hover:ring-blue-600 transition duration-200 delay-300 hover:text-opacity-100 text-white px-3 py-2 w-full sm:w-auto"
                     >
                         Employees
+                        <Users size={18} />
                     </Link>
                 </div>
 
@@ -330,190 +400,291 @@ const Table = ({ queryEmployeeId }: AttendanceTableProps) => {
 
             {loading ? <p className="text-center">Loading...</p> : <></>}
 
-            <div className="table-responsive text-nowrap text-base">
-                {!loading &&
-                    (attendanceData?.length !== 0 ? (
-                        <>
-                            <table className="table border table-bordered table-striped">
-                                <thead className="table-dark">
-                                    <tr>
-                                        <th>S/N</th>
-                                        <th>Employee Code</th>
-                                        <th>Employee Name</th>
-                                        <th>Date</th>
-                                        <th>Day</th>
-                                        <th>Flag</th>
-                                        <th>In Time</th>
-                                        <th>In Remarks</th>
-                                        <th>Out Time</th>
-                                        <th>Out Remarks</th>
-                                        <th>Hours</th>
-                                        <th>OT</th>
-                                        {hasPerm(
-                                            'admin:delete_attendance',
-                                            userPermissions,
-                                        ) && <th>Action</th>}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {attendanceData?.map(
-                                        (attendance, index) => {
-                                            const referenceDate =
-                                                getReferenceDate(attendance);
-                                            const isVirtualRow = Boolean(
-                                                (attendance as any).is_virtual,
-                                            );
+            <div className="flex flex-col gap-2 mb-8">
+                {!loading && attendanceData.length !== 0 ? (
+                    attendanceData.map((group, groupIdx) => {
+                        const emp =
+                            typeof group.employee === 'object'
+                                ? group.employee
+                                : null;
+                        const empId = emp
+                            ? String(emp._id)
+                            : `unknown-${groupIdx}`;
+                        const isExpanded = expandedRows.has(empId);
 
-                                            return (
-                                                <tr
-                                                    key={String(attendance._id)}
-                                                >
-                                                    <td>
-                                                        {(page - 1) *
-                                                            itemPerPage +
-                                                            index +
-                                                            1}
-                                                    </td>
-                                                    <td className="text-wrap">
-                                                        {getEmployeeCode(
-                                                            attendance,
+                        return (
+                            <div
+                                key={empId}
+                                className="border border-gray-200 rounded-md bg-white overflow-hidden"
+                            >
+                                {/* Employee Header Row */}
+                                <div
+                                    className="flex items-center justify-between px-4 py-4 cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors"
+                                    onClick={() => toggleRow(empId)}
+                                >
+                                    <div className="flex items-center gap-4 w-[250px] sm:w-[300px]">
+                                        <EmployeeAvatar employee={emp} />
+                                        <div>
+                                            <div className="font-semibold text-gray-800 text-base">
+                                                {emp?.real_name ||
+                                                    'Unknown Employee'}
+                                            </div>
+                                            <div className="text-gray-500 text-sm mt-0.5">
+                                                {emp?.e_id || '-'}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex-1 px-4 hidden sm:block">
+                                        <div className="text-gray-700 text-base">
+                                            {emp?.designation || '-'}
+                                        </div>
+                                        <div className="text-gray-500 text-sm mt-0.5 text-ellipsis">
+                                            {emp?.branch || 'Head Office'}
+                                        </div>
+                                    </div>
+                                    <div className="text-gray-400 p-2 rounded hover:text-gray-700 transition-colors">
+                                        {isExpanded ? (
+                                            <Minus size={18} />
+                                        ) : (
+                                            <Plus size={18} />
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Expanded Attendance Sub-table */}
+                                {isExpanded && (
+                                    <div className="p-2 sm:p-4 bg-white border-t border-gray-200 overflow-x-auto">
+                                        <div className="table-responsive text-nowrap text-base m-0">
+                                            <table className="table border table-bordered m-0">
+                                                <thead className="bg-gray-50 text-gray-600 font-medium">
+                                                    <tr>
+                                                        <th>Attendance Date</th>
+                                                        <th className="text-center">
+                                                            Flag
+                                                        </th>
+                                                        <th>In Time</th>
+                                                        <th>In Time Remarks</th>
+                                                        <th>Out Time & Date</th>
+                                                        <th>
+                                                            Out Time Remarks
+                                                        </th>
+                                                        <th className="text-center">
+                                                            Working Hour
+                                                        </th>
+                                                        <th className="text-center">
+                                                            OT
+                                                        </th>
+                                                        {hasPerm(
+                                                            'admin:delete_attendance',
+                                                            userPermissions,
+                                                        ) && (
+                                                            <th className="text-center">
+                                                                Action
+                                                            </th>
                                                         )}
-                                                    </td>
-                                                    <td className="text-wrap">
-                                                        {getEmployeeName(
-                                                            attendance,
-                                                        )}
-                                                    </td>
-                                                    <td className="text-wrap">
-                                                        {formatAttendanceDate(
-                                                            referenceDate,
-                                                        )}
-                                                    </td>
-                                                    <td className="text-wrap">
-                                                        {getDayOfWeek(
-                                                            referenceDate,
-                                                        )}
-                                                    </td>
-                                                    <td className="text-wrap uppercase">
-                                                        {(attendance as any)
-                                                            .flag ? (
-                                                            <Badge
-                                                                value={
-                                                                    (
-                                                                        attendance as any
-                                                                    ).flag.code
-                                                                }
-                                                                className="border"
-                                                                style={{
-                                                                    backgroundColor:
-                                                                        (
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {group.records.map(
+                                                        (attendance, index) => {
+                                                            const referenceDate =
+                                                                getReferenceDate(
+                                                                    attendance,
+                                                                );
+                                                            const isNonWorkingDay =
+                                                                typeof (
+                                                                    attendance as any
+                                                                ).is_virtual !==
+                                                                'undefined'
+                                                                    ? (
+                                                                          attendance as any
+                                                                      )
+                                                                          .is_virtual
+                                                                    : attendance.verify_mode ===
+                                                                      'auto';
+
+                                                            const colSpanCount =
+                                                                hasPerm(
+                                                                    'admin:delete_attendance',
+                                                                    userPermissions,
+                                                                )
+                                                                    ? 7
+                                                                    : 6;
+
+                                                            return (
+                                                                <tr
+                                                                    key={String(
+                                                                        attendance._id,
+                                                                    )}
+                                                                >
+                                                                    <td className="text-wrap">
+                                                                        <span className="font-medium">
+                                                                            {getDayOfWeek(
+                                                                                referenceDate,
+                                                                            )}
+                                                                        </span>
+                                                                        ,{' '}
+                                                                        {formatAttendanceDate(
+                                                                            referenceDate,
+                                                                        )}
+                                                                    </td>
+                                                                    <td
+                                                                        className="text-wrap text-center uppercase"
+                                                                        style={{
+                                                                            verticalAlign:
+                                                                                'middle',
+                                                                        }}
+                                                                    >
+                                                                        {(
                                                                             attendance as any
-                                                                        ).flag
-                                                                            .color ||
-                                                                        '#e5e7eb',
-                                                                    color: '#ffffff',
-                                                                    borderColor:
-                                                                        (
-                                                                            attendance as any
-                                                                        ).flag
-                                                                            .color ||
-                                                                        '#e5e7eb',
-                                                                }}
-                                                            />
-                                                        ) : (
-                                                            <Badge
-                                                                value={
-                                                                    attendance.status ||
-                                                                    'N/A'
-                                                                }
-                                                                className="bg-gray-100 text-gray-800 border-gray-400"
-                                                            />
-                                                        )}
-                                                    </td>
-                                                    <td className="text-wrap">
-                                                        {formatAttendanceTime(
-                                                            attendance.in_time,
-                                                        )}
-                                                    </td>
-                                                    <td className="text-wrap">
-                                                        {attendance.in_remark ||
-                                                            '-'}
-                                                    </td>
-                                                    <td className="text-wrap">
-                                                        {attendance.out_time
-                                                            ? `${formatAttendanceDate(
-                                                                  attendance.out_time,
-                                                              )}, ${formatAttendanceTime(
-                                                                  attendance.out_time,
-                                                              )}`
-                                                            : '-'}
-                                                    </td>
-                                                    <td className="text-wrap">
-                                                        {attendance.out_remark ||
-                                                            '-'}
-                                                    </td>
-                                                    <td className="text-wrap">
-                                                        {calculateWorkingHours(
-                                                            attendance.in_time,
-                                                            attendance.out_time,
-                                                            (attendance as any)
-                                                                .flag,
-                                                        )}
-                                                    </td>
-                                                    <td className="text-wrap font-semibold text-green-600">
-                                                        {formatOT(
-                                                            attendance.ot_minutes,
-                                                        )}
-                                                    </td>
-                                                    {hasPerm(
-                                                        'admin:delete_attendance',
-                                                        userPermissions,
-                                                    ) && (
-                                                        <td
-                                                            className="text-center"
-                                                            style={{
-                                                                verticalAlign:
-                                                                    'middle',
-                                                            }}
-                                                        >
-                                                            {isVirtualRow ? (
-                                                                <span className="text-gray-400">
-                                                                    -
-                                                                </span>
-                                                            ) : (
-                                                                <div className="inline-block">
-                                                                    <DeleteButton
-                                                                        attendanceData={
-                                                                            attendance
-                                                                        }
-                                                                        submitHandler={
-                                                                            deleteAttendance
-                                                                        }
-                                                                    />
-                                                                </div>
-                                                            )}
-                                                        </td>
+                                                                        )
+                                                                            .flag ? (
+                                                                            <Badge
+                                                                                value={
+                                                                                    (
+                                                                                        attendance as any
+                                                                                    )
+                                                                                        .flag
+                                                                                        .code
+                                                                                }
+                                                                                className="border"
+                                                                                style={{
+                                                                                    backgroundColor:
+                                                                                        (
+                                                                                            attendance as any
+                                                                                        )
+                                                                                            .flag
+                                                                                            .color ||
+                                                                                        '#e5e7eb',
+                                                                                    color: '#ffffff',
+                                                                                    borderColor:
+                                                                                        (
+                                                                                            attendance as any
+                                                                                        )
+                                                                                            .flag
+                                                                                            .color ||
+                                                                                        '#e5e7eb',
+                                                                                }}
+                                                                            />
+                                                                        ) : (
+                                                                            <Badge
+                                                                                value={
+                                                                                    attendance.status ||
+                                                                                    'N/A'
+                                                                                }
+                                                                                className="bg-gray-100 text-gray-800 border-gray-300"
+                                                                            />
+                                                                        )}
+                                                                    </td>
+                                                                    {isNonWorkingDay ? (
+                                                                        <td
+                                                                            colSpan={
+                                                                                colSpanCount
+                                                                            }
+                                                                            className="text-center text-gray-400 italic bg-gray-50/50"
+                                                                        >
+                                                                            {attendance.in_remark ||
+                                                                                'System Generated'}
+                                                                        </td>
+                                                                    ) : (
+                                                                        <>
+                                                                            <td className="text-wrap font-medium text-gray-700">
+                                                                                {formatAttendanceTime(
+                                                                                    attendance.in_time,
+                                                                                )}
+                                                                            </td>
+                                                                            <td className="text-wrap">
+                                                                                <div
+                                                                                    className="max-w-[200px] truncate text-gray-500"
+                                                                                    title={
+                                                                                        attendance.in_remark
+                                                                                    }
+                                                                                >
+                                                                                    {attendance.in_remark ||
+                                                                                        '-'}
+                                                                                </div>
+                                                                            </td>
+                                                                            <td className="text-wrap font-medium text-gray-700">
+                                                                                {attendance.out_time
+                                                                                    ? `${formatAttendanceDate(attendance.out_time)}, ${formatAttendanceTime(attendance.out_time)}`
+                                                                                    : '-'}
+                                                                            </td>
+                                                                            <td className="text-wrap">
+                                                                                <div
+                                                                                    className="max-w-[200px] truncate text-gray-500"
+                                                                                    title={
+                                                                                        attendance.out_remark
+                                                                                    }
+                                                                                >
+                                                                                    {attendance.out_remark ||
+                                                                                        '-'}
+                                                                                </div>
+                                                                            </td>
+                                                                            <td className="text-wrap font-semibold text-gray-800 text-center">
+                                                                                {calculateWorkingHours(
+                                                                                    attendance.in_time,
+                                                                                    attendance.out_time,
+                                                                                    (
+                                                                                        attendance as any
+                                                                                    )
+                                                                                        .flag,
+                                                                                )}
+                                                                            </td>
+                                                                            <td className="text-wrap font-semibold text-green-600 text-center">
+                                                                                {formatOT(
+                                                                                    attendance.ot_minutes,
+                                                                                )}
+                                                                            </td>
+                                                                            {hasPerm(
+                                                                                'admin:delete_attendance',
+                                                                                userPermissions,
+                                                                            ) && (
+                                                                                <td
+                                                                                    className="text-center"
+                                                                                    style={{
+                                                                                        verticalAlign:
+                                                                                            'middle',
+                                                                                    }}
+                                                                                >
+                                                                                    <div className="inline-block">
+                                                                                        <DeleteButton
+                                                                                            attendanceData={
+                                                                                                attendance
+                                                                                            }
+                                                                                            submitHandler={
+                                                                                                deleteAttendance
+                                                                                            }
+                                                                                        />
+                                                                                    </div>
+                                                                                </td>
+                                                                            )}
+                                                                        </>
+                                                                    )}
+                                                                </tr>
+                                                            );
+                                                        },
                                                     )}
-                                                </tr>
-                                            );
-                                        },
-                                    )}
-                                </tbody>
-                            </table>
-                        </>
-                    ) : (
-                        <NoData
-                            text="No Attendance Records Found"
-                            type={Type.danger}
-                        />
-                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })
+                ) : !loading ? (
+                    <NoData
+                        text="No Attendance Records Found"
+                        type={Type.danger}
+                    />
+                ) : null}
             </div>
 
-            <style jsx>
+            <style>
                 {`
                     th,
                     td {
-                        padding: 2.5px 10px;
+                        padding: 6px 10px;
                     }
                 `}
             </style>

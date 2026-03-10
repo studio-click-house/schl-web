@@ -85,13 +85,14 @@ export class Employee {
     @Prop({
         default: '',
         enum: EMPLOYEE_BLOOD_GROUPS,
+        index: true,
     })
     blood_group: EmployeeBloodGroup;
 
     @Prop({ required: [true, 'Designation is required'] })
     designation: string;
 
-    @Prop({ required: [true, 'Department is required'] })
+    @Prop({ required: [true, 'Department is required'], index: true })
     department: string;
 
     @Prop({ required: [true, 'Gross salary is required'] })
@@ -106,6 +107,7 @@ export class Employee {
     @Prop({
         required: [true, 'Status is required'],
         enum: EMPLOYEE_STATUSES,
+        index: true,
     })
     status: EmployeeStatus;
 

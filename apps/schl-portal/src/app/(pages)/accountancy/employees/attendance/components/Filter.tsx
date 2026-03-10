@@ -1,4 +1,5 @@
 'use client';
+import { EMPLOYEE_DEPARTMENTS } from '@repo/common/constants/employee.constant';
 
 import { cn } from '@repo/common/utils/general-utils';
 import {
@@ -25,6 +26,7 @@ interface PropsType {
         employeeId: string;
         fromDate: string;
         toDate: string;
+        department: string;
     };
     employeeOptions: EmployeeOption[];
     setFilters: React.Dispatch<React.SetStateAction<any>>;
@@ -35,6 +37,7 @@ const FilterButton: React.FC<PropsType> = props => {
     const [isOpen, setIsOpen] = useState<boolean>(false);
     const { filters, setFilters } = props;
     const popupRef = useRef<HTMLElement>(null);
+    const todayDate = moment.tz('Asia/Dhaka').format('YYYY-MM-DD');
 
     const handleChange = (
         e: React.ChangeEvent<
@@ -63,6 +66,7 @@ const FilterButton: React.FC<PropsType> = props => {
             employeeId: '',
             fromDate: today,
             toDate: today,
+            department: '',
         });
     };
 
@@ -147,6 +151,36 @@ const FilterButton: React.FC<PropsType> = props => {
                             </div>
                             <div>
                                 <label className="uppercase tracking-wide text-gray-700 text-sm font-bold flex gap-2 mb-2">
+                                    Department
+                                </label>
+                                <Select
+                                    {...setClassNameAndIsDisabled(isOpen)}
+                                    options={EMPLOYEE_DEPARTMENTS.map(d => ({ value: d, label: d }))}
+                                    classNamePrefix="react-select"
+                                    menuPortalTarget={setMenuPortalTarget}
+                                    styles={setCalculatedZIndex(baseZIndex)}
+                                    value={
+                                        filters.department
+                                            ? { value: filters.department, label: filters.department }
+                                            : null
+                                    }
+                                    onChange={selectedOption =>
+                                        setFilters(
+                                            (
+                                                prevData: PropsType['filters'],
+                                            ) => ({
+                                                ...prevData,
+                                                department:
+                                                    selectedOption?.value || '',
+                                            }),
+                                        )
+                                    }
+                                    isClearable
+                                    placeholder="Select department"
+                                />
+                            </div>
+                            <div>
+                                <label className="uppercase tracking-wide text-gray-700 text-sm font-bold flex gap-2 mb-2">
                                     Date Range
                                 </label>
 
@@ -160,6 +194,7 @@ const FilterButton: React.FC<PropsType> = props => {
                                         value={filters.fromDate}
                                         onChange={handleChange}
                                         type="date"
+                                        max={todayDate}
                                     />
                                     <span className="inline-flex items-center px-4 py-2 m-0 text-sm font-medium border">
                                         <b>to</b>
@@ -170,6 +205,8 @@ const FilterButton: React.FC<PropsType> = props => {
                                         value={filters.toDate}
                                         onChange={handleChange}
                                         type="date"
+                                        min={filters.fromDate || undefined}
+                                        max={todayDate}
                                     />
                                 </div>
                             </div>

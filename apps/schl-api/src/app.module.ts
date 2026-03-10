@@ -7,18 +7,23 @@ import { AppService } from './app.service';
 import { JwtAuthGuard } from './common/auth/jwt-auth.guard';
 import { JwtStrategy } from './common/auth/jwt.strategy';
 import { ApprovalModule } from './modules/approval/approval.module';
+import { AttendanceFlagModule } from './modules/attendance-flag/attendance-flag.module';
 import { AttendanceModule } from './modules/attendance/attendance.module';
 import { ClientModule } from './modules/client/client.module';
 import { DailyReportModule } from './modules/daily-report/daily-report.module';
+import { DepartmentModule } from './modules/department/department.module';
 import { DeviceUserModule } from './modules/device-user/device-user.module';
 import { EmployeeModule } from './modules/employee/employee.module';
 import { FtpModule } from './modules/ftp/ftp.module';
+import { HolidayModule } from './modules/holiday/holiday.module';
 import { InvoiceModule } from './modules/invoice/invoice.module';
+import { LeaveModule } from './modules/leave/leave.module';
 import { NoticeModule } from './modules/notice/notice.module';
 import { OrderModule } from './modules/order/order.module';
 import { ReportModule } from './modules/report/report.module';
 import { RoleModule } from './modules/role/role.module';
 import { ScheduleModule } from './modules/schedule/schedule.module';
+import { ShiftPlanModule } from './modules/shift-plan/shift-plan.module';
 import { TicketModule } from './modules/ticket/ticket.module';
 import { TrackerModule } from './modules/tracker/tracker.module';
 import { UserModule } from './modules/user/user.module';
@@ -28,10 +33,10 @@ import { ValidatorModule } from './modules/validator/validator.module';
     imports: [
         ConfigModule.forRoot({
             isGlobal: true,
-            envFilePath: process.env.VERCEL_ENV
-                ? undefined
-                : `config/.env.${process.env.NODE_ENV}`,
-            ignoreEnvFile: !!process.env.VERCEL_ENV,
+            envFilePath: [
+                '.env',
+                `config/.env.${process.env.NODE_ENV || 'development'}`,
+            ],
         }), // loads .env into process.env
         MongooseModule.forRootAsync({
             imports: [ConfigModule],
@@ -59,6 +64,11 @@ import { ValidatorModule } from './modules/validator/validator.module';
         TrackerModule,
         AttendanceModule,
         DeviceUserModule,
+        DepartmentModule,
+        AttendanceFlagModule,
+        ShiftPlanModule,
+        LeaveModule,
+        HolidayModule,
     ],
     controllers: [AppController],
     providers: [

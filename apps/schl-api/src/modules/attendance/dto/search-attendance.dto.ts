@@ -45,4 +45,8 @@ export class SearchAttendanceBodyDto {
     @IsOptional()
     @IsString()
     toDate?: string;
+
+    @IsOptional()
+    @IsString()
+    department?: string;
 }
