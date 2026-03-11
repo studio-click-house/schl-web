@@ -11,19 +11,19 @@ import {
 } from '@nestjs/common';
 import { UserSession } from '@repo/common/types/user-session.type';
 import {
-    CreateLeaveDto,
-    UpdateLeaveDto,
-    UpdateLeaveStatusDto,
-} from './dto/create-leave.dto';
+    CreateLeaveRequestDto,
+    UpdateLeaveRequestDto,
+    UpdateLeaveRequestStatusDto,
+} from './dto/create-leave-request.dto';
 import {
-    SearchLeavesBodyDto,
-    SearchLeavesQueryDto,
-} from './dto/search-leaves.dto';
-import { LeaveService } from './leave.service';
+    SearchLeaveRequestsBodyDto,
+    SearchLeaveRequestsQueryDto,
+} from './dto/search-leave-requests.dto';
+import { LeaveRequestService } from './leave-request.service';
 
-@Controller('leaves')
-export class LeaveController {
-    constructor(private readonly service: LeaveService) {}
+@Controller('leave-requests')
+export class LeaveRequestController {
+    constructor(private readonly service: LeaveRequestService) {}
 
     @Get()
     async findAll(
@@ -50,8 +50,8 @@ export class LeaveController {
 
     @Post('search')
     async search(
-        @Query() query: SearchLeavesQueryDto,
-        @Body() body: SearchLeavesBodyDto,
+        @Query() query: SearchLeaveRequestsQueryDto,
+        @Body() body: SearchLeaveRequestsBodyDto,
         @Req() req: Request & { user: UserSession },
     ) {
         const pagination = {
@@ -59,12 +59,16 @@ export class LeaveController {
             itemsPerPage: query.itemsPerPage,
             paginated: query.paginated,
         };
-        return await this.service.searchLeaves(body, pagination, req.user);
+        return await this.service.searchLeaveRequests(
+            body,
+            pagination,
+            req.user,
+        );
     }
 
     @Post()
     async create(
-        @Body() dto: CreateLeaveDto,
+        @Body() dto: CreateLeaveRequestDto,
         @Req() req: Request & { user: UserSession },
     ) {
         return await this.service.apply(dto, req.user);
@@ -73,7 +77,7 @@ export class LeaveController {
     @Patch(':id/status')
     async updateStatus(
         @Param('id') id: string,
-        @Body() dto: UpdateLeaveStatusDto,
+        @Body() dto: UpdateLeaveRequestStatusDto,
         @Req() req: Request & { user: UserSession },
     ) {
         return await this.service.updateStatus(id, dto.status, req.user);
@@ -82,7 +86,7 @@ export class LeaveController {
     @Patch(':id')
     async update(
         @Param('id') id: string,
-        @Body() dto: UpdateLeaveDto,
+        @Body() dto: UpdateLeaveRequestDto,
         @Req() req: Request & { user: UserSession },
     ) {
         return await this.service.update(id, dto, req.user);

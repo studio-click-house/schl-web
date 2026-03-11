@@ -98,7 +98,9 @@ const Table = () => {
                 }
             } catch (error) {
                 console.error(error);
-                toast.error('An error occurred while retrieving employees data');
+                toast.error(
+                    'An error occurred while retrieving employees data',
+                );
             } finally {
                 setLoading(false);
             }
@@ -140,7 +142,9 @@ const Table = () => {
                 }
             } catch (error) {
                 console.error(error);
-                toast.error('An error occurred while retrieving employees data');
+                toast.error(
+                    'An error occurred while retrieving employees data',
+                );
             } finally {
                 setLoading(false);
             }
@@ -185,7 +189,13 @@ const Table = () => {
         } else {
             await getAllEmployeesFiltered(page, itemPerPage);
         }
-    }, [isFiltered, getAllEmployees, getAllEmployeesFiltered, page, itemPerPage]);
+    }, [
+        isFiltered,
+        getAllEmployees,
+        getAllEmployeesFiltered,
+        page,
+        itemPerPage,
+    ]);
 
     async function editEmployee(
         editedEmployeeData: zod_EmployeeDataType,
@@ -474,4 +484,3 @@ const Table = () => {
 };
 
 export default Table;
-

@@ -14,8 +14,8 @@ import { IdParamDto } from '../../common/dto/id-param.dto';
 import { CreateShiftOverrideBodyDto } from './dto/create-shift-override.dto';
 import { CreateShiftTemplateBodyDto } from './dto/create-shift-template.dto';
 import {
-    SearchShiftPlansBodyDto,
-    SearchShiftPlansQueryDto,
+    SearchShiftTemplatesBodyDto,
+    SearchShiftTemplatesQueryDto,
 } from './dto/search-shift-plan.dto';
 import { UpdateShiftTemplateBodyDto } from './dto/update-shift-template.dto';
 import { ShiftPlanService } from './shift-plan.service';
@@ -26,8 +26,8 @@ export class ShiftPlanController {
 
     @Post('overrides/search')
     async searchOverrides(
-        @Body() body: SearchShiftPlansBodyDto,
-        @Query() query: SearchShiftPlansQueryDto,
+        @Body() body: SearchShiftTemplatesBodyDto,
+        @Query() query: SearchShiftTemplatesQueryDto,
         @Req() req: Request & { user: UserSession },
     ) {
         return await this.shiftPlanService.searchOverrides(
@@ -99,8 +99,8 @@ export class ShiftPlanController {
 
     @Post('search')
     async searchShiftPlans(
-        @Body() body: SearchShiftPlansBodyDto,
-        @Query() query: SearchShiftPlansQueryDto,
+        @Body() body: SearchShiftTemplatesBodyDto,
+        @Query() query: SearchShiftTemplatesQueryDto,
         @Req() req: Request & { user: UserSession },
     ) {
         const page = parseInt(query.page || '1', 10);

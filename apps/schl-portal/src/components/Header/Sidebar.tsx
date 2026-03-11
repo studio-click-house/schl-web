@@ -311,7 +311,7 @@ const Sidebar: React.FC<PropsType> = props => {
                                             </li>
                                             <li>
                                                 <Link
-                                                    href="/admin/leaves"
+                                                    href="/admin/leave-requests"
                                                     className="flex items-center w-full p-2 text-gray-900 transition duration-75 pl-20 group hover:bg-gray-100"
                                                 >
                                                     <CalendarPlus className="w-5 h-5 mr-2" />

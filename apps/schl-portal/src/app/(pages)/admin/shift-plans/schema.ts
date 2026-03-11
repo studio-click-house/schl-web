@@ -91,8 +91,8 @@ export const shiftOverrideSchema = z
         },
     );
 
-export type ShiftPlanFormData = z.infer<typeof shiftPlanValidationSchema>;
-export type ShiftPlanEditData = z.infer<typeof shiftPlanEditSchema>;
+export type ShiftTemplateFormData = z.infer<typeof shiftPlanValidationSchema>;
+export type ShiftTemplateEditData = z.infer<typeof shiftPlanEditSchema>;
 export type ShiftOverrideFormData = z.infer<typeof shiftOverrideSchema>;
 
 // Standard shift time definitions

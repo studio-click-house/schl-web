@@ -311,7 +311,7 @@ const Table = ({ queryEmployeeId }: AttendanceTableProps) => {
         flag?: any,
     ) => {
         if (!inTime || !outTime) return '0:0';
-        if (flag && flag.ignore_attendance_hours) return '0:0';
+        if (flag && (flag.ignore_attendance_hours || ['A', 'W', 'H', 'L'].includes(flag.code))) return '0:0';
         try {
             const start = moment.tz(inTime, 'Asia/Dhaka');
             const end = moment.tz(outTime, 'Asia/Dhaka');
@@ -491,25 +491,13 @@ const Table = ({ queryEmployeeId }: AttendanceTableProps) => {
                                                                 getReferenceDate(
                                                                     attendance,
                                                                 );
-                                                            const isNonWorkingDay =
-                                                                typeof (
-                                                                    attendance as any
-                                                                ).is_virtual !==
-                                                                'undefined'
-                                                                    ? (
-                                                                          attendance as any
-                                                                      )
-                                                                          .is_virtual
-                                                                    : attendance.verify_mode ===
-                                                                      'auto';
-
-                                                            const colSpanCount =
-                                                                hasPerm(
-                                                                    'admin:delete_attendance',
-                                                                    userPermissions,
-                                                                )
-                                                                    ? 7
-                                                                    : 6;
+                                                            const isVirtualRow =
+                                                                Boolean(
+                                                                    (
+                                                                        attendance as any
+                                                                    )
+                                                                        .is_virtual,
+                                                                );
 
                                                             return (
                                                                 <tr
@@ -576,89 +564,81 @@ const Table = ({ queryEmployeeId }: AttendanceTableProps) => {
                                                                             />
                                                                         )}
                                                                     </td>
-                                                                    {isNonWorkingDay ? (
-                                                                        <td
-                                                                            colSpan={
-                                                                                colSpanCount
+                                                                    <td className="text-wrap font-medium text-gray-700">
+                                                                        {formatAttendanceTime(
+                                                                            attendance.in_time,
+                                                                        )}
+                                                                    </td>
+                                                                    <td className="text-wrap">
+                                                                        <div
+                                                                            className="max-w-[200px] truncate text-gray-500"
+                                                                            title={
+                                                                                attendance.in_remark
                                                                             }
-                                                                            className="text-center text-gray-400 italic bg-gray-50/50"
                                                                         >
                                                                             {attendance.in_remark ||
-                                                                                'System Generated'}
-                                                                        </td>
-                                                                    ) : (
-                                                                        <>
-                                                                            <td className="text-wrap font-medium text-gray-700">
-                                                                                {formatAttendanceTime(
-                                                                                    attendance.in_time,
-                                                                                )}
-                                                                            </td>
-                                                                            <td className="text-wrap">
-                                                                                <div
-                                                                                    className="max-w-[200px] truncate text-gray-500"
-                                                                                    title={
-                                                                                        attendance.in_remark
-                                                                                    }
-                                                                                >
-                                                                                    {attendance.in_remark ||
-                                                                                        '-'}
+                                                                                '-'}
+                                                                        </div>
+                                                                    </td>
+                                                                    <td className="text-wrap font-medium text-gray-700">
+                                                                        {attendance.out_time
+                                                                            ? `${formatAttendanceDate(attendance.out_time)}, ${formatAttendanceTime(attendance.out_time)}`
+                                                                            : '-'}
+                                                                    </td>
+                                                                    <td className="text-wrap">
+                                                                        <div
+                                                                            className="max-w-[200px] truncate text-gray-500"
+                                                                            title={
+                                                                                attendance.out_remark
+                                                                            }
+                                                                        >
+                                                                            {attendance.out_remark ||
+                                                                                '-'}
+                                                                        </div>
+                                                                    </td>
+                                                                    <td className="text-wrap font-semibold text-gray-800 text-center">
+                                                                        {calculateWorkingHours(
+                                                                            attendance.in_time,
+                                                                            attendance.out_time,
+                                                                            (
+                                                                                attendance as any
+                                                                            )
+                                                                                .flag,
+                                                                        )}
+                                                                    </td>
+                                                                    <td className="text-wrap font-semibold text-green-600 text-center">
+                                                                        {formatOT(
+                                                                            attendance.ot_minutes,
+                                                                        )}
+                                                                    </td>
+                                                                    {hasPerm(
+                                                                        'admin:delete_attendance',
+                                                                        userPermissions,
+                                                                    ) && (
+                                                                        <td
+                                                                            className="text-center"
+                                                                            style={{
+                                                                                verticalAlign:
+                                                                                    'middle',
+                                                                            }}
+                                                                        >
+                                                                            {isVirtualRow ? (
+                                                                                <span className="text-gray-400">
+                                                                                    -
+                                                                                </span>
+                                                                            ) : (
+                                                                                <div className="inline-block">
+                                                                                    <DeleteButton
+                                                                                        attendanceData={
+                                                                                            attendance
+                                                                                        }
+                                                                                        submitHandler={
+                                                                                            deleteAttendance
+                                                                                        }
+                                                                                    />
                                                                                 </div>
-                                                                            </td>
-                                                                            <td className="text-wrap font-medium text-gray-700">
-                                                                                {attendance.out_time
-                                                                                    ? `${formatAttendanceDate(attendance.out_time)}, ${formatAttendanceTime(attendance.out_time)}`
-                                                                                    : '-'}
-                                                                            </td>
-                                                                            <td className="text-wrap">
-                                                                                <div
-                                                                                    className="max-w-[200px] truncate text-gray-500"
-                                                                                    title={
-                                                                                        attendance.out_remark
-                                                                                    }
-                                                                                >
-                                                                                    {attendance.out_remark ||
-                                                                                        '-'}
-                                                                                </div>
-                                                                            </td>
-                                                                            <td className="text-wrap font-semibold text-gray-800 text-center">
-                                                                                {calculateWorkingHours(
-                                                                                    attendance.in_time,
-                                                                                    attendance.out_time,
-                                                                                    (
-                                                                                        attendance as any
-                                                                                    )
-                                                                                        .flag,
-                                                                                )}
-                                                                            </td>
-                                                                            <td className="text-wrap font-semibold text-green-600 text-center">
-                                                                                {formatOT(
-                                                                                    attendance.ot_minutes,
-                                                                                )}
-                                                                            </td>
-                                                                            {hasPerm(
-                                                                                'admin:delete_attendance',
-                                                                                userPermissions,
-                                                                            ) && (
-                                                                                <td
-                                                                                    className="text-center"
-                                                                                    style={{
-                                                                                        verticalAlign:
-                                                                                            'middle',
-                                                                                    }}
-                                                                                >
-                                                                                    <div className="inline-block">
-                                                                                        <DeleteButton
-                                                                                            attendanceData={
-                                                                                                attendance
-                                                                                            }
-                                                                                            submitHandler={
-                                                                                                deleteAttendance
-                                                                                            }
-                                                                                        />
-                                                                                    </div>
-                                                                                </td>
                                                                             )}
-                                                                        </>
+                                                                        </td>
                                                                     )}
                                                                 </tr>
                                                             );

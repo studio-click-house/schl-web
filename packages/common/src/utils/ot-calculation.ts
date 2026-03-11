@@ -132,25 +132,25 @@ export function calculateOTFromMinutes(minutes: number): number {
  * - Otherwise, it belongs to the current calendar day's shift
  *
  * @param timestamp - The attendance timestamp
- * @param shiftPlan - Optional shift plan details
+ * @param shift - Optional shift details (start time and midnight crossing info)
  * @returns The shift date (business day)
  */
 export function determineShiftDate(
     timestamp: Date,
-    shiftPlan?: { shift_start: string; crosses_midnight: boolean },
+    shift?: { shift_start: string; crosses_midnight: boolean },
 ): Date {
     const momentTime = moment.tz(timestamp, 'Asia/Dhaka');
 
-    if (!shiftPlan) {
+    if (!shift) {
         // No shift plan: use calendar date
         return momentTime.startOf('day').toDate();
     }
 
-    const [shiftHour] = shiftPlan.shift_start.split(':').map(Number);
+    const [shiftHour] = shift.shift_start.split(':').map(Number);
 
     // If shift crosses midnight and current time is before shift start hour
     // (e.g., 1:30 AM but shift starts at 3 PM), this belongs to previous day's shift
-    if (shiftPlan.crosses_midnight && momentTime.hour() < shiftHour) {
+    if (shift.crosses_midnight && momentTime.hour() < shiftHour) {
         return momentTime.subtract(1, 'day').startOf('day').toDate();
     }
 

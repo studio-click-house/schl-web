@@ -18,7 +18,10 @@ import {
 } from '@repo/common/models/device-user.schema';
 import { Employee, EmployeeSchema } from '@repo/common/models/employee.schema';
 import { Holiday, HolidaySchema } from '@repo/common/models/holiday.schema';
-import { Leave, LeaveSchema } from '@repo/common/models/leave.schema';
+import {
+    LeaveRequest,
+    LeaveRequestSchema,
+} from '@repo/common/models/leave-request.schema';
 import {
     ShiftOverride,
     ShiftOverrideSchema,
@@ -43,7 +46,7 @@ import { AttendanceService } from './attendance.service';
             { name: ShiftTemplate.name, schema: ShiftTemplateSchema },
             { name: ShiftOverride.name, schema: ShiftOverrideSchema },
             { name: ShiftResolved.name, schema: ShiftResolvedSchema },
-            { name: Leave.name, schema: LeaveSchema },
+            { name: LeaveRequest.name, schema: LeaveRequestSchema },
             { name: Employee.name, schema: EmployeeSchema },
             { name: Department.name, schema: DepartmentSchema },
             { name: Holiday.name, schema: HolidaySchema },

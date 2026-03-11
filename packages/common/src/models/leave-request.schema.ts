@@ -1,18 +1,22 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { LEAVE_TYPES } from '@repo/common/constants/leave.constant';
+import { LEAVE_REQUEST_TYPES } from '@repo/common/constants/leave-request.constant';
 import * as mongoose from 'mongoose';
 import { HydratedDocument } from 'mongoose';
 import { AttendanceFlag } from './attendance-flag.schema';
 
-export type LeaveDocument = HydratedDocument<Leave>;
+export type LeaveRequestDocument = HydratedDocument<LeaveRequest>;
 
-export const LEAVE_STATUSES = ['pending', 'approved', 'rejected'] as const;
-export type LeaveStatus = (typeof LEAVE_STATUSES)[number];
+export const LEAVE_REQUEST_STATUSES = [
+    'pending',
+    'approved',
+    'rejected',
+] as const;
+export type LeaveRequestStatus = (typeof LEAVE_REQUEST_STATUSES)[number];
 
-// LEAVE_TYPES is centralized in @repo/common/constants/leave.constant
+// LEAVE_REQUEST_TYPES is centralized in @repo/common/constants/leave-request.constant
 
-@Schema({ timestamps: true })
-export class Leave {
+@Schema({ timestamps: true, collection: 'leave_requests' })
+export class LeaveRequest {
     @Prop({
         required: true,
         ref: 'Employee',
@@ -28,7 +32,7 @@ export class Leave {
     })
     flag: mongoose.Types.ObjectId; // The flag (usually generic 'L' for leaves')
 
-    @Prop({ required: true, type: String, enum: LEAVE_TYPES as any })
+    @Prop({ required: true, type: String, enum: LEAVE_REQUEST_TYPES as any })
     leave_type: string; // 'casual' | 'emergency' | 'marriage' | 'unpaid'
 
     @Prop({ default: true })
@@ -46,13 +50,13 @@ export class Leave {
     @Prop({
         required: true,
         type: String,
-        enum: LEAVE_STATUSES,
+        enum: LEAVE_REQUEST_STATUSES,
         default: 'pending',
     })
-    status: LeaveStatus;
+    status: LeaveRequestStatus;
 
     @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User' })
     approved_by?: mongoose.Types.ObjectId;
 }
 
-export const LeaveSchema = SchemaFactory.createForClass(Leave);
+export const LeaveRequestSchema = SchemaFactory.createForClass(LeaveRequest);

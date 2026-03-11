@@ -1,6 +1,6 @@
 import { IsDateString, IsOptional, IsString } from 'class-validator';
 
-export class SearchShiftPlansBodyDto {
+export class SearchShiftTemplatesBodyDto {
     @IsOptional()
     @IsString()
     employeeId?: string;
@@ -28,7 +28,7 @@ export class SearchShiftPlansBodyDto {
     active?: 'true' | 'false';
 }
 
-export class SearchShiftPlansQueryDto {
+export class SearchShiftTemplatesQueryDto {
     @IsOptional()
     @IsString()
     page?: string;

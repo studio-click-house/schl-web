@@ -3,9 +3,9 @@
 import { useAuthedFetchApi } from '@/lib/api-client';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
-    leavePaidOptions,
-    leaveTypeOptions,
-} from '@repo/common/constants/leave.constant';
+    leaveRequestPaidOptions,
+    leaveRequestTypeOptions,
+} from '@repo/common/constants/leave-request.constant';
 import {
     setCalculatedZIndex,
     setClassNameAndIsDisabled,
@@ -120,7 +120,7 @@ const LeaveModal: React.FC<LeaveModalProps> = ({
             if (initialData && initialData._id) {
                 // Edit mode
                 response = await authedFetchApi(
-                    { path: `/v1/leaves/${initialData._id}` },
+                    { path: `/v1/leave-requests/${initialData._id}` },
                     {
                         method: 'PATCH',
                         headers: { 'Content-Type': 'application/json' },
@@ -130,7 +130,7 @@ const LeaveModal: React.FC<LeaveModalProps> = ({
             } else {
                 // Create mode
                 response = await authedFetchApi(
-                    { path: '/v1/leaves' },
+                    { path: '/v1/leave-requests' },
                     {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -243,13 +243,13 @@ const LeaveModal: React.FC<LeaveModalProps> = ({
                             <div className="mt-1">
                                 <Select
                                     {...setClassNameAndIsDisabled(isOpen)}
-                                    options={leaveTypeOptions}
+                                    options={leaveRequestTypeOptions}
                                     closeMenuOnSelect={true}
                                     classNamePrefix="react-select"
                                     menuPortalTarget={setMenuPortalTarget}
                                     styles={setCalculatedZIndex(50)}
                                     value={
-                                        leaveTypeOptions.find(
+                                        leaveRequestTypeOptions.find(
                                             o => o.value === watch('leaveType'),
                                         ) || null
                                     }
@@ -272,13 +272,13 @@ const LeaveModal: React.FC<LeaveModalProps> = ({
                             <div className="mt-1">
                                 <Select
                                     {...setClassNameAndIsDisabled(isOpen)}
-                                    options={leavePaidOptions}
+                                    options={leaveRequestPaidOptions}
                                     closeMenuOnSelect={true}
                                     classNamePrefix="react-select"
                                     menuPortalTarget={setMenuPortalTarget}
                                     styles={setCalculatedZIndex(50)}
                                     value={
-                                        leavePaidOptions.find(
+                                        leaveRequestPaidOptions.find(
                                             o => o.value === watch('isPaid'),
                                         ) || null
                                     }

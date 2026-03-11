@@ -1,7 +1,7 @@
 import {
-    LEAVE_TYPES,
-    type LeaveType,
-} from '@repo/common/constants/leave.constant';
+    LEAVE_REQUEST_TYPES,
+    type LeaveRequestType,
+} from '@repo/common/constants/leave-request.constant';
 import { toBoolean } from '@repo/common/utils/transformers';
 import { Transform, Type } from 'class-transformer';
 import {
@@ -13,7 +13,7 @@ import {
     Min,
 } from 'class-validator';
 
-export class SearchLeavesQueryDto {
+export class SearchLeaveRequestsQueryDto {
     @IsOptional()
     @Type(() => Number)
     @IsInt()
@@ -33,7 +33,7 @@ export class SearchLeavesQueryDto {
     paginated: boolean = true;
 }
 
-export class SearchLeavesBodyDto {
+export class SearchLeaveRequestsBodyDto {
     @IsOptional()
     @IsString()
     employeeId?: string;
@@ -54,7 +54,7 @@ export class SearchLeavesBodyDto {
 
     @IsOptional()
     @IsString()
-    leaveType?: LeaveType;
+    leaveType?: LeaveRequestType;
 
     @IsOptional()
     @IsString()

@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import {
-    ShiftPlanFormData,
+    ShiftTemplateFormData,
     shiftPlanValidationSchema,
     STANDARD_SHIFTS,
 } from '../schema';
@@ -22,7 +22,7 @@ const Form = () => {
     const router = useRouter();
     const authedFetchApi = useAuthedFetchApi();
 
-    const [formData, setFormData] = useState<ShiftPlanFormData>({
+    const [formData, setFormData] = useState<ShiftTemplateFormData>({
         employeeIds: [],
         fromDate: '',
         toDate: '',
@@ -209,7 +209,7 @@ const Form = () => {
 
             if (response.ok) {
                 const count = response.data?.created || 0;
-                toast.success(`Successfully created ${count} shift plan(s)`);
+                toast.success(`Successfully created ${count} shift template(s)`);
                 router.push('/admin/shift-plans');
             } else {
                 toastFetchError(response);
@@ -509,7 +509,7 @@ const Form = () => {
                 className="rounded-md bg-primary text-white hover:opacity-90 hover:ring-4 hover:ring-primary transition duration-200 delay-300 hover:text-opacity-100 text-primary-foreground px-10 py-2 mt-6 uppercase disabled:opacity-50 disabled:cursor-not-allowed"
                 type="submit"
             >
-                {isLoading ? 'Creating...' : `Create shift plans`}
+                {isLoading ? 'Creating...' : `Create shift templates`}
             </button>
         </form>
     );

@@ -1,7 +1,7 @@
 import {
-    LEAVE_TYPES,
-    type LeaveType,
-} from '@repo/common/constants/leave.constant';
+    LEAVE_REQUEST_TYPES,
+    type LeaveRequestType,
+} from '@repo/common/constants/leave-request.constant';
 import {
     IsBoolean,
     IsDateString,
@@ -12,15 +12,15 @@ import {
     IsString,
 } from 'class-validator';
 
-export class CreateLeaveDto {
+export class CreateLeaveRequestDto {
     @IsMongoId()
     @IsNotEmpty()
     employeeId: string;
 
     @IsString()
     @IsNotEmpty()
-    @IsIn(LEAVE_TYPES as readonly LeaveType[])
-    leaveType: LeaveType;
+    @IsIn(LEAVE_REQUEST_TYPES as readonly LeaveRequestType[])
+    leaveType: LeaveRequestType;
 
     @IsBoolean()
     @IsNotEmpty()
@@ -43,21 +43,21 @@ export class CreateLeaveDto {
     reason: string;
 }
 
-export class UpdateLeaveStatusDto {
+export class UpdateLeaveRequestStatusDto {
     @IsString()
     @IsNotEmpty()
     status: 'approved' | 'rejected';
 }
 
-export class UpdateLeaveDto {
+export class UpdateLeaveRequestDto {
     @IsOptional()
     @IsMongoId()
     employeeId?: string;
 
     @IsOptional()
     @IsString()
-    @IsIn(LEAVE_TYPES as readonly LeaveType[])
-    leaveType?: LeaveType;
+    @IsIn(LEAVE_REQUEST_TYPES as readonly LeaveRequestType[])
+    leaveType?: LeaveRequestType;
 
     @IsOptional()
     @IsBoolean()

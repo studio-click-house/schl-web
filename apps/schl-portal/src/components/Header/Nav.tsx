@@ -304,7 +304,7 @@ const Nav: React.FC<PropsType> = props => {
                                             className={cn(
                                                 'block px-4 py-2 hover:bg-primary',
                                             )}
-                                            href={'/admin/leaves'}
+                                            href={'/admin/leave-requests'}
                                         >
                                             Leaves
                                         </Link>

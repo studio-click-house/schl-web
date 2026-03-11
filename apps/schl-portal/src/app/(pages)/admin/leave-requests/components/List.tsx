@@ -4,9 +4,10 @@ import Pagination from '@/components/Pagination';
 import { usePaginationManager } from '@/hooks/usePaginationManager';
 import { useAuthedFetchApi } from '@/lib/api-client';
 import {
-    LeaveType,
-    leaveTypeOptions,
-} from '@repo/common/constants/leave.constant';
+    LeaveRequestType as LeaveType,
+    LEAVE_REQUEST_TYPES,
+    leaveRequestTypeOptions as leaveTypeOptions,
+} from '@repo/common/constants/leave-request.constant';
 import { Check, Edit, Plus, Trash2, X } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -70,13 +71,13 @@ const List: React.FC = () => {
         async (pageArg: number = 1, itemsArg: number = itemPerPage) => {
             setLoading(true);
             try {
-                // POST /v1/leaves/search with pagination
+                // POST /v1/leave-requests/search with pagination
                 const query = new URLSearchParams({
                     paginated: 'true',
                     page: String(pageArg),
                     itemsPerPage: String(itemsArg),
                 });
-                const leavesPath = `/v1/leaves/search?${query.toString()}`;
+                const leavesPath = `/v1/leave-requests/search?${query.toString()}`;
 
                 const [leavesRes, employeesRes, flagsRes] = await Promise.all([
                     authedFetchApi<{
@@ -146,7 +147,7 @@ const List: React.FC = () => {
     ) => {
         try {
             const response = await authedFetchApi(
-                { path: `/v1/leaves/${id}/status` },
+                { path: `/v1/leave-requests/${id}/status` },
                 {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
@@ -175,7 +176,7 @@ const List: React.FC = () => {
         if (!confirm('Delete this leave application?')) return;
         try {
             const res = await authedFetchApi(
-                { path: `/v1/leaves/${id}` },
+                { path: `/v1/leave-requests/${id}` },
                 { method: 'DELETE' },
             );
             if (res.ok) {

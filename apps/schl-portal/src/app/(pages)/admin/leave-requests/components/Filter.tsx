@@ -1,10 +1,9 @@
 'use client';
 
 import {
-    leavePaidOptions,
-    LeaveType,
-    leaveTypeOptions,
-} from '@repo/common/constants/leave.constant';
+    leaveRequestPaidOptions,
+    leaveRequestTypeOptions,
+} from '@repo/common/constants/leave-request.constant';
 import { cn } from '@repo/common/utils/general-utils';
 import {
     setCalculatedZIndex,
@@ -202,7 +201,7 @@ const FilterButton: React.FC<PropsType> = props => {
                                         {...setClassNameAndIsDisabled(isOpen)}
                                         options={[
                                             { label: 'All', value: null },
-                                            ...leavePaidOptions,
+                                            ...leaveRequestPaidOptions,
                                         ]}
                                         classNamePrefix="react-select"
                                         menuPortalTarget={setMenuPortalTarget}
@@ -210,7 +209,7 @@ const FilterButton: React.FC<PropsType> = props => {
                                         value={
                                             [
                                                 { label: 'All', value: null },
-                                                ...leavePaidOptions,
+                                                ...leaveRequestPaidOptions,
                                             ].find(
                                                 o => o.value === filters.isPaid,
                                             ) || null
@@ -236,7 +235,7 @@ const FilterButton: React.FC<PropsType> = props => {
                                         {...setClassNameAndIsDisabled(isOpen)}
                                         options={[
                                             { label: 'All', value: '' },
-                                            ...leaveTypeOptions,
+                                            ...leaveRequestTypeOptions,
                                         ]}
                                         classNamePrefix="react-select"
                                         menuPortalTarget={setMenuPortalTarget}
@@ -244,7 +243,7 @@ const FilterButton: React.FC<PropsType> = props => {
                                         value={
                                             [
                                                 { label: 'All', value: '' },
-                                                ...leaveTypeOptions,
+                                                ...leaveRequestTypeOptions,
                                             ].find(
                                                 o =>
                                                     o.value ===

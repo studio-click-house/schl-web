@@ -5,7 +5,7 @@ import { ShiftTemplate } from '@repo/common/models/shift-template.schema';
 import { SquarePen, X } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { ShiftPlanEditData, shiftPlanEditSchema } from '../schema';
+import { ShiftTemplateEditData, shiftPlanEditSchema } from '../schema';
 
 const baseZIndex = 50;
 
@@ -32,7 +32,7 @@ const EditButton = ({ shiftPlan, submitHandler }: EditButtonProps) => {
         ? (new Date(shiftPlan.effective_to).toISOString().split('T')[0] ?? '')
         : '';
 
-    const [formData, setFormData] = useState<ShiftPlanEditData>({
+    const [formData, setFormData] = useState<ShiftTemplateEditData>({
         fromDate: fromDateString || '',
         toDate: toDateString || '',
         shiftType: shiftPlan.shift_type,

@@ -14,20 +14,23 @@ import {
 } from '@repo/common/models/device-user.schema';
 import { Employee, EmployeeSchema } from '@repo/common/models/employee.schema';
 import { Holiday, HolidaySchema } from '@repo/common/models/holiday.schema';
-import { Leave, LeaveSchema } from '@repo/common/models/leave.schema';
+import {
+    LeaveRequest,
+    LeaveRequestSchema,
+} from '@repo/common/models/leave-request.schema';
 import {
     ShiftTemplate,
     ShiftTemplateSchema,
 } from '@repo/common/models/shift-template.schema';
 import { AttendanceFlagModule } from '../attendance-flag/attendance-flag.module';
 import { AttendanceModule } from '../attendance/attendance.module';
-import { LeaveController } from './leave.controller';
-import { LeaveService } from './leave.service';
+import { LeaveRequestController } from './leave-request.controller';
+import { LeaveRequestService } from './leave-request.service';
 
 @Module({
     imports: [
         MongooseModule.forFeature([
-            { name: Leave.name, schema: LeaveSchema },
+            { name: LeaveRequest.name, schema: LeaveRequestSchema },
             { name: Attendance.name, schema: AttendanceSchema },
             { name: DeviceUser.name, schema: DeviceUserSchema },
             { name: Employee.name, schema: EmployeeSchema },
@@ -38,8 +41,8 @@ import { LeaveService } from './leave.service';
         AttendanceModule, // import AttendanceModule to get AttendanceService
         AttendanceFlagModule, // import AttendanceFlagModule to get AttendanceFlag model
     ],
-    controllers: [LeaveController],
-    providers: [LeaveService],
-    exports: [LeaveService],
+    controllers: [LeaveRequestController],
+    providers: [LeaveRequestService],
+    exports: [LeaveRequestService],
 })
-export class LeaveModule {}
+export class LeaveRequestModule {}

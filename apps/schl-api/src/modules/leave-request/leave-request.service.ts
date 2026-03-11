@@ -31,20 +31,23 @@ import {
     EmployeeDocument,
 } from '@repo/common/models/employee.schema';
 import { Holiday, HolidayDocument } from '@repo/common/models/holiday.schema';
-import { Leave, LeaveDocument } from '@repo/common/models/leave.schema';
+import {
+    LeaveRequest,
+    LeaveRequestDocument,
+} from '@repo/common/models/leave-request.schema';
 import { UserSession } from '@repo/common/types/user-session.type';
 import { hasPerm } from '@repo/common/utils/permission-check';
 import moment from 'moment-timezone';
 import { FilterQuery, Model, Types } from 'mongoose';
 import { toObjectId } from '../../common/utils/id-helpers.utils';
 import { AttendanceService } from '../attendance/attendance.service';
-import { CreateLeaveDto } from './dto/create-leave.dto';
+import { CreateLeaveRequestDto } from './dto/create-leave-request.dto';
 
 @Injectable()
-export class LeaveService {
+export class LeaveRequestService {
     constructor(
-        @InjectModel(Leave.name)
-        private leaveModel: Model<LeaveDocument>,
+        @InjectModel(LeaveRequest.name)
+        private leaveRequestModel: Model<LeaveRequestDocument>,
         @InjectModel(AttendanceFlag.name)
         private flagModel: Model<AttendanceFlagDocument>,
         @InjectModel(Attendance.name)
@@ -72,7 +75,7 @@ export class LeaveService {
         // Reference _userSession to avoid unused-var lint warnings
         void _userSession;
 
-        const query: FilterQuery<LeaveDocument> = {};
+        const query: FilterQuery<LeaveRequestDocument> = {};
         if (employeeId) query.employee = toObjectId(employeeId) as any;
         if (status) query.status = status;
 
@@ -109,7 +112,7 @@ export class LeaveService {
             }
         }
 
-        return await this.leaveModel
+        return await this.leaveRequestModel
             .find(query)
             .populate('employee', 'real_name')
             .populate('flag')
@@ -121,7 +124,7 @@ export class LeaveService {
      * Search leaves with optional pagination. Returns paginated result when pagination.paginated is true,
      * otherwise returns all matching items in `items` with pagination metadata.
      */
-    async searchLeaves(
+    async searchLeaveRequests(
         filters: Partial<{
             employeeId?: string;
             fromDate?: string;
@@ -136,7 +139,7 @@ export class LeaveService {
         void _userSession;
         const { page, itemsPerPage, paginated } = pagination;
 
-        const query: FilterQuery<LeaveDocument> = {};
+        const query: FilterQuery<LeaveRequestDocument> = {};
         if (filters.employeeId)
             query.employee = toObjectId(filters.employeeId) as any;
         if (filters.status) query.status = filters.status as any;
@@ -172,9 +175,9 @@ export class LeaveService {
         }
 
         const skip = (page - 1) * itemsPerPage;
-        const count = await this.leaveModel.countDocuments(query).exec();
+        const count = await this.leaveRequestModel.countDocuments(query).exec();
 
-        const items = await this.leaveModel
+        const items = await this.leaveRequestModel
             .find(query)
             .populate('employee', 'real_name')
             .populate('flag')
@@ -192,7 +195,7 @@ export class LeaveService {
         };
     }
 
-    async apply(dto: CreateLeaveDto, _userSession?: UserSession) {
+    async apply(dto: CreateLeaveRequestDto, _userSession?: UserSession) {
         // Reference _userSession to avoid unused-var lint warnings
         void _userSession;
         // Validate dates
@@ -219,7 +222,7 @@ export class LeaveService {
             );
         }
 
-        return await this.leaveModel.create({
+        return await this.leaveRequestModel.create({
             employee: dto.employeeId,
             flag: leaveFlag._id,
             leave_type: dto.leaveType,
@@ -244,11 +247,11 @@ export class LeaveService {
         }
 
         // Fetch existing leave first so we can determine previous status and dates
-        const existingLeave = await this.leaveModel.findById(id).exec();
+        const existingLeave = await this.leaveRequestModel.findById(id).exec();
         if (!existingLeave)
             throw new NotFoundException('Leave request not found');
 
-        const updated = await this.leaveModel.findByIdAndUpdate(
+        const updated = await this.leaveRequestModel.findByIdAndUpdate(
             id,
             {
                 status: status,
@@ -262,7 +265,7 @@ export class LeaveService {
         // If status changed to approved now (was not approved earlier), apply to attendance
         if (status === 'approved' && existingLeave.status !== 'approved') {
             // run in background (don't block) but await to ensure deterministic behavior here
-            await this.applyApprovedLeaveToAttendance(updated);
+            await this.applyApprovedLeaveRequestToAttendance(updated);
         }
 
         return updated;
@@ -270,11 +273,11 @@ export class LeaveService {
 
     async update(
         id: string,
-        dto: import('./dto/create-leave.dto').UpdateLeaveDto,
+        dto: import('./dto/create-leave-request.dto').UpdateLeaveRequestDto,
         _userSession?: UserSession,
     ) {
         // Only allow editing pending leaves
-        const leave = await this.leaveModel.findById(id).exec();
+        const leave = await this.leaveRequestModel.findById(id).exec();
         if (!leave) throw new NotFoundException('Leave request not found');
         if (leave.status !== 'pending') {
             throw new BadRequestException('Only pending leaves can be edited');
@@ -307,7 +310,7 @@ export class LeaveService {
         if (dto.reason) updatePayload.reason = dto.reason;
         if (dto.status) updatePayload.status = dto.status;
 
-        const updated = await this.leaveModel.findByIdAndUpdate(
+        const updated = await this.leaveRequestModel.findByIdAndUpdate(
             id,
             updatePayload,
             { new: true },
@@ -316,13 +319,15 @@ export class LeaveService {
     }
 
     async remove(id: string, _userSession?: UserSession) {
-        const leave = await this.leaveModel.findByIdAndDelete(id).exec();
+        const leave = await this.leaveRequestModel.findByIdAndDelete(id).exec();
         if (!leave) throw new NotFoundException('Leave request not found');
         return { success: true };
     }
 
     // Apply an approved leave to attendance records for its date range
-    private async applyApprovedLeaveToAttendance(leave: LeaveDocument) {
+    private async applyApprovedLeaveRequestToAttendance(
+        leave: LeaveRequestDocument,
+    ) {
         const start = moment(leave.start_date).tz('Asia/Dhaka').startOf('day');
         const end = moment(leave.end_date).tz('Asia/Dhaka').startOf('day');
 

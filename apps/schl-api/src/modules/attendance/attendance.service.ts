@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose/dist/common/mongoose.decorators';
 import {
+    ATTENDANCE_STATUSES,
     DEFAULT_DEVICE_ID,
     DEFAULT_SOURCE_IP,
 } from '@repo/common/constants/attendance.constant';
@@ -27,7 +28,10 @@ import {
     EmployeeDocument,
 } from '@repo/common/models/employee.schema';
 import { Holiday, HolidayDocument } from '@repo/common/models/holiday.schema';
-import { Leave, LeaveDocument } from '@repo/common/models/leave.schema';
+import {
+    LeaveRequest,
+    LeaveRequestDocument,
+} from '@repo/common/models/leave-request.schema';
 import { ShiftOverride } from '@repo/common/models/shift-override.schema';
 import { ShiftResolved } from '@repo/common/models/shift-resolved.schema';
 import { ShiftTemplate } from '@repo/common/models/shift-template.schema';
@@ -64,8 +68,8 @@ export class AttendanceService {
         private shiftOverrideModel: Model<ShiftOverride>,
         @InjectModel(ShiftResolved.name)
         private shiftResolvedModel: Model<ShiftResolved>,
-        @InjectModel(Leave.name)
-        private leaveModel: Model<LeaveDocument>,
+        @InjectModel(LeaveRequest.name)
+        private leaveRequestModel: Model<LeaveRequestDocument>,
         @InjectModel(Holiday.name)
         private holidayModel: Model<HolidayDocument>,
         @InjectModel(AttendanceFlag.name)
@@ -155,8 +159,8 @@ export class AttendanceService {
             );
         }
 
-        // Check for Approved Leaves
-        const leave = await this.leaveModel.findOne({
+        // Fetch Approved Leave Requests
+        const leave = await this.leaveRequestModel.findOne({
             employee: employeeId,
             status: 'approved',
             start_date: { $lte: shiftDate },
@@ -232,7 +236,7 @@ export class AttendanceService {
 
         // 2. Leave Logic
         if (shift.source === 'leave') {
-            const leave = await this.leaveModel
+            const leave = await this.leaveRequestModel
                 .findOne({
                     employee: employeeId,
                     status: 'approved',
@@ -617,14 +621,93 @@ export class AttendanceService {
 
         const existing = await this.attendanceModel
             .findById(attendanceId)
+            .populate('flag')
             .exec();
+
         if (!existing) {
             throw new BadRequestException('Attendance record not found');
         }
 
+        const currentFlag = existing.flag as any;
+        if (currentFlag && currentFlag.code === 'A') {
+            throw new BadRequestException(
+                'This attendance record is already marked as Absent',
+            );
+        }
+
         try {
-            await existing.deleteOne();
-            return { message: 'Deleted the attendance record successfully' };
+            // Revert to "Absent" Instead of Deleting
+            const absentFlag = await this.getFlagByCode('A');
+            const systemStatus =
+                ATTENDANCE_STATUSES.find(
+                    s => (s as string) === 'system-generated',
+                ) ?? ATTENDANCE_STATUSES[0];
+
+            let dummyInTime: Date | null = null;
+            let dummyOutTime: Date | null = null;
+
+            // Resolve shift to display dummy times mimicking a Leave record
+            const resolvedShift = await this.resolveShiftForDate(
+                existing.employee,
+                existing.shift_date,
+            );
+            if (
+                resolvedShift &&
+                resolvedShift.shift_start &&
+                resolvedShift.shift_end
+            ) {
+                const shiftStartStr = `${moment.tz(existing.shift_date, 'Asia/Dhaka').format('YYYY-MM-DD')} ${resolvedShift.shift_start}`;
+                dummyInTime = moment
+                    .tz(shiftStartStr, 'YYYY-MM-DD HH:mm', 'Asia/Dhaka')
+                    .toDate();
+
+                const shiftEndStr = `${moment.tz(existing.shift_date, 'Asia/Dhaka').format('YYYY-MM-DD')} ${resolvedShift.shift_end}`;
+                let outTimeMoment = moment.tz(
+                    shiftEndStr,
+                    'YYYY-MM-DD HH:mm',
+                    'Asia/Dhaka',
+                );
+
+                if (resolvedShift.crosses_midnight) {
+                    outTimeMoment = outTimeMoment.add(1, 'day');
+                }
+                dummyOutTime = outTimeMoment.toDate();
+            } else {
+                // Fallback dummy times if no shift is resolved
+                const startOfDayStr = `${moment.tz(existing.shift_date, 'Asia/Dhaka').format('YYYY-MM-DD')}`;
+                dummyInTime = moment
+                    .tz(
+                        `${startOfDayStr} 09:00`,
+                        'YYYY-MM-DD HH:mm',
+                        'Asia/Dhaka',
+                    )
+                    .toDate();
+                dummyOutTime = moment
+                    .tz(
+                        `${startOfDayStr} 17:00`,
+                        'YYYY-MM-DD HH:mm',
+                        'Asia/Dhaka',
+                    )
+                    .toDate();
+            }
+
+            await existing.updateOne({
+                $set: {
+                    flag: absentFlag?._id,
+                    in_time: dummyInTime,
+                    out_time: dummyOutTime,
+                    ot_minutes: 0,
+                    late_minutes: 0,
+                    status: systemStatus,
+                    verify_mode: 'manual',
+                    in_remark: 'Absent (Record deleted)',
+                    out_remark: 'Absent (Record deleted)',
+                },
+            });
+
+            return {
+                message: 'Attendance record reverted to Absent successfully',
+            };
         } catch (err) {
             if (err instanceof HttpException) throw err;
             this.logger.error('Failed to delete attendance record', err);
@@ -717,7 +800,7 @@ export class AttendanceService {
                         .sort({ createdAt: -1 })
                         .lean()
                         .exec(),
-                    this.leaveModel
+                    this.leaveRequestModel
                         .find({
                             employee: { $in: employeeIds },
                             status: 'approved',
@@ -743,6 +826,83 @@ export class AttendanceService {
                     dept.weekend_days || [0],
                 );
             });
+
+            // --- Shift Memory Queries ---
+            // Bulk fetch active templates for all employees
+            const allTemplates = await this.shiftTemplateModel
+                .find({
+                    employee: { $in: employeeIds },
+                    active: true,
+                    $or: [
+                        { effective_to: { $gte: fromDate } },
+                        { effective_to: null },
+                    ],
+                })
+                .lean()
+                .exec();
+
+            const templateMap = new Map<string, any[]>();
+            allTemplates.forEach(t => {
+                const empId = String(t.employee);
+                if (!templateMap.has(empId)) templateMap.set(empId, []);
+                templateMap.get(empId)!.push(t);
+            });
+
+            // Bulk fetch overrides for all employees within queried dates
+            const allOverrides = await this.shiftOverrideModel
+                .find({
+                    employee: { $in: employeeIds },
+                    shift_date: { $gte: fromDate, $lte: toDate },
+                })
+                .lean()
+                .exec();
+
+            const overrideMap = new Map<string, any>();
+            allOverrides.forEach(o => {
+                const key = `${String(o.employee)}_${moment.tz(o.shift_date, 'Asia/Dhaka').format('YYYY-MM-DD')}`;
+                overrideMap.set(key, o);
+            });
+
+            // Helper to get raw shift memory times synchronously
+            const getDummyShiftTimes = (
+                employeeIdStr: string,
+                dateKey: string,
+            ) => {
+                const dateMom = moment.tz(dateKey, 'YYYY-MM-DD', 'Asia/Dhaka');
+                const overrideKey = `${employeeIdStr}_${dateKey}`;
+                const override = overrideMap.get(overrideKey);
+
+                if (override && override.override_type !== 'cancel') {
+                    return {
+                        start: override.shift_start || '09:00',
+                        end: override.shift_end || '17:00',
+                    };
+                }
+                if (override && override.override_type === 'cancel') {
+                    // For cancellations, fallback to typical times
+                    return { start: '09:00', end: '17:00' };
+                }
+                const empsTemplates = templateMap.get(employeeIdStr) || [];
+                // find active template
+                const template = empsTemplates.find(t => {
+                    const fromMom = moment
+                        .tz(t.effective_from, 'Asia/Dhaka')
+                        .startOf('day');
+                    const toMom = t.effective_to
+                        ? moment.tz(t.effective_to, 'Asia/Dhaka').endOf('day')
+                        : moment.tz('2099-12-31', 'Asia/Dhaka');
+                    return dateMom.isBetween(fromMom, toMom, 'day', '[]');
+                });
+                if (template) {
+                    return {
+                        start: template.shift_start || '09:00',
+                        end: template.shift_end || '17:00',
+                    };
+                }
+
+                return { start: '09:00', end: '17:00' };
+            };
+            // ------------------
 
             const employeeMap = new Map<string, any>();
             employees.forEach(emp => {
@@ -880,8 +1040,42 @@ export class AttendanceService {
                     const virtualRank = precedence.get(virtualCode) || 0;
 
                     if (existing && existingRank >= virtualRank) {
+                        // Apply dummy times to finalized auto-generated records that don't have time
+                        let inTime = existing.in_time;
+                        let outTime = existing.out_time;
+
+                        if (
+                            existing.verify_mode === 'auto' &&
+                            (!inTime || !outTime)
+                        ) {
+                            const { start, end } = getDummyShiftTimes(
+                                employee._id.toString(),
+                                dateKey,
+                            );
+                            if (!inTime) {
+                                inTime = moment
+                                    .tz(
+                                        `${dateKey} ${start}`,
+                                        'YYYY-MM-DD HH:mm',
+                                        'Asia/Dhaka',
+                                    )
+                                    .toDate();
+                            }
+                            if (!outTime) {
+                                outTime = moment
+                                    .tz(
+                                        `${dateKey} ${end}`,
+                                        'YYYY-MM-DD HH:mm',
+                                        'Asia/Dhaka',
+                                    )
+                                    .toDate();
+                            }
+                        }
+
                         records.push({
                             ...existing,
+                            in_time: inTime,
+                            out_time: outTime,
                             is_virtual: false,
                         });
                     } else {
@@ -890,11 +1084,31 @@ export class AttendanceService {
                             .startOf('day')
                             .toDate();
 
+                        // Construct proper dummy times
+                        const { start, end } = getDummyShiftTimes(
+                            employee._id.toString(),
+                            dateKey,
+                        );
+                        const vInTime = moment
+                            .tz(
+                                `${dateKey} ${start}`,
+                                'YYYY-MM-DD HH:mm',
+                                'Asia/Dhaka',
+                            )
+                            .toDate();
+                        const vOutTime = moment
+                            .tz(
+                                `${dateKey} ${end}`,
+                                'YYYY-MM-DD HH:mm',
+                                'Asia/Dhaka',
+                            )
+                            .toDate();
+
                         records.push({
                             _id: `virtual_${employee._id.toString()}_${dateKey}`,
                             shift_date: shiftDate,
-                            in_time: null,
-                            out_time: null,
+                            in_time: vInTime,
+                            out_time: vOutTime,
                             in_remark: `Virtual ${virtualCode}`,
                             out_remark: '',
                             ot_minutes: 0,

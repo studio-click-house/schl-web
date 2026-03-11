@@ -155,13 +155,19 @@ const FilterButton: React.FC<PropsType> = props => {
                                 </label>
                                 <Select
                                     {...setClassNameAndIsDisabled(isOpen)}
-                                    options={EMPLOYEE_DEPARTMENTS.map(d => ({ value: d, label: d }))}
+                                    options={EMPLOYEE_DEPARTMENTS.map(d => ({
+                                        value: d,
+                                        label: d,
+                                    }))}
                                     classNamePrefix="react-select"
                                     menuPortalTarget={setMenuPortalTarget}
                                     styles={setCalculatedZIndex(baseZIndex)}
                                     value={
                                         filters.department
-                                            ? { value: filters.department, label: filters.department }
+                                            ? {
+                                                  value: filters.department,
+                                                  label: filters.department,
+                                              }
                                             : null
                                     }
                                     onChange={selectedOption =>

@@ -18,7 +18,7 @@ import { FilterQuery, Model, Types } from 'mongoose';
 import { toObjectId } from '../../common/utils/id-helpers.utils';
 import { CreateShiftOverrideBodyDto } from './dto/create-shift-override.dto';
 import { CreateShiftTemplateBodyDto } from './dto/create-shift-template.dto';
-import { SearchShiftPlansBodyDto } from './dto/search-shift-plan.dto';
+import { SearchShiftTemplatesBodyDto } from './dto/search-shift-plan.dto';
 import { UpdateShiftTemplateBodyDto } from './dto/update-shift-template.dto';
 
 type QueryShape = FilterQuery<ShiftTemplate>;
@@ -408,7 +408,7 @@ export class ShiftPlanService {
      * Search shift plans with filters and pagination
      */
     async searchShiftPlans(
-        filters: SearchShiftPlansBodyDto,
+        filters: SearchShiftTemplatesBodyDto,
         pagination: {
             page: number;
             itemsPerPage: number;
@@ -642,7 +642,7 @@ export class ShiftPlanService {
     }
 
     async searchOverrides(
-        filters: SearchShiftPlansBodyDto,
+        filters: SearchShiftTemplatesBodyDto,
         pagination: {
             page: number;
             itemsPerPage: number;

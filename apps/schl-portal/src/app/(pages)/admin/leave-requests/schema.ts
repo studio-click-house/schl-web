@@ -1,9 +1,9 @@
-import { LEAVE_TYPES } from '@repo/common/constants/leave.constant';
+import { LEAVE_REQUEST_TYPES } from '@repo/common/constants/leave-request.constant';
 import { z } from 'zod';
 
 export const leaveSchema = z.object({
     employeeId: z.string().min(1, 'Employee is required'),
-    leaveType: z.enum(LEAVE_TYPES as any),
+    leaveType: z.enum(LEAVE_REQUEST_TYPES as unknown as [string, ...string[]]),
     isPaid: z.boolean(),
     status: z.enum(['pending', 'approved', 'rejected']).optional(),
     startDate: z.string().min(1, 'Start Date is required'),

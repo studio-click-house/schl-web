@@ -28,7 +28,10 @@ import {
     EmployeeDocument,
 } from '@repo/common/models/employee.schema';
 import { Holiday, HolidayDocument } from '@repo/common/models/holiday.schema';
-import { Leave, LeaveDocument } from '@repo/common/models/leave.schema';
+import {
+    LeaveRequest,
+    LeaveRequestDocument,
+} from '@repo/common/models/leave-request.schema';
 import {
     ShiftOverride,
     ShiftOverrideDocument,
@@ -46,8 +49,8 @@ export class AttendanceGeneratorService {
         private employeeModel: Model<EmployeeDocument>,
         @InjectModel(Attendance.name)
         private attendanceModel: Model<AttendanceDocument>,
-        @InjectModel(Leave.name)
-        private leaveModel: Model<LeaveDocument>,
+        @InjectModel(LeaveRequest.name)
+        private leaveRequestModel: Model<LeaveRequestDocument>,
         @InjectModel(Department.name)
         private departmentModel: Model<DepartmentDocument>,
         @InjectModel(Holiday.name)
@@ -131,8 +134,8 @@ export class AttendanceGeneratorService {
                 });
                 if (holiday) continue;
 
-                // Skip approved Leave
-                const leave = await this.leaveModel.findOne({
+                // Check for Approved Leaves
+                const leave = await this.leaveRequestModel.findOne({
                     employee: emp._id,
                     status: 'approved',
                     start_date: { $lte: endOfDay },
@@ -264,7 +267,7 @@ export class AttendanceGeneratorService {
                 // Priority: Holiday -> Weekend -> Leave -> Absent
                 // Check Holiday first (range intersection)
                 let holiday: HolidayDocument | null = null;
-                const leave: LeaveDocument | null = null;
+                const leave: LeaveRequestDocument | null = null;
                 holiday = await this.holidayModel.findOne({
                     dateFrom: { $lte: endOfDay },
                     dateTo: { $gte: startOfDay },
@@ -288,7 +291,7 @@ export class AttendanceGeneratorService {
                         counts.W++;
                     } else {
                         // Check approved Leave only if not holiday/weekend
-                        const leave = await this.leaveModel.findOne({
+                        const leave = await this.leaveRequestModel.findOne({
                             employee: emp._id,
                             status: 'approved',
                             start_date: { $lte: endOfDay },
@@ -318,25 +321,27 @@ export class AttendanceGeneratorService {
                     if (flagCode === 'A') {
                         // A cancelled shift without Leave/Holiday/Weekend means treat it as a paid leave.
                         // Ensure there is an approved Leave record for that day; create one if missing.
-                        let effectiveLeave = await this.leaveModel.findOne({
-                            employee: emp._id,
-                            status: 'approved',
-                            start_date: { $lte: endOfDay },
-                            end_date: { $gte: startOfDay },
-                        });
+                        let effectiveLeave =
+                            await this.leaveRequestModel.findOne({
+                                employee: emp._id,
+                                status: 'approved',
+                                start_date: { $lte: endOfDay },
+                                end_date: { $gte: startOfDay },
+                            });
 
                         const defaultLeaveFlag = flagMap.get('L');
 
                         if (!effectiveLeave) {
                             try {
-                                effectiveLeave = await this.leaveModel.create({
-                                    employee: emp._id,
-                                    flag: defaultLeaveFlag,
-                                    start_date: startOfDay,
-                                    end_date: startOfDay,
-                                    reason: 'Auto-approved paid leave due to shift cancellation',
-                                    status: 'approved',
-                                } as any);
+                                effectiveLeave =
+                                    await this.leaveRequestModel.create({
+                                        employee: emp._id,
+                                        flag: defaultLeaveFlag,
+                                        start_date: startOfDay,
+                                        end_date: startOfDay,
+                                        reason: 'Auto-approved paid leave due to shift cancellation',
+                                        status: 'approved',
+                                    } as any);
                                 this.logger.log(
                                     `Auto-created approved leave for emp=${emp._id.toString()} date=${yyyymmdd} due to cancel override`,
                                 );
@@ -428,6 +433,34 @@ export class AttendanceGeneratorService {
                         s => (s as string) === 'system-generated',
                     ) ?? ATTENDANCE_STATUSES[0];
 
+                // Determine dummy times for system-generated records
+                const resolvedShift =
+                    await this.attendanceService.resolveShiftForDate(
+                        emp._id,
+                        startOfDay,
+                    );
+                const shiftStart = resolvedShift?.shift_start || '09:00';
+                const shiftEnd = resolvedShift?.shift_end || '17:00';
+                const crossesMidnight =
+                    resolvedShift?.crosses_midnight || false;
+
+                const inTime = moment
+                    .tz(
+                        `${yyyymmdd} ${shiftStart}`,
+                        'YYYY-MM-DD HH:mm',
+                        'Asia/Dhaka',
+                    )
+                    .toDate();
+                let outTimeMoment = moment.tz(
+                    `${yyyymmdd} ${shiftEnd}`,
+                    'YYYY-MM-DD HH:mm',
+                    'Asia/Dhaka',
+                );
+                if (crossesMidnight) {
+                    outTimeMoment = outTimeMoment.add(1, 'day');
+                }
+                const outTime = outTimeMoment.toDate();
+
                 const payload: Partial<Attendance> = {
                     shift_date: startOfDay,
                     employee: emp._id,
@@ -437,7 +470,10 @@ export class AttendanceGeneratorService {
                     verify_mode: 'auto', // Mark as auto-generated
                     status: systemStatus,
                     flag: flagId,
+                    in_time: inTime,
+                    out_time: outTime,
                     late_minutes: 0,
+                    ot_minutes: 0,
                     out_remark: remarks,
                     in_remark: remarks,
                 };

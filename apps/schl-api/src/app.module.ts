@@ -17,7 +17,7 @@ import { EmployeeModule } from './modules/employee/employee.module';
 import { FtpModule } from './modules/ftp/ftp.module';
 import { HolidayModule } from './modules/holiday/holiday.module';
 import { InvoiceModule } from './modules/invoice/invoice.module';
-import { LeaveModule } from './modules/leave/leave.module';
+import { LeaveRequestModule } from './modules/leave-request/leave-request.module';
 import { NoticeModule } from './modules/notice/notice.module';
 import { OrderModule } from './modules/order/order.module';
 import { ReportModule } from './modules/report/report.module';
@@ -67,7 +67,7 @@ import { ValidatorModule } from './modules/validator/validator.module';
         DepartmentModule,
         AttendanceFlagModule,
         ShiftPlanModule,
-        LeaveModule,
+        LeaveRequestModule,
         HolidayModule,
     ],
     controllers: [AppController],

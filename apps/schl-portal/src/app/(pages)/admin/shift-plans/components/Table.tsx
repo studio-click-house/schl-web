@@ -19,7 +19,7 @@ interface ShiftTemplateWithId extends ShiftTemplate {
     _id: string;
 }
 
-interface ShiftPlanResponse {
+interface ShiftTemplateResponse {
     pagination: {
         count: number;
         pageCount: number;
@@ -28,7 +28,7 @@ interface ShiftPlanResponse {
 }
 
 const Table: React.FC = () => {
-    const [shiftPlans, setShiftPlans] = useState<ShiftPlanResponse>({
+    const [shiftTemplates, setShiftTemplates] = useState<ShiftTemplateResponse>({
         pagination: { count: 0, pageCount: 0 },
         items: [],
     });
@@ -56,7 +56,7 @@ const Table: React.FC = () => {
         active: '',
     });
 
-    const fetchShiftPlans = useCallback(async () => {
+    const fetchShiftTemplates = useCallback(async () => {
         try {
             setLoading(true);
 
@@ -71,7 +71,7 @@ const Table: React.FC = () => {
                 {} as Record<string, any>,
             );
 
-            const response = await authedFetchApi<ShiftPlanResponse>(
+            const response = await authedFetchApi<ShiftTemplateResponse>(
                 {
                     path: '/v1/shift-plan/search',
                     query: {
@@ -88,7 +88,7 @@ const Table: React.FC = () => {
             );
 
             if (response.ok) {
-                setShiftPlans(response.data);
+                setShiftTemplates(response.data);
                 setPageCount(response.data.pagination.pageCount);
             } else {
                 toastFetchError(response);
@@ -106,14 +106,14 @@ const Table: React.FC = () => {
         itemPerPage,
         pageCount,
         setPage,
-        triggerFetch: fetchShiftPlans,
+        triggerFetch: fetchShiftTemplates,
     });
 
     useEffect(() => {
         if (searchVersion > 0 && page === 1) {
-            fetchShiftPlans();
+            fetchShiftTemplates();
         }
-    }, [searchVersion, page, fetchShiftPlans]);
+    }, [searchVersion, page, fetchShiftTemplates]);
 
     const handleSearch = useCallback(() => {
         setPage(prev => {
@@ -164,7 +164,7 @@ const Table: React.FC = () => {
                             }
                             className="flex justify-between items-center gap-2 rounded-md bg-primary hover:opacity-90 hover:ring-4 hover:ring-primary transition duration-200 delay-300 hover:text-opacity-100 text-white px-3 py-2"
                         >
-                            Add shift plan
+                            Add shift template
                             <CirclePlus size={18} />
                         </button>
                         <button
@@ -214,7 +214,7 @@ const Table: React.FC = () => {
 
             <div className="table-responsive text-nowrap text-base">
                 {!loading &&
-                    (shiftPlans.items.length > 0 ? (
+                    (shiftTemplates.items.length > 0 ? (
                         <>
                             <table className="table border table-bordered table-striped">
                                 <thead className="table-dark">
@@ -236,7 +236,7 @@ const Table: React.FC = () => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {shiftPlans.items.map(
+                                    {shiftTemplates.items.map(
                                         (shiftPlan, index) => (
                                             <tr key={String(shiftPlan._id)}>
                                                 <td>
@@ -309,7 +309,7 @@ const Table: React.FC = () => {
                                                                     shiftPlan
                                                                 }
                                                                 submitHandler={
-                                                                    fetchShiftPlans
+                                                                    fetchShiftTemplates
                                                                 }
                                                             />
                                                         </div>
@@ -324,7 +324,7 @@ const Table: React.FC = () => {
                     ) : (
                         <div className="p-8 text-center">
                             <p className="text-gray-500 text-lg">
-                                No Shift Plans Found
+                                No Shift Templates Found
                             </p>
                         </div>
                     ))}
