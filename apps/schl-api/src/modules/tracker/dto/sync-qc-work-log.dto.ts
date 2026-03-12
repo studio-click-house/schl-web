@@ -20,6 +20,10 @@ class QcWorkLogFileDto {
     @IsNotEmpty()
     fileName: string;
 
+    @IsString()
+    @IsOptional()
+    filePath?: string;
+
     @IsNumber()
     @Min(0)
     @IsOptional()
