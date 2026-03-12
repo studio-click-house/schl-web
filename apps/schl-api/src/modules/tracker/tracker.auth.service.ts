@@ -102,8 +102,9 @@ export class TrackerAuthService {
 
             // ── Stale session cleanup ──────────────────────────
             // If the user's previous session ended abruptly (app crash, task manager kill, power loss),
-            // logout_at will be null. We close it NOW (using current login time as the logout time for the old session)
-            // and mark any stuck 'working' files as 'walkout'.
+            // logout_at will be null. We close it NOW (using current login time as the logout time for the old session).
+            // Working files are NOT converted to walkout — they are returned to the app for resumption.
+            let activeWork: Record<string, any> | null = null;
             try {
                 const staleSessions = await this.userSessionModel
                     .find({
@@ -123,6 +124,7 @@ export class TrackerAuthService {
                     await stale.save();
                 }
 
+                // Query for working files so the app can resume
                 if (staleSessions.length > 0) {
                     const staleDates = [
                         ...new Set(staleSessions.map(s => s.session_date)),
@@ -134,18 +136,76 @@ export class TrackerAuthService {
                         'i',
                     );
 
-                    await this.qcWorkLogModel.updateMany(
-                        {
-                            employee_name: { $regex: nameRegex },
-                            date_today: { $in: staleDates },
-                            'files.file_status': 'working',
-                        },
-                        { $set: { 'files.$[f].file_status': 'walkout' } },
-                        { arrayFilters: [{ 'f.file_status': 'working' }] },
-                    );
+                    const workLog = await this.qcWorkLogModel
+                        .findOne(
+                            {
+                                employee_name: { $regex: nameRegex },
+                                date_today: { $in: staleDates },
+                                'files.file_status': 'working',
+                            },
+                            {
+                                client_code: 1,
+                                folder_path: 1,
+                                shift: 1,
+                                work_type: 1,
+                                estimate_time: 1,
+                                categories: 1,
+                                files: 1,
+                            },
+                        )
+                        .sort({ updatedAt: -1 })
+                        .lean();
+
+                    if (workLog) {
+                        const allFiles = (workLog as any).files ?? [];
+                        const workingFiles = allFiles.filter(
+                            (f: any) =>
+                                String(f.file_status ?? '')
+                                    .trim()
+                                    .toLowerCase() === 'working',
+                        );
+
+                        if (workingFiles.length > 0) {
+                            const doneTimeTotal = allFiles
+                                .filter(
+                                    (f: any) =>
+                                        String(f.file_status ?? '')
+                                            .trim()
+                                            .toLowerCase() === 'done',
+                                )
+                                .reduce(
+                                    (sum: number, f: any) =>
+                                        sum +
+                                        Math.max(0, Number(f.time_spent) || 0),
+                                    0,
+                                );
+
+                            activeWork = {
+                                client_code: (workLog as any).client_code,
+                                folder_path: (workLog as any).folder_path,
+                                shift: (workLog as any).shift,
+                                work_type: (workLog as any).work_type,
+                                estimate_time:
+                                    (workLog as any).estimate_time ?? 0,
+                                categories:
+                                    (workLog as any).categories ?? '',
+                                done_time_total: doneTimeTotal,
+                                files: workingFiles.map((f: any) => ({
+                                    file_name: f.file_name,
+                                    file_path: f.file_path ?? '',
+                                    started_at: f.started_at ?? null,
+                                    time_spent:
+                                        Math.max(
+                                            0,
+                                            Number(f.time_spent) || 0,
+                                        ),
+                                })),
+                            };
+                        }
+                    }
                 }
             } catch {
-                /* best-effort — don't block login if cleanup fails */
+                /* best-effort — don't block login if cleanup/query fails */
             }
 
             await this.userSessionModel.create({
@@ -180,6 +240,7 @@ export class TrackerAuthService {
                 displayName,
                 user_id: String(user._id),
                 sessionId,
+                activeWork,
             };
         } catch (e) {
             if (e instanceof HttpException) throw e;

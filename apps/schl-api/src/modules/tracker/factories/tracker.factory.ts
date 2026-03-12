@@ -76,11 +76,14 @@ export class TrackerFactory {
         fileName: string,
         fileDto: {
             timeSpent?: number;
+            filePath?: string;
         },
     ) {
         const fileDoc: Record<string, any> = {
             file_name: fileName,
         };
+        const fp = (fileDto.filePath ?? '').trim();
+        if (fp) fileDoc.file_path = fp;
         if (fileDto.timeSpent !== undefined)
             fileDoc.time_spent = fileDto.timeSpent;
         return fileDoc;

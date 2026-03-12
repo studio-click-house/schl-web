@@ -24,6 +24,9 @@ export class QcWorkLogFile {
     file_name: string;
 
     @Prop({ type: String, default: '' })
+    file_path?: string;
+
+    @Prop({ type: String, default: '' })
     file_status?: string;
 
     @Prop({ type: String, default: '' })
