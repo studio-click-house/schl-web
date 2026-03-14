@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, IsInt, Min } from 'class-validator';
 
 export class SearchFileDto {
     @IsString()
@@ -8,4 +8,9 @@ export class SearchFileDto {
     @IsString()
     @IsOptional()
     clientCode?: string;
+
+    @IsInt()
+    @Min(1)
+    @IsOptional()
+    days?: number;
 }

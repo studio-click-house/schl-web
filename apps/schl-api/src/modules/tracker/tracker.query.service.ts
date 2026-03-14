@@ -108,9 +108,15 @@ export class TrackerQueryService {
 
             const limit = 50;
 
+            // Lookback window: default 7 days
+            const lookbackDays = Math.max(1, Math.floor(Number(dto.days) || 7));
+            const cutoff = new Date();
+            cutoff.setDate(cutoff.getDate() - lookbackDays);
+            const cutoffDate = cutoff.toISOString().split('T')[0] as string;
+
             const qcRows = await this.qcWorkLogModel
                 .aggregate([
-                    { $match: clientFilter },
+                    { $match: { ...clientFilter, date_today: { $gte: cutoffDate } } },
                     { $unwind: '$files' },
                     {
                         $match: {
@@ -130,6 +136,9 @@ export class TrackerQueryService {
                             folderPath: '$folder_path',
                             dateToday: '$date_today',
                             report: '$files.report',
+                            fileStatus: '$files.file_status',
+                            startedAt: '$files.started_at',
+                            completedAt: '$files.completed_at',
                             updatedAt: '$updatedAt',
                         },
                     },
@@ -212,6 +221,9 @@ export class TrackerQueryService {
                     folderPath: asString(r?.folderPath),
                     dateToday: asString(r?.dateToday),
                     report: asString(r?.report),
+                    fileStatus: asString(r?.fileStatus),
+                    startedAt: r?.startedAt instanceof Date ? r.startedAt.toISOString() : asString(r?.startedAt),
+                    completedAt: r?.completedAt instanceof Date ? r.completedAt.toISOString() : asString(r?.completedAt),
                 }));
 
             return {
