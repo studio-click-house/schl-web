@@ -4,21 +4,6 @@ import { HydratedDocument } from 'mongoose';
 export type QcWorkLogDocument = HydratedDocument<QcWorkLog>;
 
 @Schema({ _id: false })
-export class PauseReason {
-    @Prop({ type: String, required: [true, 'Pause reason is required'] })
-    reason: string;
-
-    @Prop({ type: Number, required: [true, 'Pause duration is required'] })
-    duration: number;
-
-    @Prop({ type: Date })
-    started_at?: Date;
-
-    @Prop({ type: Date })
-    completed_at?: Date;
-}
-
-@Schema({ _id: false })
 export class QcWorkLogFile {
     @Prop({ type: String, required: [true, 'File name is required'] })
     file_name: string;
@@ -70,15 +55,6 @@ export class QcWorkLog {
 
     @Prop({ type: Number, default: 0 })
     total_times: number;
-
-    @Prop({ type: Number, default: 0 })
-    pause_count: number;
-
-    @Prop({ type: Number, default: 0 })
-    pause_time: number;
-
-    @Prop({ type: [PauseReason], default: [] })
-    pause_reasons: PauseReason[];
 
     @Prop({ type: [QcWorkLogFile], default: [] })
     files: QcWorkLogFile[];

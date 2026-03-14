@@ -4,6 +4,10 @@ import { AppUser, AppUserSchema } from '@repo/common/models/app-user.schema';
 import { Employee, EmployeeSchema } from '@repo/common/models/employee.schema';
 import { Order, OrderSchema } from '@repo/common/models/order.schema';
 import {
+    PauseSession,
+    PauseSessionSchema,
+} from '@repo/common/models/pause-session.schema';
+import {
     QcWorkLog,
     QcWorkLogSchema,
 } from '@repo/common/models/qc-work-log.schema';
@@ -14,6 +18,7 @@ import {
 import { TrackerAuthService } from './tracker.auth.service';
 import { TrackerController } from './tracker.controller';
 import { TrackerGateway } from './tracker.gateway';
+import { TrackerPauseService } from './tracker.pause.service';
 import { TrackerQcWorkLogService } from './tracker.qc-work-log.service';
 import { TrackerQueryService } from './tracker.query.service';
 import { TrackerReportService } from './tracker.report.service';
@@ -23,6 +28,7 @@ import { TrackerReportService } from './tracker.report.service';
         MongooseModule.forFeature([
             { name: AppUser.name, schema: AppUserSchema },
             { name: Employee.name, schema: EmployeeSchema },
+            { name: PauseSession.name, schema: PauseSessionSchema },
             { name: QcWorkLog.name, schema: QcWorkLogSchema },
             { name: Order.name, schema: OrderSchema },
             { name: UserSession.name, schema: UserSessionSchema },
@@ -31,6 +37,7 @@ import { TrackerReportService } from './tracker.report.service';
     controllers: [TrackerController],
     providers: [
         TrackerAuthService,
+        TrackerPauseService,
         TrackerQcWorkLogService,
         TrackerReportService,
         TrackerQueryService,

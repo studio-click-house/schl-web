@@ -11,7 +11,9 @@ import { SearchFileDto } from './dto/search-file.dto';
 import { DashboardTodayDto } from './dto/dashboard-today.dto';
 import { SyncQcWorkLogDto } from './dto/sync-qc-work-log.dto';
 import { LiveTrackingDataDto } from './dto/live-tracking-data.dto';
+import { SyncPauseDto } from './dto/sync-pause.dto';
 import { TrackerAuthService } from './tracker.auth.service';
+import { TrackerPauseService } from './tracker.pause.service';
 import { TrackerQcWorkLogService } from './tracker.qc-work-log.service';
 import { TrackerQueryService } from './tracker.query.service';
 import { TrackerReportService } from './tracker.report.service';
@@ -20,6 +22,7 @@ import { TrackerReportService } from './tracker.report.service';
 export class TrackerController {
     constructor(
         private readonly authService: TrackerAuthService,
+        private readonly pauseService: TrackerPauseService,
         private readonly qcWorkLogService: TrackerQcWorkLogService,
         private readonly queryService: TrackerQueryService,
         private readonly reportService: TrackerReportService,
@@ -48,6 +51,11 @@ export class TrackerController {
     @Post('sync-qc')
     syncQc(@Body() dto: SyncQcWorkLogDto) {
         return this.qcWorkLogService.syncQc(dto);
+    }
+
+    @Post('pause')
+    syncPause(@Body() dto: SyncPauseDto) {
+        return this.pauseService.syncPause(dto);
     }
 
     @Post('report-file')

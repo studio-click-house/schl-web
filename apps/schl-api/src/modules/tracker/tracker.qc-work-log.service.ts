@@ -89,14 +89,6 @@ export class TrackerQcWorkLogService {
                 .trim()
                 .toLowerCase();
 
-            await this.reconcilePauseReasonLifecycle(
-                filter,
-                payload,
-                statusLower,
-            );
-
-            await this.refreshPauseAggregates(filter);
-
             // ── Per-file updates (fast: read once, push once, bulkWrite once) ──
             if (Array.isArray(payload.files) && payload.files.length > 0) {
                 const now = new Date();
@@ -258,10 +250,7 @@ export class TrackerQcWorkLogService {
             const updatedDoc = await this.qcWorkLogModel
                 .findOne(filter, {
                     total_times: 1,
-                    pause_time: 1,
-                    pause_count: 1,
                     estimate_time: 1,
-                    pause_reasons: 1,
                     files: 1,
                     categories: 1,
                 })
@@ -329,12 +318,13 @@ export class TrackerQcWorkLogService {
                 folderPath: payload.folderPath,
                 fileStatus: computedStatus,
                 timestamp: new Date().toISOString(),
-                // Accumulated totals from DB (in seconds)
+                // Accumulated totals from DB (in seconds).
+                // Pause fields are intentionally omitted — pause data now lives in
+                // pause_sessions and is owned exclusively by TrackerPauseService.
+                // Sending zeros here would overwrite correctly-merged pause data
+                // in the C# client on every QC sync event.
                 total_times: updatedDoc?.total_times ?? 0,
-                pause_time: updatedDoc?.pause_time ?? 0,
-                pause_count: updatedDoc?.pause_count ?? 0,
                 estimate_time: updatedDoc?.estimate_time ?? 0,
-                pause_reasons: updatedDoc?.pause_reasons ?? [],
                 categories: updatedDoc?.categories ?? '',
                 // Full file list with accumulated time_spent
                 files: emittedFiles,
@@ -347,164 +337,5 @@ export class TrackerQcWorkLogService {
                 'Unable to sync qc work log',
             );
         }
-    }
-
-    private extractLatestPauseReason(
-        pauseReasons?: { reason?: string; duration?: number }[],
-    ): { reason: string; duration: number } | null {
-        if (!Array.isArray(pauseReasons) || pauseReasons.length === 0) {
-            return null;
-        }
-
-        const latest = pauseReasons[pauseReasons.length - 1];
-        const reason = String(latest?.reason ?? '').trim();
-        if (!reason) {
-            return null;
-        }
-
-        const duration = Math.max(0, Number(latest?.duration) || 0);
-        return { reason, duration };
-    }
-
-    private async reconcilePauseReasonLifecycle(
-        filter: Record<string, any>,
-        payload: SyncQcWorkLogDto,
-        statusLower: string,
-    ) {
-        const pausedTokens = new Set(['pause', 'paused']);
-        const workingTokens = new Set([
-            'working',
-            'in_progress',
-            'in progress',
-            'in-progress',
-            'inprogress',
-        ]);
-
-        const isPausedUpdate = pausedTokens.has(statusLower);
-        const isResumeOrWorkingUpdate = workingTokens.has(statusLower);
-
-        if (!isPausedUpdate && !isResumeOrWorkingUpdate) {
-            return;
-        }
-
-        const latestIncoming = this.extractLatestPauseReason(
-            payload.pauseReasons,
-        );
-
-        const existing = await this.qcWorkLogModel
-            .findOne(filter, { pause_reasons: 1 })
-            .lean();
-
-        const existingReasons = Array.isArray((existing as any)?.pause_reasons)
-            ? ((existing as any).pause_reasons as any[])
-            : [];
-        const hasOpenPause = existingReasons.some(
-            pr => pr?.completed_at == null,
-        );
-
-        if (isPausedUpdate) {
-            if (!hasOpenPause && latestIncoming) {
-                const now = new Date();
-                const startedAt = new Date(
-                    now.getTime() - latestIncoming.duration * 1000,
-                );
-
-                await this.qcWorkLogModel.updateOne(
-                    {
-                        ...filter,
-                        pause_reasons: {
-                            $not: { $elemMatch: { completed_at: null } },
-                        },
-                    },
-                    {
-                        $push: {
-                            pause_reasons: {
-                                reason: latestIncoming.reason,
-                                duration: latestIncoming.duration,
-                                started_at: startedAt,
-                                completed_at: null,
-                            },
-                        },
-                    },
-                );
-                return;
-            }
-
-            if (hasOpenPause && latestIncoming) {
-                await this.qcWorkLogModel.updateOne(
-                    {
-                        ...filter,
-                        pause_reasons: { $elemMatch: { completed_at: null } },
-                    },
-                    {
-                        $set: {
-                            'pause_reasons.$[open].reason':
-                                latestIncoming.reason,
-                            'pause_reasons.$[open].duration':
-                                latestIncoming.duration,
-                        },
-                    },
-                    {
-                        arrayFilters: [{ 'open.completed_at': null }],
-                    },
-                );
-            }
-            return;
-        }
-
-        if (!hasOpenPause) {
-            return;
-        }
-
-        const closeSet: Record<string, any> = {
-            'pause_reasons.$[open].completed_at': new Date(),
-        };
-
-        if (latestIncoming) {
-            closeSet['pause_reasons.$[open].duration'] =
-                latestIncoming.duration;
-        }
-
-        await this.qcWorkLogModel.updateOne(
-            {
-                ...filter,
-                pause_reasons: { $elemMatch: { completed_at: null } },
-            },
-            {
-                $set: closeSet,
-            },
-            {
-                arrayFilters: [{ 'open.completed_at': null }],
-            },
-        );
-    }
-
-    private async refreshPauseAggregates(filter: Record<string, any>) {
-        const existing = await this.qcWorkLogModel
-            .findOne(filter, { pause_reasons: 1 })
-            .lean();
-
-        const reasons = Array.isArray((existing as any)?.pause_reasons)
-            ? ((existing as any).pause_reasons as Array<{
-                  duration?: number;
-              }>)
-            : [];
-
-        const pauseCount = reasons.length;
-        const pauseTime = reasons.reduce(
-            (sum, item) => sum + Math.max(0, Number(item?.duration) || 0),
-            0,
-        );
-
-        await this.qcWorkLogModel.updateOne(
-            filter,
-            {
-                $set: {
-                    pause_count: pauseCount,
-                    pause_time: pauseTime,
-                },
-            },
-            { upsert: true },
-        );
     }
 }
