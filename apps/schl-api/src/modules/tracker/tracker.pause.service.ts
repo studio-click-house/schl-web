@@ -63,7 +63,7 @@ export class TrackerPauseService {
             }
             if (syncId) {
                 baseUpdate.$push = {
-                    processed_sync_ids: { $each: [syncId], $slice: -200 },
+                    processed_sync_ids: { $each: [syncId], $slice: -10 },
                 };
             }
 
@@ -181,10 +181,15 @@ export class TrackerPauseService {
         await this.pauseSessionModel.updateOne(filter, {
             $push: {
                 pause_reasons: {
-                    reason,
-                    duration: 0,
-                    started_at: now,
-                    completed_at: null,
+                    $each: [
+                        {
+                            reason,
+                            duration: 0,
+                            started_at: now,
+                            completed_at: null,
+                        },
+                    ],
+                    $slice: -5,
                 },
             },
         });
