@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Order } from '@repo/common/models/order.schema';
+import { PauseSession } from '@repo/common/models/pause-session.schema';
 import { QcWorkLog } from '@repo/common/models/qc-work-log.schema';
 import { UserSession } from '@repo/common/models/user-session.schema';
 import { FilterQuery, Model } from 'mongoose';
@@ -19,6 +20,8 @@ export class TrackerQueryService {
     constructor(
         @InjectModel(Order.name)
         private readonly orderModel: Model<Order>,
+        @InjectModel(PauseSession.name)
+        private readonly pauseSessionModel: Model<PauseSession>,
         @InjectModel(QcWorkLog.name)
         private readonly qcWorkLogModel: Model<QcWorkLog>,
         @InjectModel(UserSession.name)
@@ -259,8 +262,10 @@ export class TrackerQueryService {
                   }
                 : { date_today: usedDate };
 
-            const [workLogs, sessions] = await Promise.all([
+            const [workLogs, pauseSessions, sessions] = await Promise.all([
                 this.qcWorkLogModel.find(workLogFilter).lean().exec(),
+
+                this.pauseSessionModel.find(workLogFilter as any).lean().exec(),
 
                 this.userSessionModel
                     .aggregate([
@@ -376,7 +381,7 @@ export class TrackerQueryService {
 
             return {
                 success: true,
-                workLogs,
+                workLogs: this.mergePauseSessions(workLogs, pauseSessions),
                 sessions,
             };
         } catch (e) {
@@ -424,10 +429,10 @@ export class TrackerQueryService {
                 }
             }
 
-            const sessions = await this.qcWorkLogModel
-                .find(filter)
-                .lean()
-                .exec();
+            const [sessions, pauseSessions] = await Promise.all([
+                this.qcWorkLogModel.find(filter).lean().exec(),
+                this.pauseSessionModel.find(filter as any).lean().exec(),
+            ]);
 
             const sessionFilter: FilterQuery<UserSession> = {};
             if (requestedFrom && requestedTo) {
@@ -537,7 +542,7 @@ export class TrackerQueryService {
 
             return {
                 success: true,
-                data: sessions,
+                data: this.mergePauseSessions(sessions, pauseSessions),
                 sessions: latestSessionsByUser,
             };
         } catch (e) {
@@ -546,5 +551,111 @@ export class TrackerQueryService {
                 'Unable to load live tracking data',
             );
         }
+    }
+
+    private mergePauseSessions(workLogs: any[], pauseSessions: any[]) {
+        const merged = new Map<string, any>();
+
+        for (const raw of workLogs ?? []) {
+            const workLog = {
+                ...raw,
+                pause_count: 0,
+                pause_time: 0,
+                pause_reasons: [],
+            };
+            merged.set(this.buildPauseKey(workLog), workLog);
+        }
+
+        for (const pause of pauseSessions ?? []) {
+            const key = this.buildPauseKey(pause, true);
+            const pauseCount = Array.isArray(pause?.pause_reasons)
+                ? pause.pause_reasons.length
+                : 0;
+            const pauseReasons = this.decoratePauseReasons(pause);
+            const pauseTime = pauseReasons.reduce(
+                (sum, item) => sum + Math.max(0, Number(item?.duration) || 0),
+                0,
+            );
+
+            const existing = merged.get(key);
+            if (existing) {
+                existing.pause_count = pauseCount;
+                existing.pause_time = pauseTime;
+                existing.pause_reasons = pauseReasons;
+                if ((existing.total_times ?? 0) <= 0 && (pause?.total_times ?? 0) > 0) {
+                    existing.total_times = pause.total_times;
+                }
+                continue;
+            }
+
+            merged.set(key, {
+                _id: pause?._id,
+                employee_name: pause?.employee_name ?? '',
+                client_code: pause?.client_code ?? '',
+                folder_path: pause?.folder_path ?? '',
+                shift: pause?.shift ?? '',
+                work_type: pause?.work_type ?? '',
+                date_today: pause?.date_today ?? '',
+                estimate_time: 0,
+                categories: '',
+                total_times: Math.max(0, Number(pause?.total_times) || 0),
+                pause_count: pauseCount,
+                pause_time: pauseTime,
+                pause_reasons: pauseReasons,
+                files: [],
+                createdAt: pause?.createdAt,
+                updatedAt: pause?.updatedAt,
+            });
+        }
+
+        return Array.from(merged.values()).sort((left, right) => {
+            const leftTime = new Date(left?.updatedAt ?? 0).getTime();
+            const rightTime = new Date(right?.updatedAt ?? 0).getTime();
+            return rightTime - leftTime;
+        });
+    }
+
+    private buildPauseKey(doc: any, preserveEmptyContext = false) {
+        const normalize = (
+            value: unknown,
+            fallback = '',
+            lower = true,
+        ) => {
+            const text = String(value ?? '').trim();
+            const resolved = preserveEmptyContext && text.length === 0
+                ? ''
+                : text || fallback;
+            return lower ? resolved.toLowerCase() : resolved;
+        };
+
+        return [
+            normalize(doc?.employee_name, 'unknown_employee'),
+            normalize(doc?.date_today, '', false),
+            normalize(doc?.client_code, 'unknown_client'),
+            normalize(doc?.folder_path, 'unknown_folder', false),
+            normalize(doc?.shift, 'unknown_shift'),
+            normalize(doc?.work_type, 'qc'),
+        ].join('|');
+    }
+
+    private decoratePauseReasons(doc: any) {
+        const now = Date.now();
+        const reasons = Array.isArray(doc?.pause_reasons) ? doc.pause_reasons : [];
+        return reasons.map((item: any) => {
+            const startedAt = item?.started_at ? new Date(item.started_at) : null;
+            const completedAt = item?.completed_at ? new Date(item.completed_at) : null;
+            const duration = completedAt
+                ? Math.max(0, Number(item?.duration) || 0)
+                : startedAt
+                  ? Math.max(0, Math.floor((now - startedAt.getTime()) / 1000))
+                  : 0;
+
+            return {
+                reason: String(item?.reason ?? '').trim(),
+                duration,
+                started_at: startedAt,
+                completed_at: completedAt,
+            };
+        });
     }
 }

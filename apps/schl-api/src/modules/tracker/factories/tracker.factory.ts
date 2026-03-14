@@ -1,27 +1,6 @@
 import { SyncQcWorkLogDto } from '../dto/sync-qc-work-log.dto';
 
 export class TrackerFactory {
-    private static derivePauseReasons(
-        pauseReasons?: { reason: string; duration: number }[],
-    ) {
-        if (Array.isArray(pauseReasons) && pauseReasons.length) {
-            const completedAt = new Date();
-            return pauseReasons
-                .filter(p => p && typeof p.reason === 'string')
-                .map(p => ({
-                    reason: p.reason.trim(),
-                    duration: Number(p.duration) || 0,
-                    started_at: new Date(
-                        completedAt.getTime() -
-                            (Number(p.duration) || 0) * 1000,
-                    ),
-                    completed_at: completedAt,
-                }))
-                .filter(p => p.reason);
-        }
-        return [];
-    }
-
     static qcFilterFromSyncDto(dto: SyncQcWorkLogDto, dateString: string) {
         return {
             employee_name: dto.employeeName.toLowerCase(),
@@ -40,9 +19,6 @@ export class TrackerFactory {
             set.estimate_time = dto.estimateTime;
         if (dto.categories !== undefined)
             set.categories = dto.categories?.trim() || '';
-
-        if (dto.pauseReasons !== undefined)
-            set.pause_reasons = this.derivePauseReasons(dto.pauseReasons);
 
         return set;
     }

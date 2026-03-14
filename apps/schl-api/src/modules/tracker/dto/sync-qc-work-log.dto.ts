@@ -1,19 +1,5 @@
-import {
-    ArrayMinSize,
-    IsArray,
-    IsNotEmpty,
-    IsNumber,
-    IsOptional,
-    IsString,
-    Min,
-    ValidateNested,
-} from 'class-validator';
+import { ArrayMinSize, IsArray, IsNotEmpty, IsNumber, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
-
-type PauseReasonDto = {
-    reason: string;
-    duration: number;
-};
 
 class QcWorkLogFileDto {
     @IsString()
@@ -68,19 +54,6 @@ export class SyncQcWorkLogDto {
     @Min(0)
     @IsOptional()
     totalTimes?: number;
-
-    @IsNumber()
-    @Min(0)
-    @IsOptional()
-    pauseCount?: number;
-
-    @IsNumber()
-    @Min(0)
-    @IsOptional()
-    pauseTime?: number;
-
-    @IsOptional()
-    pauseReasons?: PauseReasonDto[];
 
     @IsString()
     @IsOptional()
