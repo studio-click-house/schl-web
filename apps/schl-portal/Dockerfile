@@ -37,7 +37,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/schl-portal/.next/static ./a
 USER nextjs
 EXPOSE 3000
 ENV PORT=3000
-# set hostname to localhost
+# Listen on all interfaces so the container is accessible from the outside
 ENV HOSTNAME="0.0.0.0"
 
 CMD ["node", "apps/schl-portal/server.js"]

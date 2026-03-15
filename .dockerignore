@@ -1,0 +1,34 @@
+.git
+.gitignore
+.vscode
+node_modules
+.pnp
+.pnp.js
+
+# testing
+coverage
+
+# Next.js / build outputs
+.next/
+out/
+build/
+.swc/
+dist/
+
+# Turbo
+.turbo
+
+# misc
+.DS_Store
+*.pem
+
+# debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# local env files
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
