@@ -311,7 +311,12 @@ const Table = ({ queryEmployeeId }: AttendanceTableProps) => {
         flag?: any,
     ) => {
         if (!inTime || !outTime) return '0:0';
-        if (flag && (flag.ignore_attendance_hours || ['A', 'W', 'H', 'L'].includes(flag.code))) return '0:0';
+        if (
+            flag &&
+            (flag.ignore_attendance_hours ||
+                ['A', 'W', 'H', 'L'].includes(flag.code))
+        )
+            return '0:0';
         try {
             const start = moment.tz(inTime, 'Asia/Dhaka');
             const end = moment.tz(outTime, 'Asia/Dhaka');

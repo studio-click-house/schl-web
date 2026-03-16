@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { UserSession } from '@repo/common/types/user-session.type';
 import { IdParamDto } from '../../common/dto/id-param.dto';
+import { BulkDeactivateShiftPlansBodyDto } from './dto/bulk-deactivate-shift-plans.dto';
 import { CreateShiftOverrideBodyDto } from './dto/create-shift-override.dto';
 import { CreateShiftTemplateBodyDto } from './dto/create-shift-template.dto';
 import {
@@ -60,6 +61,14 @@ export class ShiftPlanController {
         @Req() req: Request & { user: UserSession },
     ) {
         return await this.shiftPlanService.createShiftPlan(body, req.user);
+    }
+
+    @Post('bulk-deactivate')
+    async bulkDeactivateShiftPlans(
+        @Body() body: BulkDeactivateShiftPlansBodyDto,
+        @Req() req: Request & { user: UserSession },
+    ) {
+        return await this.shiftPlanService.bulkDeactivate(body, req.user);
     }
 
     @Post('create-bulk')

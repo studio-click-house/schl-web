@@ -143,12 +143,10 @@ export class DailyReportService {
                 query.submitted_by = new mongoose.Types.ObjectId(submitter);
             }
 
-            applyDateRange(
-                query,
-                'createdAt',
-                filters.fromDate,
-                filters.toDate,
-            );
+            const fromDate = filters.fromDate;
+            const toDate = filters.toDate || (fromDate ? fromDate : undefined);
+
+            applyDateRange(query, 'createdAt', fromDate, toDate);
 
             console.log('Querying daily reports with', { query, pagination });
 

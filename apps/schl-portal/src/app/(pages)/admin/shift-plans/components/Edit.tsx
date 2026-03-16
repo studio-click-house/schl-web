@@ -6,6 +6,19 @@ import { SquarePen, X } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { ShiftTemplateEditData, shiftPlanEditSchema } from '../schema';
+import Select from 'react-select';
+import {
+    setCalculatedZIndex,
+    setClassNameAndIsDisabled,
+    setMenuPortalTarget,
+} from '@repo/common/utils/select-helpers';
+
+const shiftTypeOptions = [
+    { value: 'morning', label: 'Morning' },
+    { value: 'evening', label: 'Evening' },
+    { value: 'night', label: 'Night' },
+    { value: 'custom', label: 'Custom' },
+] as const;
 
 const baseZIndex = 50;
 
@@ -39,7 +52,7 @@ const EditButton = ({ shiftPlan, submitHandler }: EditButtonProps) => {
         shiftStart: shiftPlan.shift_start,
         shiftEnd: shiftPlan.shift_end,
         active: shiftPlan.active,
-        changeReason: shiftPlan.change_reason || '',
+        comment: shiftPlan.comment || '',
     });
 
     const handleInputChange = (
@@ -123,7 +136,7 @@ const EditButton = ({ shiftPlan, submitHandler }: EditButtonProps) => {
 
             <section
                 onClick={handleClickOutside}
-                className={`fixed z-${baseZIndex} inset-0 flex justify-center items-center transition-colors ${isOpen ? 'visible bg-black/20 disable-page-scroll' : 'invisible'} `}
+                className={`fixed z-${baseZIndex} inset-0 flex justify-center items-center transition-colors ${isOpen ? 'visible bg-black/20 disable-page-scroll pointer-events-auto' : 'invisible pointer-events-none'} `}
             >
                 <article
                     ref={popupRef}
@@ -143,157 +156,168 @@ const EditButton = ({ shiftPlan, submitHandler }: EditButtonProps) => {
                         </button>
                     </header>
 
-                    <div className="overflow-y-scroll max-h-[70vh] p-4">
-                        <form onSubmit={handleSubmit} className="space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 text-center">
-                                        <span className="uppercase">
-                                            From Date
-                                        </span>
-                                    </label>
-                                    <input
-                                        type="date"
-                                        name="fromDate"
-                                        value={formData.fromDate}
-                                        onChange={handleInputChange}
-                                        className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
-                                    />
-                                    {errors.fromDate && (
-                                        <p className="text-red-500 text-sm mt-1">
-                                            {errors.fromDate}
-                                        </p>
-                                    )}
-                                </div>
-
-                                <div>
-                                    <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 text-center">
-                                        <span className="uppercase">
-                                            To Date
-                                        </span>
-                                    </label>
-                                    <input
-                                        type="date"
-                                        name="toDate"
-                                        value={formData.toDate}
-                                        onChange={handleInputChange}
-                                        className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
-                                    />
-                                    {errors.toDate && (
-                                        <p className="text-red-500 text-sm mt-1">
-                                            {errors.toDate}
-                                        </p>
-                                    )}
-                                </div>
-
-                                <div>
-                                    <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 text-center">
-                                        <span className="uppercase">
-                                            Shift Type
-                                        </span>
-                                    </label>
-                                    <select
-                                        name="shiftType"
-                                        value={formData.shiftType}
-                                        onChange={handleInputChange}
-                                        className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
-                                    >
-                                        <option value="morning">Morning</option>
-                                        <option value="evening">Evening</option>
-                                        <option value="night">Night</option>
-                                        <option value="custom">Custom</option>
-                                    </select>
-                                    {errors.shiftType && (
-                                        <p className="text-red-500 text-sm mt-1">
-                                            {errors.shiftType}
-                                        </p>
-                                    )}
-                                </div>
-
-                                <div>
-                                    <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 text-center">
-                                        <span className="uppercase">
-                                            Start Time (HH:mm)
-                                        </span>
-                                    </label>
-                                    <input
-                                        type="text"
-                                        name="shiftStart"
-                                        placeholder="09:00"
-                                        value={formData.shiftStart}
-                                        onChange={handleInputChange}
-                                        className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
-                                    />
-                                    {errors.shiftStart && (
-                                        <p className="text-red-500 text-sm mt-1">
-                                            {errors.shiftStart}
-                                        </p>
-                                    )}
-                                </div>
-
-                                <div className="md:col-span-1">
-                                    <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 text-center">
-                                        <span className="uppercase">
-                                            End Time (HH:mm)
-                                        </span>
-                                    </label>
-                                    <input
-                                        type="text"
-                                        name="shiftEnd"
-                                        placeholder="17:00"
-                                        value={formData.shiftEnd}
-                                        onChange={handleInputChange}
-                                        className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
-                                    />
-                                    {errors.shiftEnd && (
-                                        <p className="text-red-500 text-sm mt-1">
-                                            {errors.shiftEnd}
-                                        </p>
-                                    )}
-                                </div>
+                    <form
+                        className="overflow-x-hidden overflow-y-scroll max-h-[70vh] p-4 text-start"
+                        onSubmit={handleSubmit}
+                    >
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 mb-4 gap-y-4">
+                            <div>
+                                <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
+                                    <span className="uppercase">From Date</span>
+                                </label>
+                                <input
+                                    type="date"
+                                    name="fromDate"
+                                    value={formData.fromDate}
+                                    onChange={handleInputChange}
+                                    className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
+                                />
+                                {errors.fromDate && (
+                                    <p className="text-red-500 text-sm mt-1">
+                                        {errors.fromDate}
+                                    </p>
+                                )}
                             </div>
 
-                            <div className="md:col-span-2">
-                                <label className="flex items-center gap-2 cursor-pointer">
+                            <div>
+                                <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
+                                    <span className="uppercase">To Date</span>
+                                </label>
+                                <input
+                                    type="date"
+                                    name="toDate"
+                                    value={formData.toDate}
+                                    onChange={handleInputChange}
+                                    className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
+                                />
+                                {errors.toDate && (
+                                    <p className="text-red-500 text-sm mt-1">
+                                        {errors.toDate}
+                                    </p>
+                                )}
+                            </div>
+
+                            <div>
+                                <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
+                                    <span className="uppercase">
+                                        Shift Type
+                                    </span>
+                                </label>
+                                <Select
+                                    {...setClassNameAndIsDisabled(isOpen)}
+                                    options={shiftTypeOptions}
+                                    closeMenuOnSelect={true}
+                                    classNamePrefix="react-select"
+                                    menuPortalTarget={setMenuPortalTarget}
+                                    menuPlacement="auto"
+                                    menuPosition="fixed"
+                                    styles={setCalculatedZIndex(baseZIndex)}
+                                    value={
+                                        shiftTypeOptions.find(
+                                            opt => opt.value === formData.shiftType
+                                        ) || null
+                                    }
+                                    onChange={opt => {
+                                        if (opt) {
+                                            setFormData({
+                                                ...formData,
+                                                shiftType: opt.value,
+                                            });
+                                            if (errors['shiftType']) {
+                                                setErrors({ ...errors, shiftType: '' });
+                                            }
+                                        }
+                                    }}
+                                    placeholder="Select Type"
+                                />
+                                {errors.shiftType && (
+                                    <p className="text-red-500 text-sm mt-1">
+                                        {errors.shiftType}
+                                    </p>
+                                )}
+                            </div>
+
+                            <div>
+                                <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
+                                    <span className="uppercase">
+                                        Start Time (HH:mm)
+                                    </span>
+                                </label>
+                                <input
+                                    type="text"
+                                    name="shiftStart"
+                                    placeholder="09:00"
+                                    value={formData.shiftStart}
+                                    onChange={handleInputChange}
+                                    className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
+                                />
+                                {errors.shiftStart && (
+                                    <p className="text-red-500 text-sm mt-1">
+                                        {errors.shiftStart}
+                                    </p>
+                                )}
+                            </div>
+
+                            <div className="md:col-span-1">
+                                <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
+                                    <span className="uppercase">
+                                        End Time (HH:mm)
+                                    </span>
+                                </label>
+                                <input
+                                    type="text"
+                                    name="shiftEnd"
+                                    placeholder="17:00"
+                                    value={formData.shiftEnd}
+                                    onChange={handleInputChange}
+                                    className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
+                                />
+                                {errors.shiftEnd && (
+                                    <p className="text-red-500 text-sm mt-1">
+                                        {errors.shiftEnd}
+                                    </p>
+                                )}
+                            </div>
+
+                            <div className="md:col-span-1">
+                                <label className="inline-flex items-center gap-2 cursor-pointer md:mt-7">
                                     <input
                                         type="checkbox"
                                         name="active"
                                         checked={formData.active ?? true}
                                         onChange={handleInputChange}
-                                        className="h-4 w-4 text-primary rounded"
+                                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
                                     />
-                                    <span className="text-sm font-medium text-gray-700 uppercase">
+                                    <span className="text-sm font-medium text-gray-700">
                                         Active Template
                                     </span>
                                 </label>
-                                <p className="text-xs text-gray-500 mt-1">
+                                <p className="text-xs font-mono text-gray-400 flex flex-row gap-2 mt-0.5">
                                     Deactivate to stop using this template for
                                     new days
                                 </p>
                             </div>
+                        </div>
 
-                            <div className="md:col-span-2">
-                                <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2 text-center">
-                                    <span className="uppercase">
-                                        Change Reason
-                                    </span>
-                                </label>
-                                <textarea
-                                    name="changeReason"
-                                    placeholder="e.g., Christmas special, Eid break..."
-                                    value={formData.changeReason}
-                                    onChange={handleInputChange}
-                                    rows={3}
-                                    className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
-                                />
-                                {errors.changeReason && (
-                                    <p className="text-red-500 text-sm mt-1">
-                                        {errors.changeReason}
-                                    </p>
-                                )}
-                            </div>
-                        </form>
-                    </div>
+                        <div>
+                            <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
+                                <span className="uppercase">Comment</span>
+                            </label>
+                            <textarea
+                                name="comment"
+                                placeholder="e.g., Week 2, 3, 4..."
+                                value={formData.comment}
+                                onChange={handleInputChange}
+                                rows={3}
+                                className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
+                            />
+                            {errors.comment && (
+                                <p className="text-red-500 text-sm mt-1">
+                                    {errors.comment}
+                                </p>
+                            )}
+                        </div>
+                    </form>
 
                     <footer className="flex space-x-2 items-center px-4 py-2 border-t justify-end border-gray-200 rounded-b">
                         <button

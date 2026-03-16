@@ -450,7 +450,12 @@ const Table = () => {
                                                                     `/accountancy/employees/attendance/?employeeId=${employee._id}`,
                                                                 )
                                                             }
-                                                            className="px-3 py-1 rounded-md bg-orange-500 hover:bg-orange-600 text-white text-sm transition-colors"
+                                                            className={cn(
+                                                                'px-3 py-1 rounded-md bg-orange-500 hover:bg-orange-600 text-white text-sm transition-colors',
+                                                                employee.status !==
+                                                                    'active' &&
+                                                                    'hidden',
+                                                            )}
                                                             title="View Attendance"
                                                         >
                                                             <Calendar

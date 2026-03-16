@@ -1,10 +1,14 @@
 'use client';
 
 import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { EMPLOYEE_DEPARTMENTS } from '@repo/common/constants/employee.constant';
 import { EmployeeDocument } from '@repo/common/models/employee.schema';
+import { setMenuPortalTarget } from '@repo/common/utils/select-helpers';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
+import Select from 'react-select';
 import { toast } from 'sonner';
 import {
     ShiftOverrideFormData,
@@ -12,200 +16,141 @@ import {
     STANDARD_SHIFTS,
 } from '../../../schema';
 
+const overrideTypeOptions = [
+    { value: 'replace', label: 'Replace (set new shift)' },
+    { value: 'off_day', label: 'Off Day (mark as OT)' },
+    { value: 'cancel', label: 'Cancel (no shift)' },
+] as const;
+
+const shiftTypeOptions = [
+    { value: 'morning', label: 'Morning (7:00 AM - 3:00 PM)' },
+    { value: 'evening', label: 'Evening (3:00 PM - 11:00 PM)' },
+    { value: 'night', label: 'Night (11:00 PM - 7:00 AM)' },
+    { value: 'custom', label: 'Custom Times' },
+] as const;
+
+const departmentOptions = [
+    { value: '', label: 'All Departments' },
+    ...EMPLOYEE_DEPARTMENTS.map(dept => ({ value: dept, label: dept })),
+];
+
 const OverrideForm = () => {
-    const [isLoading, setIsLoading] = useState(false);
+    const authedFetchApi = useAuthedFetchApi();
+    const router = useRouter();
+
     const [employees, setEmployees] = useState<EmployeeDocument[]>([]);
     const [loadingEmployees, setLoadingEmployees] = useState(true);
-    const [errors, setErrors] = useState<Record<string, string>>({});
     const [searchTerm, setSearchTerm] = useState('');
     const [departmentFilter, setDepartmentFilter] = useState('');
-    const router = useRouter();
-    const authedFetchApi = useAuthedFetchApi();
 
-    const [formData, setFormData] = useState<ShiftOverrideFormData>({
-        employeeId: '',
-        shiftDate: '',
-        overrideType: 'replace',
-        shiftType: 'morning',
-        shiftStart: STANDARD_SHIFTS.morning.start,
-        shiftEnd: STANDARD_SHIFTS.morning.end,
-        changeReason: '',
+    const {
+        register,
+        handleSubmit,
+        control,
+        watch,
+        setValue,
+        formState: { errors, isSubmitting },
+    } = useForm<ShiftOverrideFormData>({
+        resolver: zodResolver(shiftOverrideSchema),
+        defaultValues: {
+            employeeId: '',
+            shiftDate: '',
+            overrideType: 'replace',
+            shiftType: 'morning',
+            shiftStart: STANDARD_SHIFTS.morning.start,
+            shiftEnd: STANDARD_SHIFTS.morning.end,
+            comment: '',
+        },
     });
 
-    useEffect(() => {
-        const fetchEmployees = async () => {
-            try {
-                setLoadingEmployees(true);
-                const response = await authedFetchApi<any>(
-                    {
-                        path: '/v1/employee/search-employees',
-                        query: { paginated: false },
-                    },
-                    {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({}),
-                    },
-                );
+    const watchedOverrideType = watch('overrideType');
+    const watchedShiftType = watch('shiftType');
 
-                if (response.ok) {
-                    setEmployees(response.data.items || response.data);
-                } else {
-                    toast.error('Failed to load employees');
-                }
-            } catch (error) {
-                console.error(error);
-                toast.error('An error occurred while loading employees');
-            } finally {
-                setLoadingEmployees(false);
-            }
-        };
-
-        fetchEmployees();
-    }, [authedFetchApi]);
-
-    const activeEmployees = useMemo(
-        () => employees.filter(emp => emp.status === 'active'),
-        [employees],
-    );
-
-    const filteredEmployees = useMemo(() => {
-        const term = searchTerm.trim().toLowerCase();
-        return activeEmployees.filter(emp => {
-            const matchesDepartment =
-                !departmentFilter || emp.department === departmentFilter;
-            if (!matchesDepartment) return false;
-            if (!term) return true;
-            const name = emp.real_name?.toLowerCase() || '';
-            const id = emp.e_id?.toLowerCase() || '';
-            return name.includes(term) || id.includes(term);
-        });
-    }, [activeEmployees, departmentFilter, searchTerm]);
-
-    const handleShiftTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const shiftType = e.target.value as
-            | 'morning'
-            | 'evening'
-            | 'night'
-            | 'custom';
-
-        if (shiftType === 'custom') {
-            setFormData(prev => ({
-                ...prev,
-                shiftType,
-                shiftStart: prev.shiftStart || '10:00',
-                shiftEnd: prev.shiftEnd || '23:00',
-            }));
-        } else {
-            const standardShift = STANDARD_SHIFTS[shiftType];
-            setFormData(prev => ({
-                ...prev,
-                shiftType,
-                shiftStart: standardShift.start,
-                shiftEnd: standardShift.end,
-            }));
-        }
-
-        if (errors.shiftType) {
-            setErrors(prev => ({ ...prev, shiftType: '' }));
-        }
-    };
-
-    const handleOverrideTypeChange = (
-        e: React.ChangeEvent<HTMLSelectElement>,
-    ) => {
-        const overrideType = e.target.value as 'replace' | 'cancel';
-        setFormData(prev => ({
-            ...prev,
-            overrideType,
-        }));
-
-        if (errors.overrideType) {
-            setErrors(prev => ({ ...prev, overrideType: '' }));
-        }
-    };
-
-    const handleInputChange = (
-        e: React.ChangeEvent<
-            HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-        >,
-    ) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({
-            ...prev,
-            [name]: value,
-        }));
-
-        if (errors[name]) {
-            setErrors(prev => ({ ...prev, [name]: '' }));
-        }
-    };
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsLoading(true);
-
+    const fetchEmployees = useCallback(async () => {
         try {
-            const payload: ShiftOverrideFormData = {
-                employeeId: formData.employeeId,
-                shiftDate: formData.shiftDate,
-                overrideType: formData.overrideType,
-                changeReason: formData.changeReason,
-            };
-
-            if (formData.overrideType === 'replace') {
-                payload.shiftType = formData.shiftType;
-                payload.shiftStart = formData.shiftStart;
-                payload.shiftEnd = formData.shiftEnd;
-            }
-
-            const validated = shiftOverrideSchema.parse(payload);
-
+            setLoadingEmployees(true);
             const response = await authedFetchApi<any>(
-                { path: '/v1/shift-plan/create' },
+                {
+                    path: '/v1/employee/search-employees',
+                    query: { paginated: false },
+                },
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(validated),
+                    body: JSON.stringify({ status: 'active' }),
                 },
             );
 
             if (response.ok) {
-                toast.success('Shift override created successfully');
-                router.push('/admin/shift-plans');
+                setEmployees(response.data.items || response.data);
             } else {
-                toastFetchError(response);
+                toast.error('Failed to load employees');
             }
-        } catch (error: any) {
-            if (error.errors) {
-                const newErrors: Record<string, string> = {};
-                error.errors.forEach((err: any) => {
-                    if (err.path[0]) {
-                        newErrors[err.path[0]] = err.message;
-                    }
-                });
-                setErrors(newErrors);
-            } else {
-                toast.error('An error occurred');
-                console.error(error);
-            }
+        } catch (error) {
+            console.error(error);
+            toast.error('An error occurred while loading employees');
         } finally {
-            setIsLoading(false);
+            setLoadingEmployees(false);
+        }
+    }, [authedFetchApi]);
+
+    useEffect(() => {
+        fetchEmployees();
+    }, [fetchEmployees]);
+
+    const filteredEmployees = useMemo(() => {
+        const term = searchTerm.trim().toLowerCase();
+        return employees.filter(emp => {
+            if (departmentFilter && emp.department !== departmentFilter)
+                return false;
+            if (!term) return true;
+            return (
+                emp.real_name?.toLowerCase().includes(term) ||
+                emp.e_id?.toLowerCase().includes(term)
+            );
+        });
+    }, [employees, departmentFilter, searchTerm]);
+
+    const employeeSelectOptions = useMemo(
+        () =>
+            filteredEmployees.map(emp => ({
+                value: emp._id.toString(),
+                label: `${emp.real_name} (${emp.e_id})`,
+            })),
+        [filteredEmployees],
+    );
+
+    const onSubmit = async (data: ShiftOverrideFormData) => {
+        const response = await authedFetchApi<any>(
+            { path: '/v1/shift-plan/create' },
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+            },
+        );
+
+        if (response.ok) {
+            toast.success('Shift override created successfully');
+            router.push('/admin/shift-plans');
+        } else {
+            toastFetchError(response);
         }
     };
 
     const standardShift =
-        formData.shiftType && formData.shiftType !== 'custom'
-            ? STANDARD_SHIFTS[formData.shiftType]
+        watchedShiftType && watchedShiftType !== 'custom'
+            ? STANDARD_SHIFTS[watchedShiftType as keyof typeof STANDARD_SHIFTS]
             : null;
 
     return (
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit(onSubmit)}>
+            {/* Employee select */}
             <div className="mb-6">
                 <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
                     <span className="uppercase">Select Employee *</span>
                     <span className="text-red-700 text-wrap block text-xs">
-                        {errors.employeeId}
+                        {errors.employeeId?.message}
                     </span>
                 </label>
 
@@ -217,108 +162,142 @@ const OverrideForm = () => {
                         onChange={e => setSearchTerm(e.target.value)}
                         className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-2 px-3 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
                     />
-                    <select
-                        value={departmentFilter}
-                        onChange={e => setDepartmentFilter(e.target.value)}
-                        className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-2 px-3 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
-                    >
-                        <option value="">All Departments</option>
-                        {EMPLOYEE_DEPARTMENTS.map(dept => (
-                            <option key={dept} value={dept}>
-                                {dept}
-                            </option>
-                        ))}
-                    </select>
+                    <Select
+                        options={departmentOptions}
+                        isClearable={false}
+                        value={
+                            departmentOptions.find(
+                                opt => opt.value === departmentFilter,
+                            ) || departmentOptions[0]
+                        }
+                        onChange={opt =>
+                            setDepartmentFilter(opt ? opt.value : '')
+                        }
+                        placeholder="All Departments"
+                        classNamePrefix="react-select"
+                        menuPortalTarget={setMenuPortalTarget}
+                    />
                 </div>
 
-                <select
+                <Controller
                     name="employeeId"
-                    value={formData.employeeId}
-                    onChange={handleInputChange}
-                    disabled={loadingEmployees}
-                    className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                    <option value="">
-                        {loadingEmployees
-                            ? 'Loading employees...'
-                            : 'Select an employee'}
-                    </option>
-                    {filteredEmployees.map(emp => (
-                        <option
-                            key={emp._id.toString()}
-                            value={emp._id.toString()}
-                        >
-                            {emp.real_name} ({emp.e_id})
-                        </option>
-                    ))}
-                </select>
+                    control={control}
+                    render={({ field }) => (
+                        <Select
+                            options={employeeSelectOptions}
+                            isLoading={loadingEmployees}
+                            isDisabled={loadingEmployees}
+                            placeholder={
+                                loadingEmployees
+                                    ? 'Loading employees...'
+                                    : 'Select an employee'
+                            }
+                            classNamePrefix="react-select"
+                            menuPortalTarget={setMenuPortalTarget}
+                            value={
+                                employeeSelectOptions.find(
+                                    opt => opt.value === field.value,
+                                ) || null
+                            }
+                            onChange={opt =>
+                                field.onChange(opt ? opt.value : '')
+                            }
+                        />
+                    )}
+                />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 mb-4 gap-y-4">
+                {/* Shift Date */}
                 <div>
                     <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
                         <span className="uppercase">Shift Date *</span>
                         <span className="text-red-700 text-wrap block text-xs">
-                            {errors.shiftDate}
+                            {errors.shiftDate?.message}
                         </span>
                     </label>
                     <input
+                        {...register('shiftDate')}
                         type="date"
-                        name="shiftDate"
-                        value={formData.shiftDate}
-                        onChange={handleInputChange}
                         className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
                     />
                 </div>
 
+                {/* Override Type */}
                 <div>
                     <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
                         <span className="uppercase">Override Type *</span>
                         <span className="text-red-700 text-wrap block text-xs">
-                            {errors.overrideType}
+                            {errors.overrideType?.message}
                         </span>
                     </label>
-                    <select
+                    <Controller
                         name="overrideType"
-                        value={formData.overrideType}
-                        onChange={handleOverrideTypeChange}
-                        className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
-                    >
-                        <option value="replace">Replace (set new shift)</option>
-                        <option value="off_day">Off Day (mark as OT)</option>
-                        <option value="cancel">Cancel (no shift)</option>
-                    </select>
+                        control={control}
+                        render={({ field }) => (
+                            <Select
+                                {...field}
+                                options={overrideTypeOptions}
+                                isClearable={false}
+                                value={
+                                    overrideTypeOptions.find(
+                                        opt => opt.value === field.value,
+                                    ) || null
+                                }
+                                onChange={opt =>
+                                    field.onChange(opt ? opt.value : '')
+                                }
+                                classNamePrefix="react-select"
+                                menuPortalTarget={setMenuPortalTarget}
+                            />
+                        )}
+                    />
                 </div>
 
-                {formData.overrideType === 'replace' && (
+                {/* Replace-only: shift type, times */}
+                {watchedOverrideType === 'replace' && (
                     <>
                         <div className="md:col-span-2">
                             <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
                                 <span className="uppercase">Shift Type *</span>
                                 <span className="text-red-700 text-wrap block text-xs">
-                                    {errors.shiftType}
+                                    {errors.shiftType?.message}
                                 </span>
                             </label>
-                            <select
+                            <Controller
                                 name="shiftType"
-                                value={formData.shiftType || 'morning'}
-                                onChange={handleShiftTypeChange}
-                                className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
-                            >
-                                <option value="morning">
-                                    Morning (7:00 AM - 3:00 PM)
-                                </option>
-                                <option value="evening">
-                                    Evening (3:00 PM - 11:00 PM)
-                                </option>
-                                <option value="night">
-                                    Night (11:00 PM - 7:00 AM)
-                                </option>
-                                <option value="custom">Custom Times</option>
-                            </select>
+                                control={control}
+                                render={({ field }) => (
+                                    <Select
+                                        {...field}
+                                        options={shiftTypeOptions}
+                                        isClearable={false}
+                                        value={
+                                            shiftTypeOptions.find(
+                                                opt =>
+                                                    opt.value === field.value,
+                                            ) || null
+                                        }
+                                        onChange={opt => {
+                                            const type = opt!.value;
+                                            field.onChange(type);
+                                            if (type !== 'custom') {
+                                                const s =
+                                                    STANDARD_SHIFTS[
+                                                        type as keyof typeof STANDARD_SHIFTS
+                                                    ];
+                                                setValue('shiftStart', s.start);
+                                                setValue('shiftEnd', s.end);
+                                            }
+                                        }}
+                                        classNamePrefix="react-select"
+                                        menuPortalTarget={setMenuPortalTarget}
+                                    />
+                                )}
+                            />
                         </div>
 
-                        {formData.shiftType === 'custom' && (
+                        {watchedShiftType === 'custom' ? (
                             <>
                                 <div>
                                     <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
@@ -326,15 +305,13 @@ const OverrideForm = () => {
                                             Start Time (HH:mm) *
                                         </span>
                                         <span className="text-red-700 text-wrap block text-xs">
-                                            {errors.shiftStart}
+                                            {errors.shiftStart?.message}
                                         </span>
                                     </label>
                                     <input
+                                        {...register('shiftStart')}
                                         type="text"
-                                        name="shiftStart"
                                         placeholder="10:00"
-                                        value={formData.shiftStart || ''}
-                                        onChange={handleInputChange}
                                         className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
                                     />
                                 </div>
@@ -344,64 +321,62 @@ const OverrideForm = () => {
                                             End Time (HH:mm) *
                                         </span>
                                         <span className="text-red-700 text-wrap block text-xs">
-                                            {errors.shiftEnd}
+                                            {errors.shiftEnd?.message}
                                         </span>
                                     </label>
                                     <input
+                                        {...register('shiftEnd')}
                                         type="text"
-                                        name="shiftEnd"
                                         placeholder="23:00"
-                                        value={formData.shiftEnd || ''}
-                                        onChange={handleInputChange}
                                         className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
                                     />
                                 </div>
                             </>
-                        )}
-
-                        {formData.shiftType !== 'custom' && standardShift && (
-                            <div className="md:col-span-2">
-                                <div className="p-3 bg-green-50 border border-green-200 rounded">
-                                    <p className="text-sm text-green-800">
-                                        <span className="font-semibold">
-                                            Standard times for{' '}
-                                            {formData.shiftType} shift:
-                                        </span>{' '}
-                                        {standardShift.start} -
-                                        {standardShift.end}
-                                        {standardShift.crossesMidnight &&
-                                            ' (crosses midnight)'}
-                                    </p>
+                        ) : (
+                            standardShift && (
+                                <div className="md:col-span-2">
+                                    <div className="p-3 bg-green-50 border border-green-200 rounded">
+                                        <p className="text-sm text-green-800">
+                                            <span className="font-semibold">
+                                                Standard times for{' '}
+                                                {watchedShiftType} shift:{' '}
+                                            </span>
+                                            {standardShift.start} –{' '}
+                                            {standardShift.end}
+                                            {standardShift.crossesMidnight &&
+                                                ' (crosses midnight)'}
+                                        </p>
+                                    </div>
                                 </div>
-                            </div>
+                            )
                         )}
                     </>
                 )}
             </div>
 
+            {/* Comment */}
             <div className="mb-4">
                 <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
-                    <span className="uppercase">Change Reason (Optional)</span>
+                    <span className="uppercase">Comment (Optional)</span>
                     <span className="text-red-700 text-wrap block text-xs">
-                        {errors.changeReason}
+                        {errors.comment?.message}
                     </span>
                 </label>
                 <textarea
-                    name="changeReason"
+                    {...register('comment')}
                     placeholder="e.g., Eid special, Emergency staffing"
-                    value={formData.changeReason || ''}
-                    onChange={handleInputChange}
                     rows={3}
                     className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 mb-3 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
                 />
             </div>
 
+            {/* Submit */}
             <button
-                disabled={isLoading || loadingEmployees}
+                disabled={isSubmitting || loadingEmployees}
                 className="rounded-md bg-primary text-white hover:opacity-90 hover:ring-4 hover:ring-primary transition duration-200 delay-300 hover:text-opacity-100 text-primary-foreground px-10 py-2 mt-6 uppercase disabled:opacity-50 disabled:cursor-not-allowed"
                 type="submit"
             >
-                {isLoading ? 'Saving...' : 'Create override'}
+                {isSubmitting ? 'Saving...' : 'Create override'}
             </button>
         </form>
     );

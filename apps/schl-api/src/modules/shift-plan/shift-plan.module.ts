@@ -13,6 +13,7 @@ import {
     ShiftTemplateSchema,
 } from '@repo/common/models/shift-template.schema';
 import { ShiftPlanController } from './shift-plan.controller';
+import { ShiftPlanSchedulerService } from './shift-plan-scheduler.service';
 import { ShiftPlanService } from './shift-plan.service';
 
 @Module({
@@ -24,7 +25,7 @@ import { ShiftPlanService } from './shift-plan.service';
         ]),
     ],
     controllers: [ShiftPlanController],
-    providers: [ShiftPlanService],
+    providers: [ShiftPlanService, ShiftPlanSchedulerService],
     exports: [ShiftPlanService],
 })
 export class ShiftPlanModule {}

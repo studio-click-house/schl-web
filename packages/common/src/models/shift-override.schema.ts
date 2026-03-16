@@ -50,7 +50,7 @@ export class ShiftOverride {
     updated_by: string | null;
 
     @Prop({ required: false, type: String, default: null })
-    change_reason: string | null;
+    comment: string | null;
 
     @Prop({ type: Date })
     readonly createdAt: Date;

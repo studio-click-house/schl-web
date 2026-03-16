@@ -6,6 +6,7 @@ import {
     InternalServerErrorException,
     Logger,
     NotFoundException,
+    OnModuleInit,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { ShiftOverride } from '@repo/common/models/shift-override.schema';
@@ -16,6 +17,7 @@ import { hasPerm } from '@repo/common/utils/permission-check';
 import * as moment from 'moment-timezone';
 import { FilterQuery, Model, Types } from 'mongoose';
 import { toObjectId } from '../../common/utils/id-helpers.utils';
+import { BulkDeactivateShiftPlansBodyDto } from './dto/bulk-deactivate-shift-plans.dto';
 import { CreateShiftOverrideBodyDto } from './dto/create-shift-override.dto';
 import { CreateShiftTemplateBodyDto } from './dto/create-shift-template.dto';
 import { SearchShiftTemplatesBodyDto } from './dto/search-shift-plan.dto';
@@ -24,7 +26,7 @@ import { UpdateShiftTemplateBodyDto } from './dto/update-shift-template.dto';
 type QueryShape = FilterQuery<ShiftTemplate>;
 
 @Injectable()
-export class ShiftPlanService {
+export class ShiftPlanService implements OnModuleInit {
     private readonly logger = new Logger(ShiftPlanService.name);
 
     constructor(
@@ -35,6 +37,49 @@ export class ShiftPlanService {
         @InjectModel(ShiftResolved.name)
         private shiftResolvedModel: Model<ShiftResolved>,
     ) {}
+
+    async onModuleInit() {
+        this.logger.log(
+            'Checking for obsolete shift plan fields to migrate...',
+        );
+        try {
+            const nativeDb = this.shiftTemplateModel.db.db;
+            if (!nativeDb) return;
+
+            const collections = await nativeDb.listCollections().toArray();
+            const names = collections.map(c => c.name);
+
+            if (names.includes('shift_templates')) {
+                const res = await nativeDb
+                    .collection('shift_templates')
+                    .updateMany(
+                        { change_reason: { $exists: true } },
+                        { $rename: { change_reason: 'comment' } },
+                    );
+                if (res.modifiedCount > 0) {
+                    this.logger.log(
+                        `Migrated ${res.modifiedCount} shift templates (change_reason -> comment).`,
+                    );
+                }
+            }
+
+            if (names.includes('shift_overrides')) {
+                const res = await nativeDb
+                    .collection('shift_overrides')
+                    .updateMany(
+                        { change_reason: { $exists: true } },
+                        { $rename: { change_reason: 'comment' } },
+                    );
+                if (res.modifiedCount > 0) {
+                    this.logger.log(
+                        `Migrated ${res.modifiedCount} shift overrides (change_reason -> comment).`,
+                    );
+                }
+            }
+        } catch (err) {
+            this.logger.error('Shift Template migration failed', err);
+        }
+    }
 
     /**
      * Create a single-day override (replace or cancel)
@@ -93,7 +138,7 @@ export class ShiftPlanService {
                 shift_end: dto.shiftEnd,
                 crosses_midnight: crossesMidnight,
                 updated_by: userSession.db_id,
-                change_reason: dto.changeReason || null,
+                comment: dto.comment || null,
             };
 
             const created = await this.shiftOverrideModel.findOneAndUpdate(
@@ -204,7 +249,7 @@ export class ShiftPlanService {
                     crosses_midnight: crossesMidnight,
                     active: true,
                     updated_by: userSession.db_id,
-                    change_reason: dto.changeReason || null,
+                    comment: dto.comment || null,
                 } as Partial<ShiftTemplate>);
             }
 
@@ -371,7 +416,7 @@ export class ShiftPlanService {
             shift_end: endTime,
             crosses_midnight: crossesMidnight,
             updated_by: userSession.db_id,
-            change_reason: dto.changeReason || existing.change_reason,
+            comment: dto.comment !== undefined ? dto.comment : existing.comment,
             active: targetActive,
             effective_from: targetFrom,
             effective_to: targetTo,
@@ -451,6 +496,8 @@ export class ShiftPlanService {
                     query.effective_from = { $lte: to };
                     query.effective_to = { $gte: from };
                 } else if (from) {
+                    // Single day match: the plan must be active on this day
+                    query.effective_from = { $lte: from };
                     query.effective_to = { $gte: from };
                 } else if (to) {
                     query.effective_from = { $lte: to };
@@ -465,36 +512,70 @@ export class ShiftPlanService {
                 query.active = filters.active === 'true';
             }
 
+            // Department filter — requires lookup on populated employee doc
+            const hasDepartmentFilter = !!filters.department;
+
+            if (!hasDepartmentFilter) {
+                // Fast path: no department filter, use simple find
+                if (!pagination.paginated) {
+                    return await this.shiftTemplateModel
+                        .find(query)
+                        .populate('employee', 'real_name e_id department')
+                        .sort({ effective_from: 1 })
+                        .exec();
+                }
+
+                const skip = (pagination.page - 1) * pagination.itemsPerPage;
+                const [items, count] = await Promise.all([
+                    this.shiftTemplateModel
+                        .find(query)
+                        .populate('employee', 'real_name e_id department')
+                        .sort({ effective_from: 1 })
+                        .skip(skip)
+                        .limit(pagination.itemsPerPage)
+                        .exec(),
+                    this.shiftTemplateModel.countDocuments(query),
+                ]);
+
+                return {
+                    pagination: { count, pageCount: Math.ceil(count / pagination.itemsPerPage) },
+                    items,
+                };
+            }
+
+            // Slow path: department filter requires aggregation with $lookup
+            const pipeline: any[] = [
+                { $match: query },
+                {
+                    $lookup: {
+                        from: 'employees',
+                        localField: 'employee',
+                        foreignField: '_id',
+                        as: 'employee',
+                    },
+                },
+                { $unwind: '$employee' },
+                { $match: { 'employee.department': filters.department } },
+                { $sort: { effective_from: 1 } },
+            ];
+
             if (!pagination.paginated) {
-                const records = await this.shiftTemplateModel
-                    .find(query)
-                    .populate('employee', 'real_name e_id department')
-                    .sort({ effective_from: 1 })
-                    .exec();
-                return records;
+                return await this.shiftTemplateModel.aggregate(pipeline).exec();
             }
 
             const skip = (pagination.page - 1) * pagination.itemsPerPage;
-            const limit = pagination.itemsPerPage;
-
-            const [items, count] = await Promise.all([
+            const [items, countResult] = await Promise.all([
                 this.shiftTemplateModel
-                    .find(query)
-                    .populate('employee', 'real_name e_id department')
-                    .sort({ effective_from: 1 })
-                    .skip(skip)
-                    .limit(limit)
+                    .aggregate([...pipeline, { $skip: skip }, { $limit: pagination.itemsPerPage }])
                     .exec(),
-                this.shiftTemplateModel.countDocuments(query),
+                this.shiftTemplateModel
+                    .aggregate([...pipeline, { $count: 'total' }])
+                    .exec(),
             ]);
 
-            const pageCount = Math.ceil(count / limit);
-
+            const count = countResult[0]?.total ?? 0;
             return {
-                pagination: {
-                    count,
-                    pageCount,
-                },
+                pagination: { count, pageCount: Math.ceil(count / pagination.itemsPerPage) },
                 items,
             };
         } catch (err) {
@@ -502,6 +583,73 @@ export class ShiftPlanService {
             this.logger.error('Failed to search shift plans', err as Error);
             throw new InternalServerErrorException(
                 'Unable to search shift plans at this time',
+            );
+        }
+    }
+
+    /**
+     * Bulk deactivate shift templates by IDs
+     */
+    async bulkDeactivate(
+        dto: BulkDeactivateShiftPlansBodyDto,
+        userSession: UserSession,
+    ) {
+        const canUpdate = hasPerm(
+            'admin:edit_shift_plan',
+            userSession.permissions,
+        );
+        if (!canUpdate) {
+            throw new ForbiddenException(
+                "You don't have permission to update shift plans",
+            );
+        }
+
+        if (!dto.ids || dto.ids.length === 0) {
+            throw new BadRequestException('No shift plan IDs provided');
+        }
+
+        try {
+            const objectIds = dto.ids.map(id => toObjectId(id) as Types.ObjectId);
+
+            // Fetch affected templates before update (for cache clearing)
+            const templates = await this.shiftTemplateModel
+                .find({ _id: { $in: objectIds } })
+                .select('employee effective_from effective_to')
+                .exec();
+
+            const patch: Partial<ShiftTemplate> = {
+                active: false,
+                updated_by: userSession.db_id,
+            };
+            if (dto.comment !== undefined) {
+                patch.comment = dto.comment;
+            }
+
+            const result = await this.shiftTemplateModel.updateMany(
+                { _id: { $in: objectIds } },
+                { $set: patch },
+            );
+
+            // Clear resolved cache for every affected template
+            await Promise.all(
+                templates.map(t =>
+                    this.clearResolvedCache(
+                        t.employee.toString(),
+                        t.effective_from,
+                        t.effective_to,
+                    ),
+                ),
+            );
+
+            return {
+                deactivated: result.modifiedCount,
+                message: `Deactivated ${result.modifiedCount} shift template(s)`,
+            };
+        } catch (err) {
+            if (err instanceof HttpException) throw err;
+            this.logger.error('Failed to bulk deactivate shift plans', err as Error);
+            throw new InternalServerErrorException(
+                'Unable to bulk deactivate shift plans at this time',
             );
         }
     }

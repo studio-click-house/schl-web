@@ -1,19 +1,24 @@
 'use client';
-
+import Badge from '@/components/Badge';
+import ExtendableTd from '@/components/ExtendableTd';
 import Pagination from '@/components/Pagination';
 import { usePaginationManager } from '@/hooks/usePaginationManager';
 import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import { ShiftTemplate } from '@repo/common/models/shift-template.schema';
 import { cn } from '@repo/common/utils/general-utils';
 import { hasPerm } from '@repo/common/utils/permission-check';
-import { CirclePlus } from 'lucide-react';
+import { capitalize } from 'lodash';
+import { Ban, CirclePlus, ClockCheck, X } from 'lucide-react';
+import moment from 'moment-timezone';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import DeleteButton from './Delete';
+import BulkDeactivateModal from './BulkDeactivateModal';
 import EditButton from './Edit';
 import FilterButton from './Filter';
+import NoData, { Type } from '@/components/NoData';
+import { formatDate, formatTime } from '@repo/common/utils/date-helpers';
 
 interface ShiftTemplateWithId extends ShiftTemplate {
     _id: string;
@@ -28,10 +33,12 @@ interface ShiftTemplateResponse {
 }
 
 const Table: React.FC = () => {
-    const [shiftTemplates, setShiftTemplates] = useState<ShiftTemplateResponse>({
-        pagination: { count: 0, pageCount: 0 },
-        items: [],
-    });
+    const [shiftTemplates, setShiftTemplates] = useState<ShiftTemplateResponse>(
+        {
+            pagination: { count: 0, pageCount: 0 },
+            items: [],
+        },
+    );
 
     const { data: session } = useSession();
     const userPermissions = useMemo(
@@ -48,19 +55,30 @@ const Table: React.FC = () => {
     const [loading, setLoading] = useState<boolean>(true);
     const [searchVersion, setSearchVersion] = useState<number>(0);
 
-    const [filters, setFilters] = useState({
-        employeeId: '',
-        fromDate: '',
-        toDate: '',
-        shiftType: '',
-        active: '',
+    // Multi-select state
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [bulkModalOpen, setBulkModalOpen] = useState(false);
+    const [bulkLoading, setBulkLoading] = useState(false);
+
+    const [filters, setFilters] = useState(() => {
+        const today = moment.tz('Asia/Dhaka');
+        const monday = today.clone().startOf('isoWeek').format('YYYY-MM-DD');
+        const sunday = today.clone().endOf('isoWeek').format('YYYY-MM-DD');
+        return {
+            employeeId: '',
+            fromDate: monday,
+            toDate: sunday,
+            shiftType: '',
+            active: 'true',
+            department: '',
+        };
     });
 
     const fetchShiftTemplates = useCallback(async () => {
         try {
             setLoading(true);
+            setSelectedIds(new Set()); // clear selection on fetch
 
-            // Clean filters: remove empty strings and convert to undefined
             const cleanedFilters = Object.entries(filters).reduce(
                 (acc, [key, value]) => {
                     if (value && value !== '') {
@@ -125,32 +143,87 @@ const Table: React.FC = () => {
         });
     }, []);
 
-    const deleteShiftPlan = useCallback(async (shiftPlan: ShiftTemplate) => {
-        toast.error(
-            'Shift plans cannot be deleted. Please contact support if changes are needed.',
-        );
-    }, []);
+    // --- Multi-select helpers ---
+    const currentPageIds = useMemo(
+        () => shiftTemplates.items.map(t => t._id.toString()),
+        [shiftTemplates.items],
+    );
 
-    const formatTime = (timeStr: string) => {
-        if (!timeStr) return '-';
-        return timeStr;
-    };
+    const allCurrentPageSelected =
+        currentPageIds.length > 0 &&
+        currentPageIds.every(id => selectedIds.has(id));
 
-    const formatDate = (dateStr: string | Date) => {
-        if (!dateStr) return '-';
-        const date = new Date(dateStr);
-        return date.toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
+    const someCurrentPageSelected = currentPageIds.some(id =>
+        selectedIds.has(id),
+    );
+
+    const toggleSelectAll = () => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (allCurrentPageSelected) {
+                currentPageIds.forEach(id => next.delete(id));
+            } else {
+                currentPageIds.forEach(id => next.add(id));
+            }
+            return next;
         });
     };
 
+    const toggleSelectOne = (id: string) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) {
+                next.delete(id);
+            } else {
+                next.add(id);
+            }
+            return next;
+        });
+    };
+
+    // --- Bulk deactivate ---
+    const handleBulkDeactivate = async (comment: string) => {
+        try {
+            setBulkLoading(true);
+            const response = await authedFetchApi<any>(
+                { path: '/v1/shift-plan/bulk-deactivate' },
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        ids: Array.from(selectedIds),
+                        ...(comment ? { comment } : {}),
+                    }),
+                },
+            );
+
+            if (response.ok) {
+                toast.success(
+                    `Deactivated ${response.data?.deactivated ?? selectedIds.size} shift plan(s)`,
+                );
+                setBulkModalOpen(false);
+                setSelectedIds(new Set());
+                fetchShiftTemplates();
+            } else {
+                toastFetchError(response);
+            }
+        } catch (error) {
+            console.error(error);
+            toast.error('An error occurred while deactivating shift plans');
+        } finally {
+            setBulkLoading(false);
+        }
+    };
+
+
+    const canEdit = hasPerm('admin:edit_shift_plan', userPermissions);
+
     return (
         <>
+            {/* Top bar */}
             <div
                 className={cn(
-                    'flex flex-col mb-4 gap-2',
+                    'flex flex-col mb-4 gap-2 sm:items-center',
                     hasPerm('admin:create_shift_plan', userPermissions)
                         ? 'sm:flex-row sm:justify-between'
                         : 'sm:justify-end sm:flex-row',
@@ -160,11 +233,11 @@ const Table: React.FC = () => {
                     <div className="flex flex-wrap items-center gap-2">
                         <button
                             onClick={() =>
-                                router.push('/admin/shift-plans/create')
+                                router.push('/admin/shift-plans/create-plan')
                             }
                             className="flex justify-between items-center gap-2 rounded-md bg-primary hover:opacity-90 hover:ring-4 hover:ring-primary transition duration-200 delay-300 hover:text-opacity-100 text-white px-3 py-2"
                         >
-                            Add shift template
+                            Add shift plan
                             <CirclePlus size={18} />
                         </button>
                         <button
@@ -178,6 +251,23 @@ const Table: React.FC = () => {
                             Add override
                             <CirclePlus size={18} />
                         </button>
+                    </div>
+                )}
+
+                {(filters.fromDate || filters.toDate) && (
+                    <div className="flex items-center text-xl text-gray-900 font-semibold">
+                        {filters.fromDate && (
+                            <span className="flex items-center">
+                                <ClockCheck size={23} className="mr-2" />
+                                {formatDate(filters.fromDate)}
+                                {filters.toDate && ' –'}
+                            </span>
+                        )}
+                        {filters.toDate && (
+                            <span className="ml-1">
+                                {formatDate(filters.toDate)}
+                            </span>
+                        )}
                     </div>
                 )}
 
@@ -208,6 +298,32 @@ const Table: React.FC = () => {
                 </div>
             </div>
 
+            {/* Bulk action toolbar — only shown when rows are selected */}
+            {selectedIds.size > 0 && canEdit && (
+                <div className="flex items-center gap-2 flex-wrap mb-4">
+                    <span className="text-sm font-semibold text-blue-800 bg-blue-50 border border-blue-200 px-3 py-2 rounded-md flex items-center shadow-sm">
+                        {selectedIds.size}{' '}
+                        {selectedIds.size === 1 ? 'Plan' : 'Plans'} Selected
+                    </span>
+                    <button
+                        type="button"
+                        onClick={() => setBulkModalOpen(true)}
+                        title="Deactivate Selected"
+                        className="flex items-center gap-2 rounded-md bg-red-600 hover:opacity-90 hover:ring-4 hover:ring-red-600 transition duration-200 delay-300 hover:text-opacity-100 text-white px-3 py-2"
+                    >
+                        <Ban size={19} />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setSelectedIds(new Set())}
+                        title="Clear Selection"
+                        className="flex items-center gap-2 rounded-md bg-gray-500 hover:opacity-90 hover:ring-4 hover:ring-gray-500 transition duration-200 delay-300 hover:text-opacity-100 text-white px-3 py-2"
+                    >
+                        <X size={19} />
+                    </button>
+                </div>
+            )}
+
             {loading ? (
                 <p className="text-center text-gray-500">Loading...</p>
             ) : null}
@@ -219,6 +335,22 @@ const Table: React.FC = () => {
                             <table className="table border table-bordered table-striped">
                                 <thead className="table-dark">
                                     <tr>
+                                        {canEdit && (
+                                            <th className="text-center">
+                                                <div className="flex justify-center items-center h-full py-1">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={
+                                                            allCurrentPageSelected
+                                                        }
+                                                        onChange={
+                                                            toggleSelectAll
+                                                        }
+                                                        className="w-5 h-5 text-blue-600 bg-gray-50 border-gray-300 rounded-md cursor-pointer"
+                                                    />
+                                                </div>
+                                            </th>
+                                        )}
                                         <th>S/N</th>
                                         <th>Employee</th>
                                         <th>Effective From</th>
@@ -228,17 +360,38 @@ const Table: React.FC = () => {
                                         <th>End Time</th>
                                         <th>Crosses Midnight</th>
                                         <th>Active</th>
-                                        <th>Change Reason</th>
-                                        {hasPerm(
-                                            'admin:edit_shift_plan',
-                                            userPermissions,
-                                        ) && <th>Action</th>}
+                                        <th>Comment</th>
+                                        {canEdit && <th>Action</th>}
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {shiftTemplates.items.map(
                                         (shiftPlan, index) => (
                                             <tr key={String(shiftPlan._id)}>
+                                                {canEdit && (
+                                                    <td
+                                                        className="text-center"
+                                                        style={{
+                                                            verticalAlign:
+                                                                'middle',
+                                                        }}
+                                                    >
+                                                        <div className="flex justify-center items-center h-full py-1">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={selectedIds.has(
+                                                                    shiftPlan._id.toString(),
+                                                                )}
+                                                                onChange={() =>
+                                                                    toggleSelectOne(
+                                                                        shiftPlan._id.toString(),
+                                                                    )
+                                                                }
+                                                                className="w-5 h-5 text-blue-600 bg-gray-50 border-gray-300 rounded-md cursor-pointer"
+                                                            />
+                                                        </div>
+                                                    </td>
+                                                )}
                                                 <td>
                                                     {(page - 1) * itemPerPage +
                                                         index +
@@ -264,9 +417,12 @@ const Table: React.FC = () => {
                                                     )}
                                                 </td>
                                                 <td>
-                                                    <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-semibold">
-                                                        {shiftPlan.shift_type}
-                                                    </span>
+                                                    <Badge
+                                                        value={capitalize(
+                                                            shiftPlan.shift_type,
+                                                        )}
+                                                        className="text-white bg-blue-600 border border-blue-600"
+                                                    />
                                                 </td>
                                                 <td>
                                                     {formatTime(
@@ -288,14 +444,12 @@ const Table: React.FC = () => {
                                                         ? 'Yes'
                                                         : 'No'}
                                                 </td>
-                                                <td className="text-wrap text-sm">
-                                                    {shiftPlan.change_reason ||
-                                                        '-'}
-                                                </td>
-                                                {hasPerm(
-                                                    'admin:edit_shift_plan',
-                                                    userPermissions,
-                                                ) && (
+                                                <ExtendableTd
+                                                    data={
+                                                        shiftPlan.comment || '-'
+                                                    }
+                                                />
+                                                {canEdit && (
                                                     <td
                                                         className="text-center"
                                                         style={{
@@ -322,13 +476,17 @@ const Table: React.FC = () => {
                             </table>
                         </>
                     ) : (
-                        <div className="p-8 text-center">
-                            <p className="text-gray-500 text-lg">
-                                No Shift Templates Found
-                            </p>
-                        </div>
+                        <NoData text="No Shift Templates Found" type={Type.danger} />
                     ))}
             </div>
+
+            <BulkDeactivateModal
+                isOpen={bulkModalOpen}
+                isLoading={bulkLoading}
+                selectedCount={selectedIds.size}
+                onClose={() => setBulkModalOpen(false)}
+                onConfirm={handleBulkDeactivate}
+            />
 
             <style jsx>
                 {`
@@ -343,3 +501,4 @@ const Table: React.FC = () => {
 };
 
 export default Table;
+

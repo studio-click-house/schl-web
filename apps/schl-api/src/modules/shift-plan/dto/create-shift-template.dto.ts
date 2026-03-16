@@ -45,5 +45,5 @@ export class CreateShiftTemplateBodyDto {
 
     @IsOptional()
     @IsString()
-    changeReason?: string;
+    comment?: string;
 }

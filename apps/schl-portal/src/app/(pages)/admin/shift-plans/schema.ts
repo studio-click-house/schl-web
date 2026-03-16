@@ -24,7 +24,7 @@ export const shiftPlanValidationSchema = z.object({
         .string()
         .regex(/^\d{2}:\d{2}$/, 'Shift end time must be in HH:mm format')
         .optional(),
-    changeReason: z.string().optional(),
+    comment: z.string().optional(),
 });
 
 // Schema for editing shift templates
@@ -47,7 +47,7 @@ export const shiftPlanEditSchema = z.object({
         .string()
         .regex(/^(\d{2}):(\d{2})$/, 'Shift end time must be in HH:mm format'),
     active: z.boolean().optional(),
-    changeReason: z.string().optional(),
+    comment: z.string().optional(),
 });
 
 // Schema for single-day override
@@ -72,7 +72,7 @@ export const shiftOverrideSchema = z
             .string()
             .regex(/^\d{2}:\d{2}$/, 'Shift end time must be in HH:mm format')
             .optional(),
-        changeReason: z.string().optional(),
+        comment: z.string().optional(),
     })
     .refine(
         data => {

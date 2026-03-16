@@ -26,6 +26,10 @@ export class SearchShiftTemplatesBodyDto {
     @IsOptional()
     @IsString()
     active?: 'true' | 'false';
+
+    @IsOptional()
+    @IsString()
+    department?: string;
 }
 
 export class SearchShiftTemplatesQueryDto {

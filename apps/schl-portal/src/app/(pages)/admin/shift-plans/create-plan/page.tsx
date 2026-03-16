@@ -1,5 +1,5 @@
-import React from 'react';
-import Form from '../components/Form';
+import React, { Suspense } from 'react';
+import InputForm from './components/Form';
 
 const CreateShiftPlanPage = async () => {
     return (
@@ -8,7 +8,9 @@ const CreateShiftPlanPage = async () => {
                 <h1 className="text-2xl font-semibold text-left mb-8 underline underline-offset-4 uppercase">
                     Add a new shift plan
                 </h1>
-                <Form />
+                <Suspense fallback={<p className="text-center">Loading...</p>}>
+                    <InputForm />
+                </Suspense>
             </div>
         </>
     );

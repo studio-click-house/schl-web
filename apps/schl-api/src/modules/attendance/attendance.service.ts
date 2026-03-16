@@ -744,7 +744,9 @@ export class AttendanceService {
                 : today.clone().startOf('day');
             const to = filters.toDate
                 ? moment.tz(filters.toDate, 'Asia/Dhaka').endOf('day')
-                : today.clone().endOf('day');
+                : filters.fromDate
+                  ? moment.tz(filters.fromDate, 'Asia/Dhaka').endOf('day')
+                  : today.clone().endOf('day');
             if (!from.isValid() || !to.isValid()) {
                 throw new BadRequestException('Invalid from/to date');
             }
@@ -832,7 +834,6 @@ export class AttendanceService {
             const allTemplates = await this.shiftTemplateModel
                 .find({
                     employee: { $in: employeeIds },
-                    active: true,
                     $or: [
                         { effective_to: { $gte: fromDate } },
                         { effective_to: null },

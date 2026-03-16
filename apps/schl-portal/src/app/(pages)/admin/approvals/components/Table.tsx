@@ -20,10 +20,8 @@ import { toast } from 'sonner';
 import FilterButton from './Filter';
 import ViewButton from './View';
 
-export interface PopulatedApprovalType extends Omit<
-    ApprovalDocument,
-    'req_by' | 'rev_by'
-> {
+export interface PopulatedApprovalType
+    extends Omit<ApprovalDocument, 'req_by' | 'rev_by'> {
     req_by: UserDocument;
     rev_by?: UserDocument;
     req_by_name: string;

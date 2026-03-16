@@ -41,5 +41,5 @@ export class CreateShiftPlanBodyDto {
 
     @IsOptional()
     @IsString()
-    changeReason?: string; // e.g., "Christmas special", "Eid break"
+    comment?: string; // e.g., "Christmas special", "Eid break"
 }

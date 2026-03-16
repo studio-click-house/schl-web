@@ -40,5 +40,5 @@ export class CreateShiftOverrideBodyDto {
 
     @IsOptional()
     @IsString()
-    changeReason?: string; // e.g., "Eid special"
+    comment?: string; // e.g., "Eid special"
 }
