@@ -9,6 +9,7 @@ import { PauseSession } from '@repo/common/models/pause-session.schema';
 import { Model } from 'mongoose';
 import { SyncPauseDto } from './dto/sync-pause.dto';
 import { TrackerGateway } from './tracker.gateway';
+import { TrackerFactory } from './factories/tracker.factory';
 
 @Injectable()
 export class TrackerPauseService {
@@ -29,7 +30,8 @@ export class TrackerPauseService {
         }
 
         if (status === 'paused') {
-            const reason = typeof payload.reason === 'string' ? payload.reason.trim() : '';
+            const reason =
+                typeof payload.reason === 'string' ? payload.reason.trim() : '';
             if (!reason) {
                 throw new BadRequestException('Missing pause reason');
             }
@@ -39,11 +41,15 @@ export class TrackerPauseService {
             const now = new Date();
             const dateString = now.toISOString().split('T')[0] as string;
             const filter = this.buildFilter(payload, dateString);
-            const syncId = typeof payload.syncId === 'string' ? payload.syncId.trim() : '';
+            const syncId =
+                typeof payload.syncId === 'string' ? payload.syncId.trim() : '';
 
             if (syncId) {
                 const existing = await this.pauseSessionModel
-                    .findOne({ ...filter, processed_sync_ids: syncId }, { _id: 1 })
+                    .findOne(
+                        { ...filter, processed_sync_ids: syncId },
+                        { _id: 1 },
+                    )
                     .lean();
                 if (existing) {
                     return { success: true, deduped: true };
@@ -52,7 +58,10 @@ export class TrackerPauseService {
 
             const setUpdate: Record<string, any> = {};
             if (payload.totalTimes !== undefined) {
-                setUpdate.total_times = Math.max(0, Number(payload.totalTimes) || 0);
+                setUpdate.total_times = Math.max(
+                    0,
+                    Number(payload.totalTimes) || 0,
+                );
             }
 
             const baseUpdate: Record<string, any> = {
@@ -67,7 +76,9 @@ export class TrackerPauseService {
                 };
             }
 
-            await this.pauseSessionModel.updateOne(filter, baseUpdate, { upsert: true });
+            await this.pauseSessionModel.updateOne(filter, baseUpdate, {
+                upsert: true,
+            });
 
             if (status === 'paused') {
                 await this.startPause(filter, payload, now);
@@ -79,16 +90,22 @@ export class TrackerPauseService {
 
             const updated = await this.pauseSessionModel.findOne(filter).lean();
             if (updated) {
+                const employeeName = TrackerFactory.normalizeEmployeeName(
+                    payload.employeeName,
+                );
                 this.trackerGateway.broadcastTrackerUpdate('TRACKER_UPDATED', {
                     _id: (updated as any)._id,
-                    employeeName: payload.employeeName,
+                    employeeName,
                     clientCode: payload.clientCode,
                     workType: payload.workType,
                     shift: payload.shift,
                     folderPath: payload.folderPath,
                     fileStatus: status,
                     timestamp: now.toISOString(),
-                    total_times: Math.max(0, Number((updated as any)?.total_times) || 0),
+                    total_times: Math.max(
+                        0,
+                        Number((updated as any)?.total_times) || 0,
+                    ),
                     pause_time: this.getEffectivePauseTime(updated),
                     pause_count: Array.isArray((updated as any)?.pause_reasons)
                         ? (updated as any).pause_reasons.length
@@ -106,7 +123,9 @@ export class TrackerPauseService {
     }
 
     private normalizeStatus(status?: string): 'paused' | 'working' | null {
-        const normalized = String(status || '').trim().toLowerCase();
+        const normalized = String(status || '')
+            .trim()
+            .toLowerCase();
         if (normalized === 'pause' || normalized === 'paused') {
             return 'paused';
         }
@@ -125,19 +144,27 @@ export class TrackerPauseService {
     }
 
     private buildFilter(payload: SyncPauseDto, dateString: string) {
-        const hasJobContext = [payload.clientCode, payload.folderPath, payload.workType]
+        const hasJobContext = [
+            payload.clientCode,
+            payload.folderPath,
+            payload.workType,
+        ]
             .map(value => String(value || '').trim())
             .some(value => value.length > 0);
 
         return {
-            employee_name: (payload.employeeName || 'unknown_employee')
-                .trim()
-                .toLowerCase(),
+            employee_name: TrackerFactory.normalizeEmployeeName(
+                payload.employeeName || 'unknown_employee',
+            ),
             date_today: dateString,
-            client_code: (payload.clientCode || (hasJobContext ? 'unknown_client' : ''))
+            client_code: (
+                payload.clientCode || (hasJobContext ? 'unknown_client' : '')
+            )
                 .trim()
                 .toLowerCase(),
-            folder_path: (payload.folderPath || (hasJobContext ? 'unknown_folder' : '')).trim(),
+            folder_path: (
+                payload.folderPath || (hasJobContext ? 'unknown_folder' : '')
+            ).trim(),
             shift: (payload.shift || 'unknown_shift').trim().toLowerCase(),
             work_type: (payload.workType || (hasJobContext ? 'qc' : ''))
                 .trim()
@@ -145,7 +172,11 @@ export class TrackerPauseService {
         };
     }
 
-    private async startPause(filter: Record<string, any>, payload: SyncPauseDto, now: Date) {
+    private async startPause(
+        filter: Record<string, any>,
+        payload: SyncPauseDto,
+        now: Date,
+    ) {
         const existing = await this.pauseSessionModel
             .findOne(filter, { pause_reasons: 1 })
             .lean();
@@ -203,13 +234,20 @@ export class TrackerPauseService {
         const reasons = Array.isArray((existing as any)?.pause_reasons)
             ? ((existing as any).pause_reasons as any[])
             : [];
-        const open = [...reasons].reverse().find(pr => pr?.completed_at == null);
+        const open = [...reasons]
+            .reverse()
+            .find(pr => pr?.completed_at == null);
         if (!open) {
             return;
         }
 
-        const startedAt = open.started_at ? new Date(open.started_at) : now;
-        const duration = Math.max(0, Math.floor((now.getTime() - startedAt.getTime()) / 1000));
+        const startedAt = open.started_at
+            ? new Date(open.started_at as string | number | Date)
+            : now;
+        const duration = Math.max(
+            0,
+            Math.floor((now.getTime() - startedAt.getTime()) / 1000),
+        );
 
         await this.pauseSessionModel.updateOne(
             {
@@ -234,7 +272,10 @@ export class TrackerPauseService {
             .lean();
 
         const reasons = Array.isArray((existing as any)?.pause_reasons)
-            ? ((existing as any).pause_reasons as Array<{ duration?: number; completed_at?: Date | null }>)
+            ? ((existing as any).pause_reasons as Array<{
+                  duration?: number;
+                  completed_at?: Date | null;
+              }>)
             : [];
 
         const pauseCount = reasons.length;
@@ -258,28 +299,46 @@ export class TrackerPauseService {
         );
     }
 
-    private decoratePauseReasons(doc: any) {
+    private decoratePauseReasons(doc: Record<string, any>): Array<{
+        reason: string;
+        duration: number;
+        started_at: Date | null;
+        completed_at: Date | null;
+    }> {
         const now = Date.now();
-        const reasons = Array.isArray(doc?.pause_reasons) ? doc.pause_reasons : [];
+        const reasons = Array.isArray(doc?.pause_reasons)
+            ? doc.pause_reasons
+            : [];
         return reasons.map((item: any) => {
-            const startedAt = item?.started_at ? new Date(item.started_at) : null;
-            const completedAt = item?.completed_at ? new Date(item.completed_at) : null;
-            const liveDuration = !completedAt && startedAt
-                ? Math.max(0, Math.floor((now - startedAt.getTime()) / 1000))
-                : 0;
+            const startedAt = item?.started_at
+                ? new Date(item.started_at as string | number | Date)
+                : null;
+            const completedAt = item?.completed_at
+                ? new Date(item.completed_at as string | number | Date)
+                : null;
+            const liveDuration =
+                !completedAt && startedAt
+                    ? Math.max(
+                          0,
+                          Math.floor((now - startedAt.getTime()) / 1000),
+                      )
+                    : 0;
 
             return {
                 reason: String(item?.reason || '').trim(),
-                duration: completedAt ? Math.max(0, Number(item?.duration) || 0) : liveDuration,
+                duration: completedAt
+                    ? Math.max(0, Number(item?.duration) || 0)
+                    : liveDuration,
                 started_at: startedAt,
                 completed_at: completedAt,
             };
         });
     }
 
-    private getEffectivePauseTime(doc: any) {
+    private getEffectivePauseTime(doc: Record<string, any>): number {
         return this.decoratePauseReasons(doc).reduce(
-            (sum: number, item: { duration?: number }) => sum + Math.max(0, Number(item?.duration) || 0),
+            (sum: number, item: { duration?: number }) =>
+                sum + Math.max(0, Number(item?.duration) || 0),
             0,
         );
     }

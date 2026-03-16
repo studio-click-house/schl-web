@@ -85,10 +85,6 @@ export class TrackerQcWorkLogService {
                 upsert: true,
             });
 
-            const statusLower = String(payload.fileStatus || '')
-                .trim()
-                .toLowerCase();
-
             // ── Per-file updates (fast: read once, push once, bulkWrite once) ──
             if (Array.isArray(payload.files) && payload.files.length > 0) {
                 const now = new Date();
@@ -310,8 +306,11 @@ export class TrackerQcWorkLogService {
                       })
                     : accFiles;
 
+            const employeeName = TrackerFactory.normalizeEmployeeName(
+                payload.employeeName,
+            );
             this.trackerGateway.broadcastTrackerUpdate('TRACKER_UPDATED', {
-                employeeName: payload.employeeName,
+                employeeName,
                 clientCode: payload.clientCode,
                 workType: payload.workType,
                 shift: payload.shift,
