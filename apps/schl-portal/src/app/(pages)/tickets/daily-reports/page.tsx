@@ -22,7 +22,7 @@ const TicketsDailyReportsPage: React.FC = () => {
 
     return (
         <div className="px-4 mt-8 mb-4">
-            <div className="flex gap-4 items-start">
+            <div className="flex flex-col md:flex-row gap-4 items-start">
                 {hasPerm('ticket:review_reports', userPermissions) && (
                     <UserListPanel
                         selectedUser={selectedUser}

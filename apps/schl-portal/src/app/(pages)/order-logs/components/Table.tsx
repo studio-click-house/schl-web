@@ -53,7 +53,7 @@ const Table: React.FC<Props> = ({ logs }) => {
                                                     : log.action === 'Finish'
                                                       ? 'bg-blue-600 text-white border-blue-600'
                                                       : log.action === 'Redo'
-                                                        ? 'bg-yellow-600 text-dark border-yellow-600'
+                                                        ? 'bg-yellow-600 text-white border-yellow-600'
                                                         : log.action ===
                                                             'Update'
                                                           ? 'bg-purple-600 text-white border-purple-600'

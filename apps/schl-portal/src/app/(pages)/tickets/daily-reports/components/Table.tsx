@@ -263,12 +263,13 @@ const DailyReportsTable: React.FC<Props> = ({ selectedUser }) => {
                     </div>
                 )}
 
-                <div className="items-center flex gap-2">
+                <div className="items-center flex gap-2 w-full md:w-auto">
                     <FilterButton
                         filters={filters}
                         setFilters={setFilters}
                         submitHandler={handleSearch}
                         loading={loading}
+                        className="w-full justify-center md:w-auto"
                     />
                 </div>
             </div>
@@ -276,12 +277,12 @@ const DailyReportsTable: React.FC<Props> = ({ selectedUser }) => {
             {!loading &&
                 (updates.length > 0 ? (
                     <div className="table-responsive text-md overflow-x-auto w-full">
-                        <table className="table border-gray-300 table-bordered w-full table-fixed">
+                        <table className="table border-gray-300 table-bordered w-full">
                             <colgroup>
                                 <col className="w-16" />
-                                <col className="w-52" />
+                                <col className="w-32" />
                                 {!selectedUser && <col className="w-32" />}
-                                <col className="w-52" />
+                                <col className="w-32" />
                                 <col className="w-32" />
                                 <col className="w-auto" />
                                 <col className="w-32" />
@@ -302,7 +303,9 @@ const DailyReportsTable: React.FC<Props> = ({ selectedUser }) => {
                                     <tr key={update._id}>
                                         <td>{i + 1}</td>
                                         <td className="whitespace-nowrap">
-                                            {`${formatDate(update.createdAt)} | ${formatTime(
+                                            {`${formatDate(update.createdAt)}`}
+                                            <br />
+                                            {`${formatTime(
                                                 formatTimestamp(
                                                     update.createdAt,
                                                 ).time,
@@ -315,14 +318,26 @@ const DailyReportsTable: React.FC<Props> = ({ selectedUser }) => {
                                             </td>
                                         )}
                                         {/* if a work update is verified that means edit permissions are revoked, so show the latest update time is the verified time */}
-                                        <td className="text-balance">
-                                            {update.is_verified
-                                                ? `${formatDate(update.updatedAt)} | ${formatTime(
-                                                      formatTimestamp(
-                                                          update.updatedAt,
-                                                      ).time,
-                                                  )}`
-                                                : 'N/A'}
+                                        <td className="whitespace-nowrap">
+                                            {update.is_verified ? (
+                                                <>
+                                                    {formatDate(
+                                                        update.updatedAt,
+                                                    )}{' '}
+                                                    |{' '}
+                                                    {formatDate(
+                                                        update.createdAt,
+                                                    )}
+                                                    <br />
+                                                    {formatTime(
+                                                        formatTimestamp(
+                                                            update.createdAt,
+                                                        ).time,
+                                                    )}
+                                                </>
+                                            ) : (
+                                                'N/A'
+                                            )}
                                         </td>
                                         <td className="text-balance">
                                             {update.verified_by_name || 'N/A'}
@@ -332,13 +347,12 @@ const DailyReportsTable: React.FC<Props> = ({ selectedUser }) => {
                                         </td>
 
                                         <td
-                                            className="whitespace-nowrap"
                                             style={{
                                                 verticalAlign: 'middle',
                                             }}
                                         >
-                                            <div className="inline-block">
-                                                <div className="flex gap-2">
+                                            <div className="text-wrap">
+                                                <div className="flex flex-wrap gap-2">
                                                     {update.ticket
                                                         ?.ticket_number && (
                                                         <Link
