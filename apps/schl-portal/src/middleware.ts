@@ -81,7 +81,7 @@ export default authMiddleware((req: any) => {
         if (isIpAllowed && hasRootPermission) {
             return NextResponse.redirect(new URL('/', nextUrl));
         }
-        
+
         // If they are on /forbidden and don't have access to /, let them stay on /forbidden
         return NextResponse.next();
     }

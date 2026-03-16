@@ -71,7 +71,7 @@ const UserListPanel: React.FC<Props> = ({ selectedUser, onSelect }) => {
     console.log(users);
 
     return (
-        <aside className="w-1/4 max-h-[70vh] overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-sm text-base">
+        <aside className="w-full md:w-1/4 max-h-[30vh] md:max-h-[70vh] overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-sm text-base">
             <div className="sticky top-0 bg-white border-b border-gray-200">
                 <h2 className="text-lg font-semibold text-gray-700 p-4">
                     USER SELECTION
