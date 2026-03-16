@@ -116,7 +116,12 @@ export class TrackerQueryService {
 
             const qcRows = await this.qcWorkLogModel
                 .aggregate([
-                    { $match: { ...clientFilter, date_today: { $gte: cutoffDate } } },
+                    {
+                        $match: {
+                            ...clientFilter,
+                            date_today: { $gte: cutoffDate },
+                        },
+                    },
                     { $unwind: '$files' },
                     {
                         $match: {
@@ -222,8 +227,14 @@ export class TrackerQueryService {
                     dateToday: asString(r?.dateToday),
                     report: asString(r?.report),
                     fileStatus: asString(r?.fileStatus),
-                    startedAt: r?.startedAt instanceof Date ? r.startedAt.toISOString() : asString(r?.startedAt),
-                    completedAt: r?.completedAt instanceof Date ? r.completedAt.toISOString() : asString(r?.completedAt),
+                    startedAt:
+                        r?.startedAt instanceof Date
+                            ? r.startedAt.toISOString()
+                            : asString(r?.startedAt),
+                    completedAt:
+                        r?.completedAt instanceof Date
+                            ? r.completedAt.toISOString()
+                            : asString(r?.completedAt),
                 }));
 
             return {
@@ -277,7 +288,10 @@ export class TrackerQueryService {
             const [workLogs, pauseSessions, sessions] = await Promise.all([
                 this.qcWorkLogModel.find(workLogFilter).lean().exec(),
 
-                this.pauseSessionModel.find(workLogFilter as any).lean().exec(),
+                this.pauseSessionModel
+                    .find(workLogFilter as FilterQuery<PauseSession>)
+                    .lean()
+                    .exec(),
 
                 this.userSessionModel
                     .aggregate([
@@ -443,7 +457,10 @@ export class TrackerQueryService {
 
             const [sessions, pauseSessions] = await Promise.all([
                 this.qcWorkLogModel.find(filter).lean().exec(),
-                this.pauseSessionModel.find(filter as any).lean().exec(),
+                this.pauseSessionModel
+                    .find(filter as FilterQuery<PauseSession>)
+                    .lean()
+                    .exec(),
             ]);
 
             const sessionFilter: FilterQuery<UserSession> = {};
@@ -565,8 +582,11 @@ export class TrackerQueryService {
         }
     }
 
-    private mergePauseSessions(workLogs: any[], pauseSessions: any[]) {
-        const merged = new Map<string, any>();
+    private mergePauseSessions(
+        workLogs: Record<string, any>[],
+        pauseSessions: Record<string, any>[],
+    ): Array<Record<string, any>> {
+        const merged = new Map<string, Record<string, any>>();
 
         for (const raw of workLogs ?? []) {
             const workLog = {
@@ -594,7 +614,10 @@ export class TrackerQueryService {
                 existing.pause_count = pauseCount;
                 existing.pause_time = pauseTime;
                 existing.pause_reasons = pauseReasons;
-                if ((existing.total_times ?? 0) <= 0 && (pause?.total_times ?? 0) > 0) {
+                if (
+                    (existing.total_times ?? 0) <= 0 &&
+                    (pause?.total_times ?? 0) > 0
+                ) {
                     existing.total_times = pause.total_times;
                 }
                 continue;
@@ -621,22 +644,31 @@ export class TrackerQueryService {
         }
 
         return Array.from(merged.values()).sort((left, right) => {
-            const leftTime = new Date(left?.updatedAt ?? 0).getTime();
-            const rightTime = new Date(right?.updatedAt ?? 0).getTime();
+            const leftTime = new Date(
+                (left?.updatedAt as string | number | Date) ?? 0,
+            ).getTime();
+            const rightTime = new Date(
+                (right?.updatedAt as string | number | Date) ?? 0,
+            ).getTime();
             return rightTime - leftTime;
         });
     }
 
     private buildPauseKey(doc: any, preserveEmptyContext = false) {
-        const normalize = (
-            value: unknown,
-            fallback = '',
-            lower = true,
-        ) => {
-            const text = String(value ?? '').trim();
-            const resolved = preserveEmptyContext && text.length === 0
-                ? ''
-                : text || fallback;
+        const normalize = (value: unknown, fallback = '', lower = true) => {
+            const text =
+                value === null || value === undefined
+                    ? ''
+                    : typeof value === 'string'
+                      ? value
+                      : typeof value === 'number' || typeof value === 'boolean'
+                        ? String(value)
+                        : '';
+            const trimmed = text.trim();
+            const resolved =
+                preserveEmptyContext && trimmed.length === 0
+                    ? ''
+                    : trimmed || fallback;
             return lower ? resolved.toLowerCase() : resolved;
         };
 
@@ -650,12 +682,23 @@ export class TrackerQueryService {
         ].join('|');
     }
 
-    private decoratePauseReasons(doc: any) {
+    private decoratePauseReasons(doc: Record<string, any>): Array<{
+        reason: string;
+        duration: number;
+        started_at: Date | null;
+        completed_at: Date | null;
+    }> {
         const now = Date.now();
-        const reasons = Array.isArray(doc?.pause_reasons) ? doc.pause_reasons : [];
+        const reasons = Array.isArray(doc?.pause_reasons)
+            ? doc.pause_reasons
+            : [];
         return reasons.map((item: any) => {
-            const startedAt = item?.started_at ? new Date(item.started_at) : null;
-            const completedAt = item?.completed_at ? new Date(item.completed_at) : null;
+            const startedAt = item?.started_at
+                ? new Date(item.started_at as string | number | Date)
+                : null;
+            const completedAt = item?.completed_at
+                ? new Date(item.completed_at as string | number | Date)
+                : null;
             const duration = completedAt
                 ? Math.max(0, Number(item?.duration) || 0)
                 : startedAt

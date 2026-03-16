@@ -90,7 +90,11 @@ export class SearchTicketsBodyDto {
     // multi-select for assigned users; ticket matches if any of the selected
     // user ids appear in its assignees array.
     @Transform(({ value }) => {
-        if (Array.isArray(value)) return value;
+        if (Array.isArray(value)) {
+            return value
+                .map(v => (typeof v === 'string' ? v : String(v)))
+                .filter(v => v !== '');
+        }
         if (typeof value === 'string' && value !== '') return [value];
         return undefined;
     })

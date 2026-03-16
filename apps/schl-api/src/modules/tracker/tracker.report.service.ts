@@ -8,6 +8,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { QcWorkLog } from '@repo/common/models/qc-work-log.schema';
 import { Model } from 'mongoose';
 import { ReportFileDto } from './dto/report-file.dto';
+import { TrackerFactory } from './factories/tracker.factory';
 import { TrackerGateway } from './tracker.gateway';
 
 @Injectable()
@@ -31,7 +32,9 @@ export class TrackerReportService {
 
         try {
             const filter = {
-                employee_name: dto.employeeName.toLowerCase(),
+                employee_name: TrackerFactory.normalizeEmployeeName(
+                    dto.employeeName,
+                ),
                 client_code: (dto.clientCode || 'unknown_client').toLowerCase(),
                 folder_path: (dto.folderPath || 'unknown_folder').trim(),
                 shift: (dto.shift || 'unknown_shift').toLowerCase(),

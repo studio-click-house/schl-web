@@ -13,6 +13,7 @@ import { QcWorkLog } from '@repo/common/models/qc-work-log.schema';
 import { UserSession } from '@repo/common/models/user-session.schema';
 import { Model } from 'mongoose';
 import { LoginTrackerDto } from './dto/auth.dto';
+import { TrackerFactory } from './factories/tracker.factory';
 import { TrackerGateway } from './tracker.gateway';
 
 @Injectable()
@@ -84,7 +85,7 @@ export class TrackerAuthService {
             const sessionDate = now.toISOString().split('T')[0] as string;
 
             // Look up employee real name by e_id first
-            let displayName = user.username;
+            let displayNameRaw = user.username;
             try {
                 const employee = await this.employeeModel
                     .findOne({
@@ -94,11 +95,14 @@ export class TrackerAuthService {
                     .lean()
                     .exec();
                 if (employee?.real_name) {
-                    displayName = `${user.username} - ${employee.real_name}`;
+                    displayNameRaw = `${user.username} - ${employee.real_name}`;
                 }
             } catch {
                 /* fallback to username */
             }
+
+            const displayName =
+                TrackerFactory.normalizeEmployeeName(displayNameRaw);
 
             // ── Stale session cleanup ──────────────────────────
             // If the user's previous session ended abruptly (app crash, task manager kill, power loss),
@@ -187,18 +191,16 @@ export class TrackerAuthService {
                                 work_type: (workLog as any).work_type,
                                 estimate_time:
                                     (workLog as any).estimate_time ?? 0,
-                                categories:
-                                    (workLog as any).categories ?? '',
+                                categories: (workLog as any).categories ?? '',
                                 done_time_total: doneTimeTotal,
                                 files: workingFiles.map((f: any) => ({
                                     file_name: f.file_name,
                                     file_path: f.file_path ?? '',
                                     started_at: f.started_at ?? null,
-                                    time_spent:
-                                        Math.max(
-                                            0,
-                                            Number(f.time_spent) || 0,
-                                        ),
+                                    time_spent: Math.max(
+                                        0,
+                                        Number(f.time_spent) || 0,
+                                    ),
                                 })),
                             };
                         }
