@@ -757,7 +757,7 @@ export class AttendanceService {
 
             const employeeQuery: Record<string, unknown> = filters.employeeId
                 ? { _id: filters.employeeId }
-                : { status: { $in: ['active', 'on-leave'] } };
+                : { status: 'active' };
 
             if (filters.department) {
                 employeeQuery.department = filters.department;

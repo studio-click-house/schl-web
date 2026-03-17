@@ -10,8 +10,8 @@ export interface SalaryStructureType {
     grossSalary: number;
 }
 
-// Statuses where PF SHOULD accrue (on-leave continues to accrue PF)
-const EARNING_STATUSES = ['active', 'on-leave'] as const;
+// Statuses where PF SHOULD accrue
+const EARNING_STATUSES = ['active'] as const;
 
 /** Quick numeric parsing with fallback */
 const toInt = (v: string): number => {

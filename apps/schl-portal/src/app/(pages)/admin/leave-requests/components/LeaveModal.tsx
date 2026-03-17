@@ -12,6 +12,7 @@ import {
     setMenuPortalTarget,
 } from '@repo/common/utils/select-helpers';
 import React, { useEffect, useMemo } from 'react';
+import moment from 'moment-timezone';
 import { useForm } from 'react-hook-form';
 import Select from 'react-select';
 import { toast } from 'sonner';
@@ -62,8 +63,8 @@ const LeaveModal: React.FC<LeaveModalProps> = ({
             leaveType: 'casual',
             isPaid: true,
             status: 'pending',
-            startDate: new Date().toISOString().split('T')[0],
-            endDate: new Date().toISOString().split('T')[0],
+            startDate: moment().tz('Asia/Dhaka').format('YYYY-MM-DD'),
+            endDate: moment().tz('Asia/Dhaka').format('YYYY-MM-DD'),
             reason: '',
         },
     });
@@ -84,15 +85,15 @@ const LeaveModal: React.FC<LeaveModalProps> = ({
                             : true,
                     status: initialData.status || 'pending',
                     startDate: initialData.start_date
-                        ? new Date(initialData.start_date)
-                              .toISOString()
-                              .split('T')[0]
-                        : new Date().toISOString().split('T')[0],
+                        ? moment
+                              .tz(initialData.start_date, 'Asia/Dhaka')
+                              .format('YYYY-MM-DD')
+                        : moment().tz('Asia/Dhaka').format('YYYY-MM-DD'),
                     endDate: initialData.end_date
-                        ? new Date(initialData.end_date)
-                              .toISOString()
-                              .split('T')[0]
-                        : new Date().toISOString().split('T')[0],
+                        ? moment
+                              .tz(initialData.end_date, 'Asia/Dhaka')
+                              .format('YYYY-MM-DD')
+                        : moment().tz('Asia/Dhaka').format('YYYY-MM-DD'),
                     reason: initialData.reason || '',
                 });
             } else {
@@ -105,8 +106,8 @@ const LeaveModal: React.FC<LeaveModalProps> = ({
                     leaveType: 'casual',
                     isPaid: true,
                     status: 'pending',
-                    startDate: new Date().toISOString().split('T')[0],
-                    endDate: new Date().toISOString().split('T')[0],
+                    startDate: moment().tz('Asia/Dhaka').format('YYYY-MM-DD'),
+                    endDate: moment().tz('Asia/Dhaka').format('YYYY-MM-DD'),
                     reason: '',
                 });
             }

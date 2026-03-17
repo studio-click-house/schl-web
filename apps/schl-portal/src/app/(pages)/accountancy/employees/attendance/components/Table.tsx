@@ -162,7 +162,7 @@ const Table = ({ queryEmployeeId }: AttendanceTableProps) => {
                         Accept: '*/*',
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({}),
+                    body: JSON.stringify({ status: 'active' }),
                     cache: 'no-store',
                 },
             );
@@ -217,6 +217,10 @@ const Table = ({ queryEmployeeId }: AttendanceTableProps) => {
                 const data = response.data;
                 setAttendanceData(data.items || []);
                 setPageCount(data.pagination.pageCount || 0);
+
+                if (queryEmployeeId && data.items?.length) {
+                    setExpandedRows(new Set([queryEmployeeId]));
+                }
             } else {
                 toastFetchError(response);
             }
@@ -234,6 +238,7 @@ const Table = ({ queryEmployeeId }: AttendanceTableProps) => {
         authedFetchApi,
         itemPerPage,
         page,
+        queryEmployeeId,
     ]);
 
     useEffect(() => {

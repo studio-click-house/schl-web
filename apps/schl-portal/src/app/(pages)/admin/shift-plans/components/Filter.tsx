@@ -36,6 +36,7 @@ interface FilterProps {
     submitHandler: () => void;
     setFilters: (filters: any) => void;
     filters: any;
+    employeeOptions: { value: string; label: string }[];
     className?: string;
 }
 
@@ -44,6 +45,7 @@ const FilterButton = ({
     submitHandler,
     setFilters,
     filters,
+    employeeOptions,
     className = '',
 }: FilterProps) => {
     const [isOpen, setIsOpen] = useState(false);
@@ -157,6 +159,37 @@ const FilterButton = ({
 
                             <div>
                                 <label className="uppercase tracking-wide text-gray-700 text-sm font-bold flex gap-2 mb-2">
+                                    Employee
+                                </label>
+                                <Select
+                                    {...setClassNameAndIsDisabled(isOpen)}
+                                    options={employeeOptions || []}
+                                    closeMenuOnSelect={true}
+                                    classNamePrefix="react-select"
+                                    menuPortalTarget={setMenuPortalTarget}
+                                    menuPlacement="auto"
+                                    menuPosition="fixed"
+                                    styles={setCalculatedZIndex(baseZIndex)}
+                                    value={
+                                        (employeeOptions || []).find(
+                                            opt =>
+                                                opt.value ===
+                                                filters.employeeId,
+                                        ) || null
+                                    }
+                                    onChange={opt =>
+                                        setFilters((prev: any) => ({
+                                            ...prev,
+                                            employeeId: opt ? opt.value : '',
+                                        }))
+                                    }
+                                    placeholder="All Employees"
+                                    isClearable
+                                />
+                            </div>
+
+                            <div>
+                                <label className="uppercase tracking-wide text-gray-700 text-sm font-bold flex gap-2 mb-2">
                                     Department
                                 </label>
                                 <Select
@@ -170,7 +203,9 @@ const FilterButton = ({
                                     styles={setCalculatedZIndex(baseZIndex)}
                                     value={
                                         departmentOptions.find(
-                                            opt => opt.value === filters.department
+                                            opt =>
+                                                opt.value ===
+                                                filters.department,
                                         ) || null
                                     }
                                     onChange={opt =>
@@ -199,7 +234,8 @@ const FilterButton = ({
                                     styles={setCalculatedZIndex(baseZIndex)}
                                     value={
                                         shiftTypeOptions.find(
-                                            opt => opt.value === filters.shiftType
+                                            opt =>
+                                                opt.value === filters.shiftType,
                                         ) || null
                                     }
                                     onChange={opt =>
@@ -228,7 +264,7 @@ const FilterButton = ({
                                     styles={setCalculatedZIndex(baseZIndex)}
                                     value={
                                         activeOptions.find(
-                                            opt => opt.value === filters.active
+                                            opt => opt.value === filters.active,
                                         ) || null
                                     }
                                     onChange={opt =>
@@ -246,7 +282,7 @@ const FilterButton = ({
                     <footer className="flex space-x-2 items-center px-4 py-2 border-t justify-end border-gray-200 rounded-b">
                         <button
                             onClick={handleClearFilters}
-                            className="rounded-md bg-gray-600 text-white  hover:opacity-90 hover:ring-2 hover:ring-gray-600 transition duration-200 delay-300 hover:text-opacity-100 px-8 py-2 uppercase"
+                            className="rounded-md bg-gray-600 text-white hover:opacity-90 hover:ring-2 hover:ring-gray-600 transition duration-200 delay-300 hover:text-opacity-100 px-4 py-1"
                             type="button"
                             disabled={loading}
                         >
@@ -257,7 +293,7 @@ const FilterButton = ({
                                 submitHandler();
                                 setIsOpen(false);
                             }}
-                            className="rounded-md bg-blue-600 text-white   hover:opacity-90 hover:ring-2 hover:ring-blue-600 transition duration-200 delay-300 hover:text-opacity-100 px-8 py-2 uppercase"
+                            className="rounded-md bg-blue-600 text-white hover:opacity-90 hover:ring-2 hover:ring-blue-600 transition duration-200 delay-300 hover:text-opacity-100 px-4 py-1"
                             type="button"
                             disabled={loading}
                         >

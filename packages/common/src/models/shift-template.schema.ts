@@ -50,6 +50,9 @@ export class ShiftTemplate {
     @Prop({ required: false, type: Boolean, default: true })
     active: boolean;
 
+    @Prop({ required: false, type: Number, default: 10 })
+    grace_period_minutes: number; // Lateness grace window in minutes before flagging as late
+
     @Prop({ required: false, type: String, default: null })
     updated_by: string | null;
 

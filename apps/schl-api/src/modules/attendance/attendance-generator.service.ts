@@ -3,7 +3,6 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Cron } from '@nestjs/schedule';
 import type { AttendanceStatus } from '@repo/common/constants/attendance.constant';
 import {
-    ATTENDANCE_STATUSES,
     DEFAULT_DEVICE_ID,
     DEFAULT_SOURCE_IP,
 } from '@repo/common/constants/attendance.constant';
@@ -104,7 +103,7 @@ export class AttendanceGeneratorService {
 
         // Get active employees
         const employees = await this.employeeModel.find({
-            status: { $in: ['active', 'on-leave'] },
+            status: 'active',
         });
 
         this.logger.log(
@@ -155,10 +154,7 @@ export class AttendanceGeneratorService {
                 // because employee is considered expected to be present by business rule.
 
                 const flagId = flagMap.get('A');
-                const systemStatus =
-                    ATTENDANCE_STATUSES.find(
-                        s => (s as string) === 'system-generated',
-                    ) ?? ATTENDANCE_STATUSES[0];
+                const systemStatus: AttendanceStatus = 'system-generated';
 
                 // Prefill payload: we intentionally set in_time/out_time to null so the
                 // record represents a provisional Absent and will be converted on check-in.
@@ -217,7 +213,7 @@ export class AttendanceGeneratorService {
 
         // 2. Get all active employees
         const employees = await this.employeeModel.find({
-            status: { $in: ['active', 'on-leave'] },
+            status: 'active',
         });
 
         this.logger.log(
@@ -230,6 +226,7 @@ export class AttendanceGeneratorService {
             H: number;
             W: number;
             A: number;
+            P: number;
             created: number;
             updated: number;
             skipped: number;
@@ -239,6 +236,7 @@ export class AttendanceGeneratorService {
             H: 0,
             W: 0,
             A: 0,
+            P: 0,
             created: 0,
             updated: 0,
             skipped: 0,
@@ -253,11 +251,10 @@ export class AttendanceGeneratorService {
                 });
 
                 if (existing) {
-                    // If an attendance exists and it was NOT auto-generated, preserve it.
-                    // If it was auto-generated previously (verify_mode === 'auto'), we'll update it.
-                    if ((existing as any).verify_mode !== 'auto') {
+                    // Preserve manual/device-generated attendance; only overwrite auto-generated records
+                    if (existing.verify_mode !== 'auto') {
                         counts.skipped++;
-                        continue; // Preserve manual/device-generated attendance
+                        continue;
                     }
                 }
 
@@ -265,9 +262,9 @@ export class AttendanceGeneratorService {
                 let remarks = '';
 
                 // Priority: Holiday -> Weekend -> Leave -> Absent
-                // Check Holiday first (range intersection)
                 let holiday: HolidayDocument | null = null;
-                const leave: LeaveRequestDocument | null = null;
+                let leave: LeaveRequestDocument | null = null;
+
                 holiday = await this.holidayModel.findOne({
                     dateFrom: { $lte: endOfDay },
                     dateTo: { $gte: startOfDay },
@@ -278,11 +275,10 @@ export class AttendanceGeneratorService {
                     remarks = holiday.name || 'Holiday';
                     counts.H++;
                 } else {
-                    // Check Weekend
                     const deptName = emp.department
                         ? emp.department.trim().toLowerCase()
                         : '';
-                    const weekendDays = deptMap.get(deptName) || [0]; // Default Sunday (0) if not configured
+                    const weekendDays = deptMap.get(deptName) || [0];
 
                     const isWeekend = weekendDays.includes(dayOfWeek);
                     if (isWeekend) {
@@ -290,8 +286,7 @@ export class AttendanceGeneratorService {
                         remarks = 'Weekend';
                         counts.W++;
                     } else {
-                        // Check approved Leave only if not holiday/weekend
-                        const leave = await this.leaveRequestModel.findOne({
+                        leave = await this.leaveRequestModel.findOne({
                             employee: emp._id,
                             status: 'approved',
                             start_date: { $lte: endOfDay },
@@ -303,7 +298,6 @@ export class AttendanceGeneratorService {
                             remarks = 'Auto-generated Leave';
                             counts.L++;
                         } else {
-                            // Absent (If nothing else)
                             flagCode = 'A';
                             remarks = 'Absent (Auto-generated)';
                             counts.A++;
@@ -319,82 +313,31 @@ export class AttendanceGeneratorService {
 
                 if (override && override.override_type === 'cancel') {
                     if (flagCode === 'A') {
-                        // A cancelled shift without Leave/Holiday/Weekend means treat it as a paid leave.
-                        // Ensure there is an approved Leave record for that day; create one if missing.
-                        let effectiveLeave =
-                            await this.leaveRequestModel.findOne({
-                                employee: emp._id,
-                                status: 'approved',
-                                start_date: { $lte: endOfDay },
-                                end_date: { $gte: startOfDay },
-                            });
-
-                        const defaultLeaveFlag = flagMap.get('L');
-
-                        if (!effectiveLeave) {
-                            try {
-                                effectiveLeave =
-                                    await this.leaveRequestModel.create({
-                                        employee: emp._id,
-                                        flag: defaultLeaveFlag,
-                                        start_date: startOfDay,
-                                        end_date: startOfDay,
-                                        reason: 'Auto-approved paid leave due to shift cancellation',
-                                        status: 'approved',
-                                    } as any);
-                                this.logger.log(
-                                    `Auto-created approved leave for emp=${emp._id.toString()} date=${yyyymmdd} due to cancel override`,
-                                );
-                            } catch (err: any) {
-                                this.logger.error(
-                                    `Failed to auto-create leave for emp=${emp._id.toString()} date=${yyyymmdd}: ${err.message}`,
-                                );
-                            }
-                        }
-
-                        // Convert this day to Leave
+                        // A cancelled shift counts as Present instead of Absent to avoid leave-balance confusion
+                        flagCode = 'P';
+                        remarks = 'Present (Due to shift cancellation)';
                         counts.A = Math.max(0, counts.A - 1);
-                        counts.L++;
-                        flagCode = 'L';
-                        remarks =
-                            'Paid Leave (Auto-created due to shift cancellation)';
+                        counts.P++;
 
-                        // If an auto-generated attendance already exists, update it to reflect the leave
                         if (existing) {
-                            if ((existing as any).verify_mode === 'auto') {
-                                const newFlagId =
-                                    (effectiveLeave as any)?.flag ||
-                                    defaultLeaveFlag;
+                            if (existing.verify_mode === 'auto') {
                                 await this.attendanceModel.findByIdAndUpdate(
                                     existing._id,
                                     {
                                         $set: {
-                                            flag: newFlagId,
+                                            flag: flagMap.get('P'),
                                             in_remark: remarks,
                                             out_remark: remarks,
                                             late_minutes: 0,
-                                            verify_mode: 'auto',
-                                            status:
-                                                ATTENDANCE_STATUSES.find(
-                                                    s =>
-                                                        (s as string) ===
-                                                        'system-generated',
-                                                ) ?? ATTENDANCE_STATUSES[0],
                                         },
                                     },
                                 );
                                 counts.updated++;
-                                continue; // Updated existing record; no need to create
                             } else {
-                                // Preserve manual/device-generated attendance
                                 counts.skipped++;
-                                continue;
                             }
+                            continue;
                         }
-
-                        // If no existing attendance, fall through to create a system-generated Leave attendance below
-                    } else {
-                        // If it's already L/H/W, preserve existing behavior (no special action)
                     }
                 }
 
@@ -406,20 +349,14 @@ export class AttendanceGeneratorService {
                     ? deviceUser.user_id
                     : `SYS_${emp.e_id}`;
 
-                // Create or Update Attendance Record
-                let flagId = undefined as Types.ObjectId | undefined;
+                // Resolve flag ID from flagMap, preferring the document's stored flag for Leave/Holiday
+                let flagId: Types.ObjectId | undefined;
                 if (leave) {
-                    flagId = (leave as any).flag || flagMap.get('L');
-                } else if (typeof holiday !== 'undefined' && holiday) {
-                    flagId = (holiday as any).flag || flagMap.get('H');
-                } else if (flagCode === 'W') {
-                    flagId = flagMap.get('W');
-                } else if (flagCode === 'A') {
-                    flagId = flagMap.get('A');
-                } else if (flagCode === 'L') {
-                    flagId = flagMap.get('L');
-                } else if (flagCode === 'H') {
-                    flagId = flagMap.get('H');
+                    flagId = leave.flag ?? flagMap.get('L');
+                } else if (holiday) {
+                    flagId = holiday.flag ?? flagMap.get('H');
+                } else {
+                    flagId = flagMap.get(flagCode);
                 }
 
                 if (!flagId) {
@@ -428,10 +365,7 @@ export class AttendanceGeneratorService {
                     );
                 }
 
-                const systemStatus =
-                    ATTENDANCE_STATUSES.find(
-                        s => (s as string) === 'system-generated',
-                    ) ?? ATTENDANCE_STATUSES[0];
+                const systemStatus: AttendanceStatus = 'system-generated';
 
                 // Determine dummy times for system-generated records
                 const resolvedShift =
@@ -496,7 +430,7 @@ export class AttendanceGeneratorService {
 
         // Final summary log
         this.logger.log(
-            `Daily generation summary for ${yyyymmdd}: created=${counts.created}, updated=${counts.updated}, skipped=${counts.skipped}, L=${counts.L}, H=${counts.H}, W=${counts.W}, A=${counts.A}`,
+            `Daily generation summary for ${yyyymmdd}: created=${counts.created}, updated=${counts.updated}, skipped=${counts.skipped}, L=${counts.L}, H=${counts.H}, W=${counts.W}, A=${counts.A}, P=${counts.P}`,
         );
     }
 }

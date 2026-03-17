@@ -1,10 +1,12 @@
 'use client';
 import Badge from '@/components/Badge';
 import ExtendableTd from '@/components/ExtendableTd';
+import NoData, { Type } from '@/components/NoData';
 import Pagination from '@/components/Pagination';
 import { usePaginationManager } from '@/hooks/usePaginationManager';
 import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import { ShiftTemplate } from '@repo/common/models/shift-template.schema';
+import { formatDate, formatTime } from '@repo/common/utils/date-helpers';
 import { cn } from '@repo/common/utils/general-utils';
 import { hasPerm } from '@repo/common/utils/permission-check';
 import { capitalize } from 'lodash';
@@ -17,8 +19,6 @@ import { toast } from 'sonner';
 import BulkDeactivateModal from './BulkDeactivateModal';
 import EditButton from './Edit';
 import FilterButton from './Filter';
-import NoData, { Type } from '@/components/NoData';
-import { formatDate, formatTime } from '@repo/common/utils/date-helpers';
 
 interface ShiftTemplateWithId extends ShiftTemplate {
     _id: string;
@@ -31,6 +31,25 @@ interface ShiftTemplateResponse {
     };
     items: ShiftTemplateWithId[];
 }
+
+type EmployeeOption = {
+    value: string;
+    label: string;
+};
+
+const getDefaultFilters = () => {
+    const today = moment.tz('Asia/Dhaka');
+    const monday = today.clone().startOf('isoWeek').format('YYYY-MM-DD');
+    const sunday = today.clone().endOf('isoWeek').format('YYYY-MM-DD');
+    return {
+        employeeId: '',
+        fromDate: monday,
+        toDate: sunday,
+        shiftType: '',
+        active: 'true',
+        department: '',
+    };
+};
 
 const Table: React.FC = () => {
     const [shiftTemplates, setShiftTemplates] = useState<ShiftTemplateResponse>(
@@ -60,26 +79,50 @@ const Table: React.FC = () => {
     const [bulkModalOpen, setBulkModalOpen] = useState(false);
     const [bulkLoading, setBulkLoading] = useState(false);
 
-    const [filters, setFilters] = useState(() => {
-        const today = moment.tz('Asia/Dhaka');
-        const monday = today.clone().startOf('isoWeek').format('YYYY-MM-DD');
-        const sunday = today.clone().endOf('isoWeek').format('YYYY-MM-DD');
-        return {
-            employeeId: '',
-            fromDate: monday,
-            toDate: sunday,
-            shiftType: '',
-            active: 'true',
-            department: '',
-        };
-    });
+    const [filters, setFilters] = useState(getDefaultFilters);
+    const [appliedFilters, setAppliedFilters] = useState(getDefaultFilters);
+    const [employeeOptions, setEmployeeOptions] = useState<EmployeeOption[]>(
+        [],
+    );
 
+    const getEmployeesForFilter = useCallback(async () => {
+        try {
+            const response = await authedFetchApi<any[]>(
+                {
+                    path: '/v1/employee/search-employees',
+                    query: { paginated: false },
+                },
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({}),
+                },
+            );
+
+            if (response.ok) {
+                const options = (response.data || []).map((employee: any) => ({
+                    value: String(employee._id),
+                    label: `${employee.real_name} (${employee.e_id})`,
+                }));
+                setEmployeeOptions(options);
+            } else {
+                toastFetchError(response);
+            }
+        } catch (error) {
+            console.error(error);
+            toast.error('An error occurred while retrieving employee list');
+        }
+    }, [authedFetchApi]);
+
+    useEffect(() => {
+        getEmployeesForFilter();
+    }, [getEmployeesForFilter]);
     const fetchShiftTemplates = useCallback(async () => {
         try {
             setLoading(true);
             setSelectedIds(new Set()); // clear selection on fetch
 
-            const cleanedFilters = Object.entries(filters).reduce(
+            const cleanedFilters = Object.entries(appliedFilters).reduce(
                 (acc, [key, value]) => {
                     if (value && value !== '') {
                         acc[key] = value;
@@ -117,7 +160,7 @@ const Table: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    }, [authedFetchApi, page, itemPerPage, filters]);
+    }, [authedFetchApi, page, itemPerPage, appliedFilters]);
 
     usePaginationManager({
         page,
@@ -134,14 +177,10 @@ const Table: React.FC = () => {
     }, [searchVersion, page, fetchShiftTemplates]);
 
     const handleSearch = useCallback(() => {
-        setPage(prev => {
-            if (prev === 1) {
-                setSearchVersion(v => v + 1);
-                return prev;
-            }
-            return 1;
-        });
-    }, []);
+        setAppliedFilters(filters);
+        setPage(1);
+        setSearchVersion(v => v + 1);
+    }, [filters]);
 
     // --- Multi-select helpers ---
     const currentPageIds = useMemo(
@@ -215,7 +254,6 @@ const Table: React.FC = () => {
         }
     };
 
-
     const canEdit = hasPerm('admin:edit_shift_plan', userPermissions);
 
     return (
@@ -230,12 +268,12 @@ const Table: React.FC = () => {
                 )}
             >
                 {hasPerm('admin:create_shift_plan', userPermissions) && (
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex w-full sm:w-auto items-center gap-2">
                         <button
                             onClick={() =>
                                 router.push('/admin/shift-plans/create-plan')
                             }
-                            className="flex justify-between items-center gap-2 rounded-md bg-primary hover:opacity-90 hover:ring-4 hover:ring-primary transition duration-200 delay-300 hover:text-opacity-100 text-white px-3 py-2"
+                            className="flex-1 sm:flex-none flex justify-center items-center gap-2 whitespace-nowrap rounded-md bg-primary hover:opacity-90 hover:ring-4 hover:ring-primary transition duration-200 delay-300 hover:text-opacity-100 text-white px-3 py-2"
                         >
                             Add shift plan
                             <CirclePlus size={18} />
@@ -246,7 +284,7 @@ const Table: React.FC = () => {
                                     '/admin/shift-plans/overrides/create',
                                 )
                             }
-                            className="flex justify-between items-center gap-2 rounded-md bg-blue-600 hover:opacity-90 hover:ring-4 hover:ring-blue-600 transition duration-200 delay-300 hover:text-opacity-100 text-white px-3 py-2"
+                            className="flex-1 sm:flex-none flex justify-center items-center gap-2 whitespace-nowrap rounded-md bg-blue-600 hover:opacity-90 hover:ring-4 hover:ring-blue-600 transition duration-200 delay-300 hover:text-opacity-100 text-white px-3 py-2"
                         >
                             Add override
                             <CirclePlus size={18} />
@@ -255,7 +293,7 @@ const Table: React.FC = () => {
                 )}
 
                 {(filters.fromDate || filters.toDate) && (
-                    <div className="flex items-center text-xl text-gray-900 font-semibold">
+                    <div className="flex justify-center sm:justify-start w-full sm:w-auto items-center text-xl text-gray-900 font-semibold">
                         {filters.fromDate && (
                             <span className="flex items-center">
                                 <ClockCheck size={23} className="mr-2" />
@@ -271,7 +309,7 @@ const Table: React.FC = () => {
                     </div>
                 )}
 
-                <div className="items-center flex gap-2">
+                <div className="items-center flex justify-between w-full sm:w-auto gap-2">
                     <Pagination
                         page={page}
                         pageCount={pageCount}
@@ -294,6 +332,8 @@ const Table: React.FC = () => {
                         submitHandler={handleSearch}
                         setFilters={setFilters}
                         filters={filters}
+                        employeeOptions={employeeOptions}
+                        className="w-full justify-between sm:w-auto"
                     />
                 </div>
             </div>
@@ -421,7 +461,6 @@ const Table: React.FC = () => {
                                                         value={capitalize(
                                                             shiftPlan.shift_type,
                                                         )}
-                                                        className="text-white bg-blue-600 border border-blue-600"
                                                     />
                                                 </td>
                                                 <td>
@@ -436,13 +475,13 @@ const Table: React.FC = () => {
                                                 </td>
                                                 <td>
                                                     {shiftPlan.crosses_midnight
-                                                        ? '✓'
+                                                        ? 'Yes'
                                                         : '-'}
                                                 </td>
                                                 <td>
                                                     {shiftPlan.active
                                                         ? 'Yes'
-                                                        : 'No'}
+                                                        : '-'}
                                                 </td>
                                                 <ExtendableTd
                                                     data={
@@ -476,7 +515,10 @@ const Table: React.FC = () => {
                             </table>
                         </>
                     ) : (
-                        <NoData text="No Shift Templates Found" type={Type.danger} />
+                        <NoData
+                            text="No Shift Templates Found"
+                            type={Type.danger}
+                        />
                     ))}
             </div>
 
@@ -501,4 +543,3 @@ const Table: React.FC = () => {
 };
 
 export default Table;
-

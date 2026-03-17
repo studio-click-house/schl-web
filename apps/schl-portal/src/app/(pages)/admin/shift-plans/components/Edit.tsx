@@ -1,17 +1,24 @@
 'use client';
 
 import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { ShiftTemplate } from '@repo/common/models/shift-template.schema';
-import { SquarePen, X } from 'lucide-react';
-import { useRef, useState } from 'react';
-import { toast } from 'sonner';
-import { ShiftTemplateEditData, shiftPlanEditSchema } from '../schema';
-import Select from 'react-select';
 import {
     setCalculatedZIndex,
     setClassNameAndIsDisabled,
     setMenuPortalTarget,
 } from '@repo/common/utils/select-helpers';
+import { SquarePen, X } from 'lucide-react';
+import moment from 'moment-timezone';
+import { useEffect, useRef, useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
+import Select from 'react-select';
+import { toast } from 'sonner';
+import {
+    STANDARD_SHIFTS,
+    ShiftTemplateEditData,
+    shiftPlanEditSchema,
+} from '../schema';
 
 const shiftTypeOptions = [
     { value: 'morning', label: 'Morning' },
@@ -33,59 +40,63 @@ interface EditButtonProps {
 
 const EditButton = ({ shiftPlan, submitHandler }: EditButtonProps) => {
     const [isOpen, setIsOpen] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
-    const [errors, setErrors] = useState<Record<string, string>>({});
     const authedFetchApi = useAuthedFetchApi();
     const popupRef = useRef<HTMLElement>(null);
 
     const fromDateString = shiftPlan.effective_from
-        ? (new Date(shiftPlan.effective_from).toISOString().split('T')[0] ?? '')
+        ? moment.tz(shiftPlan.effective_from, 'Asia/Dhaka').format('YYYY-MM-DD')
         : '';
     const toDateString = shiftPlan.effective_to
-        ? (new Date(shiftPlan.effective_to).toISOString().split('T')[0] ?? '')
+        ? moment.tz(shiftPlan.effective_to, 'Asia/Dhaka').format('YYYY-MM-DD')
         : '';
 
-    const [formData, setFormData] = useState<ShiftTemplateEditData>({
-        fromDate: fromDateString || '',
-        toDate: toDateString || '',
-        shiftType: shiftPlan.shift_type,
-        shiftStart: shiftPlan.shift_start,
-        shiftEnd: shiftPlan.shift_end,
-        active: shiftPlan.active,
-        comment: shiftPlan.comment || '',
+    const {
+        register,
+        handleSubmit,
+        control,
+        setValue,
+        watch,
+        reset,
+        formState: { errors, isSubmitting },
+    } = useForm<ShiftTemplateEditData>({
+        resolver: zodResolver(shiftPlanEditSchema),
+        defaultValues: {
+            fromDate: fromDateString || '',
+            toDate: toDateString || '',
+            shiftType: shiftPlan.shift_type,
+            shiftStart: shiftPlan.shift_start,
+            shiftEnd: shiftPlan.shift_end,
+            active: shiftPlan.active,
+            gracePeriodMinutes: shiftPlan.grace_period_minutes ?? 10,
+            comment: shiftPlan.comment || '',
+        },
     });
 
-    const handleInputChange = (
-        e: React.ChangeEvent<
-            HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-        >,
-    ) => {
-        const { name, value, type } = e.target as any;
-        setFormData({
-            ...formData,
-            [name]:
-                type === 'checkbox'
-                    ? (e.target as HTMLInputElement).checked
-                    : value,
-        });
-        if (errors[name]) {
-            setErrors({ ...errors, [name]: '' });
+    const watchedShiftType = watch('shiftType');
+
+    useEffect(() => {
+        if (isOpen) {
+            reset({
+                fromDate: fromDateString,
+                toDate: toDateString,
+                shiftType: shiftPlan.shift_type,
+                shiftStart: shiftPlan.shift_start,
+                shiftEnd: shiftPlan.shift_end,
+                active: shiftPlan.active,
+                gracePeriodMinutes: shiftPlan.grace_period_minutes ?? 10,
+                comment: shiftPlan.comment || '',
+            });
         }
-    };
+    }, [isOpen, shiftPlan, reset, fromDateString, toDateString]);
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsLoading(true);
-
+    const onSubmit = async (data: ShiftTemplateEditData) => {
         try {
-            const validated = shiftPlanEditSchema.parse(formData);
-
             const response = await authedFetchApi<ShiftTemplate>(
                 { path: `/v1/shift-plan/${shiftPlan._id}` },
                 {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(validated),
+                    body: JSON.stringify(data),
                 },
             );
 
@@ -96,20 +107,9 @@ const EditButton = ({ shiftPlan, submitHandler }: EditButtonProps) => {
             } else {
                 toastFetchError(response);
             }
-        } catch (error: any) {
-            if (error.errors) {
-                const newErrors: Record<string, string> = {};
-                error.errors.forEach((err: any) => {
-                    if (err.path[0]) {
-                        newErrors[err.path[0]] = err.message;
-                    }
-                });
-                setErrors(newErrors);
-            } else {
-                toast.error('An error occurred');
-            }
-        } finally {
-            setIsLoading(false);
+        } catch (error) {
+            console.error(error);
+            toast.error('An error occurred');
         }
     };
 
@@ -158,7 +158,7 @@ const EditButton = ({ shiftPlan, submitHandler }: EditButtonProps) => {
 
                     <form
                         className="overflow-x-hidden overflow-y-scroll max-h-[70vh] p-4 text-start"
-                        onSubmit={handleSubmit}
+                        onSubmit={handleSubmit(onSubmit)}
                     >
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 mb-4 gap-y-4">
                             <div>
@@ -167,14 +167,12 @@ const EditButton = ({ shiftPlan, submitHandler }: EditButtonProps) => {
                                 </label>
                                 <input
                                     type="date"
-                                    name="fromDate"
-                                    value={formData.fromDate}
-                                    onChange={handleInputChange}
+                                    {...register('fromDate')}
                                     className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
                                 />
                                 {errors.fromDate && (
                                     <p className="text-red-500 text-sm mt-1">
-                                        {errors.fromDate}
+                                        {errors.fromDate.message}
                                     </p>
                                 )}
                             </div>
@@ -185,14 +183,12 @@ const EditButton = ({ shiftPlan, submitHandler }: EditButtonProps) => {
                                 </label>
                                 <input
                                     type="date"
-                                    name="toDate"
-                                    value={formData.toDate}
-                                    onChange={handleInputChange}
+                                    {...register('toDate')}
                                     className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
                                 />
                                 {errors.toDate && (
                                     <p className="text-red-500 text-sm mt-1">
-                                        {errors.toDate}
+                                        {errors.toDate.message}
                                     </p>
                                 )}
                             </div>
@@ -203,36 +199,60 @@ const EditButton = ({ shiftPlan, submitHandler }: EditButtonProps) => {
                                         Shift Type
                                     </span>
                                 </label>
-                                <Select
-                                    {...setClassNameAndIsDisabled(isOpen)}
-                                    options={shiftTypeOptions}
-                                    closeMenuOnSelect={true}
-                                    classNamePrefix="react-select"
-                                    menuPortalTarget={setMenuPortalTarget}
-                                    menuPlacement="auto"
-                                    menuPosition="fixed"
-                                    styles={setCalculatedZIndex(baseZIndex)}
-                                    value={
-                                        shiftTypeOptions.find(
-                                            opt => opt.value === formData.shiftType
-                                        ) || null
-                                    }
-                                    onChange={opt => {
-                                        if (opt) {
-                                            setFormData({
-                                                ...formData,
-                                                shiftType: opt.value,
-                                            });
-                                            if (errors['shiftType']) {
-                                                setErrors({ ...errors, shiftType: '' });
+                                <Controller
+                                    name="shiftType"
+                                    control={control}
+                                    render={({ field }) => (
+                                        <Select
+                                            {...field}
+                                            {...setClassNameAndIsDisabled(
+                                                isOpen,
+                                            )}
+                                            options={shiftTypeOptions}
+                                            closeMenuOnSelect={true}
+                                            classNamePrefix="react-select"
+                                            menuPortalTarget={
+                                                setMenuPortalTarget
                                             }
-                                        }
-                                    }}
-                                    placeholder="Select Type"
+                                            menuPlacement="auto"
+                                            menuPosition="fixed"
+                                            styles={setCalculatedZIndex(
+                                                baseZIndex,
+                                            )}
+                                            value={
+                                                shiftTypeOptions.find(
+                                                    opt =>
+                                                        opt.value ===
+                                                        field.value,
+                                                ) || null
+                                            }
+                                            onChange={opt => {
+                                                if (opt) {
+                                                    const type = opt.value;
+                                                    field.onChange(type);
+                                                    if (type !== 'custom') {
+                                                        const s =
+                                                            STANDARD_SHIFTS[
+                                                                type as keyof typeof STANDARD_SHIFTS
+                                                            ];
+                                                        setValue(
+                                                            'shiftStart',
+                                                            s.start,
+                                                        );
+                                                        setValue(
+                                                            'shiftEnd',
+                                                            s.end,
+                                                        );
+                                                    }
+                                                }
+                                            }}
+                                            placeholder="Select Type"
+                                        />
+                                    )}
                                 />
                                 {errors.shiftType && (
                                     <p className="text-red-500 text-sm mt-1">
-                                        {errors.shiftType}
+                                        {errors.shiftType.message}
                                     </p>
                                 )}
                             </div>
@@ -245,20 +265,18 @@ const EditButton = ({ shiftPlan, submitHandler }: EditButtonProps) => {
                                 </label>
                                 <input
                                     type="text"
-                                    name="shiftStart"
+                                    {...register('shiftStart')}
                                     placeholder="09:00"
-                                    value={formData.shiftStart}
-                                    onChange={handleInputChange}
                                     className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
                                 />
                                 {errors.shiftStart && (
                                     <p className="text-red-500 text-sm mt-1">
-                                        {errors.shiftStart}
+                                        {errors.shiftStart.message}
                                     </p>
                                 )}
                             </div>
 
-                            <div className="md:col-span-1">
+                            <div>
                                 <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
                                     <span className="uppercase">
                                         End Time (HH:mm)
@@ -266,26 +284,22 @@ const EditButton = ({ shiftPlan, submitHandler }: EditButtonProps) => {
                                 </label>
                                 <input
                                     type="text"
-                                    name="shiftEnd"
+                                    {...register('shiftEnd')}
                                     placeholder="17:00"
-                                    value={formData.shiftEnd}
-                                    onChange={handleInputChange}
                                     className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
                                 />
                                 {errors.shiftEnd && (
                                     <p className="text-red-500 text-sm mt-1">
-                                        {errors.shiftEnd}
+                                        {errors.shiftEnd.message}
                                     </p>
                                 )}
                             </div>
 
-                            <div className="md:col-span-1">
+                            <div>
                                 <label className="inline-flex items-center gap-2 cursor-pointer md:mt-7">
                                     <input
                                         type="checkbox"
-                                        name="active"
-                                        checked={formData.active ?? true}
-                                        onChange={handleInputChange}
+                                        {...register('active')}
                                         className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
                                     />
                                     <span className="text-sm font-medium text-gray-700">
@@ -297,6 +311,27 @@ const EditButton = ({ shiftPlan, submitHandler }: EditButtonProps) => {
                                     new days
                                 </p>
                             </div>
+
+                            <div>
+                                <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
+                                    <span className="uppercase">
+                                        Grace Period (min)
+                                    </span>
+                                </label>
+                                <input
+                                    type="number"
+                                    {...register('gracePeriodMinutes', {
+                                        valueAsNumber: true,
+                                    })}
+                                    min={0}
+                                    max={120}
+                                    className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
+                                />
+                                <p className="text-xs font-mono text-gray-400 flex flex-row gap-2 mt-1">
+                                    Minutes allowed late before flagging as
+                                    delayed
+                                </p>
+                            </div>
                         </div>
 
                         <div>
@@ -304,16 +339,14 @@ const EditButton = ({ shiftPlan, submitHandler }: EditButtonProps) => {
                                 <span className="uppercase">Comment</span>
                             </label>
                             <textarea
-                                name="comment"
+                                {...register('comment')}
                                 placeholder="e.g., Week 2, 3, 4..."
-                                value={formData.comment}
-                                onChange={handleInputChange}
                                 rows={3}
                                 className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
                             />
                             {errors.comment && (
                                 <p className="text-red-500 text-sm mt-1">
-                                    {errors.comment}
+                                    {errors.comment.message}
                                 </p>
                             )}
                         </div>
@@ -324,17 +357,17 @@ const EditButton = ({ shiftPlan, submitHandler }: EditButtonProps) => {
                             type="button"
                             onClick={() => setIsOpen(false)}
                             className="rounded-md bg-gray-600 text-white  hover:opacity-90 hover:ring-2 hover:ring-gray-600 transition duration-200 delay-300 hover:text-opacity-100 px-4 py-1"
-                            disabled={isLoading}
+                            disabled={isSubmitting}
                         >
                             Cancel
                         </button>
                         <button
-                            type="submit"
-                            onClick={handleSubmit}
-                            className="rounded-md bg-blue-600 text-white   hover:opacity-90 hover:ring-2 hover:ring-blue-600 transition duration-200 delay-300 hover:text-opacity-100 px-4 py-1"
-                            disabled={isLoading}
+                            type="button"
+                            onClick={handleSubmit(onSubmit)}
+                            className="rounded-md bg-blue-600 text-white hover:opacity-90 hover:ring-2 hover:ring-blue-600 transition duration-200 delay-300 hover:text-opacity-100 px-4 py-1"
+                            disabled={isSubmitting}
                         >
-                            {isLoading ? 'Saving...' : 'Save Changes'}
+                            {isSubmitting ? 'Saving...' : 'Save Changes'}
                         </button>
                     </footer>
                 </article>

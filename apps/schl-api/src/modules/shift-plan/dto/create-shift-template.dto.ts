@@ -1,10 +1,13 @@
 import {
     IsArray,
     IsDateString,
+    IsInt,
     IsNotEmpty,
     IsOptional,
     IsString,
     Matches,
+    Max,
+    Min,
 } from 'class-validator';
 
 export class CreateShiftTemplateBodyDto {
@@ -46,4 +49,10 @@ export class CreateShiftTemplateBodyDto {
     @IsOptional()
     @IsString()
     comment?: string;
+
+    @IsOptional()
+    @IsInt()
+    @Min(0)
+    @Max(120)
+    gracePeriodMinutes?: number;
 }

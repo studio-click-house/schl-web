@@ -3,7 +3,6 @@ export const EMPLOYEE_STATUSES = [
     'active',
     'inactive',
     'terminated',
-    'on-leave',
     'resigned',
     'retired',
     'fired',

@@ -1,9 +1,12 @@
 import {
     IsBoolean,
     IsDateString,
+    IsInt,
     IsOptional,
     IsString,
     Matches,
+    Max,
+    Min,
 } from 'class-validator';
 
 export class UpdateShiftTemplateBodyDto {
@@ -44,4 +47,10 @@ export class UpdateShiftTemplateBodyDto {
     @IsOptional()
     @IsString()
     comment?: string;
+
+    @IsOptional()
+    @IsInt()
+    @Min(0)
+    @Max(120)
+    gracePeriodMinutes?: number;
 }

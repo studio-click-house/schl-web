@@ -59,6 +59,7 @@ const OverrideForm = () => {
             shiftType: 'morning',
             shiftStart: STANDARD_SHIFTS.morning.start,
             shiftEnd: STANDARD_SHIFTS.morning.end,
+            gracePeriodMinutes: undefined,
             comment: '',
         },
     });
@@ -354,20 +355,49 @@ const OverrideForm = () => {
                 )}
             </div>
 
-            {/* Comment */}
-            <div className="mb-4">
-                <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
-                    <span className="uppercase">Comment (Optional)</span>
-                    <span className="text-red-700 text-wrap block text-xs">
-                        {errors.comment?.message}
-                    </span>
-                </label>
-                <textarea
-                    {...register('comment')}
-                    placeholder="e.g., Eid special, Emergency staffing"
-                    rows={3}
-                    className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 mb-3 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
-                />
+            {/* Grace Period + Comment */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 mb-4">
+                {watchedOverrideType === 'replace' && (
+                    <div>
+                        <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
+                            <span className="uppercase">
+                                Grace Period (Min)
+                            </span>
+                        </label>
+                        <input
+                            {...register('gracePeriodMinutes', {
+                                valueAsNumber: true,
+                            })}
+                            type="number"
+                            min={0}
+                            max={120}
+                            placeholder="10"
+                            className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
+                        />
+                        <p className="text-xs font-mono text-gray-400 flex flex-row gap-2 mt-1">
+                            Minutes allowed late before flagging as delayed
+                        </p>
+                    </div>
+                )}
+
+                <div
+                    className={
+                        watchedOverrideType === 'replace' ? '' : 'md:col-span-2'
+                    }
+                >
+                    <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
+                        <span className="uppercase">Comment (Optional)</span>
+                        <span className="text-red-700 text-wrap block text-xs">
+                            {errors.comment?.message}
+                        </span>
+                    </label>
+                    <textarea
+                        {...register('comment')}
+                        placeholder="e.g., Eid special, Emergency staffing"
+                        rows={3}
+                        className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
+                    />
+                </div>
             </div>
 
             {/* Submit */}

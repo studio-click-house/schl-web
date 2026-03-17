@@ -1,9 +1,12 @@
 import {
     IsDateString,
+    IsInt,
     IsNotEmpty,
     IsOptional,
     IsString,
     Matches,
+    Max,
+    Min,
 } from 'class-validator';
 
 export class CreateShiftOverrideBodyDto {
@@ -41,4 +44,10 @@ export class CreateShiftOverrideBodyDto {
     @IsOptional()
     @IsString()
     comment?: string; // e.g., "Eid special"
+
+    @IsOptional()
+    @IsInt()
+    @Min(0)
+    @Max(120)
+    gracePeriodMinutes?: number;
 }

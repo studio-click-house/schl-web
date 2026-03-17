@@ -51,6 +51,9 @@ export class ShiftResolved {
     @Prop({ required: false, type: Boolean, default: false })
     is_off_day_overtime?: boolean; // If true, treat any work on this day as overtime (off-day OT)
 
+    @Prop({ required: false, type: Number, default: 10 })
+    grace_period_minutes: number; // Propagated from template/override; used by attendance evaluation
+
     @Prop({
         required: [true, 'Resolved source is required'],
         type: String,

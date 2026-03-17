@@ -2,6 +2,7 @@
 
 import { useAuthedFetchApi } from '@/lib/api-client';
 import { zodResolver } from '@hookform/resolvers/zod';
+import moment from 'moment-timezone';
 import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -33,7 +34,7 @@ const HolidayModal: React.FC<HolidayModalProps> = ({
         mode: 'onBlur', // Validate on blur to provide timely client-side feedback
         defaultValues: {
             name: '',
-            dateFrom: new Date().toISOString().split('T')[0],
+            dateFrom: moment().tz('Asia/Dhaka').format('YYYY-MM-DD'),
             dateTo: '',
             comment: '',
         },
@@ -44,22 +45,23 @@ const HolidayModal: React.FC<HolidayModalProps> = ({
             reset({
                 name: editData.name,
                 // Ensure dates are YYYY-MM-DD
-                dateFrom: new Date(
-                    (editData as any).dateFrom || editData.dateFrom,
-                )
-                    .toISOString()
-                    .split('T')[0],
+                dateFrom: moment
+                    .tz(
+                        (editData as any).dateFrom || editData.dateFrom,
+                        'Asia/Dhaka',
+                    )
+                    .format('YYYY-MM-DD'),
                 dateTo: (editData as any).dateTo
-                    ? new Date((editData as any).dateTo)
-                          .toISOString()
-                          .split('T')[0]
+                    ? moment
+                          .tz((editData as any).dateTo, 'Asia/Dhaka')
+                          .format('YYYY-MM-DD')
                     : '',
                 comment: (editData as any).comment || '',
             });
         } else if (isOpen) {
             reset({
                 name: '',
-                dateFrom: new Date().toISOString().split('T')[0],
+                dateFrom: moment().tz('Asia/Dhaka').format('YYYY-MM-DD'),
                 dateTo: '',
                 comment: '',
             });

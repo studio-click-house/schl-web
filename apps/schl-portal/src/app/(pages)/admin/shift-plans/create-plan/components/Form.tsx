@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { EMPLOYEE_DEPARTMENTS } from '@repo/common/constants/employee.constant';
 import { EmployeeDocument } from '@repo/common/models/employee.schema';
 import { setMenuPortalTarget } from '@repo/common/utils/select-helpers';
+import moment from 'moment-timezone';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -34,6 +35,7 @@ const Form: React.FC = () => {
 
     const [employees, setEmployees] = useState<EmployeeDocument[]>([]);
     const [loadingEmployees, setLoadingEmployees] = useState(true);
+    const [isCreating, setIsCreating] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [departmentFilter, setDepartmentFilter] = useState('');
 
@@ -43,7 +45,7 @@ const Form: React.FC = () => {
         control,
         watch,
         setValue,
-        formState: { errors, isSubmitting },
+        formState: { errors },
     } = useForm<ShiftTemplateFormData>({
         resolver: zodResolver(shiftPlanValidationSchema),
         defaultValues: {
@@ -53,6 +55,7 @@ const Form: React.FC = () => {
             shiftType: 'morning',
             shiftStart: STANDARD_SHIFTS.morning.start,
             shiftEnd: STANDARD_SHIFTS.morning.end,
+            gracePeriodMinutes: 10,
             comment: '',
         },
     });
@@ -124,30 +127,66 @@ const Form: React.FC = () => {
         setValue('employeeIds', updated, { shouldValidate: true });
     };
 
-    const onSubmit = async (data: ShiftTemplateFormData) => {
-        // For standard shifts, enforce standard times
-        const payload = { ...data };
-        if (payload.shiftType !== 'custom') {
-            const standard = STANDARD_SHIFTS[payload.shiftType];
-            payload.shiftStart = standard.start;
-            payload.shiftEnd = standard.end;
-        }
-
-        const response = await authedFetchApi<any>(
-            { path: '/v1/shift-plan/create-bulk' },
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            },
+    const applyWeekPreset = (offset: 0 | 1) => {
+        const base = moment.tz(new Date(), 'Asia/Dhaka').add(offset, 'weeks');
+        setValue(
+            'fromDate',
+            base.clone().startOf('isoWeek').format('YYYY-MM-DD'),
         );
+        setValue('toDate', base.clone().endOf('isoWeek').format('YYYY-MM-DD'));
+    };
 
-        if (response.ok) {
-            const count = response.data?.created || 0;
-            toast.success(`Successfully created ${count} shift template(s)`);
-            router.push('/admin/shift-plans');
-        } else {
-            toastFetchError(response);
+    const onSubmit = async (data: ShiftTemplateFormData) => {
+        setIsCreating(true);
+        const toastId = toast.loading('Creating shift plans...');
+
+        try {
+            const payload = { ...data };
+            if (payload.shiftType !== 'custom') {
+                const standard = STANDARD_SHIFTS[payload.shiftType];
+                payload.shiftStart = standard.start;
+                payload.shiftEnd = standard.end;
+            }
+
+            const response = await authedFetchApi<any>(
+                { path: '/v1/shift-plan/create-bulk' },
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                },
+            );
+
+            if (response.ok) {
+                toast.success(
+                    `Successfully created ${response.data.createdCount} shift plan(s)`,
+                    { id: toastId },
+                );
+                router.push('/admin/shift-plans');
+            } else {
+                toast.dismiss(toastId);
+                const errBody = response.data as unknown as {
+                    conflictingEmployeeIds?: string[];
+                } | null;
+                const conflictingIds = errBody?.conflictingEmployeeIds;
+                if (conflictingIds?.length) {
+                    const names = conflictingIds
+                        .map(
+                            id =>
+                                employees.find(e => e._id.toString() === id)
+                                    ?.real_name,
+                        )
+                        .filter(Boolean)
+                        .join(', ');
+                    toast.error(`Overlapping plans exist for: ${names}`, {
+                        duration: 8000,
+                    });
+                } else {
+                    toastFetchError(response);
+                }
+            }
+        } finally {
+            setIsCreating(false);
         }
     };
 
@@ -252,32 +291,55 @@ const Form: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 mb-4 gap-y-4">
                 {/* Date Range */}
-                <div>
+                <div className="md:col-span-2">
                     <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
-                        <span className="uppercase">From Date*</span>
-                        <span className="text-red-700 text-wrap block text-xs">
-                            {errors.fromDate?.message}
-                        </span>
+                        <span className="uppercase">Date Range*</span>
                     </label>
-                    <input
-                        {...register('fromDate')}
-                        type="date"
-                        className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
-                    />
-                </div>
+                    <div className="flex gap-2 mb-3">
+                        <button
+                            type="button"
+                            onClick={() => applyWeekPreset(0)}
+                            className="text-sm px-4 py-2 bg-gray-100 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-200 transition-colors duration-150"
+                        >
+                            This Week
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => applyWeekPreset(1)}
+                            className="text-sm px-4 py-2 bg-gray-100 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-200 transition-colors duration-150"
+                        >
+                            Next Week
+                        </button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 gap-y-4">
+                        <div>
+                            <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
+                                <span className="uppercase">From Date*</span>
+                                <span className="text-red-700 text-wrap block text-xs">
+                                    {errors.fromDate?.message}
+                                </span>
+                            </label>
+                            <input
+                                {...register('fromDate')}
+                                type="date"
+                                className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
+                            />
+                        </div>
 
-                <div>
-                    <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
-                        <span className="uppercase">To Date*</span>
-                        <span className="text-red-700 text-wrap block text-xs">
-                            {errors.toDate?.message}
-                        </span>
-                    </label>
-                    <input
-                        {...register('toDate')}
-                        type="date"
-                        className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
-                    />
+                        <div>
+                            <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
+                                <span className="uppercase">To Date*</span>
+                                <span className="text-red-700 text-wrap block text-xs">
+                                    {errors.toDate?.message}
+                                </span>
+                            </label>
+                            <input
+                                {...register('toDate')}
+                                type="date"
+                                className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
+                            />
+                        </div>
+                    </div>
                 </div>
 
                 {/* Shift Type */}
@@ -361,33 +423,57 @@ const Form: React.FC = () => {
                 )}
             </div>
 
-            {/* Comment */}
-            <div className="mb-4">
-                <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
-                    <span className="uppercase">Comment</span>
-                    <span className="text-red-700 text-wrap block text-xs">
-                        {errors.comment?.message}
-                    </span>
-                </label>
-                <textarea
-                    {...register('comment')}
-                    placeholder="e.g., Week 2, 3, 4..."
-                    rows={3}
-                    className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 mb-3 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
-                />
+            {/* Grace Period + Comment */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 mb-4">
+                <div>
+                    <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
+                        <span className="uppercase">Grace Period (Min)</span>
+                        <span className="text-red-700 text-wrap block text-xs">
+                            {errors.gracePeriodMinutes?.message}
+                        </span>
+                    </label>
+                    <input
+                        {...register('gracePeriodMinutes', {
+                            valueAsNumber: true,
+                        })}
+                        type="number"
+                        min={0}
+                        max={120}
+                        placeholder="10"
+                        className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
+                    />
+                    <p className="text-xs font-mono text-gray-400 flex flex-row gap-2 mt-1">
+                        Minutes allowed late before flagging as delayed
+                    </p>
+                </div>
+
+                <div>
+                    <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
+                        <span className="uppercase">Comment</span>
+                        <span className="text-red-700 text-wrap block text-xs">
+                            {errors.comment?.message}
+                        </span>
+                    </label>
+                    <textarea
+                        {...register('comment')}
+                        placeholder="e.g., Week 2, 3, 4..."
+                        rows={3}
+                        className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
+                    />
+                </div>
             </div>
 
             {/* Submit */}
             <button
                 disabled={
-                    isSubmitting ||
+                    isCreating ||
                     loadingEmployees ||
                     watchedEmployeeIds.length === 0
                 }
                 className="rounded-md bg-primary text-white hover:opacity-90 hover:ring-4 hover:ring-primary transition duration-200 delay-300 hover:text-opacity-100 text-primary-foreground px-10 py-2 mt-6 uppercase disabled:opacity-50 disabled:cursor-not-allowed"
                 type="submit"
             >
-                {isSubmitting ? 'Creating...' : 'Create shift plan'}
+                {isCreating ? 'Creating...' : 'Create shift plan'}
             </button>
         </form>
     );

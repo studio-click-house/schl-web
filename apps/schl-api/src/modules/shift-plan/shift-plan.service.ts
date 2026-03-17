@@ -25,6 +25,14 @@ import { UpdateShiftTemplateBodyDto } from './dto/update-shift-template.dto';
 
 type QueryShape = FilterQuery<ShiftTemplate>;
 
+const STANDARD_SHIFTS = {
+    morning: { start: '07:00', end: '15:00', crossesMidnight: false },
+    evening: { start: '15:00', end: '23:00', crossesMidnight: false },
+    night: { start: '23:00', end: '07:00', crossesMidnight: true },
+} as const;
+
+type StandardShiftType = keyof typeof STANDARD_SHIFTS;
+
 @Injectable()
 export class ShiftPlanService implements OnModuleInit {
     private readonly logger = new Logger(ShiftPlanService.name);
@@ -139,6 +147,7 @@ export class ShiftPlanService implements OnModuleInit {
                 crosses_midnight: crossesMidnight,
                 updated_by: userSession.db_id,
                 comment: dto.comment || null,
+                grace_period_minutes: dto.gracePeriodMinutes ?? 10,
             };
 
             const created = await this.shiftOverrideModel.findOneAndUpdate(
@@ -179,13 +188,6 @@ export class ShiftPlanService implements OnModuleInit {
             );
         }
 
-        // Define standard shift times
-        const STANDARD_SHIFTS = {
-            morning: { start: '07:00', end: '15:00', crossesMidnight: false },
-            evening: { start: '15:00', end: '23:00', crossesMidnight: false },
-            night: { start: '23:00', end: '07:00', crossesMidnight: true },
-        };
-
         // Determine shift times
         let shiftStart: string;
         let shiftEnd: string;
@@ -207,7 +209,8 @@ export class ShiftPlanService implements OnModuleInit {
             crossesMidnight = endHour < startHour;
         } else {
             // Use standard shift times
-            const standardShift = STANDARD_SHIFTS[dto.shiftType];
+            const standardShift =
+                STANDARD_SHIFTS[dto.shiftType as StandardShiftType];
             shiftStart = standardShift.start;
             shiftEnd = standardShift.end;
             crossesMidnight = standardShift.crossesMidnight;
@@ -223,51 +226,92 @@ export class ShiftPlanService implements OnModuleInit {
             throw new BadRequestException('To date must be after from date');
         }
 
+        const employeeObjectIds = dto.employeeIds.map(
+            id => toObjectId(id) as Types.ObjectId,
+        );
+
+        // 1. Single batched overlap check — replaces N sequential findOne calls
+        const conflictingDocs = await this.shiftTemplateModel
+            .find({
+                active: true,
+                effective_from: { $lte: toDate.toDate() },
+                effective_to: { $gte: fromDate.toDate() },
+                employee: { $in: employeeObjectIds },
+            })
+            .select('employee')
+            .lean();
+
+        if (conflictingDocs.length > 0) {
+            throw new BadRequestException({
+                message:
+                    'Some employees already have an active shift plan overlapping this date range.',
+                conflictingEmployeeIds: conflictingDocs.map(d =>
+                    d.employee.toString(),
+                ),
+            });
+        }
+
+        // 2. ACID transaction — atomicity + race condition safety
+        const session = await this.shiftTemplateModel.db.startSession();
         try {
-            const templates: Partial<ShiftTemplate>[] = [];
-            for (const employeeId of dto.employeeIds) {
-                const overlap = await this.shiftTemplateModel.findOne({
-                    employee: toObjectId(employeeId) as Types.ObjectId,
-                    active: true,
-                    effective_from: { $lte: toDate.toDate() },
-                    effective_to: { $gte: fromDate.toDate() },
-                } as FilterQuery<ShiftTemplate>);
+            session.startTransaction();
 
-                if (overlap) {
-                    throw new BadRequestException(
-                        'Overlapping shift template exists for one or more employees',
-                    );
-                }
+            // Re-check inside the transaction to guard against concurrent inserts
+            const raceConflict = await this.shiftTemplateModel
+                .findOne(
+                    {
+                        active: true,
+                        effective_from: { $lte: toDate.toDate() },
+                        effective_to: { $gte: fromDate.toDate() },
+                        employee: { $in: employeeObjectIds },
+                    },
+                    null,
+                    { session },
+                )
+                .lean();
 
-                templates.push({
-                    employee: toObjectId(employeeId) as Types.ObjectId,
-                    effective_from: fromDate.toDate(),
-                    effective_to: toDate.toDate(),
-                    shift_type: dto.shiftType,
-                    shift_start: shiftStart,
-                    shift_end: shiftEnd,
-                    crosses_midnight: crossesMidnight,
-                    active: true,
-                    updated_by: userSession.db_id,
-                    comment: dto.comment || null,
-                } as Partial<ShiftTemplate>);
+            if (raceConflict) {
+                throw new BadRequestException(
+                    'A conflict was detected. Another plan may have been created simultaneously. Please retry.',
+                );
             }
 
+            const templates: Partial<ShiftTemplate>[] = dto.employeeIds.map(
+                employeeId =>
+                    ({
+                        employee: toObjectId(employeeId) as Types.ObjectId,
+                        effective_from: fromDate.toDate(),
+                        effective_to: toDate.toDate(),
+                        shift_type: dto.shiftType,
+                        shift_start: shiftStart,
+                        shift_end: shiftEnd,
+                        crosses_midnight: crossesMidnight,
+                        active: true,
+                        updated_by: userSession.db_id,
+                        comment: dto.comment || null,
+                        grace_period_minutes: dto.gracePeriodMinutes ?? 10,
+                    }) as Partial<ShiftTemplate>,
+            );
+
             const result = await this.shiftTemplateModel.insertMany(templates, {
-                ordered: true,
+                session,
             });
 
+            await session.commitTransaction();
+
             return {
-                created: result.length,
-                total: templates.length,
+                createdCount: result.length,
                 message: `Created ${result.length} shift template(s)`,
             };
         } catch (err: any) {
+            await session.abortTransaction();
             if (err instanceof HttpException) throw err;
             this.logger.error('Failed to create shift templates', err);
             throw new InternalServerErrorException(
                 'Unable to create shift templates at this time',
             );
+        } finally {
+            session.endSession();
         }
     }
 
@@ -538,7 +582,10 @@ export class ShiftPlanService implements OnModuleInit {
                 ]);
 
                 return {
-                    pagination: { count, pageCount: Math.ceil(count / pagination.itemsPerPage) },
+                    pagination: {
+                        count,
+                        pageCount: Math.ceil(count / pagination.itemsPerPage),
+                    },
                     items,
                 };
             }
@@ -566,7 +613,11 @@ export class ShiftPlanService implements OnModuleInit {
             const skip = (pagination.page - 1) * pagination.itemsPerPage;
             const [items, countResult] = await Promise.all([
                 this.shiftTemplateModel
-                    .aggregate([...pipeline, { $skip: skip }, { $limit: pagination.itemsPerPage }])
+                    .aggregate([
+                        ...pipeline,
+                        { $skip: skip },
+                        { $limit: pagination.itemsPerPage },
+                    ])
                     .exec(),
                 this.shiftTemplateModel
                     .aggregate([...pipeline, { $count: 'total' }])
@@ -575,7 +626,10 @@ export class ShiftPlanService implements OnModuleInit {
 
             const count = countResult[0]?.total ?? 0;
             return {
-                pagination: { count, pageCount: Math.ceil(count / pagination.itemsPerPage) },
+                pagination: {
+                    count,
+                    pageCount: Math.ceil(count / pagination.itemsPerPage),
+                },
                 items,
             };
         } catch (err) {
@@ -609,7 +663,9 @@ export class ShiftPlanService implements OnModuleInit {
         }
 
         try {
-            const objectIds = dto.ids.map(id => toObjectId(id) as Types.ObjectId);
+            const objectIds = dto.ids.map(
+                id => toObjectId(id) as Types.ObjectId,
+            );
 
             // Fetch affected templates before update (for cache clearing)
             const templates = await this.shiftTemplateModel
@@ -647,7 +703,10 @@ export class ShiftPlanService implements OnModuleInit {
             };
         } catch (err) {
             if (err instanceof HttpException) throw err;
-            this.logger.error('Failed to bulk deactivate shift plans', err as Error);
+            this.logger.error(
+                'Failed to bulk deactivate shift plans',
+                err as Error,
+            );
             throw new InternalServerErrorException(
                 'Unable to bulk deactivate shift plans at this time',
             );

@@ -46,6 +46,9 @@ export class ShiftOverride {
     @Prop({ required: false, type: Boolean, default: false })
     crosses_midnight?: boolean;
 
+    @Prop({ required: false, type: Number, default: 10 })
+    grace_period_minutes: number; // Grace window before flagging as late
+
     @Prop({ required: false, type: String, default: null })
     updated_by: string | null;
 
