@@ -6,7 +6,7 @@ import {
     Min,
 } from 'class-validator';
 
-export class SyncPauseDto {
+export class PauseDto {
     @IsString()
     @IsNotEmpty()
     employeeName: string;

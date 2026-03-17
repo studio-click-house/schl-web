@@ -9,21 +9,21 @@ import { JobListDto } from './dto/job-list.dto';
 import { ReportFileDto } from './dto/report-file.dto';
 import { SearchFileDto } from './dto/search-file.dto';
 import { DashboardTodayDto } from './dto/dashboard-today.dto';
-import { SyncQcWorkLogDto } from './dto/sync-qc-work-log.dto';
+import { WorkLogDto } from './dto/work-log.dto';
 import { LiveTrackingDataDto } from './dto/live-tracking-data.dto';
-import { SyncPauseDto } from './dto/sync-pause.dto';
-import { TrackerAuthService } from './tracker.auth.service';
-import { TrackerPauseService } from './tracker.pause.service';
-import { TrackerQcWorkLogService } from './tracker.qc-work-log.service';
-import { TrackerQueryService } from './tracker.query.service';
-import { TrackerReportService } from './tracker.report.service';
+import { PauseDto } from './dto/pause.dto';
+import { TrackerAuthService } from './services/auth.service';
+import { TrackerPauseService } from './services/pause.service';
+import { TrackerWorkLogService } from './services/work-log.service';
+import { TrackerQueryService } from './services/query.service';
+import { TrackerReportService } from './services/report.service';
 
 @Controller('tracker')
 export class TrackerController {
     constructor(
         private readonly authService: TrackerAuthService,
         private readonly pauseService: TrackerPauseService,
-        private readonly qcWorkLogService: TrackerQcWorkLogService,
+        private readonly workLogService: TrackerWorkLogService,
         private readonly queryService: TrackerQueryService,
         private readonly reportService: TrackerReportService,
     ) {}
@@ -48,13 +48,13 @@ export class TrackerController {
         return this.authService.setPassword(dto.username, dto.password);
     }
 
-    @Post('sync-qc')
-    syncQc(@Body() dto: SyncQcWorkLogDto) {
-        return this.qcWorkLogService.syncQc(dto);
+    @Post('sync-work-log')
+    syncWorkLog(@Body() dto: WorkLogDto) {
+        return this.workLogService.sync(dto);
     }
 
     @Post('pause')
-    syncPause(@Body() dto: SyncPauseDto) {
+    syncPause(@Body() dto: PauseDto) {
         return this.pauseService.syncPause(dto);
     }
 

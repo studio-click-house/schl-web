@@ -10,7 +10,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
-class QcWorkLogFileDto {
+class WorkLogFileDto {
     @IsString()
     @IsNotEmpty()
     fileName: string;
@@ -25,7 +25,7 @@ class QcWorkLogFileDto {
     timeSpent?: number;
 }
 
-export class SyncQcWorkLogDto {
+export class WorkLogDto {
     @IsString()
     @IsNotEmpty()
     employeeName: string;
@@ -71,6 +71,6 @@ export class SyncQcWorkLogDto {
     @IsArray()
     @ArrayMinSize(1)
     @ValidateNested({ each: true })
-    @Type(() => QcWorkLogFileDto)
-    files: QcWorkLogFileDto[];
+    @Type(() => WorkLogFileDto)
+    files: WorkLogFileDto[];
 }

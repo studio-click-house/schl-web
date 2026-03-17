@@ -7,21 +7,18 @@ import {
     PauseSession,
     PauseSessionSchema,
 } from '@repo/common/models/pause-session.schema';
-import {
-    QcWorkLog,
-    QcWorkLogSchema,
-} from '@repo/common/models/qc-work-log.schema';
+import { WorkLog, WorkLogSchema } from '@repo/common/models/work-log.schema';
 import {
     UserSession,
     UserSessionSchema,
 } from '@repo/common/models/user-session.schema';
-import { TrackerAuthService } from './tracker.auth.service';
 import { TrackerController } from './tracker.controller';
-import { TrackerGateway } from './tracker.gateway';
-import { TrackerPauseService } from './tracker.pause.service';
-import { TrackerQcWorkLogService } from './tracker.qc-work-log.service';
-import { TrackerQueryService } from './tracker.query.service';
-import { TrackerReportService } from './tracker.report.service';
+import { TrackerGateway } from './gateways/tracker.gateway';
+import { TrackerAuthService } from './services/auth.service';
+import { TrackerPauseService } from './services/pause.service';
+import { TrackerWorkLogService } from './services/work-log.service';
+import { TrackerQueryService } from './services/query.service';
+import { TrackerReportService } from './services/report.service';
 
 @Module({
     imports: [
@@ -29,7 +26,7 @@ import { TrackerReportService } from './tracker.report.service';
             { name: AppUser.name, schema: AppUserSchema },
             { name: Employee.name, schema: EmployeeSchema },
             { name: PauseSession.name, schema: PauseSessionSchema },
-            { name: QcWorkLog.name, schema: QcWorkLogSchema },
+            { name: WorkLog.name, schema: WorkLogSchema },
             { name: Order.name, schema: OrderSchema },
             { name: UserSession.name, schema: UserSessionSchema },
         ]),
@@ -38,7 +35,7 @@ import { TrackerReportService } from './tracker.report.service';
     providers: [
         TrackerAuthService,
         TrackerPauseService,
-        TrackerQcWorkLogService,
+        TrackerWorkLogService,
         TrackerReportService,
         TrackerQueryService,
         TrackerGateway,

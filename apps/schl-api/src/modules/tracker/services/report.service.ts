@@ -5,17 +5,17 @@ import {
     InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { QcWorkLog } from '@repo/common/models/qc-work-log.schema';
+import { WorkLog } from '@repo/common/models/work-log.schema';
 import { Model } from 'mongoose';
-import { ReportFileDto } from './dto/report-file.dto';
-import { TrackerFactory } from './factories/tracker.factory';
-import { TrackerGateway } from './tracker.gateway';
+import { ReportFileDto } from '../dto/report-file.dto';
+import { TrackerFactory } from '../factories/tracker.factory';
+import { TrackerGateway } from '../gateways/tracker.gateway';
 
 @Injectable()
 export class TrackerReportService {
     constructor(
-        @InjectModel(QcWorkLog.name)
-        private readonly qcWorkLogModel: Model<QcWorkLog>,
+        @InjectModel(WorkLog.name)
+        private readonly workLogModel: Model<WorkLog>,
         private readonly trackerGateway: TrackerGateway,
     ) {}
 
@@ -45,7 +45,7 @@ export class TrackerReportService {
             const fileName = dto.fileName.trim();
             const report = (dto.report ?? '').trim();
 
-            const updateResult = await this.qcWorkLogModel.updateOne(
+            const updateResult = await this.workLogModel.updateOne(
                 {
                     ...filter,
                     'files.file_name': fileName,

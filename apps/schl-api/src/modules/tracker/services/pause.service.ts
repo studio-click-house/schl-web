@@ -7,9 +7,10 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { PauseSession } from '@repo/common/models/pause-session.schema';
 import { Model } from 'mongoose';
-import { SyncPauseDto } from './dto/sync-pause.dto';
-import { TrackerGateway } from './tracker.gateway';
-import { TrackerFactory } from './factories/tracker.factory';
+import { PauseDto } from '../dto/pause.dto';
+import { TrackerGateway } from '../gateways/tracker.gateway';
+import { TrackerFactory } from '../factories/tracker.factory';
+import moment from 'moment-timezone';
 
 @Injectable()
 export class TrackerPauseService {
@@ -19,7 +20,7 @@ export class TrackerPauseService {
         private readonly trackerGateway: TrackerGateway,
     ) {}
 
-    async syncPause(payload: SyncPauseDto) {
+    async syncPause(payload: PauseDto) {
         if (!payload.employeeName) {
             throw new BadRequestException('Missing employee name');
         }
@@ -39,7 +40,7 @@ export class TrackerPauseService {
 
         try {
             const now = new Date();
-            const dateString = now.toISOString().split('T')[0] as string;
+            const dateString = moment().tz('Asia/Dhaka').format('YYYY-MM-DD');
             const filter = this.buildFilter(payload, dateString);
             const syncId =
                 typeof payload.syncId === 'string' ? payload.syncId.trim() : '';
@@ -143,12 +144,8 @@ export class TrackerPauseService {
         return null;
     }
 
-    private buildFilter(payload: SyncPauseDto, dateString: string) {
-        const hasJobContext = [
-            payload.clientCode,
-            payload.folderPath,
-            payload.workType,
-        ]
+    private buildFilter(payload: PauseDto, dateString: string) {
+        const hasJobContext = [payload.clientCode, payload.folderPath]
             .map(value => String(value || '').trim())
             .some(value => value.length > 0);
 
@@ -165,7 +162,9 @@ export class TrackerPauseService {
             folder_path: (
                 payload.folderPath || (hasJobContext ? 'unknown_folder' : '')
             ).trim(),
-            shift: (payload.shift || 'unknown_shift').trim().toLowerCase(),
+            shift: (payload.shift || (hasJobContext ? 'unknown_shift' : ''))
+                .trim()
+                .toLowerCase(),
             work_type: (payload.workType || (hasJobContext ? 'qc' : ''))
                 .trim()
                 .toLowerCase(),
@@ -174,7 +173,7 @@ export class TrackerPauseService {
 
     private async startPause(
         filter: Record<string, any>,
-        payload: SyncPauseDto,
+        payload: PauseDto,
         now: Date,
     ) {
         const existing = await this.pauseSessionModel

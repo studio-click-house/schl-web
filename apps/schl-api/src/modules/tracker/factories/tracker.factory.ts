@@ -1,4 +1,4 @@
-import { SyncQcWorkLogDto } from '../dto/sync-qc-work-log.dto';
+import { WorkLogDto } from '../dto/work-log.dto';
 
 export class TrackerFactory {
     static normalizeEmployeeName(value: unknown): string {
@@ -57,7 +57,7 @@ export class TrackerFactory {
         return titleCaseText(raw);
     }
 
-    static qcFilterFromSyncDto(dto: SyncQcWorkLogDto, dateString: string) {
+    static qcFilterFromSyncDto(dto: WorkLogDto, dateString: string) {
         return {
             employee_name: TrackerFactory.normalizeEmployeeName(
                 dto.employeeName,
@@ -70,7 +70,7 @@ export class TrackerFactory {
         };
     }
 
-    static qcBucketSetFromSyncDto(dto: SyncQcWorkLogDto) {
+    static qcBucketSetFromSyncDto(dto: WorkLogDto) {
         const set: Record<string, any> = {};
 
         if (dto.estimateTime !== undefined)
@@ -86,7 +86,7 @@ export class TrackerFactory {
         return max;
     }
 
-    static qcBucketIncFromSyncDto(dto: SyncQcWorkLogDto) {
+    static qcBucketIncFromSyncDto(dto: WorkLogDto) {
         const inc: Record<string, number> = {};
         if (dto.totalTimes !== undefined)
             inc.total_times = Number(dto.totalTimes) || 0;
