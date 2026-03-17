@@ -6,32 +6,39 @@ import {
     Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { QcWorkLog } from '@repo/common/models/qc-work-log.schema';
-import { AnyBulkWriteOperation, Model } from 'mongoose';
-import { SyncQcWorkLogDto } from './dto/sync-qc-work-log.dto';
-import { TrackerFactory } from './factories/tracker.factory';
-import { TrackerGateway } from './tracker.gateway';
+import { WorkLog } from '@repo/common/models/work-log.schema';
+import { AnyBulkWriteOperation, FilterQuery, Model } from 'mongoose';
+import { WorkLogDto } from '../dto/work-log.dto';
+import { TrackerFactory } from '../factories/tracker.factory';
+import { TrackerGateway } from '../gateways/tracker.gateway';
+import moment from 'moment-timezone';
+import { buildLiveTrackingDataPipeline } from '../aggregations/tracker.pipelines';
 
 @Injectable()
-export class TrackerQcWorkLogService {
-    private readonly logger = new Logger(TrackerQcWorkLogService.name);
+export class TrackerWorkLogService {
+    private readonly logger = new Logger(TrackerWorkLogService.name);
 
     constructor(
-        @InjectModel(QcWorkLog.name)
-        private readonly qcWorkLogModel: Model<QcWorkLog>,
+        @InjectModel(WorkLog.name)
+        private readonly workLogModel: Model<WorkLog>,
         private readonly trackerGateway: TrackerGateway,
     ) {}
 
-    async syncQc(payload: SyncQcWorkLogDto) {
+    async sync(
+        payload: WorkLogDto,
+    ): Promise<{ success: true; deduped?: true } | { success: false }> {
         if (!payload.employeeName) {
             throw new BadRequestException('Missing employee name');
         }
 
         try {
-            const dateString = new Date().toISOString().split('T')[0] as string;
+            const dateString = moment().tz('Asia/Dhaka').format('YYYY-MM-DD');
 
-            const filter: Record<string, any> =
-                TrackerFactory.qcFilterFromSyncDto(payload, dateString);
+            const filter: FilterQuery<WorkLog> =
+                TrackerFactory.qcFilterFromSyncDto(
+                    payload,
+                    dateString,
+                ) as FilterQuery<WorkLog>;
 
             // ── Idempotency check: skip $inc if syncId already processed ──
             const syncId =
@@ -39,7 +46,7 @@ export class TrackerQcWorkLogService {
             const skipInc = false;
 
             if (syncId) {
-                const existing = await this.qcWorkLogModel
+                const existing = await this.workLogModel
                     .findOne(
                         { ...filter, processed_sync_ids: syncId },
                         { _id: 1 },
@@ -81,7 +88,7 @@ export class TrackerQcWorkLogService {
                 };
             }
 
-            await this.qcWorkLogModel.updateOne(filter, bucketUpdate, {
+            await this.workLogModel.updateOne(filter, bucketUpdate, {
                 upsert: true,
             });
 
@@ -90,7 +97,7 @@ export class TrackerQcWorkLogService {
                 const now = new Date();
 
                 // Step 1: Read existing file names in ONE query
-                const existingDoc = await this.qcWorkLogModel
+                const existingDoc = await this.workLogModel
                     .findOne(filter, { 'files.file_name': 1 })
                     .lean();
                 const existingNames = new Set<string>(
@@ -132,13 +139,13 @@ export class TrackerQcWorkLogService {
                     .filter((d): d is Record<string, any> => d !== null);
 
                 if (newFileDocs.length > 0) {
-                    await this.qcWorkLogModel.updateOne(filter, {
+                    await this.workLogModel.updateOne(filter, {
                         $push: { files: { $each: newFileDocs } },
                     });
                 }
 
                 // Step 3: bulkWrite to update status + $inc time_spent for all files at once
-                const bulkOps: AnyBulkWriteOperation<QcWorkLog>[] = [];
+                const bulkOps: AnyBulkWriteOperation<WorkLog>[] = [];
                 for (const f of payload.files) {
                     const fileName = f.fileName?.trim() || '';
                     if (!fileName) continue;
@@ -236,14 +243,100 @@ export class TrackerQcWorkLogService {
                 }
 
                 if (bulkOps.length > 0) {
-                    await this.qcWorkLogModel.bulkWrite(bulkOps, {
+                    await this.workLogModel.bulkWrite(bulkOps, {
                         ordered: false,
                     });
                 }
             }
 
-            // Broadcast real-time delta with accumulated totals from DB
-            const updatedDoc = await this.qcWorkLogModel
+            const statusTokensWorking = new Set([
+                'working',
+                'in_progress',
+                'in progress',
+                'in-progress',
+                'inprogress',
+            ]);
+
+            const payloadStatus = String(payload.fileStatus ?? '')
+                .trim()
+                .toLowerCase();
+
+            const employeeName = TrackerFactory.normalizeEmployeeName(
+                payload.employeeName,
+            );
+
+            // Preferred: broadcast full merged row via MongoDB pipeline
+            try {
+                const pipelineFilter = filter as FilterQuery<WorkLog> & {
+                    updatedAt?: { $gte: Date };
+                };
+                const rows = await this.workLogModel
+                    .aggregate(buildLiveTrackingDataPipeline(pipelineFilter))
+                    .exec();
+                const mergedRow = rows?.[0] as Record<string, any> | undefined;
+                if (mergedRow) {
+                    const rawFiles: Array<Record<string, any>> = Array.isArray(
+                        mergedRow?.files,
+                    )
+                        ? (mergedRow.files as Array<Record<string, any>>)
+                        : [];
+                    const workingCount = rawFiles.filter((f: any) =>
+                        statusTokensWorking.has(
+                            String(f?.file_status ?? f?.fileStatus ?? '')
+                                .trim()
+                                .toLowerCase(),
+                        ),
+                    ).length;
+
+                    const computedStatus =
+                        payloadStatus === 'paused'
+                            ? 'paused'
+                            : workingCount > 0
+                              ? 'working'
+                              : payloadStatus;
+
+                    const maskedFiles =
+                        payloadStatus === 'paused'
+                            ? rawFiles.map((f: any) => {
+                                  const s = String(
+                                      f?.file_status ?? f?.fileStatus ?? '',
+                                  )
+                                      .trim()
+                                      .toLowerCase();
+                                  if (statusTokensWorking.has(s)) {
+                                      return {
+                                          ...f,
+                                          file_status: 'paused',
+                                          fileStatus: 'paused',
+                                      } as Record<string, any>;
+                                  }
+                                  return f as Record<string, any>;
+                              })
+                            : rawFiles;
+
+                    this.trackerGateway.broadcastTrackerUpdate(
+                        'TRACKER_UPDATED',
+                        {
+                            ...mergedRow,
+                            employeeName,
+                            clientCode: payload.clientCode,
+                            workType: payload.workType,
+                            shift: payload.shift,
+                            folderPath: payload.folderPath,
+                            fileStatus: computedStatus,
+                            timestamp: new Date().toISOString(),
+                            files: maskedFiles,
+                        },
+                    );
+
+                    return { success: true };
+                }
+            } catch {
+                // fall back below
+            }
+
+            // Fallback: broadcast real-time delta with accumulated totals from DB
+            const updatedDoc = await this.workLogModel
                 .findOne(filter, {
                     total_times: 1,
                     estimate_time: 1,
@@ -260,14 +353,6 @@ export class TrackerQcWorkLogService {
                 completedAt: f.completed_at ?? null,
             }));
 
-            const statusTokensWorking = new Set([
-                'working',
-                'in_progress',
-                'in progress',
-                'in-progress',
-                'inprogress',
-            ]);
-
             const workingCount = accFiles.filter(f =>
                 statusTokensWorking.has(
                     String((f as any)?.fileStatus ?? '')
@@ -276,16 +361,6 @@ export class TrackerQcWorkLogService {
                 ),
             ).length;
 
-            const payloadStatus = String(payload.fileStatus ?? '')
-                .trim()
-                .toLowerCase();
-            // IMPORTANT: UI expectation is:
-            // - paused => user should NOT appear in Production/QC/Client (inactive)
-            // - working => user appears in working tabs
-            // Therefore:
-            // - If payload says paused, we emit paused even if DB still has working files.
-            //   We also mask working file statuses in the emitted files list so client IsActive becomes false.
-            // - Otherwise, we derive 'working' from DB presence of working files.
             const computedStatus =
                 payloadStatus === 'paused'
                     ? 'paused'
@@ -306,9 +381,6 @@ export class TrackerQcWorkLogService {
                       })
                     : accFiles;
 
-            const employeeName = TrackerFactory.normalizeEmployeeName(
-                payload.employeeName,
-            );
             this.trackerGateway.broadcastTrackerUpdate('TRACKER_UPDATED', {
                 employeeName,
                 clientCode: payload.clientCode,
@@ -317,15 +389,9 @@ export class TrackerQcWorkLogService {
                 folderPath: payload.folderPath,
                 fileStatus: computedStatus,
                 timestamp: new Date().toISOString(),
-                // Accumulated totals from DB (in seconds).
-                // Pause fields are intentionally omitted — pause data now lives in
-                // pause_sessions and is owned exclusively by TrackerPauseService.
-                // Sending zeros here would overwrite correctly-merged pause data
-                // in the C# client on every QC sync event.
-                total_times: updatedDoc?.total_times ?? 0,
+                total_times: (updatedDoc as any)?.total_times ?? 0,
                 estimate_time: updatedDoc?.estimate_time ?? 0,
-                categories: updatedDoc?.categories ?? '',
-                // Full file list with accumulated time_spent
+                categories: (updatedDoc as any)?.categories ?? '',
                 files: emittedFiles,
             });
 

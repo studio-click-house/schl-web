@@ -1,10 +1,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
 
-export type QcWorkLogDocument = HydratedDocument<QcWorkLog>;
+export type WorkLogDocument = HydratedDocument<WorkLog>;
 
 @Schema({ _id: false })
-export class QcWorkLogFile {
+export class WorkLogFile {
     @Prop({ type: String, required: [true, 'File name is required'] })
     file_name: string;
 
@@ -27,8 +27,8 @@ export class QcWorkLogFile {
     completed_at?: Date;
 }
 
-@Schema({ timestamps: true, collection: 'qc_work_logs' })
-export class QcWorkLog {
+@Schema({ timestamps: true, collection: 'work_logs' })
+export class WorkLog {
     @Prop({ type: String, required: [true, 'Employee name is required'] })
     employee_name: string;
 
@@ -56,8 +56,8 @@ export class QcWorkLog {
     @Prop({ type: Number, default: 0 })
     total_times: number;
 
-    @Prop({ type: [QcWorkLogFile], default: [] })
-    files: QcWorkLogFile[];
+    @Prop({ type: [WorkLogFile], default: [] })
+    files: WorkLogFile[];
 
     @Prop({ type: [String], default: [] })
     processed_sync_ids: string[];
@@ -66,9 +66,9 @@ export class QcWorkLog {
     last_heartbeat?: Date;
 }
 
-export const QcWorkLogSchema = SchemaFactory.createForClass(QcWorkLog);
+export const WorkLogSchema = SchemaFactory.createForClass(WorkLog);
 // Compound index: one batch document per employee+client+folder+shift+workType+date
-QcWorkLogSchema.index(
+WorkLogSchema.index(
     {
         employee_name: 1,
         client_code: 1,
@@ -81,4 +81,4 @@ QcWorkLogSchema.index(
 );
 
 // Speed up dashboard and live-tracking queries that filter by date
-QcWorkLogSchema.index({ date_today: 1 });
+WorkLogSchema.index({ date_today: 1 });

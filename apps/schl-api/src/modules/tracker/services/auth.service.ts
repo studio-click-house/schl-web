@@ -9,12 +9,13 @@ import { randomUUID } from 'crypto';
 import { InjectModel } from '@nestjs/mongoose';
 import { AppUser } from '@repo/common/models/app-user.schema';
 import { Employee } from '@repo/common/models/employee.schema';
-import { QcWorkLog } from '@repo/common/models/qc-work-log.schema';
+import { WorkLog } from '@repo/common/models/work-log.schema';
 import { UserSession } from '@repo/common/models/user-session.schema';
 import { Model } from 'mongoose';
-import { LoginTrackerDto } from './dto/auth.dto';
-import { TrackerFactory } from './factories/tracker.factory';
-import { TrackerGateway } from './tracker.gateway';
+import { LoginTrackerDto } from '../dto/auth.dto';
+import { TrackerFactory } from '../factories/tracker.factory';
+import { TrackerGateway } from '../gateways/tracker.gateway';
+import moment from 'moment-timezone';
 
 @Injectable()
 export class TrackerAuthService {
@@ -28,8 +29,8 @@ export class TrackerAuthService {
         @InjectModel(UserSession.name)
         private readonly userSessionModel: Model<UserSession>,
 
-        @InjectModel(QcWorkLog.name)
-        private readonly qcWorkLogModel: Model<QcWorkLog>,
+        @InjectModel(WorkLog.name)
+        private readonly workLogModel: Model<WorkLog>,
 
         private readonly trackerGateway: TrackerGateway,
     ) {}
@@ -82,7 +83,7 @@ export class TrackerAuthService {
 
             const sessionId = randomUUID();
             const now = new Date();
-            const sessionDate = now.toISOString().split('T')[0] as string;
+            const sessionDate = moment().tz('Asia/Dhaka').format('YYYY-MM-DD');
 
             // Look up employee real name by e_id first
             let displayNameRaw = user.username;
@@ -140,7 +141,7 @@ export class TrackerAuthService {
                         'i',
                     );
 
-                    const workLog = await this.qcWorkLogModel
+                    const workLog = await this.workLogModel
                         .findOne(
                             {
                                 employee_name: { $regex: nameRegex },
@@ -284,7 +285,7 @@ export class TrackerAuthService {
                     `^${rawName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\s*-.*)?$`,
                     'i',
                 );
-                await this.qcWorkLogModel.updateMany(
+                await this.workLogModel.updateMany(
                     {
                         employee_name: { $regex: nameRegex },
                         date_today: session.session_date,
