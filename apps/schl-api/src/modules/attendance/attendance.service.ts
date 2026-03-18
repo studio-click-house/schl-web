@@ -33,8 +33,8 @@ import {
     LeaveRequestDocument,
 } from '@repo/common/models/leave-request.schema';
 import { ShiftOverride } from '@repo/common/models/shift-override.schema';
+import { ShiftPlan } from '@repo/common/models/shift-plan.schema';
 import { ShiftResolved } from '@repo/common/models/shift-resolved.schema';
-import { ShiftTemplate } from '@repo/common/models/shift-template.schema';
 import { UserSession } from '@repo/common/types/user-session.type';
 import {
     calculateOT,
@@ -62,8 +62,8 @@ export class AttendanceService {
         private departmentModel: Model<DepartmentDocument>,
         @InjectModel(DeviceUser.name)
         private deviceUserModel: Model<DeviceUser>,
-        @InjectModel(ShiftTemplate.name)
-        private shiftTemplateModel: Model<ShiftTemplate>,
+        @InjectModel(ShiftPlan.name)
+        private shiftPlanModel: Model<ShiftPlan>,
         @InjectModel(ShiftOverride.name)
         private shiftOverrideModel: Model<ShiftOverride>,
         @InjectModel(ShiftResolved.name)
@@ -77,20 +77,25 @@ export class AttendanceService {
     ) {}
 
     // Cache for frequently used attendance flags
-    private flagCache: Record<string, any> = {};
+    private flagCache: Record<
+        string,
+        { _id: unknown; code: string } | null | undefined
+    > = {};
 
-    private async getFlagByCode(code: string) {
+    private async getFlagByCode(
+        code: string,
+    ): Promise<{ _id: unknown; code: string } | null | undefined> {
         if (!this.flagCache[code]) {
-            this.flagCache[code] = await this.attendanceFlagModel
+            this.flagCache[code] = (await this.attendanceFlagModel
                 .findOne({ code })
                 .lean()
-                .exec();
+                .exec()) as { _id: unknown; code: string } | null;
         }
         return this.flagCache[code];
     }
 
     public async resolveShiftForDate(
-        employeeId: any,
+        employeeId: Types.ObjectId | string,
         date: Date,
     ): Promise<ShiftResolved | null> {
         const shiftDate = moment.tz(date, 'Asia/Dhaka').startOf('day').toDate();
@@ -185,7 +190,7 @@ export class AttendanceService {
             );
         }
 
-        const template = await this.shiftTemplateModel.findOne({
+        const template = await this.shiftPlanModel.findOne({
             employee: employeeId,
             active: true,
             effective_from: { $lte: shiftDate },
@@ -216,7 +221,7 @@ export class AttendanceService {
     private async evaluateAttendance(
         attendance: Partial<Attendance> | Attendance,
         shift: ShiftResolved,
-        employeeId: any,
+        employeeId: Types.ObjectId | string,
     ) {
         // 1. Holiday Logic
         if (shift.source === 'holiday') {
@@ -288,7 +293,10 @@ export class AttendanceService {
         }
     }
 
-    private async resolveShiftForTimestamp(employeeId: any, time: Date) {
+    private async resolveShiftForTimestamp(
+        employeeId: Types.ObjectId | string,
+        time: Date,
+    ) {
         const today = moment.tz(time, 'Asia/Dhaka').startOf('day').toDate();
         const yesterday = moment
             .tz(today, 'Asia/Dhaka')
@@ -353,7 +361,7 @@ export class AttendanceService {
     private async calculateAttendanceOT(
         attendance: Attendance,
         shiftDate: Date,
-        employeeId: any,
+        employeeId: Types.ObjectId | string,
     ): Promise<number> {
         if (!attendance.in_time || !attendance.out_time) {
             return 0;
@@ -494,7 +502,7 @@ export class AttendanceService {
                         // Re-evaluate lateness/flag based on actual shift (if available)
                         if (resolved.shift) {
                             await this.evaluateAttendance(
-                                existingAttendance as any,
+                                existingAttendance as Partial<Attendance>,
                                 resolved.shift,
                                 deviceUserMapping.employee,
                             );
@@ -831,7 +839,7 @@ export class AttendanceService {
 
             // --- Shift Memory Queries ---
             // Bulk fetch active templates for all employees
-            const allTemplates = await this.shiftTemplateModel
+            const allPlans = await this.shiftPlanModel
                 .find({
                     employee: { $in: employeeIds },
                     $or: [
@@ -842,8 +850,8 @@ export class AttendanceService {
                 .lean()
                 .exec();
 
-            const templateMap = new Map<string, any[]>();
-            allTemplates.forEach(t => {
+            const templateMap = new Map<string, ShiftPlan[]>();
+            allPlans.forEach(t => {
                 const empId = String(t.employee);
                 if (!templateMap.has(empId)) templateMap.set(empId, []);
                 templateMap.get(empId)!.push(t);
@@ -996,7 +1004,7 @@ export class AttendanceService {
             });
 
             const resolveVirtualCode = (
-                employee: any,
+                employee: { _id: Types.ObjectId; department?: string },
                 dateKey: string,
             ): string => {
                 const employeeId = employee._id.toString();
@@ -1027,14 +1035,17 @@ export class AttendanceService {
                 ['A', 10],
             ]);
 
-            const groupedItems: any[] = [];
+            const groupedItems: {
+                employee: (typeof employees)[number];
+                records: Record<string, unknown>[];
+            }[] = [];
 
             for (const employee of employees) {
-                const records: any[] = [];
+                const records: Record<string, unknown>[] = [];
                 for (const dateKey of dates) {
                     const key = `${employee._id.toString()}_${dateKey}`;
                     const existing = attendanceByKey.get(key);
-                    const existingCode = existing?.flag?.code || '';
+                    const existingCode = (existing?.flag?.code as string) || '';
                     const virtualCode = resolveVirtualCode(employee, dateKey);
 
                     const existingRank = precedence.get(existingCode) || 0;
@@ -1074,7 +1085,7 @@ export class AttendanceService {
                         }
 
                         records.push({
-                            ...existing,
+                            ...(existing as Record<string, unknown>),
                             in_time: inTime,
                             out_time: outTime,
                             is_virtual: false,
@@ -1134,10 +1145,10 @@ export class AttendanceService {
 
                 records.sort((a, b) => {
                     const aDate = moment
-                        .tz(a.shift_date || a.in_time, 'Asia/Dhaka')
+                        .tz((a.shift_date || a.in_time) as Date, 'Asia/Dhaka')
                         .valueOf();
                     const bDate = moment
-                        .tz(b.shift_date || b.in_time, 'Asia/Dhaka')
+                        .tz((b.shift_date || b.in_time) as Date, 'Asia/Dhaka')
                         .valueOf();
                     return aDate - bDate; // Sort chronologically
                 });

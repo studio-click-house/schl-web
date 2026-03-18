@@ -1,10 +1,13 @@
 import {
     IsArray,
     IsDateString,
+    IsInt,
     IsNotEmpty,
     IsOptional,
     IsString,
     Matches,
+    Max,
+    Min,
 } from 'class-validator';
 
 export class CreateBulkShiftPlanBodyDto {
@@ -46,4 +49,10 @@ export class CreateBulkShiftPlanBodyDto {
     @IsOptional()
     @IsString()
     comment?: string; // e.g., "Christmas special", "Eid break"
+
+    @IsOptional()
+    @IsInt()
+    @Min(0)
+    @Max(120)
+    gracePeriodMinutes?: number;
 }

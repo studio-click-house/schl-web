@@ -2,7 +2,7 @@
 
 import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ShiftTemplate } from '@repo/common/models/shift-template.schema';
+import { ShiftPlan } from '@repo/common/models/shift-plan.schema';
 import {
     setCalculatedZIndex,
     setClassNameAndIsDisabled,
@@ -16,7 +16,7 @@ import Select from 'react-select';
 import { toast } from 'sonner';
 import {
     STANDARD_SHIFTS,
-    ShiftTemplateEditData,
+    ShiftPlanEditData,
     shiftPlanEditSchema,
 } from '../schema';
 
@@ -29,12 +29,12 @@ const shiftTypeOptions = [
 
 const baseZIndex = 50;
 
-interface ShiftTemplateWithId extends ShiftTemplate {
+interface ShiftPlanWithId extends ShiftPlan {
     _id: string;
 }
 
 interface EditButtonProps {
-    shiftPlan: ShiftTemplateWithId;
+    shiftPlan: ShiftPlanWithId;
     submitHandler: () => void;
 }
 
@@ -58,7 +58,7 @@ const EditButton = ({ shiftPlan, submitHandler }: EditButtonProps) => {
         watch,
         reset,
         formState: { errors, isSubmitting },
-    } = useForm<ShiftTemplateEditData>({
+    } = useForm<ShiftPlanEditData>({
         resolver: zodResolver(shiftPlanEditSchema),
         defaultValues: {
             fromDate: fromDateString || '',
@@ -89,9 +89,9 @@ const EditButton = ({ shiftPlan, submitHandler }: EditButtonProps) => {
         }
     }, [isOpen, shiftPlan, reset, fromDateString, toDateString]);
 
-    const onSubmit = async (data: ShiftTemplateEditData) => {
+    const onSubmit = async (data: ShiftPlanEditData) => {
         try {
-            const response = await authedFetchApi<ShiftTemplate>(
+            const response = await authedFetchApi<ShiftPlan>(
                 { path: `/v1/shift-plan/${shiftPlan._id}` },
                 {
                     method: 'PUT',

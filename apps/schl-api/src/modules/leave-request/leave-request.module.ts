@@ -19,9 +19,9 @@ import {
     LeaveRequestSchema,
 } from '@repo/common/models/leave-request.schema';
 import {
-    ShiftTemplate,
-    ShiftTemplateSchema,
-} from '@repo/common/models/shift-template.schema';
+    ShiftPlan,
+    ShiftPlanSchema,
+} from '@repo/common/models/shift-plan.schema';
 import { AttendanceFlagModule } from '../attendance-flag/attendance-flag.module';
 import { AttendanceModule } from '../attendance/attendance.module';
 import { LeaveRequestController } from './leave-request.controller';
@@ -36,7 +36,7 @@ import { LeaveRequestService } from './leave-request.service';
             { name: Employee.name, schema: EmployeeSchema },
             { name: Department.name, schema: DepartmentSchema },
             { name: Holiday.name, schema: HolidaySchema },
-            { name: ShiftTemplate.name, schema: ShiftTemplateSchema },
+            { name: ShiftPlan.name, schema: ShiftPlanSchema },
         ]),
         AttendanceModule, // import AttendanceModule to get AttendanceService
         AttendanceFlagModule, // import AttendanceFlagModule to get AttendanceFlag model

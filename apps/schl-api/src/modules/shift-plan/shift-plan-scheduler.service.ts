@@ -4,7 +4,7 @@ import { InjectModel } from '@nestjs/mongoose';
 
 import { Cron } from '@nestjs/schedule';
 
-import { ShiftTemplate } from '@repo/common/models/shift-template.schema';
+import { ShiftPlan } from '@repo/common/models/shift-plan.schema';
 
 import * as moment from 'moment-timezone';
 
@@ -15,8 +15,8 @@ export class ShiftPlanSchedulerService {
     private readonly logger = new Logger(ShiftPlanSchedulerService.name);
 
     constructor(
-        @InjectModel(ShiftTemplate.name)
-        private shiftTemplateModel: Model<ShiftTemplate>,
+        @InjectModel(ShiftPlan.name)
+        private shiftPlanModel: Model<ShiftPlan>,
     ) {}
 
     @Cron('0 0 * * *', { timeZone: 'Asia/Dhaka' }) // Run daily at midnight
@@ -26,7 +26,7 @@ export class ShiftPlanSchedulerService {
         try {
             const today = moment.tz('Asia/Dhaka').startOf('day').toDate();
 
-            const result = await this.shiftTemplateModel.updateMany(
+            const result = await this.shiftPlanModel.updateMany(
                 {
                     active: true,
 
@@ -37,7 +37,7 @@ export class ShiftPlanSchedulerService {
             );
 
             this.logger.log(
-                `Deactivated ${result.modifiedCount} past shift template(s).`,
+                `Deactivated ${result.modifiedCount} past shift plan(s).`,
             );
         } catch (err) {
             this.logger.error('Failed to deactivate past shifts', err);

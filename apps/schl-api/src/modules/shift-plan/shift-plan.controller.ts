@@ -13,12 +13,12 @@ import { UserSession } from '@repo/common/types/user-session.type';
 import { IdParamDto } from '../../common/dto/id-param.dto';
 import { BulkDeactivateShiftPlansBodyDto } from './dto/bulk-deactivate-shift-plans.dto';
 import { CreateShiftOverrideBodyDto } from './dto/create-shift-override.dto';
-import { CreateShiftTemplateBodyDto } from './dto/create-shift-template.dto';
+import { CreateBulkShiftPlanBodyDto } from './dto/create-bulk-shift-plan.dto';
 import {
-    SearchShiftTemplatesBodyDto,
-    SearchShiftTemplatesQueryDto,
+    SearchShiftPlanBodyDto,
+    SearchShiftPlanQueryDto,
 } from './dto/search-shift-plan.dto';
-import { UpdateShiftTemplateBodyDto } from './dto/update-shift-template.dto';
+import { UpdateShiftPlanBodyDto } from './dto/update-shift-plan.dto';
 import { ShiftPlanService } from './shift-plan.service';
 
 @Controller('shift-plan')
@@ -27,8 +27,8 @@ export class ShiftPlanController {
 
     @Post('overrides/search')
     async searchOverrides(
-        @Body() body: SearchShiftTemplatesBodyDto,
-        @Query() query: SearchShiftTemplatesQueryDto,
+        @Body() body: SearchShiftPlanBodyDto,
+        @Query() query: SearchShiftPlanQueryDto,
         @Req() req: Request & { user: UserSession },
     ) {
         return await this.shiftPlanService.searchOverrides(
@@ -73,7 +73,7 @@ export class ShiftPlanController {
 
     @Post('create-bulk')
     async createBulkShiftPlans(
-        @Body() body: CreateShiftTemplateBodyDto,
+        @Body() body: CreateBulkShiftPlanBodyDto,
         @Req() req: Request & { user: UserSession },
     ) {
         return await this.shiftPlanService.createBulkShiftPlans(body, req.user);
@@ -100,7 +100,7 @@ export class ShiftPlanController {
     @Put(':id')
     async updateShiftPlan(
         @Param() { id }: IdParamDto,
-        @Body() body: UpdateShiftTemplateBodyDto,
+        @Body() body: UpdateShiftPlanBodyDto,
         @Req() req: Request & { user: UserSession },
     ) {
         return await this.shiftPlanService.updateShiftPlan(id, body, req.user);
@@ -108,8 +108,8 @@ export class ShiftPlanController {
 
     @Post('search')
     async searchShiftPlans(
-        @Body() body: SearchShiftTemplatesBodyDto,
-        @Query() query: SearchShiftTemplatesQueryDto,
+        @Body() body: SearchShiftPlanBodyDto,
+        @Query() query: SearchShiftPlanQueryDto,
         @Req() req: Request & { user: UserSession },
     ) {
         const page = parseInt(query.page || '1', 10);

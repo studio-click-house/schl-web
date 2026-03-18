@@ -1,7 +1,4 @@
-import {
-    LEAVE_REQUEST_TYPES,
-    type LeaveRequestType,
-} from '@repo/common/constants/leave-request.constant';
+import { type LeaveRequestType } from '@repo/common/constants/leave-request.constant';
 import { toBoolean } from '@repo/common/utils/transformers';
 import { Transform, Type } from 'class-transformer';
 import {

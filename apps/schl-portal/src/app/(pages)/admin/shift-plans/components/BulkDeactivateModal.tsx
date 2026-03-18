@@ -75,8 +75,8 @@ const BulkDeactivateModal = ({
                                 {selectedCount !== 1 ? 's' : ''}
                             </p>
                             <p className="text-red-700 text-sm">
-                                This will disable these templates for new
-                                shifts. This action cannot be undone.
+                                This will disable these plans for new shifts.
+                                This action cannot be undone.
                             </p>
                         </div>
                     </div>

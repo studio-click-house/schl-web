@@ -5,7 +5,7 @@ import NoData, { Type } from '@/components/NoData';
 import Pagination from '@/components/Pagination';
 import { usePaginationManager } from '@/hooks/usePaginationManager';
 import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
-import { ShiftTemplate } from '@repo/common/models/shift-template.schema';
+import { ShiftPlan } from '@repo/common/models/shift-plan.schema';
 import { formatDate, formatTime } from '@repo/common/utils/date-helpers';
 import { cn } from '@repo/common/utils/general-utils';
 import { hasPerm } from '@repo/common/utils/permission-check';
@@ -20,16 +20,16 @@ import BulkDeactivateModal from './BulkDeactivateModal';
 import EditButton from './Edit';
 import FilterButton from './Filter';
 
-interface ShiftTemplateWithId extends ShiftTemplate {
+interface ShiftPlanWithId extends ShiftPlan {
     _id: string;
 }
 
-interface ShiftTemplateResponse {
+interface ShiftPlanResponse {
     pagination: {
         count: number;
         pageCount: number;
     };
-    items: ShiftTemplateWithId[];
+    items: ShiftPlanWithId[];
 }
 
 type EmployeeOption = {
@@ -52,12 +52,10 @@ const getDefaultFilters = () => {
 };
 
 const Table: React.FC = () => {
-    const [shiftTemplates, setShiftTemplates] = useState<ShiftTemplateResponse>(
-        {
-            pagination: { count: 0, pageCount: 0 },
-            items: [],
-        },
-    );
+    const [shiftPlans, setShiftPlans] = useState<ShiftPlanResponse>({
+        pagination: { count: 0, pageCount: 0 },
+        items: [],
+    });
 
     const { data: session } = useSession();
     const userPermissions = useMemo(
@@ -117,7 +115,7 @@ const Table: React.FC = () => {
     useEffect(() => {
         getEmployeesForFilter();
     }, [getEmployeesForFilter]);
-    const fetchShiftTemplates = useCallback(async () => {
+    const fetchShiftPlans = useCallback(async () => {
         try {
             setLoading(true);
             setSelectedIds(new Set()); // clear selection on fetch
@@ -132,7 +130,7 @@ const Table: React.FC = () => {
                 {} as Record<string, any>,
             );
 
-            const response = await authedFetchApi<ShiftTemplateResponse>(
+            const response = await authedFetchApi<ShiftPlanResponse>(
                 {
                     path: '/v1/shift-plan/search',
                     query: {
@@ -149,7 +147,7 @@ const Table: React.FC = () => {
             );
 
             if (response.ok) {
-                setShiftTemplates(response.data);
+                setShiftPlans(response.data);
                 setPageCount(response.data.pagination.pageCount);
             } else {
                 toastFetchError(response);
@@ -167,14 +165,14 @@ const Table: React.FC = () => {
         itemPerPage,
         pageCount,
         setPage,
-        triggerFetch: fetchShiftTemplates,
+        triggerFetch: fetchShiftPlans,
     });
 
     useEffect(() => {
         if (searchVersion > 0 && page === 1) {
-            fetchShiftTemplates();
+            fetchShiftPlans();
         }
-    }, [searchVersion, page, fetchShiftTemplates]);
+    }, [searchVersion, page, fetchShiftPlans]);
 
     const handleSearch = useCallback(() => {
         setAppliedFilters(filters);
@@ -184,8 +182,8 @@ const Table: React.FC = () => {
 
     // --- Multi-select helpers ---
     const currentPageIds = useMemo(
-        () => shiftTemplates.items.map(t => t._id.toString()),
-        [shiftTemplates.items],
+        () => shiftPlans.items.map(t => t._id.toString()),
+        [shiftPlans.items],
     );
 
     const allCurrentPageSelected =
@@ -242,7 +240,7 @@ const Table: React.FC = () => {
                 );
                 setBulkModalOpen(false);
                 setSelectedIds(new Set());
-                fetchShiftTemplates();
+                fetchShiftPlans();
             } else {
                 toastFetchError(response);
             }
@@ -370,7 +368,7 @@ const Table: React.FC = () => {
 
             <div className="table-responsive text-nowrap text-base">
                 {!loading &&
-                    (shiftTemplates.items.length > 0 ? (
+                    (shiftPlans.items.length > 0 ? (
                         <>
                             <table className="table border table-bordered table-striped">
                                 <thead className="table-dark">
@@ -405,7 +403,7 @@ const Table: React.FC = () => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {shiftTemplates.items.map(
+                                    {shiftPlans.items.map(
                                         (shiftPlan, index) => (
                                             <tr key={String(shiftPlan._id)}>
                                                 {canEdit && (
@@ -502,7 +500,7 @@ const Table: React.FC = () => {
                                                                     shiftPlan
                                                                 }
                                                                 submitHandler={
-                                                                    fetchShiftTemplates
+                                                                    fetchShiftPlans
                                                                 }
                                                             />
                                                         </div>
@@ -516,7 +514,7 @@ const Table: React.FC = () => {
                         </>
                     ) : (
                         <NoData
-                            text="No Shift Templates Found"
+                            text="No Shift Plans Found"
                             type={Type.danger}
                         />
                     ))}

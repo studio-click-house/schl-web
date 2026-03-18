@@ -22,7 +22,7 @@ import {
     createRegexQuery,
 } from '@repo/common/utils/filter-helpers';
 import { hasAnyPerm, hasPerm } from '@repo/common/utils/permission-check';
-import mongoose, { Model, PipelineStage, Types } from 'mongoose';
+import { Model, PipelineStage, Types } from 'mongoose';
 import { CreateTicketBodyDto } from './dto/create-ticket.dto';
 import { SearchTicketsBodyDto } from './dto/search-tickets.dto';
 import { TicketFactory } from './factories/ticket.factory';

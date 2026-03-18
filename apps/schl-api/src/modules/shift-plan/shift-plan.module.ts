@@ -9,9 +9,9 @@ import {
     ShiftResolvedSchema,
 } from '@repo/common/models/shift-resolved.schema';
 import {
-    ShiftTemplate,
-    ShiftTemplateSchema,
-} from '@repo/common/models/shift-template.schema';
+    ShiftPlan,
+    ShiftPlanSchema,
+} from '@repo/common/models/shift-plan.schema';
 import { ShiftPlanController } from './shift-plan.controller';
 import { ShiftPlanSchedulerService } from './shift-plan-scheduler.service';
 import { ShiftPlanService } from './shift-plan.service';
@@ -19,7 +19,7 @@ import { ShiftPlanService } from './shift-plan.service';
 @Module({
     imports: [
         MongooseModule.forFeature([
-            { name: ShiftTemplate.name, schema: ShiftTemplateSchema },
+            { name: ShiftPlan.name, schema: ShiftPlanSchema },
             { name: ShiftOverride.name, schema: ShiftOverrideSchema },
             { name: ShiftResolved.name, schema: ShiftResolvedSchema },
         ]),

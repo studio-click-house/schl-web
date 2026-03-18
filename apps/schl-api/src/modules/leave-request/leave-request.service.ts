@@ -70,11 +70,7 @@ export class LeaveRequestService {
         isPaid?: boolean,
         leaveType?: string,
         status?: string,
-        _userSession?: UserSession,
     ) {
-        // Reference _userSession to avoid unused-var lint warnings
-        void _userSession;
-
         const query: FilterQuery<LeaveRequestDocument> = {};
         if (employeeId) query.employee = toObjectId(employeeId) as any;
         if (status) query.status = status;
@@ -134,9 +130,7 @@ export class LeaveRequestService {
             status?: string;
         }>,
         pagination: { page: number; itemsPerPage: number; paginated: boolean },
-        _userSession?: UserSession,
     ) {
-        void _userSession;
         const { page, itemsPerPage, paginated } = pagination;
 
         const query: FilterQuery<LeaveRequestDocument> = {};
@@ -195,9 +189,7 @@ export class LeaveRequestService {
         };
     }
 
-    async apply(dto: CreateLeaveRequestDto, _userSession?: UserSession) {
-        // Reference _userSession to avoid unused-var lint warnings
-        void _userSession;
+    async apply(dto: CreateLeaveRequestDto) {
         // Validate dates
         const start = moment
             .tz(dto.startDate, 'Asia/Dhaka')
@@ -274,7 +266,6 @@ export class LeaveRequestService {
     async update(
         id: string,
         dto: import('./dto/create-leave-request.dto').UpdateLeaveRequestDto,
-        _userSession?: UserSession,
     ) {
         // Only allow editing pending leaves
         const leave = await this.leaveRequestModel.findById(id).exec();
@@ -301,8 +292,9 @@ export class LeaveRequestService {
             );
         }
 
-        const updatePayload: any = {};
-        if (dto.employeeId) updatePayload.employee = dto.employeeId;
+        const updatePayload: Partial<LeaveRequest> = {};
+        if (dto.employeeId)
+            updatePayload.employee = new Types.ObjectId(dto.employeeId);
         if (dto.leaveType) updatePayload.leave_type = dto.leaveType;
         if (typeof dto.isPaid === 'boolean') updatePayload.is_paid = dto.isPaid;
         if (dto.startDate) updatePayload.start_date = start;
@@ -318,7 +310,7 @@ export class LeaveRequestService {
         return updated;
     }
 
-    async remove(id: string, _userSession?: UserSession) {
+    async remove(id: string) {
         const leave = await this.leaveRequestModel.findByIdAndDelete(id).exec();
         if (!leave) throw new NotFoundException('Leave request not found');
         return { success: true };
@@ -406,7 +398,7 @@ export class LeaveRequestService {
                     .toDate();
                 if (outTime < inTime)
                     outTime = moment(outTime).add(1, 'day').toDate();
-            } catch (err) {
+            } catch {
                 // fallback to 09:00-17:00
                 const yyyymmdd = moment(shiftDate).format('YYYY-MM-DD');
                 inTime = moment

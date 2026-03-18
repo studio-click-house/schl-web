@@ -9,7 +9,7 @@ import {
     Min,
 } from 'class-validator';
 
-export class UpdateShiftTemplateBodyDto {
+export class UpdateShiftPlanBodyDto {
     @IsOptional()
     @IsDateString(
         { strict: false },

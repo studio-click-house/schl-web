@@ -205,7 +205,7 @@ export class DailyReportService {
                         rest.submitted_by = submitterId;
                         rest.verified_by = verifierId;
                         if (d.ticket_id) {
-                            rest.ticket_id = d.ticket_id.toString();
+                            rest.ticket_id = (d.ticket_id as any).toString();
                         }
 
                         return {
@@ -321,7 +321,7 @@ export class DailyReportService {
         try {
             await report.save();
             return report;
-        } catch (e) {
+        } catch {
             throw new InternalServerErrorException(
                 'Unable to verify daily report',
             );

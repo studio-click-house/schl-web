@@ -31,9 +31,9 @@ import {
     ShiftResolvedSchema,
 } from '@repo/common/models/shift-resolved.schema';
 import {
-    ShiftTemplate,
-    ShiftTemplateSchema,
-} from '@repo/common/models/shift-template.schema';
+    ShiftPlan,
+    ShiftPlanSchema,
+} from '@repo/common/models/shift-plan.schema';
 import { AttendanceGeneratorService } from './attendance-generator.service';
 import { AttendanceController } from './attendance.controller';
 import { AttendanceService } from './attendance.service';
@@ -43,7 +43,7 @@ import { AttendanceService } from './attendance.service';
         MongooseModule.forFeature([
             { name: Attendance.name, schema: AttendanceSchema },
             { name: DeviceUser.name, schema: DeviceUserSchema },
-            { name: ShiftTemplate.name, schema: ShiftTemplateSchema },
+            { name: ShiftPlan.name, schema: ShiftPlanSchema },
             { name: ShiftOverride.name, schema: ShiftOverrideSchema },
             { name: ShiftResolved.name, schema: ShiftResolvedSchema },
             { name: LeaveRequest.name, schema: LeaveRequestSchema },

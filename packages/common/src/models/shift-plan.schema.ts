@@ -2,13 +2,13 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import * as mongoose from 'mongoose';
 import { HydratedDocument } from 'mongoose';
 
-export type ShiftTemplateDocument = HydratedDocument<ShiftTemplate>;
+export type ShiftPlanDocument = HydratedDocument<ShiftPlan>;
 
 export const SHIFT_TYPES = ['morning', 'evening', 'night', 'custom'] as const;
 export type ShiftType = (typeof SHIFT_TYPES)[number];
 
-@Schema({ timestamps: true, collection: 'shift_templates' })
-export class ShiftTemplate {
+@Schema({ timestamps: true, collection: 'shift_plans' })
+export class ShiftPlan {
     @Prop({
         required: [true, 'Employee is required'],
         ref: 'Employee',
@@ -66,9 +66,9 @@ export class ShiftTemplate {
     readonly updatedAt: Date;
 }
 
-export const ShiftTemplateSchema = SchemaFactory.createForClass(ShiftTemplate);
+export const ShiftPlanSchema = SchemaFactory.createForClass(ShiftPlan);
 
-ShiftTemplateSchema.index(
+ShiftPlanSchema.index(
     { employee: 1, effective_from: 1, effective_to: 1, active: 1 },
     { name: 'employee_effective_range' },
 );

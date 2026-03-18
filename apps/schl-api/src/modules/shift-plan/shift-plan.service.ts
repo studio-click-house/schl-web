@@ -6,88 +6,37 @@ import {
     InternalServerErrorException,
     Logger,
     NotFoundException,
-    OnModuleInit,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { ShiftOverride } from '@repo/common/models/shift-override.schema';
+import { ShiftPlan } from '@repo/common/models/shift-plan.schema';
 import { ShiftResolved } from '@repo/common/models/shift-resolved.schema';
-import { ShiftTemplate } from '@repo/common/models/shift-template.schema';
 import { UserSession } from '@repo/common/types/user-session.type';
 import { hasPerm } from '@repo/common/utils/permission-check';
+import { STANDARD_SHIFTS } from '@repo/common/constants/shift-plan.constant';
 import * as moment from 'moment-timezone';
 import { FilterQuery, Model, Types } from 'mongoose';
 import { toObjectId } from '../../common/utils/id-helpers.utils';
 import { BulkDeactivateShiftPlansBodyDto } from './dto/bulk-deactivate-shift-plans.dto';
+import { CreateBulkShiftPlanBodyDto } from './dto/create-bulk-shift-plan.dto';
 import { CreateShiftOverrideBodyDto } from './dto/create-shift-override.dto';
-import { CreateShiftTemplateBodyDto } from './dto/create-shift-template.dto';
-import { SearchShiftTemplatesBodyDto } from './dto/search-shift-plan.dto';
-import { UpdateShiftTemplateBodyDto } from './dto/update-shift-template.dto';
+import { SearchShiftPlanBodyDto } from './dto/search-shift-plan.dto';
+import { UpdateShiftPlanBodyDto } from './dto/update-shift-plan.dto';
 
-type QueryShape = FilterQuery<ShiftTemplate>;
-
-const STANDARD_SHIFTS = {
-    morning: { start: '07:00', end: '15:00', crossesMidnight: false },
-    evening: { start: '15:00', end: '23:00', crossesMidnight: false },
-    night: { start: '23:00', end: '07:00', crossesMidnight: true },
-} as const;
-
-type StandardShiftType = keyof typeof STANDARD_SHIFTS;
+type QueryShape = FilterQuery<ShiftPlan>;
 
 @Injectable()
-export class ShiftPlanService implements OnModuleInit {
+export class ShiftPlanService {
     private readonly logger = new Logger(ShiftPlanService.name);
 
     constructor(
-        @InjectModel(ShiftTemplate.name)
-        private shiftTemplateModel: Model<ShiftTemplate>,
+        @InjectModel(ShiftPlan.name)
+        private shiftPlanModel: Model<ShiftPlan>,
         @InjectModel(ShiftOverride.name)
         private shiftOverrideModel: Model<ShiftOverride>,
         @InjectModel(ShiftResolved.name)
         private shiftResolvedModel: Model<ShiftResolved>,
     ) {}
-
-    async onModuleInit() {
-        this.logger.log(
-            'Checking for obsolete shift plan fields to migrate...',
-        );
-        try {
-            const nativeDb = this.shiftTemplateModel.db.db;
-            if (!nativeDb) return;
-
-            const collections = await nativeDb.listCollections().toArray();
-            const names = collections.map(c => c.name);
-
-            if (names.includes('shift_templates')) {
-                const res = await nativeDb
-                    .collection('shift_templates')
-                    .updateMany(
-                        { change_reason: { $exists: true } },
-                        { $rename: { change_reason: 'comment' } },
-                    );
-                if (res.modifiedCount > 0) {
-                    this.logger.log(
-                        `Migrated ${res.modifiedCount} shift templates (change_reason -> comment).`,
-                    );
-                }
-            }
-
-            if (names.includes('shift_overrides')) {
-                const res = await nativeDb
-                    .collection('shift_overrides')
-                    .updateMany(
-                        { change_reason: { $exists: true } },
-                        { $rename: { change_reason: 'comment' } },
-                    );
-                if (res.modifiedCount > 0) {
-                    this.logger.log(
-                        `Migrated ${res.modifiedCount} shift overrides (change_reason -> comment).`,
-                    );
-                }
-            }
-        } catch (err) {
-            this.logger.error('Shift Template migration failed', err);
-        }
-    }
 
     /**
      * Create a single-day override (replace or cancel)
@@ -175,7 +124,7 @@ export class ShiftPlanService implements OnModuleInit {
      * Create shift templates for multiple employees and date range
      */
     async createBulkShiftPlans(
-        dto: CreateShiftTemplateBodyDto,
+        dto: CreateBulkShiftPlanBodyDto,
         userSession: UserSession,
     ) {
         const canCreate = hasPerm(
@@ -209,8 +158,7 @@ export class ShiftPlanService implements OnModuleInit {
             crossesMidnight = endHour < startHour;
         } else {
             // Use standard shift times
-            const standardShift =
-                STANDARD_SHIFTS[dto.shiftType as StandardShiftType];
+            const standardShift = STANDARD_SHIFTS[dto.shiftType];
             shiftStart = standardShift.start;
             shiftEnd = standardShift.end;
             crossesMidnight = standardShift.crossesMidnight;
@@ -231,7 +179,7 @@ export class ShiftPlanService implements OnModuleInit {
         );
 
         // 1. Single batched overlap check — replaces N sequential findOne calls
-        const conflictingDocs = await this.shiftTemplateModel
+        const conflictingDocs = await this.shiftPlanModel
             .find({
                 active: true,
                 effective_from: { $lte: toDate.toDate() },
@@ -252,12 +200,12 @@ export class ShiftPlanService implements OnModuleInit {
         }
 
         // 2. ACID transaction — atomicity + race condition safety
-        const session = await this.shiftTemplateModel.db.startSession();
+        const session = await this.shiftPlanModel.db.startSession();
         try {
             session.startTransaction();
 
             // Re-check inside the transaction to guard against concurrent inserts
-            const raceConflict = await this.shiftTemplateModel
+            const raceConflict = await this.shiftPlanModel
                 .findOne(
                     {
                         active: true,
@@ -276,7 +224,7 @@ export class ShiftPlanService implements OnModuleInit {
                 );
             }
 
-            const templates: Partial<ShiftTemplate>[] = dto.employeeIds.map(
+            const templates: Partial<ShiftPlan>[] = dto.employeeIds.map(
                 employeeId =>
                     ({
                         employee: toObjectId(employeeId) as Types.ObjectId,
@@ -290,10 +238,10 @@ export class ShiftPlanService implements OnModuleInit {
                         updated_by: userSession.db_id,
                         comment: dto.comment || null,
                         grace_period_minutes: dto.gracePeriodMinutes ?? 10,
-                    }) as Partial<ShiftTemplate>,
+                    }) as Partial<ShiftPlan>,
             );
 
-            const result = await this.shiftTemplateModel.insertMany(templates, {
+            const result = await this.shiftPlanModel.insertMany(templates, {
                 session,
             });
 
@@ -308,10 +256,10 @@ export class ShiftPlanService implements OnModuleInit {
             if (err instanceof HttpException) throw err;
             this.logger.error('Failed to create shift templates', err);
             throw new InternalServerErrorException(
-                'Unable to create shift templates at this time',
+                'Unable to create shift plans at this time',
             );
         } finally {
-            session.endSession();
+            await session.endSession();
         }
     }
 
@@ -320,27 +268,26 @@ export class ShiftPlanService implements OnModuleInit {
      */
     async getShiftPlan(id: string) {
         try {
-            const shiftTemplate = await this.shiftTemplateModel
+            const shiftPlan = await this.shiftPlanModel
                 .findById(id)
                 .populate('employee', 'real_name e_id department')
                 .exec();
-
-            if (!shiftTemplate) {
-                throw new NotFoundException('Shift template not found');
+            if (!shiftPlan) {
+                throw new NotFoundException('Shift plan not found');
             }
 
-            return shiftTemplate;
+            return shiftPlan;
         } catch (err) {
             if (err instanceof HttpException) throw err;
-            this.logger.error('Failed to fetch shift template', err as Error);
+            this.logger.error('Failed to fetch shift plans', err as Error);
             throw new InternalServerErrorException(
-                'Unable to fetch shift template',
+                'Unable to fetch shift plans',
             );
         }
     }
 
     /**
-     * Get shift templates for an employee within a date range
+     * Get shift plans for an employee within a date range
      */
     async getEmployeeShiftPlans(
         employeeId: string,
@@ -372,12 +319,12 @@ export class ShiftPlanService implements OnModuleInit {
                 }
             }
 
-            const shiftTemplates = await this.shiftTemplateModel
+            const shiftPlans = await this.shiftPlanModel
                 .find(query)
                 .sort({ effective_from: 1 })
                 .exec();
 
-            return shiftTemplates;
+            return shiftPlans;
         } catch (err) {
             if (err instanceof HttpException) throw err;
             this.logger.error(
@@ -395,7 +342,7 @@ export class ShiftPlanService implements OnModuleInit {
      */
     async updateShiftPlan(
         id: string,
-        dto: UpdateShiftTemplateBodyDto,
+        dto: UpdateShiftPlanBodyDto,
         userSession: UserSession,
     ) {
         const canUpdate = hasPerm(
@@ -408,9 +355,9 @@ export class ShiftPlanService implements OnModuleInit {
             );
         }
 
-        const existing = await this.shiftTemplateModel.findById(id).exec();
+        const existing = await this.shiftPlanModel.findById(id).exec();
         if (!existing) {
-            throw new NotFoundException('Shift template not found');
+            throw new NotFoundException('Shift plan not found');
         }
 
         const startTime = dto.shiftStart || existing.shift_start;
@@ -439,7 +386,7 @@ export class ShiftPlanService implements OnModuleInit {
         }
 
         if (targetActive) {
-            const overlap = await this.shiftTemplateModel.findOne({
+            const overlap = await this.shiftPlanModel.findOne({
                 _id: { $ne: id },
                 employee: existing.employee,
                 active: true,
@@ -449,12 +396,12 @@ export class ShiftPlanService implements OnModuleInit {
 
             if (overlap) {
                 throw new BadRequestException(
-                    'Update causes overlap with existing active shift template',
+                    'Update causes overlap with existing active shift plan',
                 );
             }
         }
 
-        const patch: Partial<ShiftTemplate> = {
+        const patch: Partial<ShiftPlan> = {
             shift_type: dto.shiftType || existing.shift_type,
             shift_start: startTime,
             shift_end: endTime,
@@ -464,10 +411,12 @@ export class ShiftPlanService implements OnModuleInit {
             active: targetActive,
             effective_from: targetFrom,
             effective_to: targetTo,
+            grace_period_minutes:
+                dto.gracePeriodMinutes || existing.grace_period_minutes,
         };
 
         try {
-            const updated = await this.shiftTemplateModel
+            const updated = await this.shiftPlanModel
                 .findByIdAndUpdate(id, { $set: patch }, { new: true })
                 .exec();
 
@@ -497,7 +446,7 @@ export class ShiftPlanService implements OnModuleInit {
      * Search shift plans with filters and pagination
      */
     async searchShiftPlans(
-        filters: SearchShiftTemplatesBodyDto,
+        filters: SearchShiftPlanBodyDto,
         pagination: {
             page: number;
             itemsPerPage: number;
@@ -562,7 +511,7 @@ export class ShiftPlanService implements OnModuleInit {
             if (!hasDepartmentFilter) {
                 // Fast path: no department filter, use simple find
                 if (!pagination.paginated) {
-                    return await this.shiftTemplateModel
+                    return await this.shiftPlanModel
                         .find(query)
                         .populate('employee', 'real_name e_id department')
                         .sort({ effective_from: 1 })
@@ -571,14 +520,14 @@ export class ShiftPlanService implements OnModuleInit {
 
                 const skip = (pagination.page - 1) * pagination.itemsPerPage;
                 const [items, count] = await Promise.all([
-                    this.shiftTemplateModel
+                    this.shiftPlanModel
                         .find(query)
                         .populate('employee', 'real_name e_id department')
                         .sort({ effective_from: 1 })
                         .skip(skip)
                         .limit(pagination.itemsPerPage)
                         .exec(),
-                    this.shiftTemplateModel.countDocuments(query),
+                    this.shiftPlanModel.countDocuments(query),
                 ]);
 
                 return {
@@ -607,19 +556,21 @@ export class ShiftPlanService implements OnModuleInit {
             ];
 
             if (!pagination.paginated) {
-                return await this.shiftTemplateModel.aggregate(pipeline).exec();
+                return await this.shiftPlanModel
+                    .aggregate<ShiftPlan>(pipeline)
+                    .exec();
             }
 
             const skip = (pagination.page - 1) * pagination.itemsPerPage;
             const [items, countResult] = await Promise.all([
-                this.shiftTemplateModel
+                this.shiftPlanModel
                     .aggregate([
                         ...pipeline,
                         { $skip: skip },
                         { $limit: pagination.itemsPerPage },
                     ])
                     .exec(),
-                this.shiftTemplateModel
+                this.shiftPlanModel
                     .aggregate([...pipeline, { $count: 'total' }])
                     .exec(),
             ]);
@@ -668,12 +619,12 @@ export class ShiftPlanService implements OnModuleInit {
             );
 
             // Fetch affected templates before update (for cache clearing)
-            const templates = await this.shiftTemplateModel
+            const templates = await this.shiftPlanModel
                 .find({ _id: { $in: objectIds } })
                 .select('employee effective_from effective_to')
                 .exec();
 
-            const patch: Partial<ShiftTemplate> = {
+            const patch: Partial<ShiftPlan> = {
                 active: false,
                 updated_by: userSession.db_id,
             };
@@ -681,7 +632,7 @@ export class ShiftPlanService implements OnModuleInit {
                 patch.comment = dto.comment;
             }
 
-            const result = await this.shiftTemplateModel.updateMany(
+            const result = await this.shiftPlanModel.updateMany(
                 { _id: { $in: objectIds } },
                 { $set: patch },
             );
@@ -776,7 +727,7 @@ export class ShiftPlanService implements OnModuleInit {
             return resolved;
         }
 
-        const template = await this.shiftTemplateModel.findOne({
+        const template = await this.shiftPlanModel.findOne({
             employee: toObjectId(employeeId) as Types.ObjectId,
             active: true,
             effective_from: { $lte: shiftDate },
@@ -849,7 +800,7 @@ export class ShiftPlanService implements OnModuleInit {
     }
 
     async searchOverrides(
-        filters: SearchShiftTemplatesBodyDto,
+        filters: SearchShiftPlanBodyDto,
         pagination: {
             page: number;
             itemsPerPage: number;

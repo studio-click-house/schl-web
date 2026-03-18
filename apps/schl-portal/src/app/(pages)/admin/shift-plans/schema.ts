@@ -28,7 +28,7 @@ export const shiftPlanValidationSchema = z.object({
     comment: z.string().optional(),
 });
 
-// Schema for editing shift templates
+// Schema for editing shift plans
 export const shiftPlanEditSchema = z.object({
     fromDate: z
         .string()
@@ -94,8 +94,8 @@ export const shiftOverrideSchema = z
         },
     );
 
-export type ShiftTemplateFormData = z.infer<typeof shiftPlanValidationSchema>;
-export type ShiftTemplateEditData = z.infer<typeof shiftPlanEditSchema>;
+export type ShiftPlanFormData = z.infer<typeof shiftPlanValidationSchema>;
+export type ShiftPlanEditData = z.infer<typeof shiftPlanEditSchema>;
 export type ShiftOverrideFormData = z.infer<typeof shiftOverrideSchema>;
 
 // Standard shift time definitions

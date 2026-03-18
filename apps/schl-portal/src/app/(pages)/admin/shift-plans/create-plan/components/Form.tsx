@@ -13,7 +13,7 @@ import Select from 'react-select';
 import { toast } from 'sonner';
 import {
     shiftPlanValidationSchema,
-    ShiftTemplateFormData,
+    ShiftPlanFormData,
     STANDARD_SHIFTS,
 } from '../../schema';
 
@@ -46,7 +46,7 @@ const Form: React.FC = () => {
         watch,
         setValue,
         formState: { errors },
-    } = useForm<ShiftTemplateFormData>({
+    } = useForm<ShiftPlanFormData>({
         resolver: zodResolver(shiftPlanValidationSchema),
         defaultValues: {
             employeeIds: [],
@@ -136,7 +136,7 @@ const Form: React.FC = () => {
         setValue('toDate', base.clone().endOf('isoWeek').format('YYYY-MM-DD'));
     };
 
-    const onSubmit = async (data: ShiftTemplateFormData) => {
+    const onSubmit = async (data: ShiftPlanFormData) => {
         setIsCreating(true);
         const toastId = toast.loading('Creating shift plans...');
 

@@ -89,7 +89,7 @@ export class SearchTicketsBodyDto {
 
     // multi-select for assigned users; ticket matches if any of the selected
     // user ids appear in its assignees array.
-    @Transform(({ value }) => {
+    @Transform((value: unknown): string[] | undefined => {
         if (Array.isArray(value)) return value;
         if (typeof value === 'string' && value !== '') return [value];
         return undefined;
