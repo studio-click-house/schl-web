@@ -27,7 +27,6 @@ export class LeaveRequestController {
 
     @Get()
     async findAll(
-        @Req() req: Request & { user: UserSession },
         @Query('employeeId') employeeId?: string,
         @Query('fromDate') fromDate?: string,
         @Query('toDate') toDate?: string,
@@ -44,7 +43,6 @@ export class LeaveRequestController {
             parsedIsPaid,
             leaveType,
             status,
-            req.user,
         );
     }
 
@@ -52,26 +50,18 @@ export class LeaveRequestController {
     async search(
         @Query() query: SearchLeaveRequestsQueryDto,
         @Body() body: SearchLeaveRequestsBodyDto,
-        @Req() req: Request & { user: UserSession },
     ) {
         const pagination = {
             page: query.page,
             itemsPerPage: query.itemsPerPage,
             paginated: query.paginated,
         };
-        return await this.service.searchLeaveRequests(
-            body,
-            pagination,
-            req.user,
-        );
+        return await this.service.searchLeaveRequests(body, pagination);
     }
 
     @Post()
-    async create(
-        @Body() dto: CreateLeaveRequestDto,
-        @Req() req: Request & { user: UserSession },
-    ) {
-        return await this.service.apply(dto, req.user);
+    async create(@Body() dto: CreateLeaveRequestDto) {
+        return await this.service.apply(dto);
     }
 
     @Patch(':id/status')
@@ -84,19 +74,12 @@ export class LeaveRequestController {
     }
 
     @Patch(':id')
-    async update(
-        @Param('id') id: string,
-        @Body() dto: UpdateLeaveRequestDto,
-        @Req() req: Request & { user: UserSession },
-    ) {
-        return await this.service.update(id, dto, req.user);
+    async update(@Param('id') id: string, @Body() dto: UpdateLeaveRequestDto) {
+        return await this.service.update(id, dto);
     }
 
     @Delete(':id')
-    async remove(
-        @Param('id') id: string,
-        @Req() req: Request & { user: UserSession },
-    ) {
-        return await this.service.remove(id, req.user);
+    async remove(@Param('id') id: string) {
+        return await this.service.remove(id);
     }
 }
