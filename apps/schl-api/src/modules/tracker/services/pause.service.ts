@@ -149,23 +149,29 @@ export class TrackerPauseService {
             .map(value => String(value || '').trim())
             .some(value => value.length > 0);
 
+        const unassigned = 'unassigned';
+
         return {
             employee_name: TrackerFactory.normalizeEmployeeName(
                 payload.employeeName || 'unknown_employee',
             ),
             date_today: dateString,
             client_code: (
-                payload.clientCode || (hasJobContext ? 'unknown_client' : '')
+                payload.clientCode ||
+                (hasJobContext ? 'unknown_client' : unassigned)
             )
                 .trim()
                 .toLowerCase(),
             folder_path: (
-                payload.folderPath || (hasJobContext ? 'unknown_folder' : '')
+                payload.folderPath ||
+                (hasJobContext ? 'unknown_folder' : unassigned)
             ).trim(),
-            shift: (payload.shift || (hasJobContext ? 'unknown_shift' : ''))
+            shift: (
+                payload.shift || (hasJobContext ? 'unknown_shift' : unassigned)
+            )
                 .trim()
                 .toLowerCase(),
-            work_type: (payload.workType || (hasJobContext ? 'qc' : ''))
+            work_type: (payload.workType || (hasJobContext ? 'qc' : unassigned))
                 .trim()
                 .toLowerCase(),
         };

@@ -41,6 +41,8 @@ export function buildLiveTrackingDataPipeline(filter: LiveTrackingFilter) {
             $eq: [sourceExpr, 'pause'],
         };
 
+        const unassigned = 'unassigned';
+
         return {
             $concat: [
                 normalizeExpr('$employee_name', 'unknown_employee', {
@@ -52,20 +54,20 @@ export function buildLiveTrackingDataPipeline(filter: LiveTrackingFilter) {
                     preserveEmptyContext,
                 }),
                 '|',
-                normalizeExpr('$client_code', 'unknown_client', {
+                normalizeExpr('$client_code', unassigned, {
                     preserveEmptyContext,
                 }),
                 '|',
-                normalizeExpr('$folder_path', 'unknown_folder', {
+                normalizeExpr('$folder_path', unassigned, {
                     lower: false,
                     preserveEmptyContext,
                 }),
                 '|',
-                normalizeExpr('$shift', 'unknown_shift', {
+                normalizeExpr('$shift', unassigned, {
                     preserveEmptyContext,
                 }),
                 '|',
-                normalizeExpr('$work_type', 'qc', {
+                normalizeExpr('$work_type', unassigned, {
                     preserveEmptyContext,
                 }),
             ],
