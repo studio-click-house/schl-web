@@ -58,14 +58,36 @@ export class TrackerFactory {
     }
 
     static qcFilterFromSyncDto(dto: WorkLogDto, dateString: string) {
+        const unassigned = 'unassigned';
+        const hasJobContext = [
+            dto.clientCode,
+            dto.folderPath,
+            dto.shift,
+            dto.workType,
+        ]
+            .map(value => String(value || '').trim())
+            .some(value => value.length > 0);
+
         return {
             employee_name: TrackerFactory.normalizeEmployeeName(
                 dto.employeeName,
             ),
-            client_code: (dto.clientCode || 'unknown_client').toLowerCase(),
-            folder_path: (dto.folderPath || 'unknown_folder').trim(),
-            shift: (dto.shift || 'unknown_shift').toLowerCase(),
-            work_type: (dto.workType || 'qc').toLowerCase(),
+            client_code: (
+                dto.clientCode ||
+                (hasJobContext ? 'unknown_client' : unassigned)
+            )
+                .trim()
+                .toLowerCase(),
+            folder_path: (
+                dto.folderPath ||
+                (hasJobContext ? 'unknown_folder' : unassigned)
+            ).trim(),
+            shift: (dto.shift || (hasJobContext ? 'unknown_shift' : unassigned))
+                .trim()
+                .toLowerCase(),
+            work_type: (dto.workType || (hasJobContext ? 'qc' : unassigned))
+                .trim()
+                .toLowerCase(),
             date_today: dateString,
         };
     }
