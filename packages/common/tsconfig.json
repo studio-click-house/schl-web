@@ -1,6 +1,14 @@
 {
     "extends": "@repo/typescript-config/base.json",
     "compilerOptions": {
+        "module": "CommonJS",
+        "moduleResolution": "Node",
+        "resolvePackageJsonExports": false,
+        "baseUrl": ".",
+        "paths": {
+            "@repo/common": ["./src/index.ts"],
+            "@repo/common/*": ["./src/*"]
+        },
         "outDir": "dist",
         "rootDir": "src",
         "emitDecoratorMetadata": true,

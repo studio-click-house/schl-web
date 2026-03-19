@@ -1,44 +1,17 @@
-import type { Permissions } from '@repo/common/types/permission.type';
-import { FullyPopulatedUser } from '@repo/common/types/populated-user.type';
-import { fetchApi } from '@repo/common/utils/general-utils';
-import jwt from 'jsonwebtoken';
 import type { NextAuthConfig } from 'next-auth';
-import { UserSessionType } from './auth';
 
-// Align access token lifetime with the session cookie so users stay signed in.
-const SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60; // 30 days
-const ACCESS_TOKEN_TTL_SECONDS = SESSION_MAX_AGE_SECONDS;
-const ACCESS_TOKEN_REFRESH_BUFFER_SECONDS = 15 * 60; // 15 minutes
+/**
+ * Edge-safe auth configuration shared between middleware and auth.ts.
+ *
+ * Heavy dependencies (jsonwebtoken) and token-signing / refresh logic live
+ * exclusively in auth.ts so the middleware bundle stays free of Node-only APIs.
+ */
 
-function signAccessToken(
-    payload: Pick<
-        UserSessionType,
-        | 'real_name'
-        | 'db_id'
-        | 'db_role_id'
-        | 'permissions'
-        | 'e_id'
-        | 'department'
-    >,
-) {
-    const secret = process.env.AUTH_SECRET;
-    if (!secret)
-        throw new Error('Missing AUTH_SECRET for signing access token');
-    return jwt.sign(
-        {
-            name: payload.real_name,
-            sub: payload.db_id,
-            role: payload.db_role_id,
-            perms: payload.permissions,
-            e_id: payload.e_id,
-            dept: payload.department,
-        },
-        secret,
-        { expiresIn: ACCESS_TOKEN_TTL_SECONDS },
-    );
-}
+// Session lifetime — exported for reuse in auth.ts
+export const SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60; // 30 days
 
 export const authConfig: NextAuthConfig = {
+    trustHost: true,
     session: {
         strategy: 'jwt', // session stored in secure, HttpOnly JWT cookie
         maxAge: SESSION_MAX_AGE_SECONDS,
@@ -48,88 +21,15 @@ export const authConfig: NextAuthConfig = {
         signIn: '/login',
     },
     callbacks: {
-        // attach user data to JWT cookie
-        async jwt({ token, user }) {
-            // Initial sign-in: copy user info + create short-lived access token
-            if (user) {
-                token.db_id = user.db_id;
-                token.db_role_id = user.db_role_id;
-                token.real_name = user.real_name;
-                token.provided_name = user.provided_name;
-                token.permissions = user.permissions;
-                token.e_id = user.e_id;
-                token.department = user.department;
-
-                try {
-                    token.accessToken = signAccessToken({
-                        real_name: user.real_name,
-                        db_id: user.db_id as string,
-                        db_role_id: user.db_role_id as string,
-                        permissions: (user.permissions as Permissions[]) || [],
-                        e_id: user.e_id as string,
-                        department: user.department as any,
-                    });
-                    token.accessTokenExpires =
-                        Date.now() + ACCESS_TOKEN_TTL_SECONDS * 1000;
-                } catch (e) {
-                    console.error('Failed to sign access token', e);
-                    token.error = 'RefreshAccessTokenError';
-                }
-                return token;
-            }
-
-            // Subsequent calls: rotate if expired (silent refresh on usage)
-            if (
-                token.accessTokenExpires &&
-                Date.now() >
-                    (token.accessTokenExpires as number) -
-                        ACCESS_TOKEN_REFRESH_BUFFER_SECONDS * 1000
-            ) {
-                try {
-                    // Fetch fresh permissions from the backend to support session revocation and permission updates
-                    const res = await fetchApi<FullyPopulatedUser>(
-                        {
-                            path: `/v1/user/get-user/${token.db_id}`,
-                            query: { expanded: 'true' },
-                        },
-                        {},
-                        token.accessToken as string,
-                    );
-
-                    if (res.ok && res.data) {
-                        const userData = res.data;
-                        token.db_id = userData._id.toString();
-                        token.db_role_id = userData.role._id;
-                        token.real_name = userData.employee.real_name;
-                        token.provided_name =
-                            userData.employee.company_provided_name;
-                        token.permissions = userData.role.permissions || [];
-                        token.e_id = userData.employee.e_id;
-                        token.department = userData.employee.department;
-
-                        token.accessToken = signAccessToken({
-                            real_name: token.real_name as string,
-                            db_id: token.db_id as string,
-                            db_role_id: token.db_role_id as string,
-                            permissions:
-                                (token.permissions as Permissions[]) || [],
-                            e_id: token.e_id as string,
-                            department: token.department as any,
-                        });
-                        token.accessTokenExpires =
-                            Date.now() + ACCESS_TOKEN_TTL_SECONDS * 1000;
-                    } else {
-                        // If user is not found or deactivated, return error to log them out
-                        token.error = 'RefreshAccessTokenError';
-                    }
-                } catch (e) {
-                    console.error('Failed to refresh access token', e);
-                    token.error = 'RefreshAccessTokenError';
-                }
-            }
+        /**
+         * Read-only JWT callback.
+         * Token fields are populated during sign-in by auth.ts;
+         * the middleware instance only needs to pass them through.
+         */
+        async jwt({ token }) {
             return token;
         },
-        // session exposed to frontend via useSession()
+        /** Map token fields → session so middleware can read req.auth.user */
         async session({ session, token }: { session: any; token: any }) {
             if (token) {
                 session.user = {
@@ -141,12 +41,12 @@ export const authConfig: NextAuthConfig = {
                     e_id: token.e_id,
                     department: token.department,
                 };
-                session.accessToken = token.accessToken; // expose short-lived access token
+                session.accessToken = token.accessToken;
                 session.accessTokenExpires = token.accessTokenExpires;
                 session.error = token.error;
             }
             return session;
         },
     },
-    providers: [], // providers added in src/auth.ts
+    providers: [], // providers added in auth.ts
 };

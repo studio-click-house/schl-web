@@ -1,6 +1,7 @@
 import type { Permissions } from '@repo/common/types/permission.type';
+import NextAuth from 'next-auth';
 import { NextResponse } from 'next/server';
-import { auth as authMiddleware } from './auth';
+import { authConfig } from './auth.config';
 import {
     allAuthorizedRoutes,
     AuthorizedRoute,
@@ -15,6 +16,8 @@ const ALLOWED_IPS = process.env.ALLOWED_IPS?.split(',') || [];
 
 // Using cached flattened route list from route.ts (includes containers & leaves)
 const ALL_ROUTES: AuthorizedRoute[] = allAuthorizedRoutes;
+
+const { auth: authMiddleware } = NextAuth(authConfig);
 
 export default authMiddleware((req: any) => {
     const { nextUrl } = req;

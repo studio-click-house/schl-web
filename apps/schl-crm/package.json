@@ -4,10 +4,11 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "dev": "cross-env NODE_OPTIONS='--inspect' next dev -p 3002",
-        "build": "next build",
+        "dev": "cross-env NEXT_PRIVATE_STANDALONE=true NODE_OPTIONS='--inspect --max-old-space-size=4096' next dev -p 3002",
+        "build": "cross-env NEXT_PRIVATE_STANDALONE=true NODE_OPTIONS='--max-old-space-size=4096' next build",
         "start": "next start",
         "lint": "eslint \"**/*.{ts,tsx,js,jsx}\"",
+        "check-types": "tsc --noEmit",
         "format": "prettier --write ."
     },
     "dependencies": {
@@ -35,7 +36,7 @@
         "html-react-parser": "^5.2.3",
         "jsonwebtoken": "^9.0.2",
         "lodash": "^4.17.21",
-        "lucide-react": "^0.469.0",
+        "lucide-react": "^0.577.0",
         "moment-timezone": "^0.5.48",
         "mongoose": "^8.13.2",
         "next": "14.2.35",
@@ -71,3 +72,4 @@
         "typescript": "^5.8.3"
     }
 }
+

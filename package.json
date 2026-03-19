@@ -2,20 +2,20 @@
     "name": "schl-web",
     "private": true,
     "scripts": {
-        "build": "turbo run build --ui stream",
-        "dev": "turbo run dev --parallel --ui stream",
-        "lint": "turbo run lint --ui stream",
-        "check-types": "turbo run check-types --ui stream",
+        "build": "turbo run build",
+        "dev": "turbo run dev",
+        "lint": "turbo run lint",
+        "check-types": "turbo run check-types",
         "format": "prettier --write \"**/*.{ts,tsx,md}\""
     },
     "devDependencies": {
         "prettier": "^3.8.1",
         "prettier-plugin-tailwindcss": "^0.6.14",
-        "turbo": "^2.8.17"
+        "turbo": "^2.8.19"
     },
     "packageManager": "pnpm@10.32.1",
     "engines": {
-        "node": ">=18",
+        "node": ">=18 <22",
         "pnpm": ">=9.0.6"
     },
     "workspaces": [
@@ -28,3 +28,4 @@
         "cookie-parser": "^1.4.7"
     }
 }
+

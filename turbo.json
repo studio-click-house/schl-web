@@ -1,6 +1,5 @@
 {
     "$schema": "https://turborepo.com/schema.json",
-    "ui": "tui",
 
     "globalEnv": [
         "VERCEL_ENV",
@@ -26,11 +25,17 @@
         "PORT"
     ],
 
+    "ui": "stream",
     "tasks": {
         "build": {
             "dependsOn": ["^build"],
             "inputs": ["$TURBO_DEFAULT$", ".env*"],
-            "outputs": ["dist/**", ".next/**", "!.next/cache/**"],
+            "outputs": [
+                "dist/**",
+                ".next/**",
+                "!.next/cache/**",
+                "!.next/standalone/**"
+            ],
             "cache": true
         },
 
