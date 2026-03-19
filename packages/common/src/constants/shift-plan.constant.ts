@@ -6,7 +6,7 @@ export const STANDARD_SHIFTS = {
 
 export type StandardShiftType = keyof typeof STANDARD_SHIFTS;
 
-export const standardShiftOptions = Object.keys(STANDARD_SHIFTS).map((key) => ({
+export const standardShiftOptions = Object.keys(STANDARD_SHIFTS).map(key => ({
     label: key.charAt(0).toUpperCase() + key.slice(1),
     value: key,
 }));
