@@ -35,10 +35,10 @@ export class TrackerReportService {
                 employee_name: TrackerFactory.normalizeEmployeeName(
                     dto.employeeName,
                 ),
-                client_code: (dto.clientCode || 'unknown_client').toLowerCase(),
-                folder_path: (dto.folderPath || 'unknown_folder').trim(),
-                shift: (dto.shift || 'unknown_shift').toLowerCase(),
-                work_type: (dto.workType || 'qc').toLowerCase(),
+                client_code: (dto.clientCode || '').toLowerCase(),
+                folder_path: (dto.folderPath || '').trim(),
+                shift: (dto.shift || '').toLowerCase(),
+                work_type: (dto.workType || '').toLowerCase(),
                 date_today: dto.dateToday.trim(),
             };
 

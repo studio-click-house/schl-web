@@ -6,7 +6,8 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { PauseSession } from '@repo/common/models/pause-session.schema';
-import { Model } from 'mongoose';
+import { WorkLog } from '@repo/common/models/work-log.schema';
+import { FilterQuery, Model } from 'mongoose';
 import { PauseDto } from '../dto/pause.dto';
 import { TrackerGateway } from '../gateways/tracker.gateway';
 import { TrackerFactory } from '../factories/tracker.factory';
@@ -17,6 +18,8 @@ export class TrackerPauseService {
     constructor(
         @InjectModel(PauseSession.name)
         private readonly pauseSessionModel: Model<PauseSession>,
+        @InjectModel(WorkLog.name)
+        private readonly workLogModel: Model<WorkLog>,
         private readonly trackerGateway: TrackerGateway,
     ) {}
 
@@ -41,14 +44,20 @@ export class TrackerPauseService {
         try {
             const now = new Date();
             const dateString = moment().tz('Asia/Dhaka').format('YYYY-MM-DD');
-            const filter = this.buildFilter(payload, dateString);
+            const { filter, hasJobContext } = this.buildFilter(
+                payload,
+                dateString,
+            );
             const syncId =
                 typeof payload.syncId === 'string' ? payload.syncId.trim() : '';
 
             if (syncId) {
                 const existing = await this.pauseSessionModel
                     .findOne(
-                        { ...filter, processed_sync_ids: syncId },
+                        {
+                            ...filter,
+                            processed_sync_ids: syncId,
+                        } as FilterQuery<PauseSession>,
                         { _id: 1 },
                     )
                     .lean();
@@ -63,6 +72,15 @@ export class TrackerPauseService {
                     0,
                     Number(payload.totalTimes) || 0,
                 );
+            }
+
+            if (hasJobContext) {
+                const workLog = await this.workLogModel
+                    .findOne(filter as FilterQuery<WorkLog>, { _id: 1 })
+                    .lean();
+                if (workLog?._id) {
+                    setUpdate.work_log_id = workLog._id;
+                }
             }
 
             const baseUpdate: Record<string, any> = {
@@ -91,28 +109,106 @@ export class TrackerPauseService {
 
             const updated = await this.pauseSessionModel.findOne(filter).lean();
             if (updated) {
+                const updatedDoc = updated as unknown as Record<string, any>;
                 const employeeName = TrackerFactory.normalizeEmployeeName(
                     payload.employeeName,
                 );
+
+                const statusTokensWorking = new Set([
+                    'working',
+                    'in_progress',
+                    'in progress',
+                    'in-progress',
+                    'inprogress',
+                ]);
+
+                const workLogDoc = updatedDoc?.work_log_id
+                    ? await this.workLogModel
+                          .findOne(
+                              {
+                                  _id: updatedDoc.work_log_id,
+                              } as FilterQuery<WorkLog>,
+                              {
+                                  _id: 1,
+                                  total_times: 1,
+                                  estimate_time: 1,
+                                  files: 1,
+                                  categories: 1,
+                              },
+                          )
+                          .lean()
+                    : null;
+
+                type AccFile = {
+                    fileName: string;
+                    fileStatus: string;
+                    timeSpent: number;
+                    startedAt: Date | null;
+                    completedAt: Date | null;
+                };
+
+                const accFiles: AccFile[] = (workLogDoc?.files ?? []).map(
+                    (f: any) => ({
+                        fileName: String(f?.file_name ?? ''),
+                        fileStatus: String(f?.file_status ?? ''),
+                        timeSpent: Math.max(0, Number(f?.time_spent) || 0),
+                        startedAt: f?.started_at ?? null,
+                        completedAt: f?.completed_at ?? null,
+                    }),
+                );
+
+                const workingCount = accFiles.filter(f =>
+                    statusTokensWorking.has(
+                        String(f?.fileStatus ?? '')
+                            .trim()
+                            .toLowerCase(),
+                    ),
+                ).length;
+
+                const computedStatus =
+                    status === 'paused'
+                        ? 'paused'
+                        : workingCount > 0
+                          ? 'working'
+                          : 'working';
+
+                const emittedFiles: AccFile[] =
+                    status === 'paused'
+                        ? accFiles.map<AccFile>(f => {
+                              const s = String(f.fileStatus ?? '')
+                                  .trim()
+                                  .toLowerCase();
+                              if (statusTokensWorking.has(s)) {
+                                  return { ...f, fileStatus: 'paused' };
+                              }
+                              return f;
+                          })
+                        : accFiles;
+
                 this.trackerGateway.broadcastTrackerUpdate('TRACKER_UPDATED', {
-                    _id: (updated as any)._id,
+                    work_log_id:
+                        workLogDoc?._id ?? updatedDoc?.work_log_id ?? null,
                     employeeName,
-                    clientCode: payload.clientCode,
-                    workType: payload.workType,
-                    shift: payload.shift,
-                    folderPath: payload.folderPath,
-                    fileStatus: status,
+                    clientCode: filter.client_code,
+                    workType: filter.work_type,
+                    shift: filter.shift,
+                    folderPath: filter.folder_path,
+                    fileStatus: computedStatus,
                     timestamp: now.toISOString(),
                     total_times: Math.max(
                         0,
-                        Number((updated as any)?.total_times) || 0,
+                        Number((workLogDoc as any)?.total_times) ||
+                            Number(updatedDoc?.total_times) ||
+                            0,
                     ),
-                    pause_time: this.getEffectivePauseTime(updated),
-                    pause_count: Array.isArray((updated as any)?.pause_reasons)
-                        ? (updated as any).pause_reasons.length
+                    estimate_time: workLogDoc?.estimate_time ?? 0,
+                    categories: (workLogDoc as any)?.categories ?? '',
+                    pause_time: this.getEffectivePauseTime(updatedDoc),
+                    pause_count: Array.isArray(updatedDoc?.pause_reasons)
+                        ? updatedDoc.pause_reasons.length
                         : 0,
-                    pause_reasons: this.decoratePauseReasons(updated),
-                    files: [],
+                    pause_reasons: this.decoratePauseReasons(updatedDoc),
+                    files: emittedFiles,
                 });
             }
 
@@ -149,32 +245,18 @@ export class TrackerPauseService {
             .map(value => String(value || '').trim())
             .some(value => value.length > 0);
 
-        const unassigned = 'unassigned';
-
-        return {
+        const filter = {
             employee_name: TrackerFactory.normalizeEmployeeName(
                 payload.employeeName || 'unknown_employee',
             ),
             date_today: dateString,
-            client_code: (
-                payload.clientCode ||
-                (hasJobContext ? 'unknown_client' : unassigned)
-            )
-                .trim()
-                .toLowerCase(),
-            folder_path: (
-                payload.folderPath ||
-                (hasJobContext ? 'unknown_folder' : unassigned)
-            ).trim(),
-            shift: (
-                payload.shift || (hasJobContext ? 'unknown_shift' : unassigned)
-            )
-                .trim()
-                .toLowerCase(),
-            work_type: (payload.workType || (hasJobContext ? 'qc' : unassigned))
-                .trim()
-                .toLowerCase(),
+            client_code: (payload.clientCode || '').trim().toLowerCase(),
+            folder_path: (payload.folderPath || '').trim(),
+            shift: (payload.shift || '').trim().toLowerCase(),
+            work_type: (payload.workType || '').trim().toLowerCase(),
         };
+
+        return { filter, hasJobContext };
     }
 
     private async startPause(

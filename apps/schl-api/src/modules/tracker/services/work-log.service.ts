@@ -6,13 +6,13 @@ import {
     Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
+import { PauseSession } from '@repo/common/models/pause-session.schema';
 import { WorkLog } from '@repo/common/models/work-log.schema';
 import { AnyBulkWriteOperation, FilterQuery, Model } from 'mongoose';
 import { WorkLogDto } from '../dto/work-log.dto';
 import { TrackerFactory } from '../factories/tracker.factory';
 import { TrackerGateway } from '../gateways/tracker.gateway';
 import moment from 'moment-timezone';
-import { buildLiveTrackingDataPipeline } from '../aggregations/tracker.pipelines';
 
 @Injectable()
 export class TrackerWorkLogService {
@@ -21,8 +21,46 @@ export class TrackerWorkLogService {
     constructor(
         @InjectModel(WorkLog.name)
         private readonly workLogModel: Model<WorkLog>,
+        @InjectModel(PauseSession.name)
+        private readonly pauseSessionModel: Model<PauseSession>,
         private readonly trackerGateway: TrackerGateway,
     ) {}
+
+    private decoratePauseReasons(doc: Record<string, any>): Array<{
+        reason: string;
+        duration: number;
+        started_at: Date | null;
+        completed_at: Date | null;
+    }> {
+        const now = Date.now();
+        const reasons = Array.isArray(doc?.pause_reasons)
+            ? doc.pause_reasons
+            : [];
+        return reasons.map((item: any) => {
+            const startedAt = item?.started_at
+                ? new Date(item.started_at as string | number | Date)
+                : null;
+            const completedAt = item?.completed_at
+                ? new Date(item.completed_at as string | number | Date)
+                : null;
+            const liveDuration =
+                !completedAt && startedAt
+                    ? Math.max(
+                          0,
+                          Math.floor((now - startedAt.getTime()) / 1000),
+                      )
+                    : 0;
+
+            return {
+                reason: String(item?.reason || '').trim(),
+                duration: completedAt
+                    ? Math.max(0, Number(item?.duration) || 0)
+                    : liveDuration,
+                started_at: startedAt,
+                completed_at: completedAt,
+            };
+        });
+    }
 
     async sync(
         payload: WorkLogDto,
@@ -96,14 +134,18 @@ export class TrackerWorkLogService {
             if (Array.isArray(payload.files) && payload.files.length > 0) {
                 const now = new Date();
 
+                type ExistingFilesDoc = {
+                    files?: Array<{ file_name?: string } | null>;
+                };
+
                 // Step 1: Read existing file names in ONE query
                 const existingDoc = await this.workLogModel
                     .findOne(filter, { 'files.file_name': 1 })
-                    .lean();
+                    .lean<ExistingFilesDoc>();
                 const existingNames = new Set<string>(
-                    (existingDoc?.files ?? []).map(
-                        (f: any) => f.file_name as string,
-                    ),
+                    (existingDoc?.files ?? [])
+                        .filter((f): f is { file_name?: string } => f != null)
+                        .map(f => String(f.file_name ?? '')),
                 );
 
                 // Step 2: Push ALL new files in ONE call ($push + $each)
@@ -265,79 +307,10 @@ export class TrackerWorkLogService {
                 payload.employeeName,
             );
 
-            // Preferred: broadcast full merged row via MongoDB pipeline
-            try {
-                const pipelineFilter = filter as FilterQuery<WorkLog> & {
-                    updatedAt?: { $gte: Date };
-                };
-                const rows = await this.workLogModel
-                    .aggregate(buildLiveTrackingDataPipeline(pipelineFilter))
-                    .exec();
-                const mergedRow = rows?.[0] as Record<string, any> | undefined;
-                if (mergedRow) {
-                    const rawFiles: Array<Record<string, any>> = Array.isArray(
-                        mergedRow?.files,
-                    )
-                        ? (mergedRow.files as Array<Record<string, any>>)
-                        : [];
-                    const workingCount = rawFiles.filter((f: any) =>
-                        statusTokensWorking.has(
-                            String(f?.file_status ?? f?.fileStatus ?? '')
-                                .trim()
-                                .toLowerCase(),
-                        ),
-                    ).length;
-
-                    const computedStatus =
-                        payloadStatus === 'paused'
-                            ? 'paused'
-                            : workingCount > 0
-                              ? 'working'
-                              : payloadStatus;
-
-                    const maskedFiles =
-                        payloadStatus === 'paused'
-                            ? rawFiles.map((f: any) => {
-                                  const s = String(
-                                      f?.file_status ?? f?.fileStatus ?? '',
-                                  )
-                                      .trim()
-                                      .toLowerCase();
-                                  if (statusTokensWorking.has(s)) {
-                                      return {
-                                          ...f,
-                                          file_status: 'paused',
-                                          fileStatus: 'paused',
-                                      } as Record<string, any>;
-                                  }
-                                  return f as Record<string, any>;
-                              })
-                            : rawFiles;
-
-                    this.trackerGateway.broadcastTrackerUpdate(
-                        'TRACKER_UPDATED',
-                        {
-                            ...mergedRow,
-                            employeeName,
-                            clientCode: payload.clientCode,
-                            workType: payload.workType,
-                            shift: payload.shift,
-                            folderPath: payload.folderPath,
-                            fileStatus: computedStatus,
-                            timestamp: new Date().toISOString(),
-                            files: maskedFiles,
-                        },
-                    );
-
-                    return { success: true };
-                }
-            } catch {
-                // fall back below
-            }
-
-            // Fallback: broadcast real-time delta with accumulated totals from DB
+            // Broadcast merged row via fast indexed reads (work log + pause session)
             const updatedDoc = await this.workLogModel
                 .findOne(filter, {
+                    _id: 1,
                     total_times: 1,
                     estimate_time: 1,
                     files: 1,
@@ -345,17 +318,48 @@ export class TrackerWorkLogService {
                 })
                 .lean();
 
-            const accFiles = (updatedDoc?.files ?? []).map((f: any) => ({
-                fileName: f.file_name,
-                fileStatus: f.file_status,
-                timeSpent: f.time_spent ?? 0,
-                startedAt: f.started_at ?? null,
-                completedAt: f.completed_at ?? null,
-            }));
+            const pauseDocById = updatedDoc?._id
+                ? await this.pauseSessionModel
+                      .findOne({
+                          work_log_id: updatedDoc._id,
+                      } as FilterQuery<PauseSession>)
+                      .lean()
+                : null;
+            const pauseDocByKey = await this.pauseSessionModel
+                .findOne(filter as FilterQuery<PauseSession>)
+                .lean();
+            const pauseDoc = pauseDocById || pauseDocByKey;
+
+            const pauseReasons = pauseDoc
+                ? this.decoratePauseReasons(pauseDoc as Record<string, any>)
+                : [];
+            const pauseTime = pauseReasons.reduce(
+                (sum, item) => sum + Math.max(0, Number(item?.duration) || 0),
+                0,
+            );
+            const pauseCount = pauseReasons.length;
+
+            type AccFile = {
+                fileName: string;
+                fileStatus: string;
+                timeSpent: number;
+                startedAt: Date | null;
+                completedAt: Date | null;
+            };
+
+            const accFiles: AccFile[] = (updatedDoc?.files ?? []).map(
+                (f: any) => ({
+                    fileName: String(f?.file_name ?? ''),
+                    fileStatus: String(f?.file_status ?? ''),
+                    timeSpent: Math.max(0, Number(f?.time_spent) || 0),
+                    startedAt: f?.started_at ?? null,
+                    completedAt: f?.completed_at ?? null,
+                }),
+            );
 
             const workingCount = accFiles.filter(f =>
                 statusTokensWorking.has(
-                    String((f as any)?.fileStatus ?? '')
+                    String(f?.fileStatus ?? '')
                         .trim()
                         .toLowerCase(),
                 ),
@@ -368,10 +372,10 @@ export class TrackerWorkLogService {
                       ? 'working'
                       : payloadStatus;
 
-            const emittedFiles =
+            const emittedFiles: AccFile[] =
                 payloadStatus === 'paused'
-                    ? accFiles.map(f => {
-                          const s = String((f as any)?.fileStatus ?? '')
+                    ? accFiles.map<AccFile>(f => {
+                          const s = String(f.fileStatus ?? '')
                               .trim()
                               .toLowerCase();
                           if (statusTokensWorking.has(s)) {
@@ -382,6 +386,7 @@ export class TrackerWorkLogService {
                     : accFiles;
 
             this.trackerGateway.broadcastTrackerUpdate('TRACKER_UPDATED', {
+                work_log_id: updatedDoc?._id ?? null,
                 employeeName,
                 clientCode: payload.clientCode,
                 workType: payload.workType,
@@ -392,6 +397,9 @@ export class TrackerWorkLogService {
                 total_times: (updatedDoc as any)?.total_times ?? 0,
                 estimate_time: updatedDoc?.estimate_time ?? 0,
                 categories: (updatedDoc as any)?.categories ?? '',
+                pause_time: pauseTime,
+                pause_count: pauseCount,
+                pause_reasons: pauseReasons,
                 files: emittedFiles,
             });
 
