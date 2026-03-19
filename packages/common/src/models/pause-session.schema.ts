@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
+import { Types } from 'mongoose';
 
 export type PauseSessionDocument = HydratedDocument<PauseSession>;
 
@@ -38,6 +39,9 @@ export class PauseSession {
     @Prop({ type: String, default: '' })
     shift: string;
 
+    @Prop({ type: Types.ObjectId, default: null })
+    work_log_id?: Types.ObjectId | null;
+
     @Prop({ type: Number, default: 0 })
     pause_count: number;
 
@@ -69,3 +73,5 @@ PauseSessionSchema.index(
 );
 
 PauseSessionSchema.index({ date_today: 1 });
+PauseSessionSchema.index({ work_log_id: 1 });
+PauseSessionSchema.index({ date_today: 1, work_log_id: 1 });

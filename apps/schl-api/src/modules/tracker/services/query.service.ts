@@ -276,20 +276,47 @@ export class TrackerQueryService {
 
             const requestedDate =
                 dto.date && dto.date.trim() ? dto.date.trim() : '';
+            const requestedFrom =
+                dto.dateFrom && dto.dateFrom.trim() ? dto.dateFrom.trim() : '';
+            const requestedTo =
+                dto.dateTo && dto.dateTo.trim() ? dto.dateTo.trim() : '';
             const today = moment().tz('Asia/Dhaka').format('YYYY-MM-DD');
             const usedDate = requestedDate || today;
 
-            // Single query: fetch work logs for the date + user
+            const hasRange = requestedFrom && requestedTo;
+
+            const dateFilter = hasRange
+                ? {
+                      $gte: requestedFrom,
+                      $lte: requestedTo,
+                  }
+                : usedDate;
+
+            // Fetch work logs for the date (or range) + optional user
             const workLogFilter = userRegex
                 ? {
                       employee_name: { $regex: userRegex },
-                      date_today: usedDate,
+                      date_today: dateFilter,
                   }
-                : { date_today: usedDate };
+                : { date_today: dateFilter };
 
             const pipelineFilter = workLogFilter as FilterQuery<WorkLog> & {
                 updatedAt?: { $gte: Date };
             };
+            // Dashboard range: fetch the full date range (no hours cutoff)
+            if (hasRange) {
+                delete pipelineFilter.updatedAt;
+            }
+
+            const sessionFilter = hasRange
+                ? {
+                      session_date: dateFilter,
+                      ...(userRegex ? { username: { $regex: userRegex } } : {}),
+                  }
+                : {
+                      session_date: usedDate,
+                      ...(userRegex ? { username: { $regex: userRegex } } : {}),
+                  };
 
             const [workLogs, sessions] = await Promise.all([
                 this.workLogModel
@@ -297,14 +324,7 @@ export class TrackerQueryService {
                     .exec(),
 
                 this.userSessionModel
-                    .aggregate(
-                        buildTrackerUserSessionsPipeline({
-                            session_date: usedDate,
-                            ...(userRegex
-                                ? { username: { $regex: userRegex } }
-                                : {}),
-                        }),
-                    )
+                    .aggregate(buildTrackerUserSessionsPipeline(sessionFilter))
                     .exec(),
             ]);
 
