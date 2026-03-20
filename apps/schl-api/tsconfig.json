@@ -3,7 +3,6 @@
     "compilerOptions": {
         "module": "CommonJS",
         "moduleResolution": "Node",
-        "resolvePackageJsonExports": false,
         "declaration": true,
         "removeComments": true,
         "emitDecoratorMetadata": true,
