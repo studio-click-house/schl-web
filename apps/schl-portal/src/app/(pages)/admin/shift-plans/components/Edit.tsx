@@ -145,7 +145,7 @@ const EditButton = ({ shiftPlan, submitHandler }: EditButtonProps) => {
                 >
                     <header className="flex items-center align-middle justify-between px-4 py-2 border-b rounded-t">
                         <h3 className="text-gray-900 text-lg lg:text-xl font-semibold uppercase">
-                            Edit Shift Template
+                            Edit Shift Plan
                         </h3>
                         <button
                             onClick={() => setIsOpen(false)}
@@ -267,7 +267,8 @@ const EditButton = ({ shiftPlan, submitHandler }: EditButtonProps) => {
                                     type="text"
                                     {...register('shiftStart')}
                                     placeholder="09:00"
-                                    className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
+                                    disabled={watchedShiftType !== 'custom'}
+                                    className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
                                 />
                                 {errors.shiftStart && (
                                     <p className="text-red-500 text-sm mt-1">
@@ -286,7 +287,8 @@ const EditButton = ({ shiftPlan, submitHandler }: EditButtonProps) => {
                                     type="text"
                                     {...register('shiftEnd')}
                                     placeholder="17:00"
-                                    className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
+                                    disabled={watchedShiftType !== 'custom'}
+                                    className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
                                 />
                                 {errors.shiftEnd && (
                                     <p className="text-red-500 text-sm mt-1">
@@ -303,12 +305,12 @@ const EditButton = ({ shiftPlan, submitHandler }: EditButtonProps) => {
                                         className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
                                     />
                                     <span className="text-sm font-medium text-gray-700">
-                                        Active Template
+                                        Active Plan
                                     </span>
                                 </label>
                                 <p className="text-xs font-mono text-gray-400 flex flex-row gap-2 mt-0.5">
-                                    Deactivate to stop using this template for
-                                    new days
+                                    Deactivate to stop using this plan for new
+                                    days
                                 </p>
                             </div>
 

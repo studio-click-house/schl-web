@@ -8,7 +8,7 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { ShiftOverride } from '@repo/common/models/shift-override.schema';
+import { ShiftAdjustment } from '@repo/common/models/shift-adjustment.schema';
 import { ShiftPlan } from '@repo/common/models/shift-plan.schema';
 import { ShiftResolved } from '@repo/common/models/shift-resolved.schema';
 import { UserSession } from '@repo/common/types/user-session.type';
@@ -19,7 +19,7 @@ import { FilterQuery, Model, Types } from 'mongoose';
 import { toObjectId } from '../../common/utils/id-helpers.utils';
 import { BulkDeactivateShiftPlansBodyDto } from './dto/bulk-deactivate-shift-plans.dto';
 import { CreateBulkShiftPlanBodyDto } from './dto/create-bulk-shift-plan.dto';
-import { CreateShiftOverrideBodyDto } from './dto/create-shift-override.dto';
+import { CreateShiftAdjustmentBodyDto } from './dto/create-shift-adjustment.dto';
 import { SearchShiftPlanBodyDto } from './dto/search-shift-plan.dto';
 import { UpdateShiftPlanBodyDto } from './dto/update-shift-plan.dto';
 
@@ -32,17 +32,17 @@ export class ShiftPlanService {
     constructor(
         @InjectModel(ShiftPlan.name)
         private shiftPlanModel: Model<ShiftPlan>,
-        @InjectModel(ShiftOverride.name)
-        private shiftOverrideModel: Model<ShiftOverride>,
+        @InjectModel(ShiftAdjustment.name)
+        private shiftAdjustmentModel: Model<ShiftAdjustment>,
         @InjectModel(ShiftResolved.name)
         private shiftResolvedModel: Model<ShiftResolved>,
     ) {}
 
     /**
-     * Create a single-day override (replace or cancel)
+     * Create a single-day adjustment (replace or cancel)
      */
-    async createShiftPlan(
-        dto: CreateShiftOverrideBodyDto,
+    async createShiftAdjustment(
+        dto: CreateShiftAdjustmentBodyDto,
         userSession: UserSession,
     ) {
         const canCreate = hasPerm(
@@ -55,15 +55,15 @@ export class ShiftPlanService {
             );
         }
 
-        if (dto.overrideType === 'replace') {
+        if (dto.adjustmentType === 'replace') {
             if (!dto.shiftStart || !dto.shiftEnd || !dto.shiftType) {
                 throw new BadRequestException(
-                    'Replace overrides require shiftType, shiftStart, and shiftEnd',
+                    'Replace adjustments require shiftType, shiftStart, and shiftEnd',
                 );
             }
         }
 
-        // 'off_day' overrides represent off-day overtime entries; shift times are optional and will not be
+        // 'off_day' adjustments represent off-day overtime entries; shift times are optional and will not be
         // used to mark the day as a regular work shift. Admins can optionally provide a suggested window.
 
         let crossesMidnight = false;
@@ -86,10 +86,10 @@ export class ShiftPlanService {
                 .startOf('day')
                 .toDate();
 
-            const payload: Partial<ShiftOverride> = {
+            const payload: Partial<ShiftAdjustment> = {
                 employee: new Types.ObjectId(dto.employeeId),
                 shift_date: shiftDate,
-                override_type: dto.overrideType,
+                adjustment_type: dto.adjustmentType,
                 shift_type: dto.shiftType,
                 shift_start: dto.shiftStart,
                 shift_end: dto.shiftEnd,
@@ -99,7 +99,7 @@ export class ShiftPlanService {
                 grace_period_minutes: dto.gracePeriodMinutes ?? 10,
             };
 
-            const created = await this.shiftOverrideModel.findOneAndUpdate(
+            const created = await this.shiftAdjustmentModel.findOneAndUpdate(
                 {
                     employee: new Types.ObjectId(dto.employeeId),
                     shift_date: shiftDate,
@@ -113,7 +113,10 @@ export class ShiftPlanService {
             return created;
         } catch (err) {
             if (err instanceof HttpException) throw err;
-            this.logger.error('Failed to create shift override', err as Error);
+            this.logger.error(
+                'Failed to create shift adjustment',
+                err as Error,
+            );
             throw new InternalServerErrorException(
                 'Unable to create shift plan at this time',
             );
@@ -224,7 +227,7 @@ export class ShiftPlanService {
                 );
             }
 
-            const templates: Partial<ShiftPlan>[] = dto.employeeIds.map(
+            const plans: Partial<ShiftPlan>[] = dto.employeeIds.map(
                 employeeId =>
                     ({
                         employee: toObjectId(employeeId) as Types.ObjectId,
@@ -241,7 +244,7 @@ export class ShiftPlanService {
                     }) as Partial<ShiftPlan>,
             );
 
-            const result = await this.shiftPlanModel.insertMany(templates, {
+            const result = await this.shiftPlanModel.insertMany(plans, {
                 session,
             });
 
@@ -249,12 +252,12 @@ export class ShiftPlanService {
 
             return {
                 createdCount: result.length,
-                message: `Created ${result.length} shift template(s)`,
+                message: `Created ${result.length} shift plan(s)`,
             };
         } catch (err: any) {
             await session.abortTransaction();
             if (err instanceof HttpException) throw err;
-            this.logger.error('Failed to create shift templates', err);
+            this.logger.error('Failed to create shift plans', err);
             throw new InternalServerErrorException(
                 'Unable to create shift plans at this time',
             );
@@ -328,11 +331,11 @@ export class ShiftPlanService {
         } catch (err) {
             if (err instanceof HttpException) throw err;
             this.logger.error(
-                'Failed to fetch employee shift templates',
+                'Failed to fetch employee shift plans',
                 err as Error,
             );
             throw new InternalServerErrorException(
-                'Unable to fetch shift templates',
+                'Unable to fetch shift plans',
             );
         }
     }
@@ -422,7 +425,7 @@ export class ShiftPlanService {
 
             if (!updated) {
                 throw new InternalServerErrorException(
-                    'Failed to update shift template',
+                    'Failed to update shift plan',
                 );
             }
 
@@ -435,9 +438,9 @@ export class ShiftPlanService {
             return updated;
         } catch (err) {
             if (err instanceof HttpException) throw err;
-            this.logger.error('Failed to update shift template', err as Error);
+            this.logger.error('Failed to update shift plan', err as Error);
             throw new InternalServerErrorException(
-                'Unable to update shift template at this time',
+                'Unable to update shift plan at this time',
             );
         }
     }
@@ -618,8 +621,8 @@ export class ShiftPlanService {
                 id => toObjectId(id) as Types.ObjectId,
             );
 
-            // Fetch affected templates before update (for cache clearing)
-            const templates = await this.shiftPlanModel
+            // Fetch affected plans before update (for cache clearing)
+            const plans = await this.shiftPlanModel
                 .find({ _id: { $in: objectIds } })
                 .select('employee effective_from effective_to')
                 .exec();
@@ -637,9 +640,9 @@ export class ShiftPlanService {
                 { $set: patch },
             );
 
-            // Clear resolved cache for every affected template
+            // Clear resolved cache for every affected plan
             await Promise.all(
-                templates.map(t =>
+                plans.map(t =>
                     this.clearResolvedCache(
                         t.employee.toString(),
                         t.effective_from,
@@ -650,7 +653,7 @@ export class ShiftPlanService {
 
             return {
                 deactivated: result.modifiedCount,
-                message: `Deactivated ${result.modifiedCount} shift template(s)`,
+                message: `Deactivated ${result.modifiedCount} shift plan(s)`,
             };
         } catch (err) {
             if (err instanceof HttpException) throw err;
@@ -693,13 +696,13 @@ export class ShiftPlanService {
         });
         if (cached) return cached;
 
-        const override = await this.shiftOverrideModel.findOne({
+        const adjustment = await this.shiftAdjustmentModel.findOne({
             employee: toObjectId(employeeId) as Types.ObjectId,
             shift_date: shiftDate,
-        } as FilterQuery<ShiftOverride>);
+        } as FilterQuery<ShiftAdjustment>);
 
-        if (override) {
-            if (override.override_type === 'cancel') {
+        if (adjustment) {
+            if (adjustment.adjustment_type === 'cancel') {
                 return null;
             }
 
@@ -712,12 +715,12 @@ export class ShiftPlanService {
                     $set: {
                         employee: new Types.ObjectId(employeeId),
                         shift_date: shiftDate,
-                        shift_type: override.shift_type,
-                        shift_start: override.shift_start,
-                        shift_end: override.shift_end,
-                        crosses_midnight: override.crosses_midnight,
-                        source: 'override',
-                        override_id: override._id,
+                        shift_type: adjustment.shift_type,
+                        shift_start: adjustment.shift_start,
+                        shift_end: adjustment.shift_end,
+                        crosses_midnight: adjustment.crosses_midnight,
+                        source: 'adjustment',
+                        adjustment_id: adjustment._id,
                         resolved_at: new Date(),
                     },
                 },
@@ -727,14 +730,14 @@ export class ShiftPlanService {
             return resolved;
         }
 
-        const template = await this.shiftPlanModel.findOne({
+        const plan = await this.shiftPlanModel.findOne({
             employee: toObjectId(employeeId) as Types.ObjectId,
             active: true,
             effective_from: { $lte: shiftDate },
             effective_to: { $gte: shiftDate },
         });
 
-        if (!template) return null;
+        if (!plan) return null;
 
         const resolved = await this.shiftResolvedModel.findOneAndUpdate(
             {
@@ -745,12 +748,12 @@ export class ShiftPlanService {
                 $set: {
                     employee: toObjectId(employeeId) as Types.ObjectId,
                     shift_date: shiftDate,
-                    shift_type: template.shift_type,
-                    shift_start: template.shift_start,
-                    shift_end: template.shift_end,
-                    crosses_midnight: template.crosses_midnight,
-                    source: 'template',
-                    template_id: template._id,
+                    shift_type: plan.shift_type,
+                    shift_start: plan.shift_start,
+                    shift_end: plan.shift_end,
+                    crosses_midnight: plan.crosses_midnight,
+                    source: 'plan',
+                    plan_id: plan._id,
                     resolved_at: new Date(),
                 },
             },
@@ -799,7 +802,7 @@ export class ShiftPlanService {
         }
     }
 
-    async searchOverrides(
+    async searchAdjustments(
         filters: SearchShiftPlanBodyDto,
         pagination: {
             page: number;
@@ -819,7 +822,7 @@ export class ShiftPlanService {
         }
 
         try {
-            const query: FilterQuery<ShiftOverride> = {};
+            const query: FilterQuery<ShiftAdjustment> = {};
 
             if (filters.employeeId) {
                 query.employee = filters.employeeId;
@@ -852,14 +855,14 @@ export class ShiftPlanService {
             const limit = pagination.itemsPerPage;
 
             const [items, count] = await Promise.all([
-                this.shiftOverrideModel
+                this.shiftAdjustmentModel
                     .find(query)
                     .populate('employee', 'real_name')
                     .sort({ shift_date: -1 }) // Newest first
                     .skip(pagination.paginated ? skip : 0)
                     .limit(pagination.paginated ? limit : 0)
                     .exec(),
-                this.shiftOverrideModel.countDocuments(query),
+                this.shiftAdjustmentModel.countDocuments(query),
             ]);
 
             return {
@@ -870,26 +873,29 @@ export class ShiftPlanService {
                 items,
             };
         } catch (err) {
-            this.logger.error('Failed to search shift overrides', err as Error);
+            this.logger.error(
+                'Failed to search shift adjustments',
+                err as Error,
+            );
             throw new InternalServerErrorException(
-                'Unable to search shift overrides',
+                'Unable to search shift adjustments',
             );
         }
     }
 
-    async deleteOverride(id: string, userSession: UserSession) {
+    async deleteAdjustment(id: string, userSession: UserSession) {
         const canDelete = hasPerm(
             'admin:edit_shift_plan',
             userSession.permissions,
         );
         if (!canDelete) {
             throw new ForbiddenException(
-                "You don't have permission to delete shift overrides",
+                "You don't have permission to delete shift adjustments",
             );
         }
 
-        const deleted = await this.shiftOverrideModel.findByIdAndDelete(id);
-        if (!deleted) throw new NotFoundException('Override not found');
+        const deleted = await this.shiftAdjustmentModel.findByIdAndDelete(id);
+        if (!deleted) throw new NotFoundException('Adjustment not found');
 
         await this.clearResolvedCache(
             deleted.employee.toString(),

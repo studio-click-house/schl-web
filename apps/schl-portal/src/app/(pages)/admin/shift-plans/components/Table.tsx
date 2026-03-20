@@ -279,12 +279,12 @@ const Table: React.FC = () => {
                         <button
                             onClick={() =>
                                 router.push(
-                                    '/admin/shift-plans/overrides/create',
+                                    '/admin/shift-plans/adjustments/create',
                                 )
                             }
                             className="flex-1 sm:flex-none flex justify-center items-center gap-2 whitespace-nowrap rounded-md bg-blue-600 hover:opacity-90 hover:ring-4 hover:ring-blue-600 transition duration-200 delay-300 hover:text-opacity-100 text-white px-3 py-2"
                         >
-                            Add override
+                            Add adjustment
                             <CirclePlus size={18} />
                         </button>
                     </div>
@@ -439,9 +439,7 @@ const Table: React.FC = () => {
                                                     {shiftPlan.employee &&
                                                     typeof shiftPlan.employee !==
                                                         'string'
-                                                        ? (
-                                                              shiftPlan.employee as any
-                                                          ).real_name
+                                                        ? `${(shiftPlan.employee as any).real_name} (${(shiftPlan.employee as any).e_id})`
                                                         : 'Unknown'}
                                                 </td>
                                                 <td className="text-wrap">

@@ -293,7 +293,7 @@ const Nav: React.FC<PropsType> = props => {
                                                 'block px-4 py-2 hover:bg-primary',
                                             )}
                                             href={
-                                                '/admin/shift-plans/overrides'
+                                                '/admin/shift-plans/adjustments'
                                             }
                                         >
                                             Overrides

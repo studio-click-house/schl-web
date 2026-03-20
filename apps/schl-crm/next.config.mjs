@@ -6,7 +6,7 @@ const __dirname = path.dirname(__filename);
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    output: "standalone",
+    output: process.env.NEXT_STANDALONE === 'true' ? 'standalone' : undefined,
     experimental: {
         outputFileTracingRoot: path.join(__dirname, '../../'),
     },

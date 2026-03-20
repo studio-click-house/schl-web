@@ -32,9 +32,9 @@ import {
     LeaveRequestDocument,
 } from '@repo/common/models/leave-request.schema';
 import {
-    ShiftOverride,
-    ShiftOverrideDocument,
-} from '@repo/common/models/shift-override.schema';
+    ShiftAdjustment,
+    ShiftAdjustmentDocument,
+} from '@repo/common/models/shift-adjustment.schema';
 import moment from 'moment-timezone';
 import { Model, Types } from 'mongoose';
 import { AttendanceService } from './attendance.service';
@@ -58,8 +58,8 @@ export class AttendanceGeneratorService {
         private attendanceFlagModel: Model<AttendanceFlagDocument>,
         @InjectModel(DeviceUser.name)
         private deviceUserModel: Model<DeviceUserDocument>,
-        @InjectModel(ShiftOverride.name)
-        private shiftOverrideModel: Model<ShiftOverrideDocument>,
+        @InjectModel(ShiftAdjustment.name)
+        private shiftAdjustmentModel: Model<ShiftAdjustmentDocument>,
         private attendanceService: AttendanceService,
     ) {}
 
@@ -120,11 +120,12 @@ export class AttendanceGeneratorService {
                 if (existing) continue; // idempotent
 
                 // If shift is explicitly cancelled, do NOT prefill Absent here
-                const override = await this.shiftOverrideModel
+                const adjustment = await this.shiftAdjustmentModel
                     .findOne({ employee: emp._id, shift_date: startOfDay })
                     .lean()
                     .exec();
-                if (override && override.override_type === 'cancel') continue;
+                if (adjustment && adjustment.adjustment_type === 'cancel')
+                    continue;
 
                 // Skip Holidays (range intersection)
                 const holiday = await this.holidayModel.findOne({
@@ -305,13 +306,13 @@ export class AttendanceGeneratorService {
                     }
                 }
 
-                // If there's an explicit override to cancel the shift, handle it.
-                const override = await this.shiftOverrideModel
+                // If there's an explicit adjustment to cancel the shift, handle it.
+                const adjustment = await this.shiftAdjustmentModel
                     .findOne({ employee: emp._id, shift_date: startOfDay })
                     .lean()
                     .exec();
 
-                if (override && override.override_type === 'cancel') {
+                if (adjustment && adjustment.adjustment_type === 'cancel') {
                     if (flagCode === 'A') {
                         // A cancelled shift counts as Present instead of Absent to avoid leave-balance confusion
                         flagCode = 'P';

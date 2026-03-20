@@ -1,17 +1,17 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import * as mongoose from 'mongoose';
 import { HydratedDocument } from 'mongoose';
+import {
+    SHIFT_ADJUSTMENT_TYPES,
+    SHIFT_TYPES,
+    ShiftAdjustmentType,
+    ShiftType,
+} from '../constants/shift.constant';
 
-export type ShiftOverrideDocument = HydratedDocument<ShiftOverride>;
+export type ShiftAdjustmentDocument = HydratedDocument<ShiftAdjustment>;
 
-export const SHIFT_OVERRIDE_TYPES = ['replace', 'cancel', 'off_day'] as const;
-export type ShiftOverrideType = (typeof SHIFT_OVERRIDE_TYPES)[number];
-
-export const SHIFT_TYPES = ['morning', 'evening', 'night', 'custom'] as const;
-export type ShiftType = (typeof SHIFT_TYPES)[number];
-
-@Schema({ timestamps: true, collection: 'shift_overrides' })
-export class ShiftOverride {
+@Schema({ timestamps: true, collection: 'shift_adjustments' })
+export class ShiftAdjustment {
     @Prop({
         required: [true, 'Employee is required'],
         ref: 'Employee',
@@ -28,11 +28,11 @@ export class ShiftOverride {
     shift_date: Date;
 
     @Prop({
-        required: [true, 'Override type is required'],
+        required: [true, 'Adjustment type is required'],
         type: String,
-        enum: SHIFT_OVERRIDE_TYPES,
+        enum: SHIFT_ADJUSTMENT_TYPES,
     })
-    override_type: ShiftOverrideType;
+    adjustment_type: ShiftAdjustmentType;
 
     @Prop({ required: false, type: String, enum: SHIFT_TYPES })
     shift_type?: ShiftType;
@@ -62,9 +62,10 @@ export class ShiftOverride {
     readonly updatedAt: Date;
 }
 
-export const ShiftOverrideSchema = SchemaFactory.createForClass(ShiftOverride);
+export const ShiftAdjustmentSchema =
+    SchemaFactory.createForClass(ShiftAdjustment);
 
-ShiftOverrideSchema.index(
+ShiftAdjustmentSchema.index(
     { employee: 1, shift_date: 1 },
     { unique: true, name: 'employee_shift_date_unique' },
 );

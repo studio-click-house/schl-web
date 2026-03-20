@@ -4,8 +4,8 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "dev": "rimraf .next/standalone && cross-env NODE_OPTIONS='--inspect --max-old-space-size=4096' next dev -p 3002",
-        "build": "rimraf .next/standalone && cross-env NODE_OPTIONS='--max-old-space-size=4096' next build",
+        "dev": "cross-env NODE_OPTIONS='--inspect --max-old-space-size=4096' next dev -p 3002",
+        "build": "cross-env NODE_OPTIONS='--max-old-space-size=4096' next build",
         "start": "next start",
         "lint": "eslint \"**/*.{ts,tsx,js,jsx}\"",
         "check-types": "tsc --noEmit",

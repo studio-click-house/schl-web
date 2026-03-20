@@ -2,17 +2,17 @@ import { Metadata } from 'next';
 import Table from './components/Table';
 
 export const metadata: Metadata = {
-    title: 'Shift Overrides | Admin',
+    title: 'Shift Adjustments | Admin',
 };
 
-export default function OverridesPage() {
+export default function AdjustmentsPage() {
     return (
         <div className="container mx-auto px-4 py-8">
             <h1 className="text-2xl font-bold mb-6 text-gray-800 uppercase underline underline-offset-4">
-                Shift Overrides
+                Shift Adjustments
             </h1>
             <p className="text-gray-600 mb-8">
-                Manage manual shift overrides (Manual Entries). These take
+                Manage manual shift adjustments (Manual Entries). These take
                 priority over Shift Plans.
             </p>
             <Table />

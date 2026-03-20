@@ -23,9 +23,9 @@ import {
     LeaveRequestSchema,
 } from '@repo/common/models/leave-request.schema';
 import {
-    ShiftOverride,
-    ShiftOverrideSchema,
-} from '@repo/common/models/shift-override.schema';
+    ShiftAdjustment,
+    ShiftAdjustmentSchema,
+} from '@repo/common/models/shift-adjustment.schema';
 import {
     ShiftResolved,
     ShiftResolvedSchema,
@@ -44,7 +44,7 @@ import { AttendanceService } from './attendance.service';
             { name: Attendance.name, schema: AttendanceSchema },
             { name: DeviceUser.name, schema: DeviceUserSchema },
             { name: ShiftPlan.name, schema: ShiftPlanSchema },
-            { name: ShiftOverride.name, schema: ShiftOverrideSchema },
+            { name: ShiftAdjustment.name, schema: ShiftAdjustmentSchema },
             { name: ShiftResolved.name, schema: ShiftResolvedSchema },
             { name: LeaveRequest.name, schema: LeaveRequestSchema },
             { name: Employee.name, schema: EmployeeSchema },

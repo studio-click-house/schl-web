@@ -32,7 +32,7 @@ import {
     LeaveRequest,
     LeaveRequestDocument,
 } from '@repo/common/models/leave-request.schema';
-import { ShiftOverride } from '@repo/common/models/shift-override.schema';
+import { ShiftAdjustment } from '@repo/common/models/shift-adjustment.schema';
 import { ShiftPlan } from '@repo/common/models/shift-plan.schema';
 import { ShiftResolved } from '@repo/common/models/shift-resolved.schema';
 import { UserSession } from '@repo/common/types/user-session.type';
@@ -64,8 +64,8 @@ export class AttendanceService {
         private deviceUserModel: Model<DeviceUser>,
         @InjectModel(ShiftPlan.name)
         private shiftPlanModel: Model<ShiftPlan>,
-        @InjectModel(ShiftOverride.name)
-        private shiftOverrideModel: Model<ShiftOverride>,
+        @InjectModel(ShiftAdjustment.name)
+        private shiftAdjustmentModel: Model<ShiftAdjustment>,
         @InjectModel(ShiftResolved.name)
         private shiftResolvedModel: Model<ShiftResolved>,
         @InjectModel(LeaveRequest.name)
@@ -106,13 +106,13 @@ export class AttendanceService {
         });
         if (cached) return cached;
 
-        const override = await this.shiftOverrideModel.findOne({
+        const adjustment = await this.shiftAdjustmentModel.findOne({
             employee: employeeId,
             shift_date: shiftDate,
         });
 
-        if (override) {
-            if (override.override_type === 'cancel') {
+        if (adjustment) {
+            if (adjustment.adjustment_type === 'cancel') {
                 return null;
             }
 
@@ -122,15 +122,15 @@ export class AttendanceService {
                     $set: {
                         employee: employeeId,
                         shift_date: shiftDate,
-                        shift_type: override.shift_type || 'custom',
-                        shift_start: override.shift_start || '09:00',
-                        shift_end: override.shift_end || '17:00',
-                        crosses_midnight: override.crosses_midnight,
-                        source: 'override',
-                        override_id: override._id,
+                        shift_type: adjustment.shift_type || 'custom',
+                        shift_start: adjustment.shift_start || '09:00',
+                        shift_end: adjustment.shift_end || '17:00',
+                        crosses_midnight: adjustment.crosses_midnight,
+                        source: 'adjustment',
+                        adjustment_id: adjustment._id,
                         // New: mark off-day overtime preference
                         is_off_day_overtime:
-                            override.override_type === 'off_day',
+                            adjustment.adjustment_type === 'off_day',
                         resolved_at: new Date(),
                     },
                 },
@@ -190,14 +190,14 @@ export class AttendanceService {
             );
         }
 
-        const template = await this.shiftPlanModel.findOne({
+        const plan = await this.shiftPlanModel.findOne({
             employee: employeeId,
             active: true,
             effective_from: { $lte: shiftDate },
             effective_to: { $gte: shiftDate },
         });
 
-        if (!template) return null;
+        if (!plan) return null;
 
         return await this.shiftResolvedModel.findOneAndUpdate(
             { employee: employeeId, shift_date: shiftDate },
@@ -205,12 +205,12 @@ export class AttendanceService {
                 $set: {
                     employee: employeeId,
                     shift_date: shiftDate,
-                    shift_type: template.shift_type,
-                    shift_start: template.shift_start,
-                    shift_end: template.shift_end,
-                    crosses_midnight: template.crosses_midnight,
-                    source: 'template',
-                    template_id: template._id,
+                    shift_type: plan.shift_type,
+                    shift_start: plan.shift_start,
+                    shift_end: plan.shift_end,
+                    crosses_midnight: plan.crosses_midnight,
+                    source: 'plan',
+                    plan_id: plan._id,
                     resolved_at: new Date(),
                 },
             },
@@ -256,7 +256,7 @@ export class AttendanceService {
             return;
         }
 
-        // 3. Regular Shift / Override Logic
+        // 3. Regular Shift / Adjustment Logic
         const shiftStartStr = `${moment
             .tz(shift.shift_date, 'Asia/Dhaka')
             .format('YYYY-MM-DD')} ${shift.shift_start}`;
@@ -838,7 +838,7 @@ export class AttendanceService {
             });
 
             // --- Shift Memory Queries ---
-            // Bulk fetch active templates for all employees
+            // Bulk fetch active plans for all employees
             const allPlans = await this.shiftPlanModel
                 .find({
                     employee: { $in: employeeIds },
@@ -850,15 +850,15 @@ export class AttendanceService {
                 .lean()
                 .exec();
 
-            const templateMap = new Map<string, ShiftPlan[]>();
+            const planMap = new Map<string, ShiftPlan[]>();
             allPlans.forEach(t => {
                 const empId = String(t.employee);
-                if (!templateMap.has(empId)) templateMap.set(empId, []);
-                templateMap.get(empId)!.push(t);
+                if (!planMap.has(empId)) planMap.set(empId, []);
+                planMap.get(empId)!.push(t);
             });
 
-            // Bulk fetch overrides for all employees within queried dates
-            const allOverrides = await this.shiftOverrideModel
+            // Bulk fetch adjustments for all employees within queried dates
+            const allAdjustments = await this.shiftAdjustmentModel
                 .find({
                     employee: { $in: employeeIds },
                     shift_date: { $gte: fromDate, $lte: toDate },
@@ -866,10 +866,10 @@ export class AttendanceService {
                 .lean()
                 .exec();
 
-            const overrideMap = new Map<string, any>();
-            allOverrides.forEach(o => {
+            const adjustmentMap = new Map<string, any>();
+            allAdjustments.forEach(o => {
                 const key = `${String(o.employee)}_${moment.tz(o.shift_date, 'Asia/Dhaka').format('YYYY-MM-DD')}`;
-                overrideMap.set(key, o);
+                adjustmentMap.set(key, o);
             });
 
             // Helper to get raw shift memory times synchronously
@@ -878,22 +878,22 @@ export class AttendanceService {
                 dateKey: string,
             ) => {
                 const dateMom = moment.tz(dateKey, 'YYYY-MM-DD', 'Asia/Dhaka');
-                const overrideKey = `${employeeIdStr}_${dateKey}`;
-                const override = overrideMap.get(overrideKey);
+                const adjustmentKey = `${employeeIdStr}_${dateKey}`;
+                const adjustment = adjustmentMap.get(adjustmentKey);
 
-                if (override && override.override_type !== 'cancel') {
+                if (adjustment && adjustment.adjustment_type !== 'cancel') {
                     return {
-                        start: override.shift_start || '09:00',
-                        end: override.shift_end || '17:00',
+                        start: adjustment.shift_start || '09:00',
+                        end: adjustment.shift_end || '17:00',
                     };
                 }
-                if (override && override.override_type === 'cancel') {
+                if (adjustment && adjustment.adjustment_type === 'cancel') {
                     // For cancellations, fallback to typical times
                     return { start: '09:00', end: '17:00' };
                 }
-                const empsTemplates = templateMap.get(employeeIdStr) || [];
-                // find active template
-                const template = empsTemplates.find(t => {
+                const empsPlans = planMap.get(employeeIdStr) || [];
+                // find active plan
+                const plan = empsPlans.find(t => {
                     const fromMom = moment
                         .tz(t.effective_from, 'Asia/Dhaka')
                         .startOf('day');
@@ -902,10 +902,10 @@ export class AttendanceService {
                         : moment.tz('2099-12-31', 'Asia/Dhaka');
                     return dateMom.isBetween(fromMom, toMom, 'day', '[]');
                 });
-                if (template) {
+                if (plan) {
                     return {
-                        start: template.shift_start || '09:00',
-                        end: template.shift_end || '17:00',
+                        start: plan.shift_start || '09:00',
+                        end: plan.shift_end || '17:00',
                     };
                 }
 

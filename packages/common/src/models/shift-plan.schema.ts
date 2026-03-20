@@ -1,11 +1,9 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import * as mongoose from 'mongoose';
 import { HydratedDocument } from 'mongoose';
+import { SHIFT_TYPES, ShiftType } from '../constants/shift.constant';
 
 export type ShiftPlanDocument = HydratedDocument<ShiftPlan>;
-
-export const SHIFT_TYPES = ['morning', 'evening', 'night', 'custom'] as const;
-export type ShiftType = (typeof SHIFT_TYPES)[number];
 
 @Schema({ timestamps: true, collection: 'shift_plans' })
 export class ShiftPlan {

@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import {
-    ShiftOverride,
-    ShiftOverrideSchema,
-} from '@repo/common/models/shift-override.schema';
+    ShiftAdjustment,
+    ShiftAdjustmentSchema,
+} from '@repo/common/models/shift-adjustment.schema';
 import {
     ShiftResolved,
     ShiftResolvedSchema,
@@ -20,7 +20,7 @@ import { ShiftPlanService } from './shift-plan.service';
     imports: [
         MongooseModule.forFeature([
             { name: ShiftPlan.name, schema: ShiftPlanSchema },
-            { name: ShiftOverride.name, schema: ShiftOverrideSchema },
+            { name: ShiftAdjustment.name, schema: ShiftAdjustmentSchema },
             { name: ShiftResolved.name, schema: ShiftResolvedSchema },
         ]),
     ],

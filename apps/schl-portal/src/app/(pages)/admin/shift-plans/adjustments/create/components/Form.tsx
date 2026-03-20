@@ -11,12 +11,12 @@ import { Controller, useForm } from 'react-hook-form';
 import Select from 'react-select';
 import { toast } from 'sonner';
 import {
-    ShiftOverrideFormData,
-    shiftOverrideSchema,
+    ShiftAdjustmentFormData,
+    shiftAdjustmentSchema,
     STANDARD_SHIFTS,
 } from '../../../schema';
 
-const overrideTypeOptions = [
+const adjustmentTypeOptions = [
     { value: 'replace', label: 'Replace (set new shift)' },
     { value: 'off_day', label: 'Off Day (mark as OT)' },
     { value: 'cancel', label: 'Cancel (no shift)' },
@@ -34,7 +34,7 @@ const departmentOptions = [
     ...EMPLOYEE_DEPARTMENTS.map(dept => ({ value: dept, label: dept })),
 ];
 
-const OverrideForm = () => {
+const AdjustmentForm = () => {
     const authedFetchApi = useAuthedFetchApi();
     const router = useRouter();
 
@@ -50,12 +50,12 @@ const OverrideForm = () => {
         watch,
         setValue,
         formState: { errors, isSubmitting },
-    } = useForm<ShiftOverrideFormData>({
-        resolver: zodResolver(shiftOverrideSchema),
+    } = useForm<ShiftAdjustmentFormData>({
+        resolver: zodResolver(shiftAdjustmentSchema),
         defaultValues: {
             employeeId: '',
             shiftDate: '',
-            overrideType: 'replace',
+            adjustmentType: 'replace',
             shiftType: 'morning',
             shiftStart: STANDARD_SHIFTS.morning.start,
             shiftEnd: STANDARD_SHIFTS.morning.end,
@@ -64,7 +64,7 @@ const OverrideForm = () => {
         },
     });
 
-    const watchedOverrideType = watch('overrideType');
+    const watchedAdjustmentType = watch('adjustmentType');
     const watchedShiftType = watch('shiftType');
 
     const fetchEmployees = useCallback(async () => {
@@ -121,9 +121,9 @@ const OverrideForm = () => {
         [filteredEmployees],
     );
 
-    const onSubmit = async (data: ShiftOverrideFormData) => {
+    const onSubmit = async (data: ShiftAdjustmentFormData) => {
         const response = await authedFetchApi<any>(
-            { path: '/v1/shift-plan/create' },
+            { path: '/v1/shift-plan/adjustments/create' },
             {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -132,7 +132,7 @@ const OverrideForm = () => {
         );
 
         if (response.ok) {
-            toast.success('Shift override created successfully');
+            toast.success('Shift adjustment created successfully');
             router.push('/admin/shift-plans');
         } else {
             toastFetchError(response);
@@ -224,24 +224,24 @@ const OverrideForm = () => {
                     />
                 </div>
 
-                {/* Override Type */}
+                {/* Adjustment Type */}
                 <div>
                     <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
-                        <span className="uppercase">Override Type *</span>
+                        <span className="uppercase">Adjustment Type *</span>
                         <span className="text-red-700 text-wrap block text-xs">
-                            {errors.overrideType?.message}
+                            {errors.adjustmentType?.message}
                         </span>
                     </label>
                     <Controller
-                        name="overrideType"
+                        name="adjustmentType"
                         control={control}
                         render={({ field }) => (
                             <Select
                                 {...field}
-                                options={overrideTypeOptions}
+                                options={adjustmentTypeOptions}
                                 isClearable={false}
                                 value={
-                                    overrideTypeOptions.find(
+                                    adjustmentTypeOptions.find(
                                         opt => opt.value === field.value,
                                     ) || null
                                 }
@@ -256,7 +256,7 @@ const OverrideForm = () => {
                 </div>
 
                 {/* Replace-only: shift type, times */}
-                {watchedOverrideType === 'replace' && (
+                {watchedAdjustmentType === 'replace' && (
                     <>
                         <div className="md:col-span-2">
                             <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
@@ -298,66 +298,47 @@ const OverrideForm = () => {
                             />
                         </div>
 
-                        {watchedShiftType === 'custom' ? (
-                            <>
-                                <div>
-                                    <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
-                                        <span className="uppercase">
-                                            Start Time (HH:mm) *
-                                        </span>
-                                        <span className="text-red-700 text-wrap block text-xs">
-                                            {errors.shiftStart?.message}
-                                        </span>
-                                    </label>
-                                    <input
-                                        {...register('shiftStart')}
-                                        type="text"
-                                        placeholder="10:00"
-                                        className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
-                                        <span className="uppercase">
-                                            End Time (HH:mm) *
-                                        </span>
-                                        <span className="text-red-700 text-wrap block text-xs">
-                                            {errors.shiftEnd?.message}
-                                        </span>
-                                    </label>
-                                    <input
-                                        {...register('shiftEnd')}
-                                        type="text"
-                                        placeholder="23:00"
-                                        className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
-                                    />
-                                </div>
-                            </>
-                        ) : (
-                            standardShift && (
-                                <div className="md:col-span-2">
-                                    <div className="p-3 bg-green-50 border border-green-200 rounded">
-                                        <p className="text-sm text-green-800">
-                                            <span className="font-semibold">
-                                                Standard times for{' '}
-                                                {watchedShiftType} shift:{' '}
-                                            </span>
-                                            {standardShift.start} –{' '}
-                                            {standardShift.end}
-                                            {standardShift.crossesMidnight &&
-                                                ' (crosses midnight)'}
-                                        </p>
-                                    </div>
-                                </div>
-                            )
-                        )}
+                        <div>
+                            <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
+                                <span className="uppercase">
+                                    Start Time (HH:mm) *
+                                </span>
+                                <span className="text-red-700 text-wrap block text-xs">
+                                    {errors.shiftStart?.message}
+                                </span>
+                            </label>
+                            <input
+                                {...register('shiftStart')}
+                                type="text"
+                                placeholder="10:00"
+                                disabled={watchedShiftType !== 'custom'}
+                                className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+                            />
+                        </div>
+                        <div>
+                            <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
+                                <span className="uppercase">
+                                    End Time (HH:mm) *
+                                </span>
+                                <span className="text-red-700 text-wrap block text-xs">
+                                    {errors.shiftEnd?.message}
+                                </span>
+                            </label>
+                            <input
+                                {...register('shiftEnd')}
+                                type="text"
+                                placeholder="23:00"
+                                disabled={watchedShiftType !== 'custom'}
+                                className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+                            />
+                        </div>
                     </>
                 )}
             </div>
 
             {/* Grace Period + Comment */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 mb-4">
-                {watchedOverrideType === 'replace' && (
+                {watchedAdjustmentType === 'replace' && (
                     <div>
                         <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
                             <span className="uppercase">
@@ -382,7 +363,9 @@ const OverrideForm = () => {
 
                 <div
                     className={
-                        watchedOverrideType === 'replace' ? '' : 'md:col-span-2'
+                        watchedAdjustmentType === 'replace'
+                            ? ''
+                            : 'md:col-span-2'
                     }
                 >
                     <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
@@ -406,10 +389,10 @@ const OverrideForm = () => {
                 className="rounded-md bg-primary text-white hover:opacity-90 hover:ring-4 hover:ring-primary transition duration-200 delay-300 hover:text-opacity-100 text-primary-foreground px-10 py-2 mt-6 uppercase disabled:opacity-50 disabled:cursor-not-allowed"
                 type="submit"
             >
-                {isSubmitting ? 'Saving...' : 'Create override'}
+                {isSubmitting ? 'Saving...' : 'Create adjustment'}
             </button>
         </form>
     );
 };
 
-export default OverrideForm;
+export default AdjustmentForm;

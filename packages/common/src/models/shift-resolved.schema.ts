@@ -1,19 +1,14 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import * as mongoose from 'mongoose';
 import { HydratedDocument } from 'mongoose';
+import {
+    SHIFT_RESOLVED_SOURCES,
+    SHIFT_TYPES,
+    ShiftResolvedSource,
+    ShiftType,
+} from '../constants/shift.constant';
 
 export type ShiftResolvedDocument = HydratedDocument<ShiftResolved>;
-
-export const SHIFT_RESOLVED_SOURCES = [
-    'template',
-    'override',
-    'leave',
-    'holiday',
-] as const;
-export type ShiftResolvedSource = (typeof SHIFT_RESOLVED_SOURCES)[number];
-
-export const SHIFT_TYPES = ['morning', 'evening', 'night', 'custom'] as const;
-export type ShiftType = (typeof SHIFT_TYPES)[number];
 
 @Schema({ timestamps: true, collection: 'shift_resolved' })
 export class ShiftResolved {
@@ -52,7 +47,7 @@ export class ShiftResolved {
     is_off_day_overtime?: boolean; // If true, treat any work on this day as overtime (off-day OT)
 
     @Prop({ required: false, type: Number, default: 10 })
-    grace_period_minutes: number; // Propagated from template/override; used by attendance evaluation
+    grace_period_minutes: number; // Propagated from plan/override; used by attendance evaluation
 
     @Prop({
         required: [true, 'Resolved source is required'],
@@ -62,10 +57,10 @@ export class ShiftResolved {
     source: ShiftResolvedSource;
 
     @Prop({ required: false, type: mongoose.Schema.Types.ObjectId })
-    template_id?: mongoose.Types.ObjectId;
+    plan_id?: mongoose.Types.ObjectId;
 
     @Prop({ required: false, type: mongoose.Schema.Types.ObjectId })
-    override_id?: mongoose.Types.ObjectId;
+    adjustment_id?: mongoose.Types.ObjectId;
 
     @Prop({ required: true, type: Date })
     resolved_at: Date;

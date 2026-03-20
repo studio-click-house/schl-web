@@ -52,8 +52,8 @@ export const shiftPlanEditSchema = z.object({
     comment: z.string().optional(),
 });
 
-// Schema for single-day override
-export const shiftOverrideSchema = z
+// Schema for single-day adjustment
+export const shiftAdjustmentSchema = z
     .object({
         employeeId: z.string().min(1, 'Employee is required'),
         shiftDate: z
@@ -62,8 +62,8 @@ export const shiftOverrideSchema = z
                 /^\d{4}-\d{2}-\d{2}$/,
                 'Shift date must be in YYYY-MM-DD format',
             ),
-        overrideType: z.enum(['replace', 'cancel', 'off_day'], {
-            errorMap: () => ({ message: 'Override type is required' }),
+        adjustmentType: z.enum(['replace', 'cancel', 'off_day'], {
+            errorMap: () => ({ message: 'Adjustment type is required' }),
         }),
         shiftType: z.enum(['morning', 'evening', 'night', 'custom']).optional(),
         shiftStart: z
@@ -79,8 +79,8 @@ export const shiftOverrideSchema = z
     })
     .refine(
         data => {
-            // For 'replace' overrides we require shift details; 'cancel' and 'off_day' do not require them
-            if (data.overrideType === 'replace') {
+            // For 'replace' adjustments we require shift details; 'cancel' and 'off_day' do not require them
+            if (data.adjustmentType === 'replace') {
                 return Boolean(
                     data.shiftType && data.shiftStart && data.shiftEnd,
                 );
@@ -89,14 +89,14 @@ export const shiftOverrideSchema = z
         },
         {
             message:
-                'Shift type, start time, and end time are required for replace overrides',
+                'Shift type, start time, and end time are required for replace adjustments',
             path: ['shiftType'],
         },
     );
 
 export type ShiftPlanFormData = z.infer<typeof shiftPlanValidationSchema>;
 export type ShiftPlanEditData = z.infer<typeof shiftPlanEditSchema>;
-export type ShiftOverrideFormData = z.infer<typeof shiftOverrideSchema>;
+export type ShiftAdjustmentFormData = z.infer<typeof shiftAdjustmentSchema>;
 
 // Standard shift time definitions
 export const STANDARD_SHIFTS = {

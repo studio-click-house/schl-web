@@ -9,7 +9,7 @@ import {
     Min,
 } from 'class-validator';
 
-export class CreateShiftOverrideBodyDto {
+export class CreateShiftAdjustmentBodyDto {
     @IsNotEmpty({ message: 'Employee ID is required' })
     @IsString({ message: 'Employee ID must be a string' })
     employeeId: string;
@@ -21,9 +21,9 @@ export class CreateShiftOverrideBodyDto {
     )
     shiftDate: string; // Format: YYYY-MM-DD
 
-    @IsNotEmpty({ message: 'Override type is required' })
+    @IsNotEmpty({ message: 'Adjustment type is required' })
     @IsString()
-    overrideType: 'replace' | 'cancel' | 'off_day';
+    adjustmentType: 'replace' | 'cancel' | 'off_day';
 
     @IsOptional()
     @IsString()
@@ -43,7 +43,7 @@ export class CreateShiftOverrideBodyDto {
 
     @IsOptional()
     @IsString()
-    comment?: string; // e.g., "Eid special"
+    comment?: string; // e.g., "Holiday adjustment"
 
     @IsOptional()
     @IsInt()

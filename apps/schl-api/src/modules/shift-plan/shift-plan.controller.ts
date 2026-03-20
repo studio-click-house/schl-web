@@ -12,7 +12,7 @@ import {
 import { UserSession } from '@repo/common/types/user-session.type';
 import { IdParamDto } from '../../common/dto/id-param.dto';
 import { BulkDeactivateShiftPlansBodyDto } from './dto/bulk-deactivate-shift-plans.dto';
-import { CreateShiftOverrideBodyDto } from './dto/create-shift-override.dto';
+import { CreateShiftAdjustmentBodyDto } from './dto/create-shift-adjustment.dto';
 import { CreateBulkShiftPlanBodyDto } from './dto/create-bulk-shift-plan.dto';
 import {
     SearchShiftPlanBodyDto,
@@ -25,13 +25,13 @@ import { ShiftPlanService } from './shift-plan.service';
 export class ShiftPlanController {
     constructor(private readonly shiftPlanService: ShiftPlanService) {}
 
-    @Post('overrides/search')
-    async searchOverrides(
+    @Post('adjustments/search')
+    async searchAdjustments(
         @Body() body: SearchShiftPlanBodyDto,
         @Query() query: SearchShiftPlanQueryDto,
         @Req() req: Request & { user: UserSession },
     ) {
-        return await this.shiftPlanService.searchOverrides(
+        return await this.shiftPlanService.searchAdjustments(
             body,
             {
                 page: query.page ? Number(query.page) : 1,
@@ -47,20 +47,23 @@ export class ShiftPlanController {
         );
     }
 
-    @Delete('overrides/:id')
-    async deleteOverride(
+    @Delete('adjustments/:id')
+    async deleteAdjustment(
         @Param('id') id: string,
         @Req() req: Request & { user: UserSession },
     ) {
-        return await this.shiftPlanService.deleteOverride(id, req.user);
+        return await this.shiftPlanService.deleteAdjustment(id, req.user);
     }
 
-    @Post('create')
-    async createShiftPlan(
-        @Body() body: CreateShiftOverrideBodyDto,
+    @Post('adjustments/create')
+    async createShiftAdjustment(
+        @Body() body: CreateShiftAdjustmentBodyDto,
         @Req() req: Request & { user: UserSession },
     ) {
-        return await this.shiftPlanService.createShiftPlan(body, req.user);
+        return await this.shiftPlanService.createShiftAdjustment(
+            body,
+            req.user,
+        );
     }
 
     @Post('bulk-deactivate')
