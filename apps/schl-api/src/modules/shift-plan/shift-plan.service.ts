@@ -8,20 +8,20 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
+
 import { ShiftAdjustment } from '@repo/common/models/shift-adjustment.schema';
 import { ShiftPlan } from '@repo/common/models/shift-plan.schema';
 import { ShiftResolved } from '@repo/common/models/shift-resolved.schema';
 import { UserSession } from '@repo/common/types/user-session.type';
 import { hasPerm } from '@repo/common/utils/permission-check';
-import { STANDARD_SHIFTS } from '@repo/common/constants/shift-plan.constant';
 import * as moment from 'moment-timezone';
 import { FilterQuery, Model, Types } from 'mongoose';
 import { toObjectId } from '../../common/utils/id-helpers.utils';
 import { BulkDeactivateShiftPlansBodyDto } from './dto/bulk-deactivate-shift-plans.dto';
 import { CreateBulkShiftPlanBodyDto } from './dto/create-bulk-shift-plan.dto';
-import { CreateShiftAdjustmentBodyDto } from './dto/create-shift-adjustment.dto';
 import { SearchShiftPlanBodyDto } from './dto/search-shift-plan.dto';
 import { UpdateShiftPlanBodyDto } from './dto/update-shift-plan.dto';
+import { ShiftPlanFactory } from './factories/shift-plan.factory';
 
 type QueryShape = FilterQuery<ShiftPlan>;
 
@@ -41,87 +41,6 @@ export class ShiftPlanService {
     /**
      * Create a single-day adjustment (replace or cancel)
      */
-    async createShiftAdjustment(
-        dto: CreateShiftAdjustmentBodyDto,
-        userSession: UserSession,
-    ) {
-        const canCreate = hasPerm(
-            'admin:create_shift_plan',
-            userSession.permissions,
-        );
-        if (!canCreate) {
-            throw new ForbiddenException(
-                "You don't have permission to create shift plans",
-            );
-        }
-
-        if (dto.adjustmentType === 'replace') {
-            if (!dto.shiftStart || !dto.shiftEnd || !dto.shiftType) {
-                throw new BadRequestException(
-                    'Replace adjustments require shiftType, shiftStart, and shiftEnd',
-                );
-            }
-        }
-
-        // 'off_day' adjustments represent off-day overtime entries; shift times are optional and will not be
-        // used to mark the day as a regular work shift. Admins can optionally provide a suggested window.
-
-        let crossesMidnight = false;
-        if (dto.shiftStart && dto.shiftEnd) {
-            const startParts = dto.shiftStart.split(':');
-            const endParts = dto.shiftEnd.split(':');
-            const startHour = startParts[0] ? parseInt(startParts[0], 10) : 0;
-            const endHour = endParts[0] ? parseInt(endParts[0], 10) : 0;
-            crossesMidnight = endHour < startHour;
-            this.validateShiftTimes(
-                dto.shiftStart,
-                dto.shiftEnd,
-                crossesMidnight,
-            );
-        }
-
-        try {
-            const shiftDate = moment
-                .tz(dto.shiftDate, 'Asia/Dhaka')
-                .startOf('day')
-                .toDate();
-
-            const payload: Partial<ShiftAdjustment> = {
-                employee: new Types.ObjectId(dto.employeeId),
-                shift_date: shiftDate,
-                adjustment_type: dto.adjustmentType,
-                shift_type: dto.shiftType,
-                shift_start: dto.shiftStart,
-                shift_end: dto.shiftEnd,
-                crosses_midnight: crossesMidnight,
-                updated_by: userSession.db_id,
-                comment: dto.comment || null,
-                grace_period_minutes: dto.gracePeriodMinutes ?? 10,
-            };
-
-            const created = await this.shiftAdjustmentModel.findOneAndUpdate(
-                {
-                    employee: new Types.ObjectId(dto.employeeId),
-                    shift_date: shiftDate,
-                },
-                { $set: payload },
-                { new: true, upsert: true },
-            );
-
-            await this.clearResolvedCache(dto.employeeId, shiftDate, shiftDate);
-
-            return created;
-        } catch (err) {
-            if (err instanceof HttpException) throw err;
-            this.logger.error(
-                'Failed to create shift adjustment',
-                err as Error,
-            );
-            throw new InternalServerErrorException(
-                'Unable to create shift plan at this time',
-            );
-        }
-    }
 
     /**
      * Create shift templates for multiple employees and date range
@@ -140,35 +59,13 @@ export class ShiftPlanService {
             );
         }
 
-        // Determine shift times
-        let shiftStart: string;
-        let shiftEnd: string;
-        let crossesMidnight: boolean;
-
         if (dto.shiftType === 'custom') {
             if (!dto.shiftStart || !dto.shiftEnd) {
                 throw new BadRequestException(
                     'Custom shifts require shiftStart and shiftEnd',
                 );
             }
-            shiftStart = dto.shiftStart;
-            shiftEnd = dto.shiftEnd;
-            // Auto-determine crosses midnight for custom shifts
-            const startParts = shiftStart.split(':');
-            const endParts = shiftEnd.split(':');
-            const startHour = startParts[0] ? parseInt(startParts[0], 10) : 0;
-            const endHour = endParts[0] ? parseInt(endParts[0], 10) : 0;
-            crossesMidnight = endHour < startHour;
-        } else {
-            // Use standard shift times
-            const standardShift = STANDARD_SHIFTS[dto.shiftType];
-            shiftStart = standardShift.start;
-            shiftEnd = standardShift.end;
-            crossesMidnight = standardShift.crossesMidnight;
         }
-
-        // Validate shift times
-        this.validateShiftTimes(shiftStart, shiftEnd, crossesMidnight);
 
         const fromDate = moment.tz(dto.fromDate, 'Asia/Dhaka').startOf('day');
         const toDate = moment.tz(dto.toDate, 'Asia/Dhaka').startOf('day');
@@ -180,6 +77,28 @@ export class ShiftPlanService {
         const employeeObjectIds = dto.employeeIds.map(
             id => toObjectId(id) as Types.ObjectId,
         );
+
+        const fromDateObj = fromDate.toDate();
+        const toDateObj = toDate.toDate();
+
+        const plans: Partial<ShiftPlan>[] = dto.employeeIds.map(employeeId =>
+            ShiftPlanFactory.fromBulkCreateDto(
+                dto,
+                employeeId,
+                fromDateObj,
+                toDateObj,
+                userSession,
+            ),
+        );
+
+        const firstPlan = plans[0];
+        if (firstPlan && firstPlan.shift_start && firstPlan.shift_end) {
+            this.validateShiftTimes(
+                firstPlan.shift_start,
+                firstPlan.shift_end,
+                firstPlan.crosses_midnight,
+            );
+        }
 
         // 1. Single batched overlap check — replaces N sequential findOne calls
         const conflictingDocs = await this.shiftPlanModel
@@ -226,23 +145,6 @@ export class ShiftPlanService {
                     'A conflict was detected. Another plan may have been created simultaneously. Please retry.',
                 );
             }
-
-            const plans: Partial<ShiftPlan>[] = dto.employeeIds.map(
-                employeeId =>
-                    ({
-                        employee: toObjectId(employeeId) as Types.ObjectId,
-                        effective_from: fromDate.toDate(),
-                        effective_to: toDate.toDate(),
-                        shift_type: dto.shiftType,
-                        shift_start: shiftStart,
-                        shift_end: shiftEnd,
-                        crosses_midnight: crossesMidnight,
-                        active: true,
-                        updated_by: userSession.db_id,
-                        comment: dto.comment || null,
-                        grace_period_minutes: dto.gracePeriodMinutes ?? 10,
-                    }) as Partial<ShiftPlan>,
-            );
 
             const result = await this.shiftPlanModel.insertMany(plans, {
                 session,
@@ -363,26 +265,24 @@ export class ShiftPlanService {
             throw new NotFoundException('Shift plan not found');
         }
 
-        const startTime = dto.shiftStart || existing.shift_start;
-        const endTime = dto.shiftEnd || existing.shift_end;
-        let crossesMidnight = existing.crosses_midnight;
-        if (startTime && endTime) {
-            const startParts = startTime.split(':');
-            const endParts = endTime.split(':');
-            const startHour = startParts[0] ? parseInt(startParts[0], 10) : 0;
-            const endHour = endParts[0] ? parseInt(endParts[0], 10) : 0;
-            crossesMidnight = endHour < startHour;
-            this.validateShiftTimes(startTime, endTime, crossesMidnight);
+        const patch = ShiftPlanFactory.fromUpdateDto(
+            dto,
+            existing,
+            userSession,
+        );
+
+        if (patch.shift_start && patch.shift_end) {
+            this.validateShiftTimes(
+                patch.shift_start,
+                patch.shift_end,
+                patch.crosses_midnight,
+            );
         }
 
-        // Validate overlap before applying changes
-        const targetActive = dto.active ?? existing.active;
-        const targetFrom = dto.fromDate
-            ? moment.tz(dto.fromDate, 'Asia/Dhaka').startOf('day').toDate()
-            : existing.effective_from;
-        const targetTo = dto.toDate
-            ? moment.tz(dto.toDate, 'Asia/Dhaka').startOf('day').toDate()
-            : existing.effective_to;
+        const targetActive =
+            patch.active !== undefined ? patch.active : existing.active;
+        const targetFrom = patch.effective_from || existing.effective_from;
+        const targetTo = patch.effective_to || existing.effective_to;
 
         if (targetTo < targetFrom) {
             throw new BadRequestException('To date must be after from date');
@@ -403,20 +303,6 @@ export class ShiftPlanService {
                 );
             }
         }
-
-        const patch: Partial<ShiftPlan> = {
-            shift_type: dto.shiftType || existing.shift_type,
-            shift_start: startTime,
-            shift_end: endTime,
-            crosses_midnight: crossesMidnight,
-            updated_by: userSession.db_id,
-            comment: dto.comment !== undefined ? dto.comment : existing.comment,
-            active: targetActive,
-            effective_from: targetFrom,
-            effective_to: targetTo,
-            grace_period_minutes:
-                dto.gracePeriodMinutes || existing.grace_period_minutes,
-        };
 
         try {
             const updated = await this.shiftPlanModel
@@ -800,109 +686,5 @@ export class ShiftPlanService {
                 'Shift end time is before start time. Set crossesMidnight to true for shifts crossing midnight.',
             );
         }
-    }
-
-    async searchAdjustments(
-        filters: SearchShiftPlanBodyDto,
-        pagination: {
-            page: number;
-            itemsPerPage: number;
-            paginated: boolean;
-        },
-        userSession: UserSession,
-    ) {
-        const canView = hasPerm(
-            'admin:view_shift_plan',
-            userSession.permissions,
-        );
-        if (!canView) {
-            throw new ForbiddenException(
-                "You don't have permission to view shift plans",
-            );
-        }
-
-        try {
-            const query: FilterQuery<ShiftAdjustment> = {};
-
-            if (filters.employeeId) {
-                query.employee = filters.employeeId;
-            }
-
-            if (filters.fromDate || filters.toDate) {
-                const from = filters.fromDate
-                    ? moment
-                          .tz(filters.fromDate, 'YYYY-MM-DD', 'Asia/Dhaka')
-                          .startOf('day')
-                          .toDate()
-                    : undefined;
-                const to = filters.toDate
-                    ? moment
-                          .tz(filters.toDate, 'YYYY-MM-DD', 'Asia/Dhaka')
-                          .endOf('day')
-                          .toDate()
-                    : undefined;
-
-                if (from && to) {
-                    query.shift_date = { $gte: from, $lte: to };
-                } else if (from) {
-                    query.shift_date = { $gte: from };
-                } else if (to) {
-                    query.shift_date = { $lte: to };
-                }
-            }
-
-            const skip = (pagination.page - 1) * pagination.itemsPerPage;
-            const limit = pagination.itemsPerPage;
-
-            const [items, count] = await Promise.all([
-                this.shiftAdjustmentModel
-                    .find(query)
-                    .populate('employee', 'real_name')
-                    .sort({ shift_date: -1 }) // Newest first
-                    .skip(pagination.paginated ? skip : 0)
-                    .limit(pagination.paginated ? limit : 0)
-                    .exec(),
-                this.shiftAdjustmentModel.countDocuments(query),
-            ]);
-
-            return {
-                pagination: {
-                    count,
-                    pageCount: Math.ceil(count / limit),
-                },
-                items,
-            };
-        } catch (err) {
-            this.logger.error(
-                'Failed to search shift adjustments',
-                err as Error,
-            );
-            throw new InternalServerErrorException(
-                'Unable to search shift adjustments',
-            );
-        }
-    }
-
-    async deleteAdjustment(id: string, userSession: UserSession) {
-        const canDelete = hasPerm(
-            'admin:edit_shift_plan',
-            userSession.permissions,
-        );
-        if (!canDelete) {
-            throw new ForbiddenException(
-                "You don't have permission to delete shift adjustments",
-            );
-        }
-
-        const deleted = await this.shiftAdjustmentModel.findByIdAndDelete(id);
-        if (!deleted) throw new NotFoundException('Adjustment not found');
-
-        await this.clearResolvedCache(
-            deleted.employee.toString(),
-            deleted.shift_date,
-            deleted.shift_date,
-        );
-
-        return { success: true };
     }
 }

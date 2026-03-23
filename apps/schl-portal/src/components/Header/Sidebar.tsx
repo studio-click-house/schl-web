@@ -302,11 +302,11 @@ const Sidebar: React.FC<PropsType> = props => {
                                             </li>
                                             <li>
                                                 <Link
-                                                    href="/admin/shift-plans/adjustments"
+                                                    href="/admin/shift-adjustments"
                                                     className="flex items-center w-full p-2 text-gray-900 transition duration-75 pl-20 group hover:bg-gray-100"
                                                 >
                                                     <FileSliders className="w-5 h-5 mr-2" />
-                                                    Overrides
+                                                    Adjustments
                                                 </Link>
                                             </li>
                                             <li>

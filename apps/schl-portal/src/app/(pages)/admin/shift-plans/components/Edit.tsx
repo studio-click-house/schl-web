@@ -2,6 +2,10 @@
 
 import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import { zodResolver } from '@hookform/resolvers/zod';
+import {
+    STANDARD_SHIFTS,
+    shiftTypeOptions,
+} from '@repo/common/constants/shift.constant';
 import { ShiftPlan } from '@repo/common/models/shift-plan.schema';
 import {
     setCalculatedZIndex,
@@ -14,18 +18,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import Select from 'react-select';
 import { toast } from 'sonner';
-import {
-    STANDARD_SHIFTS,
-    ShiftPlanEditData,
-    shiftPlanEditSchema,
-} from '../schema';
-
-const shiftTypeOptions = [
-    { value: 'morning', label: 'Morning' },
-    { value: 'evening', label: 'Evening' },
-    { value: 'night', label: 'Night' },
-    { value: 'custom', label: 'Custom' },
-] as const;
+import { ShiftPlanEditData, shiftPlanEditSchema } from '../schema';
 
 const baseZIndex = 50;
 

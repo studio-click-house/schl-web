@@ -3,6 +3,10 @@
 import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { EMPLOYEE_DEPARTMENTS } from '@repo/common/constants/employee.constant';
+import {
+    STANDARD_SHIFTS,
+    shiftTypeOptions,
+} from '@repo/common/constants/shift.constant';
 import { EmployeeDocument } from '@repo/common/models/employee.schema';
 import { setMenuPortalTarget } from '@repo/common/utils/select-helpers';
 import moment from 'moment-timezone';
@@ -11,23 +15,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import Select from 'react-select';
 import { toast } from 'sonner';
-import {
-    shiftPlanValidationSchema,
-    ShiftPlanFormData,
-    STANDARD_SHIFTS,
-} from '../../schema';
+import { ShiftPlanFormData, shiftPlanValidationSchema } from '../../schema';
 
-const shiftTypeOptions = [
-    { value: 'morning', label: 'Morning (7:00 AM - 3:00 PM)' },
-    { value: 'evening', label: 'Evening (3:00 PM - 11:00 PM)' },
-    { value: 'night', label: 'Night (11:00 PM - 7:00 AM)' },
-    { value: 'custom', label: 'Custom Times' },
-] as const;
-
-const departmentOptions = [
-    { value: '', label: 'All Departments' },
-    ...EMPLOYEE_DEPARTMENTS.map(dept => ({ value: dept, label: dept })),
-];
+const departmentOptions = EMPLOYEE_DEPARTMENTS.map(dept => ({
+    value: dept,
+    label: dept,
+}));
 
 const Form: React.FC = () => {
     const authedFetchApi = useAuthedFetchApi();
@@ -211,11 +204,11 @@ const Form: React.FC = () => {
                     />
                     <Select
                         options={departmentOptions}
-                        isClearable={false}
+                        isClearable={true}
                         value={
                             departmentOptions.find(
                                 opt => opt.value === departmentFilter,
-                            ) || departmentOptions[0]
+                            ) || null
                         }
                         onChange={opt =>
                             setDepartmentFilter(opt ? opt.value : '')

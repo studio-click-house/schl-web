@@ -1,11 +1,11 @@
 'use client';
+
 import Badge from '@/components/Badge';
 import ExtendableTd from '@/components/ExtendableTd';
 import NoData, { Type } from '@/components/NoData';
 import Pagination from '@/components/Pagination';
 import { usePaginationManager } from '@/hooks/usePaginationManager';
 import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
-import { ShiftPlan } from '@repo/common/models/shift-plan.schema';
 import { formatDate, formatTime } from '@repo/common/utils/date-helpers';
 import { cn } from '@repo/common/utils/general-utils';
 import { hasPerm } from '@repo/common/utils/permission-check';
@@ -20,16 +20,18 @@ import BulkDeactivateModal from './BulkDeactivateModal';
 import EditButton from './Edit';
 import FilterButton from './Filter';
 
-interface ShiftPlanWithId extends ShiftPlan {
+import { ShiftAdjustment } from '@repo/common/models/shift-adjustment.schema';
+
+interface ShiftAdjustmentWithId extends ShiftAdjustment {
     _id: string;
 }
 
-interface ShiftPlanResponse {
+interface AdjustmentResponse {
     pagination: {
         count: number;
         pageCount: number;
     };
-    items: ShiftPlanWithId[];
+    items: ShiftAdjustmentWithId[];
 }
 
 type EmployeeOption = {
@@ -45,14 +47,12 @@ const getDefaultFilters = () => {
         employeeId: '',
         fromDate: monday,
         toDate: sunday,
-        shiftType: '',
         active: 'true',
-        department: '',
     };
 };
 
 const Table: React.FC = () => {
-    const [shiftPlans, setShiftPlans] = useState<ShiftPlanResponse>({
+    const [adjustments, setAdjustments] = useState<AdjustmentResponse>({
         pagination: { count: 0, pageCount: 0 },
         items: [],
     });
@@ -72,7 +72,6 @@ const Table: React.FC = () => {
     const [loading, setLoading] = useState<boolean>(true);
     const [searchVersion, setSearchVersion] = useState<number>(0);
 
-    // Multi-select state
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [bulkModalOpen, setBulkModalOpen] = useState(false);
     const [bulkLoading, setBulkLoading] = useState(false);
@@ -115,7 +114,8 @@ const Table: React.FC = () => {
     useEffect(() => {
         getEmployeesForFilter();
     }, [getEmployeesForFilter]);
-    const fetchShiftPlans = useCallback(async () => {
+
+    const fetchAdjustments = useCallback(async () => {
         try {
             setLoading(true);
             setSelectedIds(new Set()); // clear selection on fetch
@@ -130,9 +130,9 @@ const Table: React.FC = () => {
                 {} as Record<string, any>,
             );
 
-            const response = await authedFetchApi<ShiftPlanResponse>(
+            const response = await authedFetchApi<AdjustmentResponse>(
                 {
-                    path: '/v1/shift-plan/search',
+                    path: '/v1/shift-adjustment/search',
                     query: {
                         page,
                         itemsPerPage: itemPerPage,
@@ -147,14 +147,14 @@ const Table: React.FC = () => {
             );
 
             if (response.ok) {
-                setShiftPlans(response.data);
+                setAdjustments(response.data);
                 setPageCount(response.data.pagination.pageCount);
             } else {
                 toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
-            toast.error('An error occurred while retrieving shift plans');
+            toast.error('An error occurred while retrieving adjustments');
         } finally {
             setLoading(false);
         }
@@ -165,14 +165,14 @@ const Table: React.FC = () => {
         itemPerPage,
         pageCount,
         setPage,
-        triggerFetch: fetchShiftPlans,
+        triggerFetch: fetchAdjustments,
     });
 
     useEffect(() => {
         if (searchVersion > 0 && page === 1) {
-            fetchShiftPlans();
+            fetchAdjustments();
         }
-    }, [searchVersion, page, fetchShiftPlans]);
+    }, [searchVersion, page, fetchAdjustments]);
 
     const handleSearch = useCallback(() => {
         setAppliedFilters(filters);
@@ -182,17 +182,13 @@ const Table: React.FC = () => {
 
     // --- Multi-select helpers ---
     const currentPageIds = useMemo(
-        () => shiftPlans.items.map(t => t._id.toString()),
-        [shiftPlans.items],
+        () => adjustments.items.map(t => t._id.toString()),
+        [adjustments.items],
     );
 
     const allCurrentPageSelected =
         currentPageIds.length > 0 &&
         currentPageIds.every(id => selectedIds.has(id));
-
-    const someCurrentPageSelected = currentPageIds.some(id =>
-        selectedIds.has(id),
-    );
 
     const toggleSelectAll = () => {
         setSelectedIds(prev => {
@@ -223,7 +219,7 @@ const Table: React.FC = () => {
         try {
             setBulkLoading(true);
             const response = await authedFetchApi<any>(
-                { path: '/v1/shift-plan/bulk-deactivate' },
+                { path: '/v1/shift-adjustment/bulk-deactivate' },
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -236,17 +232,17 @@ const Table: React.FC = () => {
 
             if (response.ok) {
                 toast.success(
-                    `Deactivated ${response.data?.deactivated ?? selectedIds.size} shift plan(s)`,
+                    `Deactivated ${response.data?.deactivated ?? selectedIds.size} adjustment(s)`,
                 );
                 setBulkModalOpen(false);
                 setSelectedIds(new Set());
-                fetchShiftPlans();
+                fetchAdjustments();
             } else {
                 toastFetchError(response);
             }
         } catch (error) {
             console.error(error);
-            toast.error('An error occurred while deactivating shift plans');
+            toast.error('An error occurred while deactivating adjustments');
         } finally {
             setBulkLoading(false);
         }
@@ -269,20 +265,11 @@ const Table: React.FC = () => {
                     <div className="flex w-full sm:w-auto items-center gap-2">
                         <button
                             onClick={() =>
-                                router.push('/admin/shift-plans/create-plan')
-                            }
-                            className="flex-1 sm:flex-none flex justify-center items-center gap-2 whitespace-nowrap rounded-md bg-primary hover:opacity-90 hover:ring-4 hover:ring-primary transition duration-200 delay-300 hover:text-opacity-100 text-white px-3 py-2"
-                        >
-                            Add shift plan
-                            <CirclePlus size={18} />
-                        </button>
-                        <button
-                            onClick={() =>
                                 router.push(
                                     '/admin/shift-adjustments/create-adjustment',
                                 )
                             }
-                            className="flex-1 sm:flex-none flex justify-center items-center gap-2 whitespace-nowrap rounded-md bg-blue-600 hover:opacity-90 hover:ring-4 hover:ring-blue-600 transition duration-200 delay-300 hover:text-opacity-100 text-white px-3 py-2"
+                            className="flex-1 sm:flex-none flex justify-center items-center gap-2 whitespace-nowrap rounded-md bg-primary hover:opacity-90 hover:ring-4 hover:ring-primary transition duration-200 delay-300 hover:text-opacity-100 text-white px-3 py-2"
                         >
                             Add adjustment
                             <CirclePlus size={18} />
@@ -341,7 +328,10 @@ const Table: React.FC = () => {
                 <div className="flex items-center gap-2 flex-wrap mb-4">
                     <span className="text-sm font-semibold text-blue-800 bg-blue-50 border border-blue-200 px-3 py-2 rounded-md flex items-center shadow-sm">
                         {selectedIds.size}{' '}
-                        {selectedIds.size === 1 ? 'Plan' : 'Plans'} Selected
+                        {selectedIds.size === 1
+                            ? 'Adjustment'
+                            : 'Adjustments'}{' '}
+                        Selected
                     </span>
                     <button
                         type="button"
@@ -366,9 +356,10 @@ const Table: React.FC = () => {
                 <p className="text-center text-gray-500">Loading...</p>
             ) : null}
 
+            {/* Table */}
             <div className="table-responsive text-nowrap text-base">
                 {!loading &&
-                    (shiftPlans.items.length > 0 ? (
+                    (adjustments.items.length > 0 ? (
                         <>
                             <table className="table border table-bordered table-striped">
                                 <thead className="table-dark">
@@ -391,128 +382,145 @@ const Table: React.FC = () => {
                                         )}
                                         <th>S/N</th>
                                         <th>Employee</th>
-                                        <th>Effective From</th>
-                                        <th>Effective To</th>
-                                        <th>Shift Type</th>
-                                        <th>Start Time</th>
-                                        <th>End Time</th>
-                                        <th>Crosses Midnight</th>
+                                        <th>Date</th>
+                                        <th>Type</th>
+                                        <th>Details</th>
                                         <th>Active</th>
-                                        <th>Comment</th>
+                                        <th>Reason</th>
                                         {canEdit && <th>Action</th>}
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {shiftPlans.items.map(
-                                        (shiftPlan, index) => (
-                                            <tr key={String(shiftPlan._id)}>
-                                                {canEdit && (
-                                                    <td
-                                                        className="text-center"
-                                                        style={{
-                                                            verticalAlign:
-                                                                'middle',
-                                                        }}
-                                                    >
-                                                        <div className="flex justify-center items-center h-full py-1">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={selectedIds.has(
-                                                                    shiftPlan._id.toString(),
-                                                                )}
-                                                                onChange={() =>
-                                                                    toggleSelectOne(
-                                                                        shiftPlan._id.toString(),
-                                                                    )
-                                                                }
-                                                                className="w-5 h-5 text-blue-600 bg-gray-50 border-gray-300 rounded-md cursor-pointer"
-                                                            />
-                                                        </div>
-                                                    </td>
-                                                )}
-                                                <td>
-                                                    {(page - 1) * itemPerPage +
-                                                        index +
-                                                        1}
+                                    {adjustments.items.map((item, index) => (
+                                        <tr key={item._id}>
+                                            {canEdit && (
+                                                <td
+                                                    className="text-center"
+                                                    style={{
+                                                        verticalAlign: 'middle',
+                                                    }}
+                                                >
+                                                    <div className="flex justify-center items-center h-full py-1">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedIds.has(
+                                                                item._id.toString(),
+                                                            )}
+                                                            onChange={() =>
+                                                                toggleSelectOne(
+                                                                    item._id.toString(),
+                                                                )
+                                                            }
+                                                            className="w-5 h-5 text-blue-600 bg-gray-50 border-gray-300 rounded-md cursor-pointer"
+                                                        />
+                                                    </div>
                                                 </td>
-                                                <td>
-                                                    {shiftPlan.employee &&
-                                                    typeof shiftPlan.employee !==
-                                                        'string'
-                                                        ? `${(shiftPlan.employee as any).real_name} (${(shiftPlan.employee as any).e_id})`
-                                                        : 'Unknown'}
-                                                </td>
-                                                <td className="text-wrap">
-                                                    {formatDate(
-                                                        shiftPlan.effective_from,
+                                            )}
+                                            <td>
+                                                {(page - 1) * itemPerPage +
+                                                    index +
+                                                    1}
+                                            </td>
+                                            <td>
+                                                {item.employee &&
+                                                typeof item.employee !==
+                                                    'string'
+                                                    ? `${(item.employee as any).real_name} (${(item.employee as any).e_id})`
+                                                    : 'Unknown'}
+                                            </td>
+                                            <td className="text-wrap">
+                                                {formatDate(item.shift_date)}
+                                            </td>
+                                            <td>
+                                                <Badge
+                                                    value={capitalize(
+                                                        item.adjustment_type?.replace(
+                                                            '_',
+                                                            ' ',
+                                                        ),
                                                     )}
-                                                </td>
-                                                <td className="text-wrap">
-                                                    {formatDate(
-                                                        shiftPlan.effective_to,
-                                                    )}
-                                                </td>
-                                                <td>
-                                                    <Badge
-                                                        value={capitalize(
-                                                            shiftPlan.shift_type,
-                                                        )}
-                                                    />
-                                                </td>
-                                                <td>
-                                                    {formatTime(
-                                                        shiftPlan.shift_start,
-                                                    )}
-                                                </td>
-                                                <td>
-                                                    {formatTime(
-                                                        shiftPlan.shift_end,
-                                                    )}
-                                                </td>
-                                                <td>
-                                                    {shiftPlan.crosses_midnight
-                                                        ? 'Yes'
-                                                        : '-'}
-                                                </td>
-                                                <td>
-                                                    {shiftPlan.active
-                                                        ? 'Yes'
-                                                        : '-'}
-                                                </td>
-                                                <ExtendableTd
-                                                    data={
-                                                        shiftPlan.comment || '-'
-                                                    }
                                                 />
-                                                {canEdit && (
-                                                    <td
-                                                        className="text-center"
-                                                        style={{
-                                                            verticalAlign:
-                                                                'middle',
-                                                        }}
-                                                    >
-                                                        <div className="inline-block">
-                                                            <EditButton
-                                                                shiftPlan={
-                                                                    shiftPlan
-                                                                }
-                                                                submitHandler={
-                                                                    fetchShiftPlans
-                                                                }
-                                                            />
-                                                        </div>
-                                                    </td>
+                                            </td>
+                                            <td>
+                                                {item.adjustment_type ===
+                                                'replace' ? (
+                                                    <div>
+                                                        <span className="font-medium">
+                                                            {item.shift_type
+                                                                ? capitalize(
+                                                                      item.shift_type,
+                                                                  )
+                                                                : 'Custom'}
+                                                        </span>
+                                                        {item.shift_start &&
+                                                            item.shift_end && (
+                                                                <span>
+                                                                    :{' '}
+                                                                    {formatTime(
+                                                                        item.shift_start,
+                                                                    )}{' '}
+                                                                    -{' '}
+                                                                    {formatTime(
+                                                                        item.shift_end,
+                                                                    )}
+                                                                </span>
+                                                            )}
+                                                    </div>
+                                                ) : item.adjustment_type ===
+                                                  'off_day' ? (
+                                                    <div>
+                                                        <span className="font-medium">
+                                                            Off Day (OT)
+                                                        </span>
+                                                        {item.shift_start &&
+                                                            item.shift_end && (
+                                                                <span>
+                                                                    :{' '}
+                                                                    {formatTime(
+                                                                        item.shift_start,
+                                                                    )}{' '}
+                                                                    -{' '}
+                                                                    {formatTime(
+                                                                        item.shift_end,
+                                                                    )}
+                                                                </span>
+                                                            )}
+                                                    </div>
+                                                ) : (
+                                                    <span>OFF DAY</span>
                                                 )}
-                                            </tr>
-                                        ),
-                                    )}
+                                            </td>
+                                            <td>
+                                                {item.active ? 'Yes' : '-'}
+                                            </td>
+                                            <ExtendableTd
+                                                data={item.comment || '-'}
+                                            />
+                                            {canEdit && (
+                                                <td
+                                                    className="text-center"
+                                                    style={{
+                                                        verticalAlign: 'middle',
+                                                    }}
+                                                >
+                                                    <div className="inline-block">
+                                                        <EditButton
+                                                            adjustment={item}
+                                                            submitHandler={
+                                                                fetchAdjustments
+                                                            }
+                                                        />
+                                                    </div>
+                                                </td>
+                                            )}
+                                        </tr>
+                                    ))}
                                 </tbody>
                             </table>
                         </>
                     ) : (
                         <NoData
-                            text="No Shift Plans Found"
+                            text="No Shift Adjustments Found"
                             type={Type.danger}
                         />
                     ))}

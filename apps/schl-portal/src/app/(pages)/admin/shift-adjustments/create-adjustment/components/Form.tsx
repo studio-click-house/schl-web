@@ -3,6 +3,11 @@
 import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { EMPLOYEE_DEPARTMENTS } from '@repo/common/constants/employee.constant';
+import {
+    adjustmentTypeOptions,
+    shiftTypeOptions,
+    STANDARD_SHIFTS,
+} from '@repo/common/constants/shift.constant';
 import { EmployeeDocument } from '@repo/common/models/employee.schema';
 import { setMenuPortalTarget } from '@repo/common/utils/select-helpers';
 import { useRouter } from 'next/navigation';
@@ -10,36 +15,20 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import Select from 'react-select';
 import { toast } from 'sonner';
-import {
-    ShiftAdjustmentFormData,
-    shiftAdjustmentSchema,
-    STANDARD_SHIFTS,
-} from '../../../schema';
+import { ShiftAdjustmentFormData, shiftAdjustmentSchema } from '../../schema';
 
-const adjustmentTypeOptions = [
-    { value: 'replace', label: 'Replace (set new shift)' },
-    { value: 'off_day', label: 'Off Day (mark as OT)' },
-    { value: 'cancel', label: 'Cancel (no shift)' },
-] as const;
+const departmentOptions = EMPLOYEE_DEPARTMENTS.map(dept => ({
+    value: dept,
+    label: dept,
+}));
 
-const shiftTypeOptions = [
-    { value: 'morning', label: 'Morning (7:00 AM - 3:00 PM)' },
-    { value: 'evening', label: 'Evening (3:00 PM - 11:00 PM)' },
-    { value: 'night', label: 'Night (11:00 PM - 7:00 AM)' },
-    { value: 'custom', label: 'Custom Times' },
-] as const;
-
-const departmentOptions = [
-    { value: '', label: 'All Departments' },
-    ...EMPLOYEE_DEPARTMENTS.map(dept => ({ value: dept, label: dept })),
-];
-
-const AdjustmentForm = () => {
+const AdjustmentForm: React.FC = () => {
     const authedFetchApi = useAuthedFetchApi();
     const router = useRouter();
 
     const [employees, setEmployees] = useState<EmployeeDocument[]>([]);
     const [loadingEmployees, setLoadingEmployees] = useState(true);
+    const [loading, setLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [departmentFilter, setDepartmentFilter] = useState('');
 
@@ -49,23 +38,25 @@ const AdjustmentForm = () => {
         control,
         watch,
         setValue,
-        formState: { errors, isSubmitting },
+        reset,
+        formState: { errors },
     } = useForm<ShiftAdjustmentFormData>({
         resolver: zodResolver(shiftAdjustmentSchema),
         defaultValues: {
-            employeeId: '',
+            employeeIds: [],
             shiftDate: '',
             adjustmentType: 'replace',
             shiftType: 'morning',
             shiftStart: STANDARD_SHIFTS.morning.start,
             shiftEnd: STANDARD_SHIFTS.morning.end,
-            gracePeriodMinutes: undefined,
+            gracePeriodMinutes: 10,
             comment: '',
         },
     });
 
     const watchedAdjustmentType = watch('adjustmentType');
     const watchedShiftType = watch('shiftType');
+    const watchedEmployeeIds = watch('employeeIds');
 
     const fetchEmployees = useCallback(async () => {
         try {
@@ -112,50 +103,88 @@ const AdjustmentForm = () => {
         });
     }, [employees, departmentFilter, searchTerm]);
 
-    const employeeSelectOptions = useMemo(
-        () =>
-            filteredEmployees.map(emp => ({
-                value: emp._id.toString(),
-                label: `${emp.real_name} (${emp.e_id})`,
-            })),
-        [filteredEmployees],
-    );
-
-    const onSubmit = async (data: ShiftAdjustmentFormData) => {
-        const response = await authedFetchApi<any>(
-            { path: '/v1/shift-plan/adjustments/create' },
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data),
-            },
-        );
-
-        if (response.ok) {
-            toast.success('Shift adjustment created successfully');
-            router.push('/admin/shift-plans');
-        } else {
-            toastFetchError(response);
-        }
+    const handleEmployeeToggle = (employeeId: string) => {
+        const current = watchedEmployeeIds;
+        const updated = current.includes(employeeId)
+            ? current.filter(id => id !== employeeId)
+            : [...current, employeeId];
+        setValue('employeeIds', updated, { shouldValidate: true });
     };
 
-    const standardShift =
-        watchedShiftType && watchedShiftType !== 'custom'
-            ? STANDARD_SHIFTS[watchedShiftType as keyof typeof STANDARD_SHIFTS]
-            : null;
+    const handleSelectFiltered = () => {
+        const filteredIds = filteredEmployees.map(emp => emp._id.toString());
+        const allSelected = filteredIds.every(id =>
+            watchedEmployeeIds.includes(id),
+        );
+        const updated = allSelected
+            ? watchedEmployeeIds.filter(id => !filteredIds.includes(id))
+            : Array.from(new Set([...watchedEmployeeIds, ...filteredIds]));
+        setValue('employeeIds', updated, { shouldValidate: true });
+    };
+
+    async function createShiftAdjustments(data: ShiftAdjustmentFormData) {
+        try {
+            setLoading(true);
+
+            const promises = data.employeeIds.map(employeeId => {
+                const { employeeIds, ...dataWithoutIds } = data;
+                const payload = { ...dataWithoutIds, employeeId };
+                return authedFetchApi(
+                    { path: '/v1/shift-adjustment/create' },
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                    },
+                );
+            });
+
+            const results = await Promise.allSettled(promises);
+
+            const success = results.filter(
+                r => r.status === 'fulfilled' && r.value.ok,
+            ).length;
+            const failed = results.length - success;
+
+            if (failed === 0) {
+                toast.success(`Successfully created ${success} adjustment(s)`);
+                reset();
+                router.push('/admin/shift-adjustments');
+            } else {
+                const firstFailedResponse = results.find(
+                    r => r.status === 'fulfilled' && !r.value.ok,
+                ) as PromiseFulfilledResult<any> | undefined;
+
+                if (firstFailedResponse) {
+                    toastFetchError(firstFailedResponse.value);
+                } else {
+                    toast.error(`Failed to create ${failed} adjustment(s)`);
+                }
+            }
+        } catch (error) {
+            console.error(error);
+            toast.error('An error occurred while creating shift adjustments');
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    const onSubmit = async (data: ShiftAdjustmentFormData) => {
+        await createShiftAdjustments(data);
+    };
 
     return (
         <form onSubmit={handleSubmit(onSubmit)}>
             {/* Employee select */}
             <div className="mb-6">
                 <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
-                    <span className="uppercase">Select Employee *</span>
+                    <span className="uppercase">Select Employees*</span>
                     <span className="text-red-700 text-wrap block text-xs">
-                        {errors.employeeId?.message}
+                        {errors.employeeIds?.message}
                     </span>
                 </label>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
                     <input
                         type="text"
                         placeholder="Search by name or ID"
@@ -165,11 +194,11 @@ const AdjustmentForm = () => {
                     />
                     <Select
                         options={departmentOptions}
-                        isClearable={false}
+                        isClearable={true}
                         value={
                             departmentOptions.find(
                                 opt => opt.value === departmentFilter,
-                            ) || departmentOptions[0]
+                            ) || null
                         }
                         onChange={opt =>
                             setDepartmentFilter(opt ? opt.value : '')
@@ -178,41 +207,76 @@ const AdjustmentForm = () => {
                         classNamePrefix="react-select"
                         menuPortalTarget={setMenuPortalTarget}
                     />
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={handleSelectFiltered}
+                            disabled={loadingEmployees}
+                            className="text-sm px-4 py-2 bg-blue-600 text-white rounded-md hover:opacity-90 disabled:opacity-50 transition-all duration-150 shadow-sm disabled:cursor-not-allowed"
+                        >
+                            Select Filtered
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() =>
+                                setValue('employeeIds', [], {
+                                    shouldValidate: true,
+                                })
+                            }
+                            className="text-sm px-4 py-2 bg-gray-600 text-white rounded-md hover:opacity-90 transition-all duration-150 shadow-sm"
+                        >
+                            Clear
+                        </button>
+                    </div>
                 </div>
 
-                <Controller
-                    name="employeeId"
-                    control={control}
-                    render={({ field }) => (
-                        <Select
-                            options={employeeSelectOptions}
-                            isLoading={loadingEmployees}
-                            isDisabled={loadingEmployees}
-                            placeholder={
-                                loadingEmployees
-                                    ? 'Loading employees...'
-                                    : 'Select an employee'
-                            }
-                            classNamePrefix="react-select"
-                            menuPortalTarget={setMenuPortalTarget}
-                            value={
-                                employeeSelectOptions.find(
-                                    opt => opt.value === field.value,
-                                ) || null
-                            }
-                            onChange={opt =>
-                                field.onChange(opt ? opt.value : '')
-                            }
-                        />
+                <div className="flex items-center gap-3 mb-3 text-sm text-gray-600">
+                    <span>{`${watchedEmployeeIds.length} selected • ${filteredEmployees.length} shown of ${employees.length} active`}</span>
+                </div>
+
+                <div className="border border-gray-200 rounded-lg max-h-60 overflow-y-auto bg-gray-50 p-3">
+                    {loadingEmployees ? (
+                        <p className="text-gray-500 text-sm">
+                            Loading employees...
+                        </p>
+                    ) : filteredEmployees.length === 0 ? (
+                        <p className="text-gray-500 text-sm">
+                            No active employees match your filters
+                        </p>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                            {filteredEmployees.map(emp => (
+                                <label
+                                    key={emp._id.toString()}
+                                    className="flex items-center gap-2 p-2 hover:bg-white rounded-md cursor-pointer transition-colors duration-150"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        checked={watchedEmployeeIds.includes(
+                                            emp._id.toString(),
+                                        )}
+                                        onChange={() =>
+                                            handleEmployeeToggle(
+                                                emp._id.toString(),
+                                            )
+                                        }
+                                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                                    />
+                                    <span className="text-sm text-gray-700">
+                                        {emp.real_name} ({emp.e_id})
+                                    </span>
+                                </label>
+                            ))}
+                        </div>
                     )}
-                />
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 mb-4 gap-y-4">
                 {/* Shift Date */}
                 <div>
                     <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
-                        <span className="uppercase">Shift Date *</span>
+                        <span className="uppercase">Shift Date*</span>
                         <span className="text-red-700 text-wrap block text-xs">
                             {errors.shiftDate?.message}
                         </span>
@@ -220,6 +284,7 @@ const AdjustmentForm = () => {
                     <input
                         {...register('shiftDate')}
                         type="date"
+                        min={new Date().toISOString().split('T')[0]}
                         className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
                     />
                 </div>
@@ -227,7 +292,7 @@ const AdjustmentForm = () => {
                 {/* Adjustment Type */}
                 <div>
                     <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
-                        <span className="uppercase">Adjustment Type *</span>
+                        <span className="uppercase">Adjustment Type*</span>
                         <span className="text-red-700 text-wrap block text-xs">
                             {errors.adjustmentType?.message}
                         </span>
@@ -260,7 +325,7 @@ const AdjustmentForm = () => {
                     <>
                         <div className="md:col-span-2">
                             <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
-                                <span className="uppercase">Shift Type *</span>
+                                <span className="uppercase">Shift Type*</span>
                                 <span className="text-red-700 text-wrap block text-xs">
                                     {errors.shiftType?.message}
                                 </span>
@@ -298,40 +363,42 @@ const AdjustmentForm = () => {
                             />
                         </div>
 
-                        <div>
-                            <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
-                                <span className="uppercase">
-                                    Start Time (HH:mm) *
-                                </span>
-                                <span className="text-red-700 text-wrap block text-xs">
-                                    {errors.shiftStart?.message}
-                                </span>
-                            </label>
-                            <input
-                                {...register('shiftStart')}
-                                type="text"
-                                placeholder="10:00"
-                                disabled={watchedShiftType !== 'custom'}
-                                className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
-                            />
-                        </div>
-                        <div>
-                            <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
-                                <span className="uppercase">
-                                    End Time (HH:mm) *
-                                </span>
-                                <span className="text-red-700 text-wrap block text-xs">
-                                    {errors.shiftEnd?.message}
-                                </span>
-                            </label>
-                            <input
-                                {...register('shiftEnd')}
-                                type="text"
-                                placeholder="23:00"
-                                disabled={watchedShiftType !== 'custom'}
-                                className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
-                            />
-                        </div>
+                        {watchedShiftType === 'custom' && (
+                            <>
+                                <div>
+                                    <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
+                                        <span className="uppercase">
+                                            Start Time (HH:mm)*
+                                        </span>
+                                        <span className="text-red-700 text-wrap block text-xs">
+                                            {errors.shiftStart?.message}
+                                        </span>
+                                    </label>
+                                    <input
+                                        {...register('shiftStart')}
+                                        type="text"
+                                        placeholder="10:00"
+                                        className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
+                                        <span className="uppercase">
+                                            End Time (HH:mm)*
+                                        </span>
+                                        <span className="text-red-700 text-wrap block text-xs">
+                                            {errors.shiftEnd?.message}
+                                        </span>
+                                    </label>
+                                    <input
+                                        {...register('shiftEnd')}
+                                        type="text"
+                                        placeholder="23:00"
+                                        className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
+                                    />
+                                </div>
+                            </>
+                        )}
                     </>
                 )}
             </div>
@@ -369,7 +436,7 @@ const AdjustmentForm = () => {
                     }
                 >
                     <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
-                        <span className="uppercase">Comment (Optional)</span>
+                        <span className="uppercase">Comment</span>
                         <span className="text-red-700 text-wrap block text-xs">
                             {errors.comment?.message}
                         </span>
@@ -385,11 +452,15 @@ const AdjustmentForm = () => {
 
             {/* Submit */}
             <button
-                disabled={isSubmitting || loadingEmployees}
+                disabled={
+                    loading ||
+                    loadingEmployees ||
+                    watchedEmployeeIds.length === 0
+                }
                 className="rounded-md bg-primary text-white hover:opacity-90 hover:ring-4 hover:ring-primary transition duration-200 delay-300 hover:text-opacity-100 text-primary-foreground px-10 py-2 mt-6 uppercase disabled:opacity-50 disabled:cursor-not-allowed"
                 type="submit"
             >
-                {isSubmitting ? 'Saving...' : 'Create adjustment'}
+                {loading ? 'Creating...' : 'Create adjustment'}
             </button>
         </form>
     );

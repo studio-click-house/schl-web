@@ -23,7 +23,6 @@ export const bloodGroupOptions = EMPLOYEE_BLOOD_GROUPS.map(group => ({
 
 export const departmentOptions = EMPLOYEE_DEPARTMENTS.map(department => ({
     value: department,
-    // label: department.toUpperCase(),
     label: department,
 }));
 

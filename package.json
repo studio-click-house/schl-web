@@ -26,6 +26,10 @@
         "@types/cookie-parser": "^1.4.10",
         "camelcase-keys": "^10.0.2",
         "cookie-parser": "^1.4.7"
+    },
+    "pnpm": {
+        "overrides": {
+            "jose": "^5.9.6"
+        }
     }
 }
-

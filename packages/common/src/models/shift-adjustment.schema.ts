@@ -46,6 +46,9 @@ export class ShiftAdjustment {
     @Prop({ required: false, type: Boolean, default: false })
     crosses_midnight?: boolean;
 
+    @Prop({ required: false, type: Boolean, default: true })
+    active: boolean;
+
     @Prop({ required: false, type: Number, default: 10 })
     grace_period_minutes: number; // Grace window before flagging as late
 
