@@ -19,6 +19,8 @@ import {
     buildTrackerUserSessionsPipeline,
 } from '../aggregations/tracker.pipelines';
 
+const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 @Injectable()
 export class TrackerQueryService {
     constructor(
@@ -43,7 +45,7 @@ export class TrackerQueryService {
                               ...baseFilter,
                               client_code: {
                                   $regex: new RegExp(
-                                      `^${dto.clientCode.trim().replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}$`,
+                                      `^${escapeRegExp(dto.clientCode.trim())}$`,
                                       'i',
                                   ),
                               },
@@ -54,6 +56,7 @@ export class TrackerQueryService {
                 .select(
                     'client_code folder folder_path task et quantity status type',
                 )
+                .limit(500)
                 .lean()
                 .exec();
 
@@ -90,9 +93,6 @@ export class TrackerQueryService {
         }
 
         try {
-            const escapeRegExp = (value: string) =>
-                value.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&');
-
             const q = dto.query.trim();
             const fileRegex = new RegExp(escapeRegExp(q), 'i');
 
@@ -254,9 +254,6 @@ export class TrackerQueryService {
             const requestedUsername =
                 dto?.username && dto.username.trim() ? dto.username.trim() : '';
 
-            const escapeRegex = (value: string) =>
-                value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
             const normalizeUserKey = (value: string) => {
                 const trimmed = (value || '').trim();
                 if (!trimmed) return '';
@@ -269,7 +266,7 @@ export class TrackerQueryService {
 
             const userRegex = requestedUserKey
                 ? new RegExp(
-                      `^${escapeRegex(requestedUserKey)}(\\s*-.*)?$`,
+                      `^${escapeRegExp(requestedUserKey)}(\\s*-.*)?$`,
                       'i',
                   )
                 : null;
@@ -388,13 +385,14 @@ export class TrackerQueryService {
                 sessionFilter.session_date = usedDate;
             }
 
-            const latestSessionsByUser = await this.userSessionModel
-                .aggregate(buildTrackerUserSessionsPipeline(sessionFilter))
-                .exec();
-
-            const data = await this.workLogModel
-                .aggregate(buildLiveTrackingDataPipeline(filter))
-                .exec();
+            const [latestSessionsByUser, data] = await Promise.all([
+                this.userSessionModel
+                    .aggregate(buildTrackerUserSessionsPipeline(sessionFilter))
+                    .exec(),
+                this.workLogModel
+                    .aggregate(buildLiveTrackingDataPipeline(filter))
+                    .exec(),
+            ]);
 
             return {
                 success: true,
