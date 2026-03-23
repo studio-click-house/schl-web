@@ -81,7 +81,6 @@ export class TrackerWorkLogService {
             // ── Idempotency check: skip $inc if syncId already processed ──
             const syncId =
                 typeof payload.syncId === 'string' ? payload.syncId.trim() : '';
-            const skipInc = false;
 
             if (syncId) {
                 const existing = await this.workLogModel
@@ -105,9 +104,7 @@ export class TrackerWorkLogService {
             const bucketMax = { ...bucketMaxRaw };
             delete (bucketMax as any).pause_count;
             delete (bucketMax as any).pause_time;
-            const bucketInc = skipInc
-                ? {}
-                : TrackerFactory.qcBucketIncFromSyncDto(payload);
+            const bucketInc = TrackerFactory.qcBucketIncFromSyncDto(payload);
 
             const bucketUpdate: Record<string, any> = {
                 $setOnInsert: filter,
@@ -120,35 +117,33 @@ export class TrackerWorkLogService {
             if (Object.keys(bucketInc).length) bucketUpdate.$inc = bucketInc;
 
             // Record syncId (keep last 50 to prevent unbounded growth)
-            if (syncId && !skipInc) {
+            if (syncId) {
                 bucketUpdate.$push = {
                     processed_sync_ids: { $each: [syncId], $slice: -10 },
                 };
             }
 
-            await this.workLogModel.updateOne(filter, bucketUpdate, {
-                upsert: true,
-            });
+            const bucketDoc = await this.workLogModel
+                .findOneAndUpdate(filter, bucketUpdate, {
+                    upsert: true,
+                    new: true,
+                })
+                .lean();
 
-            // ── Per-file updates (fast: read once, push once, bulkWrite once) ──
+            // ── Per-file updates (fast: push once, bulkWrite once) ──
             if (Array.isArray(payload.files) && payload.files.length > 0) {
                 const now = new Date();
 
-                type ExistingFilesDoc = {
-                    files?: Array<{ file_name?: string } | null>;
-                };
-
-                // Step 1: Read existing file names in ONE query
-                const existingDoc = await this.workLogModel
-                    .findOne(filter, { 'files.file_name': 1 })
-                    .lean<ExistingFilesDoc>();
+                // Existing file names from the findOneAndUpdate result — no extra query
+                const rawFiles: Array<{ file_name?: string } | null> =
+                    (bucketDoc as any)?.files ?? [];
                 const existingNames = new Set<string>(
-                    (existingDoc?.files ?? [])
+                    rawFiles
                         .filter((f): f is { file_name?: string } => f != null)
                         .map(f => String(f.file_name ?? '')),
                 );
 
-                // Step 2: Push ALL new files in ONE call ($push + $each)
+                // Step 1: Push ALL new files in ONE call ($push + $each)
                 const newFileDocs = payload.files
                     .map(f => {
                         const fileName = f.fileName?.trim() || '';
@@ -175,7 +170,6 @@ export class TrackerWorkLogService {
                         ) {
                             fileDoc.completed_at = now;
                         }
-                        if (skipInc) fileDoc.time_spent = 0;
                         return fileDoc;
                     })
                     .filter((d): d is Record<string, any> => d !== null);
@@ -186,7 +180,7 @@ export class TrackerWorkLogService {
                     });
                 }
 
-                // Step 3: bulkWrite to update status + $inc time_spent for all files at once
+                // Step 2: bulkWrite to update status + $inc time_spent for all files at once
                 const bulkOps: AnyBulkWriteOperation<WorkLog>[] = [];
                 for (const f of payload.files) {
                     const fileName = f.fileName?.trim() || '';
@@ -205,9 +199,7 @@ export class TrackerWorkLogService {
                         $set['files.$.file_status'] = payload.fileStatus;
                     }
 
-                    const $inc = skipInc
-                        ? {}
-                        : TrackerFactory.qcFileIncFromSyncFileDto(f);
+                    const $inc = TrackerFactory.qcFileIncFromSyncFileDto(f);
 
                     const update: Record<string, any> = {};
                     if (Object.keys($set).length) update.$set = $set;
@@ -226,7 +218,7 @@ export class TrackerWorkLogService {
                     });
                 }
 
-                // Step 4: set started_at / completed_at only if missing
+                // Step 3: set started_at / completed_at only if missing
                 // (use $elemMatch so positional operator targets the correct file array element)
                 const statusLower = String(payload.fileStatus || '')
                     .toLowerCase()
@@ -307,27 +299,30 @@ export class TrackerWorkLogService {
                 payload.employeeName,
             );
 
-            // Broadcast merged row via fast indexed reads (work log + pause session)
-            const updatedDoc = await this.workLogModel
-                .findOne(filter, {
-                    _id: 1,
-                    total_times: 1,
-                    estimate_time: 1,
-                    files: 1,
-                    categories: 1,
-                })
-                .lean();
-
-            const pauseDocById = updatedDoc?._id
-                ? await this.pauseSessionModel
-                      .findOne({
-                          work_log_id: updatedDoc._id,
-                      } as FilterQuery<PauseSession>)
-                      .lean()
-                : null;
-            const pauseDocByKey = await this.pauseSessionModel
-                .findOne(filter as FilterQuery<PauseSession>)
-                .lean();
+            // Broadcast merged row via PARALLEL reads (work log + pause session)
+            const [updatedDoc, pauseDocById, pauseDocByKey] = await Promise.all(
+                [
+                    this.workLogModel
+                        .findOne(filter, {
+                            _id: 1,
+                            total_times: 1,
+                            estimate_time: 1,
+                            files: 1,
+                            categories: 1,
+                        })
+                        .lean(),
+                    (bucketDoc as any)?._id
+                        ? this.pauseSessionModel
+                              .findOne({
+                                  work_log_id: (bucketDoc as any)._id,
+                              } as FilterQuery<PauseSession>)
+                              .lean()
+                        : Promise.resolve(null),
+                    this.pauseSessionModel
+                        .findOne(filter as FilterQuery<PauseSession>)
+                        .lean(),
+                ],
+            );
             const pauseDoc = pauseDocById || pauseDocByKey;
 
             const pauseReasons = pauseDoc
@@ -385,23 +380,31 @@ export class TrackerWorkLogService {
                       })
                     : accFiles;
 
-            this.trackerGateway.broadcastTrackerUpdate('TRACKER_UPDATED', {
-                work_log_id: updatedDoc?._id ?? null,
-                employeeName,
-                clientCode: payload.clientCode,
-                workType: payload.workType,
-                shift: payload.shift,
-                folderPath: payload.folderPath,
-                fileStatus: computedStatus,
-                timestamp: new Date().toISOString(),
-                total_times: (updatedDoc as any)?.total_times ?? 0,
-                estimate_time: updatedDoc?.estimate_time ?? 0,
-                categories: (updatedDoc as any)?.categories ?? '',
-                pause_time: pauseTime,
-                pause_count: pauseCount,
-                pause_reasons: pauseReasons,
-                files: emittedFiles,
-            });
+            // Real-time broadcast (isolated to prevent 500 errors on successful DB writes)
+            try {
+                this.trackerGateway.broadcastTrackerUpdate('TRACKER_UPDATED', {
+                    work_log_id: updatedDoc?._id ?? null,
+                    employeeName,
+                    clientCode: payload.clientCode,
+                    workType: payload.workType,
+                    shift: payload.shift,
+                    folderPath: payload.folderPath,
+                    fileStatus: computedStatus,
+                    timestamp: new Date().toISOString(),
+                    total_times: (updatedDoc as any)?.total_times ?? 0,
+                    estimate_time: updatedDoc?.estimate_time ?? 0,
+                    categories: (updatedDoc as any)?.categories ?? '',
+                    pause_time: pauseTime,
+                    pause_count: pauseCount,
+                    pause_reasons: pauseReasons,
+                    files: emittedFiles,
+                });
+            } catch (broadcastErr) {
+                this.logger.error(
+                    `Broadcast failed for ${employeeName} - ${payload.clientCode}:`,
+                    broadcastErr,
+                );
+            }
 
             return { success: true };
         } catch (e) {
