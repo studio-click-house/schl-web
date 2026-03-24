@@ -256,7 +256,17 @@ export class AttendanceService {
             return;
         }
 
-        // 3. Regular Shift / Adjustment Logic
+        // 3. Off-Day OT Logic — no delay concept; just mark Present
+        if ((shift as any).is_off_day_overtime) {
+            const present = await this.getFlagByCode('P');
+            if (present) {
+                (attendance as any).flag = present._id;
+            }
+            (attendance as any).late_minutes = 0;
+            return;
+        }
+
+        // 4. Regular Shift / Adjustment Logic
         const shiftStartStr = `${moment
             .tz(shift.shift_date, 'Asia/Dhaka')
             .format('YYYY-MM-DD')} ${shift.shift_start}`;
@@ -799,35 +809,45 @@ export class AttendanceService {
             const fromDate = from.toDate();
             const toDate = to.toDate();
 
-            const [attendanceRows, leaveRows, holidayRows, departments] =
-                await Promise.all([
-                    this.attendanceModel
-                        .find({
-                            employee: { $in: employeeIds },
-                            shift_date: { $gte: fromDate, $lte: toDate },
-                        })
-                        .populate('flag')
-                        .sort({ createdAt: -1 })
-                        .lean()
-                        .exec(),
-                    this.leaveRequestModel
-                        .find({
-                            employee: { $in: employeeIds },
-                            status: 'approved',
-                            start_date: { $lte: toDate },
-                            end_date: { $gte: fromDate },
-                        })
-                        .lean()
-                        .exec(),
-                    this.holidayModel
-                        .find({
-                            dateFrom: { $lte: toDate },
-                            dateTo: { $gte: fromDate },
-                        })
-                        .lean()
-                        .exec(),
-                    this.departmentModel.find().lean().exec(),
-                ]);
+            const [
+                attendanceRows,
+                leaveRows,
+                holidayRows,
+                departments,
+                allFlags,
+            ] = await Promise.all([
+                this.attendanceModel
+                    .find({
+                        employee: { $in: employeeIds },
+                        shift_date: { $gte: fromDate, $lte: toDate },
+                    })
+                    .populate('flag')
+                    .sort({ createdAt: -1 })
+                    .lean()
+                    .exec(),
+                this.leaveRequestModel
+                    .find({
+                        employee: { $in: employeeIds },
+                        status: 'approved',
+                        start_date: { $lte: toDate },
+                        end_date: { $gte: fromDate },
+                    })
+                    .lean()
+                    .exec(),
+                this.holidayModel
+                    .find({
+                        dateFrom: { $lte: toDate },
+                        dateTo: { $gte: fromDate },
+                    })
+                    .lean()
+                    .exec(),
+                this.departmentModel.find().lean().exec(),
+                this.attendanceFlagModel.find().lean().exec(),
+            ]);
+
+            // Build code -> flag document map for O(1) virtual-record lookup
+            const flagByCode = new Map<string, any>();
+            allFlags.forEach(f => flagByCode.set(f.code, f));
 
             const departmentWeekendMap = new Map<string, number[]>();
             departments.forEach(dept => {
@@ -1121,22 +1141,13 @@ export class AttendanceService {
                             shift_date: shiftDate,
                             in_time: vInTime,
                             out_time: vOutTime,
-                            in_remark: `Virtual ${virtualCode}`,
+                            in_remark: '',
                             out_remark: '',
                             ot_minutes: 0,
                             verify_mode: 'auto',
                             status: 'system-generated',
-                            flag: {
-                                _id: new Types.ObjectId(),
+                            flag: flagByCode.get(virtualCode) ?? {
                                 code: virtualCode,
-                                color:
-                                    virtualCode === 'L'
-                                        ? '#16a34a'
-                                        : virtualCode === 'H'
-                                          ? '#0ea5e9'
-                                          : virtualCode === 'W'
-                                            ? '#f59e0b'
-                                            : '#ef4444',
                             },
                             is_virtual: true,
                         });

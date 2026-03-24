@@ -48,7 +48,7 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { formatOT } from '../utils/ot-helpers';
+
 import DeleteButton from './Delete';
 import FilterButton from './Filter';
 
@@ -481,9 +481,7 @@ const Table = ({ queryEmployeeId }: AttendanceTableProps) => {
                                                         <th className="text-center">
                                                             Working Hour
                                                         </th>
-                                                        <th className="text-center">
-                                                            OT
-                                                        </th>
+
                                                         {hasPerm(
                                                             'admin:delete_attendance',
                                                             userPermissions,
@@ -616,11 +614,7 @@ const Table = ({ queryEmployeeId }: AttendanceTableProps) => {
                                                                                 .flag,
                                                                         )}
                                                                     </td>
-                                                                    <td className="text-wrap font-semibold text-green-600 text-center">
-                                                                        {formatOT(
-                                                                            attendance.ot_minutes,
-                                                                        )}
-                                                                    </td>
+
                                                                     {hasPerm(
                                                                         'admin:delete_attendance',
                                                                         userPermissions,

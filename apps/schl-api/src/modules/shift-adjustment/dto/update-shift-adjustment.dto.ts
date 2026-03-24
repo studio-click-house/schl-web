@@ -1,4 +1,5 @@
 import {
+    IsBoolean,
     IsDateString,
     IsInt,
     IsOptional,
@@ -45,4 +46,8 @@ export class UpdateShiftAdjustmentBodyDto {
     @Min(0)
     @Max(120)
     gracePeriodMinutes?: number;
+
+    @IsOptional()
+    @IsBoolean()
+    active?: boolean;
 }

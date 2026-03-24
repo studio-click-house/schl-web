@@ -119,7 +119,7 @@ export class AttendanceGeneratorService {
                 });
                 if (existing) continue; // idempotent
 
-                // If shift is explicitly cancelled, do NOT prefill Absent here
+                // If shift is explicitly cancelled, do NOT prefill any record.
                 const adjustment = await this.shiftAdjustmentModel
                     .findOne({ employee: emp._id, shift_date: startOfDay })
                     .lean()
@@ -151,11 +151,30 @@ export class AttendanceGeneratorService {
                 const isWeekend = weekendDays.includes(dayOfWeek);
                 if (isWeekend) continue;
 
-                // If there's no resolved shift (no template), we still prefill Absent
-                // because employee is considered expected to be present by business rule.
-
-                const flagId = flagMap.get('A');
                 const systemStatus: AttendanceStatus = 'system-generated';
+
+                // Off-day OT: prefill with P so the employee is visible in intra-day
+                // searches before they clock in. The EOD generateForDate run will overwrite
+                // this auto/system-generated record with H/W/L or Absent as appropriate.
+                if (adjustment && adjustment.adjustment_type === 'off_day') {
+                    const offDayPayload: Partial<Attendance> = {
+                        shift_date: startOfDay,
+                        employee: emp._id,
+                        user_id: emp.e_id
+                            ? `SYS_${emp.e_id}`
+                            : `SYS_${emp._id.toString()}`,
+                        device_id: DEFAULT_DEVICE_ID,
+                        source_ip: DEFAULT_SOURCE_IP,
+                        verify_mode: 'auto',
+                        status: systemStatus,
+                        flag: flagMap.get('P'),
+                        late_minutes: 0,
+                        in_remark: 'Off Day OT (pending check-in)',
+                        out_remark: 'Off Day OT (pending check-in)',
+                    };
+                    await this.attendanceModel.create(offDayPayload);
+                    continue;
+                }
 
                 // Prefill payload: we intentionally set in_time/out_time to null so the
                 // record represents a provisional Absent and will be converted on check-in.
@@ -169,7 +188,7 @@ export class AttendanceGeneratorService {
                     source_ip: DEFAULT_SOURCE_IP,
                     verify_mode: 'auto',
                     status: systemStatus,
-                    flag: flagId,
+                    flag: flagMap.get('A'),
                     late_minutes: 0,
                     out_remark: 'Prefilled Absent',
                     in_remark: 'Prefilled Absent',

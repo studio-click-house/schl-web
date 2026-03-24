@@ -291,23 +291,6 @@ const EditButton = ({ shiftPlan, submitHandler }: EditButtonProps) => {
                             </div>
 
                             <div>
-                                <label className="inline-flex items-center gap-2 cursor-pointer md:mt-7">
-                                    <input
-                                        type="checkbox"
-                                        {...register('active')}
-                                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-                                    />
-                                    <span className="text-sm font-medium text-gray-700">
-                                        Active Plan
-                                    </span>
-                                </label>
-                                <p className="text-xs font-mono text-gray-400 flex flex-row gap-2 mt-0.5">
-                                    Deactivate to stop using this plan for new
-                                    days
-                                </p>
-                            </div>
-
-                            <div>
                                 <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
                                     <span className="uppercase">
                                         Grace Period (min)
@@ -325,6 +308,23 @@ const EditButton = ({ shiftPlan, submitHandler }: EditButtonProps) => {
                                 <p className="text-xs font-mono text-gray-400 flex flex-row gap-2 mt-1">
                                     Minutes allowed late before flagging as
                                     delayed
+                                </p>
+                            </div>
+
+                            <div className="md:col-span-2">
+                                <label className="inline-flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        {...register('active')}
+                                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                                    />
+                                    <span className="text-sm font-medium text-gray-700">
+                                        Active Plan
+                                    </span>
+                                </label>
+                                <p className="text-xs font-mono text-gray-400 flex flex-row gap-2 mt-0.5">
+                                    Deactivate to stop using this plan for new
+                                    days
                                 </p>
                             </div>
                         </div>

@@ -268,7 +268,7 @@ const Profile: React.FC<ProfilePropsTypes> = props => {
                                     Hourly Rate:
                                 </span>
                                 <HiddenText>
-                                    <span className="font-medium">{`${Math.round(salaryStructure.base / 30 / 8)}  BDT`}</span>
+                                    <span className="font-medium">{`${Math.round((salaryStructure.base / 30 / 8) * 1.5)}  BDT`}</span>
                                 </HiddenText>
                             </div>
                         </div>

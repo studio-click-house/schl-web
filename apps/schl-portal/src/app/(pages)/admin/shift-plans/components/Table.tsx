@@ -181,16 +181,16 @@ const Table: React.FC = () => {
     }, [filters]);
 
     // --- Multi-select helpers ---
-    const currentPageIds = useMemo(
-        () => shiftPlans.items.map(t => t._id.toString()),
+    const currentPageActiveIds = useMemo(
+        () => shiftPlans.items.filter(t => t.active).map(t => t._id.toString()),
         [shiftPlans.items],
     );
 
     const allCurrentPageSelected =
-        currentPageIds.length > 0 &&
-        currentPageIds.every(id => selectedIds.has(id));
+        currentPageActiveIds.length > 0 &&
+        currentPageActiveIds.every(id => selectedIds.has(id));
 
-    const someCurrentPageSelected = currentPageIds.some(id =>
+    const someCurrentPageSelected = currentPageActiveIds.some(id =>
         selectedIds.has(id),
     );
 
@@ -198,9 +198,9 @@ const Table: React.FC = () => {
         setSelectedIds(prev => {
             const next = new Set(prev);
             if (allCurrentPageSelected) {
-                currentPageIds.forEach(id => next.delete(id));
+                currentPageActiveIds.forEach(id => next.delete(id));
             } else {
-                currentPageIds.forEach(id => next.add(id));
+                currentPageActiveIds.forEach(id => next.add(id));
             }
             return next;
         });
@@ -425,7 +425,10 @@ const Table: React.FC = () => {
                                                                         shiftPlan._id.toString(),
                                                                     )
                                                                 }
-                                                                className="w-5 h-5 text-blue-600 bg-gray-50 border-gray-300 rounded-md cursor-pointer"
+                                                                disabled={
+                                                                    !shiftPlan.active
+                                                                }
+                                                                className="w-5 h-5 text-blue-600 bg-gray-50 border-gray-300 rounded-md"
                                                             />
                                                         </div>
                                                     </td>

@@ -4,11 +4,10 @@ import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
     STANDARD_SHIFTS,
-    shiftTypeOptions,
     adjustmentTypeOptions,
+    shiftTypeOptions,
 } from '@repo/common/constants/shift.constant';
 import { ShiftAdjustment } from '@repo/common/models/shift-adjustment.schema';
-import { ShiftAdjustmentEditData, shiftAdjustmentEditSchema } from '../schema';
 import {
     setCalculatedZIndex,
     setClassNameAndIsDisabled,
@@ -20,6 +19,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import Select from 'react-select';
 import { toast } from 'sonner';
+import { ShiftAdjustmentEditData, shiftAdjustmentEditSchema } from '../schema';
 
 const baseZIndex = 50;
 
@@ -163,7 +163,7 @@ const EditButton = ({ adjustment, submitHandler }: EditButtonProps) => {
                         onSubmit={handleSubmit(onSubmit)}
                     >
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 mb-4 gap-y-4">
-                            <div className="md:col-span-2">
+                            <div className="">
                                 <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
                                     <span className="uppercase">
                                         Shift Date
@@ -181,7 +181,7 @@ const EditButton = ({ adjustment, submitHandler }: EditButtonProps) => {
                                 )}
                             </div>
 
-                            <div className="md:col-span-2">
+                            <div className="">
                                 <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
                                     <span className="uppercase">
                                         Adjustment Type
@@ -321,8 +321,7 @@ const EditButton = ({ adjustment, submitHandler }: EditButtonProps) => {
                                 </div>
                             )}
 
-                            {(watchedAdjustmentType === 'replace' ||
-                                watchedAdjustmentType === 'off_day') && (
+                            {watchedAdjustmentType === 'replace' && (
                                 <>
                                     <div>
                                         <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
@@ -335,8 +334,6 @@ const EditButton = ({ adjustment, submitHandler }: EditButtonProps) => {
                                             {...register('shiftStart')}
                                             placeholder="09:00"
                                             disabled={
-                                                watchedAdjustmentType ===
-                                                    'replace' &&
                                                 watchedShiftType !== 'custom'
                                             }
                                             className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
@@ -359,8 +356,6 @@ const EditButton = ({ adjustment, submitHandler }: EditButtonProps) => {
                                             {...register('shiftEnd')}
                                             placeholder="17:00"
                                             disabled={
-                                                watchedAdjustmentType ===
-                                                    'replace' &&
                                                 watchedShiftType !== 'custom'
                                             }
                                             className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
@@ -374,42 +369,49 @@ const EditButton = ({ adjustment, submitHandler }: EditButtonProps) => {
                                 </>
                             )}
 
-                            <div>
-                                <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
-                                    <span className="uppercase">
-                                        Grace Period (min)
-                                    </span>
-                                </label>
-                                <input
-                                    type="number"
-                                    {...register('gracePeriodMinutes', {
-                                        valueAsNumber: true,
-                                    })}
-                                    min={0}
-                                    max={120}
-                                    className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
-                                />
-                                <p className="text-xs font-mono text-gray-400 flex flex-row gap-2 mt-1">
-                                    Minutes allowed late before flagging as
-                                    delayed
-                                </p>
+                            {watchedAdjustmentType === 'replace' && (
+                                <div>
+                                    <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
+                                        <span className="uppercase">
+                                            Grace Period (min)
+                                        </span>
+                                    </label>
+                                    <input
+                                        type="number"
+                                        {...register('gracePeriodMinutes', {
+                                            valueAsNumber: true,
+                                        })}
+                                        min={0}
+                                        max={120}
+                                        className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
+                                    />
+                                    <p className="text-xs font-mono text-gray-400 flex flex-row gap-2 mt-1">
+                                        Minutes allowed late before flagging as
+                                        delayed
+                                    </p>
+                                </div>
+                            )}
+                            <div className="md:col-span-2">
+
+
+
+                                <div className="flex flex-col">
+                                    <label className="inline-flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            {...register('active')}
+                                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                                        />
+                                        <span className="text-sm font-medium text-gray-700">
+                                            Active Adjustment
+                                        </span>
+                                    </label>
+                                    <p className="text-xs font-mono text-gray-400 flex flex-row gap-2 mt-0.5">
+                                        Deactivate to stop using this adjustment
+                                    </p>
+                                </div>
                             </div>
 
-                            <div>
-                                <label className="inline-flex items-center gap-2 cursor-pointer md:mt-7">
-                                    <input
-                                        type="checkbox"
-                                        {...register('active')}
-                                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-                                    />
-                                    <span className="text-sm font-medium text-gray-700">
-                                        Active Adjustment
-                                    </span>
-                                </label>
-                                <p className="text-xs font-mono text-gray-400 flex flex-row gap-2 mt-0.5">
-                                    Deactivate to stop using this adjustment
-                                </p>
-                            </div>
                         </div>
 
                         <div>

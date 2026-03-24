@@ -181,22 +181,23 @@ const Table: React.FC = () => {
     }, [filters]);
 
     // --- Multi-select helpers ---
-    const currentPageIds = useMemo(
-        () => adjustments.items.map(t => t._id.toString()),
+    const currentPageActiveIds = useMemo(
+        () =>
+            adjustments.items.filter(t => t.active).map(t => t._id.toString()),
         [adjustments.items],
     );
 
     const allCurrentPageSelected =
-        currentPageIds.length > 0 &&
-        currentPageIds.every(id => selectedIds.has(id));
+        currentPageActiveIds.length > 0 &&
+        currentPageActiveIds.every(id => selectedIds.has(id));
 
     const toggleSelectAll = () => {
         setSelectedIds(prev => {
             const next = new Set(prev);
             if (allCurrentPageSelected) {
-                currentPageIds.forEach(id => next.delete(id));
+                currentPageActiveIds.forEach(id => next.delete(id));
             } else {
-                currentPageIds.forEach(id => next.add(id));
+                currentPageActiveIds.forEach(id => next.add(id));
             }
             return next;
         });
@@ -328,9 +329,7 @@ const Table: React.FC = () => {
                 <div className="flex items-center gap-2 flex-wrap mb-4">
                     <span className="text-sm font-semibold text-blue-800 bg-blue-50 border border-blue-200 px-3 py-2 rounded-md flex items-center shadow-sm">
                         {selectedIds.size}{' '}
-                        {selectedIds.size === 1
-                            ? 'Adjustment'
-                            : 'Adjustments'}{' '}
+                        {selectedIds.size === 1 ? 'Adjustment' : 'Adjustments'}{' '}
                         Selected
                     </span>
                     <button
@@ -411,7 +410,10 @@ const Table: React.FC = () => {
                                                                     item._id.toString(),
                                                                 )
                                                             }
-                                                            className="w-5 h-5 text-blue-600 bg-gray-50 border-gray-300 rounded-md cursor-pointer"
+                                                            disabled={
+                                                                !item.active
+                                                            }
+                                                            className="w-5 h-5 text-blue-600 bg-gray-50 border-gray-300 rounded-md"
                                                         />
                                                     </div>
                                                 </td>
@@ -468,31 +470,14 @@ const Table: React.FC = () => {
                                                     </div>
                                                 ) : item.adjustment_type ===
                                                   'off_day' ? (
-                                                    <div>
-                                                        <span className="font-medium">
-                                                            Off Day (OT)
-                                                        </span>
-                                                        {item.shift_start &&
-                                                            item.shift_end && (
-                                                                <span>
-                                                                    :{' '}
-                                                                    {formatTime(
-                                                                        item.shift_start,
-                                                                    )}{' '}
-                                                                    -{' '}
-                                                                    {formatTime(
-                                                                        item.shift_end,
-                                                                    )}
-                                                                </span>
-                                                            )}
-                                                    </div>
+                                                    <span className="font-medium">
+                                                        Off Day (OT)
+                                                    </span>
                                                 ) : (
                                                     <span>OFF DAY</span>
                                                 )}
                                             </td>
-                                            <td>
-                                                {item.active ? 'Yes' : '-'}
-                                            </td>
+                                            <td>{item.active ? 'Yes' : '-'}</td>
                                             <ExtendableTd
                                                 data={item.comment || '-'}
                                             />

@@ -1,14 +1,14 @@
 'use client';
 
 import { cn } from '@repo/common/utils/general-utils';
-import { Filter, X } from 'lucide-react';
-import React, { useRef, useState } from 'react';
-import Select from 'react-select';
 import {
     setCalculatedZIndex,
     setClassNameAndIsDisabled,
     setMenuPortalTarget,
 } from '@repo/common/utils/select-helpers';
+import { Filter, X } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import Select from 'react-select';
 
 const baseZIndex = 50;
 
@@ -176,7 +176,10 @@ const FilterButton = ({
                                     {...setClassNameAndIsDisabled(isOpen)}
                                     options={[
                                         { value: 'true', label: 'Active' },
-                                        { value: 'false', label: 'Deactivated' },
+                                        {
+                                            value: 'false',
+                                            label: 'Deactivated',
+                                        },
                                     ]}
                                     closeMenuOnSelect={true}
                                     classNamePrefix="react-select"
@@ -187,8 +190,13 @@ const FilterButton = ({
                                     value={
                                         [
                                             { value: 'true', label: 'Active' },
-                                            { value: 'false', label: 'Deactivated' },
-                                        ].find(opt => opt.value === filters.active) || null
+                                            {
+                                                value: 'false',
+                                                label: 'Inactive',
+                                            },
+                                        ].find(
+                                            opt => opt.value === filters.active,
+                                        ) || null
                                     }
                                     onChange={opt =>
                                         setFilters((prev: any) => ({

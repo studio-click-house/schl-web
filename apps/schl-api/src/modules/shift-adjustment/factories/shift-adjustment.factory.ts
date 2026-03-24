@@ -119,6 +119,10 @@ export class ShiftAdjustmentFactory {
             patch.grace_period_minutes = dto.gracePeriodMinutes;
         }
 
+        if (dto.active !== undefined) {
+            patch.active = dto.active;
+        }
+
         patch.updated_by = userSession.db_id;
 
         return patch;
