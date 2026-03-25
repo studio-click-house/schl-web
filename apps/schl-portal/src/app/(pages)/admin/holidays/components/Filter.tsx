@@ -1,18 +1,20 @@
 'use client';
 
-import { Filter } from 'lucide-react';
+import { cn } from '@repo/common/utils/general-utils';
+import { Filter, X } from 'lucide-react';
+import moment from 'moment-timezone';
 import React, { useRef, useState } from 'react';
 
 interface PropsType {
     className?: string;
-    submitHandler: () => void;
+    submitHandler: (overrideFilters?: any) => void;
     filters: {
         fromDate: string;
         toDate: string;
         name: string;
     };
     setFilters: React.Dispatch<React.SetStateAction<any>>;
-    isLoading: boolean;
+    loading: boolean;
 }
 
 const baseZIndex = 50;
@@ -34,20 +36,21 @@ const FilterButton: React.FC<PropsType> = props => {
         >,
     ) => {
         const { name, value } = e.target;
-        setLocalFilters((prev: any) => ({ ...prev, [name]: value }));
+        setLocalFilters(prev => ({ ...prev, [name]: value }));
     };
 
     const handleResetFilters = () => {
-        const currentYear = new Date().getFullYear();
+        const today = moment.tz('Asia/Dhaka');
+        const startOfYear = today.clone().startOf('year').format('YYYY-MM-DD');
+        const endOfYear = today.clone().endOf('year').format('YYYY-MM-DD');
         const reset = {
             name: '',
-            fromDate: `${currentYear}-01-01`,
-            toDate: `${currentYear}-12-31`,
+            fromDate: startOfYear,
+            toDate: endOfYear,
         };
         setLocalFilters(reset);
-        // Apply reset immediately as before
         setFilters(reset);
-        props.submitHandler();
+        props.submitHandler(reset);
     };
 
     const handleClickOutside = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -65,7 +68,11 @@ const FilterButton: React.FC<PropsType> = props => {
             <button
                 onClick={() => setIsOpen(true)}
                 type="button"
-                className={`flex items-center gap-2 rounded-md bg-blue-600 hover:opacity-90 hover:ring-4 hover:ring-blue-600 transition duration-200 delay-300 hover:text-opacity-100 text-white px-3 py-2 ${props.className || ''}`}
+                disabled={props.loading}
+                className={cn(
+                    `flex items-center justify-between gap-2 rounded-md bg-blue-600 hover:opacity-90 hover:ring-4 hover:ring-blue-600 transition duration-200 delay-300 hover:text-opacity-100 text-white px-3 py-2`,
+                    props.className,
+                )}
             >
                 Filter
                 <Filter size={18} />
@@ -73,7 +80,7 @@ const FilterButton: React.FC<PropsType> = props => {
 
             <section
                 onClick={handleClickOutside}
-                className={`fixed z-${baseZIndex} inset-0 flex justify-center items-center transition-colors ${isOpen ? 'visible bg-black/20 disable-page-scroll' : 'invisible'}`}
+                className={`fixed z-${baseZIndex} inset-0 flex justify-center items-center transition-colors ${isOpen ? 'visible bg-black/20 disable-page-scroll pointer-events-auto' : 'invisible pointer-events-none'}`}
             >
                 <article
                     ref={popupRef}
@@ -81,16 +88,15 @@ const FilterButton: React.FC<PropsType> = props => {
                     className={`${isOpen ? 'scale-100 opacity-100' : 'scale-125 opacity-0'} bg-white rounded-lg lg:w-[35vw] md:w-[70vw] sm:w-[80vw] shadow relative`}
                 >
                     <header className="flex items-center align-middle justify-between px-4 py-2 border-b rounded-t">
-                        <h3 className="text-gray-900 text-lg lg:text-xl font-semibold dark:text-white uppercase">
+                        <h3 className="text-gray-900 text-lg lg:text-xl font-semibold uppercase">
                             Filter Holidays
                         </h3>
                         <button
                             onClick={() => setIsOpen(false)}
                             type="button"
                             className="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 ml-auto inline-flex items-center"
-                            data-modal-toggle="default-modal"
                         >
-                            ×
+                            <X size={18} />
                         </button>
                     </header>
 
@@ -146,21 +152,21 @@ const FilterButton: React.FC<PropsType> = props => {
                                 handleResetFilters();
                                 setIsOpen(false);
                             }}
-                            className="rounded-md bg-gray-600 text-white  hover:opacity-90 hover:ring-2 hover:ring-gray-600 transition duration-200 delay-300 hover:text-opacity-100 px-8 py-2 uppercase"
+                            className="rounded-md bg-gray-600 text-white hover:opacity-90 hover:ring-2 hover:ring-gray-600 transition duration-200 delay-300 hover:text-opacity-100 px-4 py-1"
                             type="button"
-                            disabled={props.isLoading}
+                            disabled={props.loading}
                         >
                             Reset
                         </button>
                         <button
                             onClick={() => {
                                 setFilters(localFilters);
-                                props.submitHandler();
+                                props.submitHandler(localFilters);
                                 setIsOpen(false);
                             }}
-                            className="rounded-md bg-blue-600 text-white   hover:opacity-90 hover:ring-2 hover:ring-blue-600 transition duration-200 delay-300 hover:text-opacity-100 px-8 py-2 uppercase"
+                            className="rounded-md bg-blue-600 text-white hover:opacity-90 hover:ring-2 hover:ring-blue-600 transition duration-200 delay-300 hover:text-opacity-100 px-4 py-1"
                             type="button"
-                            disabled={props.isLoading}
+                            disabled={props.loading}
                         >
                             Search
                         </button>

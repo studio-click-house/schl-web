@@ -172,6 +172,7 @@ const EditButton = ({ adjustment, submitHandler }: EditButtonProps) => {
                                 <input
                                     type="date"
                                     {...register('shiftDate')}
+                                    min={new Date().toISOString().split('T')[0]}
                                     className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
                                 />
                                 {errors.shiftDate && (
@@ -392,9 +393,6 @@ const EditButton = ({ adjustment, submitHandler }: EditButtonProps) => {
                                 </div>
                             )}
                             <div className="md:col-span-2">
-
-
-
                                 <div className="flex flex-col">
                                     <label className="inline-flex items-center gap-2 cursor-pointer">
                                         <input
@@ -411,7 +409,6 @@ const EditButton = ({ adjustment, submitHandler }: EditButtonProps) => {
                                     </p>
                                 </div>
                             </div>
-
                         </div>
 
                         <div>

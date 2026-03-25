@@ -9,20 +9,27 @@ export interface OTCalculationInput {
     crosses_midnight: boolean;
 }
 
+export interface OTResult {
+    extra_work_minutes: number;
+    ot_minutes: number;
+    net_ot_minutes: number;
+}
+
 /**
  * Calculate overtime minutes based on actual attendance and shift plan
  *
  * Rules:
- * - Extra Work < 1 hour: Tiered (0, 30, or 60 mins)
- * - Extra Work 1-8 hours: Linear ratio (0.8125 multiplier, min 60 mins)
- * - Extra Work > 8 hours: Full days (390 mins = 6.5 hrs each) + remainder
+ * 1. Extra Work: raw minutes (stays late minus late in)
+ * 2. OT (Rounded): nearest 30-minute block with 5-minute grace
+ *    (Formula: floor((extra_work + 5) / 30) * 30)
+ * 3. Net OT: Rounded * 0.8125 multiplier
  *
  * @param input - Attendance and shift plan details
- * @returns Overtime in minutes
+ * @returns OTResult with extra_work, ot, and net_ot
  */
-export function calculateOT(input: OTCalculationInput): number {
+export function calculateOT(input: OTCalculationInput): OTResult {
     if (!input.out_time) {
-        return 0; // Cannot calculate OT without check-out time
+        return { extra_work_minutes: 0, ot_minutes: 0, net_ot_minutes: 0 };
     }
 
     const shiftDate = moment.tz(input.shift_date, 'Asia/Dhaka').startOf('day');
@@ -49,78 +56,27 @@ export function calculateOT(input: OTCalculationInput): number {
     // Extra work = extraOut - lateIn (early in-time adds to extra work)
     const extraWork = extraOutMinutes - lateMinutes;
 
-    // No OT if no extra work
-    if (extraWork <= 0) {
-        return 0;
+    return calculateOTFromMinutes(extraWork);
+}
+
+/**
+ * Calculate OT directly from worked minutes
+ * (Universal for both regular and off-day OT)
+ */
+export function calculateOTFromMinutes(minutes: number): OTResult {
+    if (minutes <= 0) {
+        return { extra_work_minutes: 0, ot_minutes: 0, net_ot_minutes: 0 };
     }
 
-    // Apply tiered OT rules based on range
-    if (extraWork < 60) {
-        return calculateShortOT(extraWork);
-    } else if (extraWork <= 480) {
-        // 1-8 hours: Linear ratio with 60-minute floor
-        return Math.max(60, Math.round(extraWork * 0.8125));
-    } else {
-        // > 8 hours: Full days (390 mins each) + remainder
-        return calculateFullDayOT(extraWork);
-    }
-}
+    // New Rounding Rule: nearest 30m block with 5m grace
+    const ot_minutes = Math.floor((minutes + 5) / 30) * 30;
+    const net_ot_minutes = ot_minutes * 0.8125;
 
-/**
- * Short OT calculation for < 1 hour extra work
- */
-function calculateShortOT(minutes: number): number {
-    if (minutes < 25) return 0;
-    if (minutes >= 25 && minutes < 55) return 30;
-    return 60; // >= 55 minutes
-}
-
-/**
- * Full day OT calculation for > 8 hours extra work
- */
-function calculateFullDayOT(minutes: number): number {
-    const fullDays = Math.floor(minutes / 480);
-    const remainingMins = minutes % 480;
-
-    // Each full 8-hour day credits 6.5 hours (390 mins) of OT
-    let otMinutes = fullDays * 390;
-
-    // Handle remainder
-    if (remainingMins >= 60) {
-        // Apply linear ratio to remaining hours
-        otMinutes += Math.max(60, Math.round(remainingMins * 0.8125));
-    } else if (remainingMins > 0) {
-        // Apply tiered rules to remaining minutes
-        otMinutes += calculateShortOT(remainingMins);
-    }
-
-    return otMinutes;
-}
-
-/**
- * Format OT minutes to HH:MM format
- */
-export function formatOT(otMinutes: number): string {
-    const hours = Math.floor(otMinutes / 60);
-    const mins = otMinutes % 60;
-    return `${hours}:${mins.toString().padStart(2, '0')}`;
-}
-
-/**
- * Convert OT minutes to decimal hours
- */
-export function getOTInHours(otMinutes: number): number {
-    return Math.round((otMinutes / 60) * 100) / 100;
-}
-
-/**
- * Calculate OT directly from worked minutes (useful for off-day OT where full worked time is considered extra)
- */
-export function calculateOTFromMinutes(minutes: number): number {
-    if (minutes <= 0) return 0;
-    if (minutes < 60) return calculateShortOT(minutes);
-    if (minutes <= 480) return Math.max(60, Math.round(minutes * 0.8125));
-    return calculateFullDayOT(minutes);
+    return {
+        extra_work_minutes: minutes,
+        ot_minutes,
+        net_ot_minutes,
+    };
 }
 
 /**

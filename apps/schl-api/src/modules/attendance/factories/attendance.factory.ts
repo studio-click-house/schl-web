@@ -1,11 +1,10 @@
-import {
-    DEFAULT_DEVICE_ID,
-    DEFAULT_SOURCE_IP,
-} from '@repo/common/constants/attendance.constant';
+import { DEFAULT_DEVICE_ID } from '@repo/common/constants/attendance.constant';
 import { Attendance } from '@repo/common/models/attendance.schema';
 import * as moment from 'moment-timezone';
 import { CreateAttendanceBodyDto } from '../dto/create-attendance.dto';
 import { MarkAttendanceDto } from '../dto/mark-attendance.dto';
+
+const DEFAULT_SOURCE_IP = '0.0.0.0';
 
 export class AttendanceFactory {
     static fromMarkDto(
@@ -16,12 +15,16 @@ export class AttendanceFactory {
             in_time: inTime,
             device_id: dto.deviceId?.trim() || DEFAULT_DEVICE_ID,
             user_id: dto.userId.trim(),
-            verify_mode: dto.verifyMode.trim(),
-            status: dto.status.trim(),
+            verify_mode: dto.verifyMode,
+            status: dto.status,
             source_ip: dto.sourceIp?.trim() || DEFAULT_SOURCE_IP,
             received_at:
                 moment.tz(dto.receivedAt, 'Asia/Dhaka').toDate() || null,
-        } as Partial<Attendance>;
+            ot_minutes: 0,
+            extra_work_minutes: 0,
+            net_ot_minutes: 0,
+            ot_payout: 0,
+        };
     }
 
     static fromCreateDto(
@@ -49,7 +52,11 @@ export class AttendanceFactory {
             status: dto.status,
             source_ip: sourceIp || DEFAULT_SOURCE_IP,
             received_at: moment.tz('Asia/Dhaka').toDate(), // server receive time
-        } as Partial<Attendance>;
+            ot_minutes: 0,
+            extra_work_minutes: 0,
+            net_ot_minutes: 0,
+            ot_payout: 0,
+        };
     }
 
     static fromUpdateDto(

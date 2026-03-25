@@ -228,6 +228,18 @@ export const USER_PERMISSIONS = [
                 value: 'admin:view_shift_plan',
                 label: 'View shift plans',
             },
+            {
+                value: 'admin:create_holiday',
+                label: 'Create holiday',
+            },
+            {
+                value: 'admin:edit_holiday',
+                label: 'Edit holiday',
+            },
+            {
+                value: 'admin:delete_holiday',
+                label: 'Delete holiday',
+            },
         ],
     },
 

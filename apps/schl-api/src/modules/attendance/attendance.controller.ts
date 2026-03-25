@@ -26,50 +26,44 @@ export class AttendanceController {
 
     @Public()
     @Post('mark-attendance')
-    async markAttendance(@Body() body: MarkAttendanceDto) {
-        return await this.attendanceService.markAttendance(body);
+    markAttendance(@Body() body: MarkAttendanceDto) {
+        return this.attendanceService.markAttendance(body);
     }
 
     @Put('update-attendance/:id')
-    async updateAttendance(
+    updateAttendance(
         @Param() { id }: IdParamDto,
         @Body() body: Partial<CreateAttendanceBodyDto>,
         @Req() req: Request & { user: UserSession },
     ) {
-        return await this.attendanceService.updateAttendance(
-            id,
-            body,
-            req.user,
-        );
+        return this.attendanceService.updateAttendance(id, body, req.user);
     }
 
     @Delete('delete-attendance/:id')
-    async deleteAttendance(
+    deleteAttendance(
         @Param() { id }: IdParamDto,
         @Req() req: Request & { user: UserSession },
     ) {
-        return await this.attendanceService.deleteAttendance(id, req.user);
+        return this.attendanceService.deleteAttendance(id, req.user);
     }
 
     @Post('search-attendance')
-    async searchAttendance(
+    searchAttendance(
         @Query() query: SearchAttendanceQueryDto,
         @Body() body: SearchAttendanceBodyDto,
         @Req() req: Request & { user: UserSession },
     ) {
-        const effectiveEmployeeId =
-            body.employeeId?.trim() || query.employeeId?.trim() || undefined;
-
         const pagination = {
             page: query.page,
             itemsPerPage: query.itemsPerPage,
             paginated: query.paginated,
         };
-        return await this.attendanceService.searchAttendance(
-            {
-                ...body,
-                employeeId: effectiveEmployeeId,
-            },
+
+        const effectiveEmployeeId =
+            body.employeeId?.trim() || query.employeeId?.trim() || undefined;
+
+        return this.attendanceService.searchAttendance(
+            { ...body, employeeId: effectiveEmployeeId },
             pagination,
             req.user,
         );

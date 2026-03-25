@@ -1,33 +1,40 @@
 import { z } from 'zod';
 
-const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/; // YYYY-MM-DD
+export const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
-export const holidaySchema = z
-    .object({
-        name: z.string().min(1, 'Name is required'),
-        dateFrom: z
-            .string()
-            .min(1, 'Start date is required')
-            .regex(DATE_REGEX, 'Start date must be in YYYY-MM-DD format'),
-        // Convert empty string to undefined so optional works properly for dateTo
-        dateTo: z.preprocess(
-            val => (val === '' ? undefined : val),
-            z
-                .string()
-                .regex(DATE_REGEX, 'End date must be in YYYY-MM-DD format')
-                .optional(),
-        ),
-        comment: z.string().max(500, 'Comment is too long').optional(),
-    })
-    .refine(
-        data => {
-            if (!data.dateTo) return true;
-            return new Date(data.dateTo) >= new Date(data.dateFrom);
-        },
-        {
-            message: 'End date must be the same or after Start date',
-            path: ['dateTo'],
-        },
-    );
+export const holidayBaseSchema = z.object({
+    name: z
+        .string()
+        .min(3, 'Name at least 3 characters long')
+        .max(100, 'Name is too long'),
+    dateFrom: z
+        .string()
+        .regex(DATE_REGEX, 'Invalid start date format (YYYY-MM-DD)'),
+    dateTo: z
+        .string()
+        .regex(DATE_REGEX, 'Invalid end date format (YYYY-MM-DD)')
+        .optional()
+        .or(z.literal('')),
+    comment: z.string().max(500, 'Comment is too long').optional(),
+});
+
+const validateDateRange = (data: { dateFrom: string; dateTo?: string }) => {
+    if (!data.dateTo || data.dateTo === '') return true;
+    return new Date(data.dateTo) >= new Date(data.dateFrom);
+};
+
+export const holidaySchema = holidayBaseSchema.refine(validateDateRange, {
+    message: 'End date cannot be before start date',
+    path: ['dateTo'],
+});
 
 export type HolidayData = z.infer<typeof holidaySchema>;
+
+export const holidayAddSchema = holidayBaseSchema
+    .extend({})
+    .refine(validateDateRange, {
+        message: 'End date cannot be before start date',
+        path: ['dateTo'],
+    });
+
+export type HolidayAddData = z.infer<typeof holidayAddSchema>;

@@ -7,6 +7,7 @@ import {
     setMenuPortalTarget,
 } from '@repo/common/utils/select-helpers';
 import { Filter, X } from 'lucide-react';
+import moment from 'moment-timezone';
 import React, { useRef, useState } from 'react';
 import Select from 'react-select';
 
@@ -14,7 +15,7 @@ const baseZIndex = 50;
 
 interface FilterProps {
     loading: boolean;
-    submitHandler: () => void;
+    submitHandler: (overrideFilters?: any) => void;
     setFilters: (filters: any) => void;
     filters: {
         employeeId: string;
@@ -38,13 +39,19 @@ const FilterButton = ({
     const popupRef = useRef<HTMLElement>(null);
 
     const handleClearFilters = () => {
-        setFilters({
+        const today = moment.tz('Asia/Dhaka');
+        const monday = today.clone().startOf('isoWeek').format('YYYY-MM-DD');
+        const sunday = today.clone().endOf('isoWeek').format('YYYY-MM-DD');
+
+        const resetValues = {
             employeeId: '',
-            fromDate: '',
-            toDate: '',
+            fromDate: monday,
+            toDate: sunday,
             active: 'true',
-        });
-        submitHandler();
+        };
+
+        setFilters(resetValues);
+        submitHandler(resetValues);
     };
 
     const handleChange = (
@@ -178,7 +185,7 @@ const FilterButton = ({
                                         { value: 'true', label: 'Active' },
                                         {
                                             value: 'false',
-                                            label: 'Deactivated',
+                                            label: 'Inactive',
                                         },
                                     ]}
                                     closeMenuOnSelect={true}

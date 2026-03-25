@@ -295,8 +295,6 @@ export class ShiftAdjustmentService {
         }
     }
 
-
-
     async updateAdjustment(
         id: string,
         dto: UpdateShiftAdjustmentBodyDto,
@@ -453,9 +451,12 @@ export class ShiftAdjustmentService {
                 patch.comment = dto.comment;
             }
 
-            const result = await this.shiftAdjustmentModel.updateMany({
-                _id: { $in: objectIds },
-            }, { $set: patch });
+            const result = await this.shiftAdjustmentModel.updateMany(
+                {
+                    _id: { $in: objectIds },
+                },
+                { $set: patch },
+            );
 
             // Clear resolved cache for every affected adjustment
             await Promise.all(

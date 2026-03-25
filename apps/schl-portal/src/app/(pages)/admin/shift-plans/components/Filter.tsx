@@ -33,7 +33,7 @@ const baseZIndex = 50;
 
 interface FilterProps {
     loading: boolean;
-    submitHandler: () => void;
+    submitHandler: (overrideFilters?: any) => void;
     setFilters: (filters: any) => void;
     filters: any;
     employeeOptions: { value: string; label: string }[];
@@ -56,15 +56,17 @@ const FilterButton = ({
         const monday = today.clone().startOf('isoWeek').format('YYYY-MM-DD');
         const sunday = today.clone().endOf('isoWeek').format('YYYY-MM-DD');
 
-        setFilters({
+        const resetValues = {
             employeeId: '',
             fromDate: monday,
             toDate: sunday,
             shiftType: '',
             active: 'true',
             department: '',
-        });
-        submitHandler();
+        };
+
+        setFilters(resetValues);
+        submitHandler(resetValues);
     };
 
     const handleChange = (

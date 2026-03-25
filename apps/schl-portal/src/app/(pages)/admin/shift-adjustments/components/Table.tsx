@@ -10,13 +10,13 @@ import { formatDate, formatTime } from '@repo/common/utils/date-helpers';
 import { cn } from '@repo/common/utils/general-utils';
 import { hasPerm } from '@repo/common/utils/permission-check';
 import { capitalize } from 'lodash';
-import { Ban, CirclePlus, ClockCheck, X } from 'lucide-react';
+import { CirclePlus, ClockCheck, X } from 'lucide-react';
 import moment from 'moment-timezone';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import BulkDeactivateModal from './BulkDeactivateModal';
+import BulkDeactivate from './BulkDeactivate';
 import EditButton from './Edit';
 import FilterButton from './Filter';
 
@@ -73,8 +73,6 @@ const Table: React.FC = () => {
     const [searchVersion, setSearchVersion] = useState<number>(0);
 
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-    const [bulkModalOpen, setBulkModalOpen] = useState(false);
-    const [bulkLoading, setBulkLoading] = useState(false);
 
     const [filters, setFilters] = useState(getDefaultFilters);
     const [appliedFilters, setAppliedFilters] = useState(getDefaultFilters);
@@ -174,11 +172,14 @@ const Table: React.FC = () => {
         }
     }, [searchVersion, page, fetchAdjustments]);
 
-    const handleSearch = useCallback(() => {
-        setAppliedFilters(filters);
-        setPage(1);
-        setSearchVersion(v => v + 1);
-    }, [filters]);
+    const handleSearch = useCallback(
+        (overrideFilters?: any) => {
+            setAppliedFilters(overrideFilters || filters);
+            setPage(1);
+            setSearchVersion(v => v + 1);
+        },
+        [filters],
+    );
 
     // --- Multi-select helpers ---
     const currentPageActiveIds = useMemo(
@@ -213,40 +214,6 @@ const Table: React.FC = () => {
             }
             return next;
         });
-    };
-
-    // --- Bulk deactivate ---
-    const handleBulkDeactivate = async (comment: string) => {
-        try {
-            setBulkLoading(true);
-            const response = await authedFetchApi<any>(
-                { path: '/v1/shift-adjustment/bulk-deactivate' },
-                {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        ids: Array.from(selectedIds),
-                        ...(comment ? { comment } : {}),
-                    }),
-                },
-            );
-
-            if (response.ok) {
-                toast.success(
-                    `Deactivated ${response.data?.deactivated ?? selectedIds.size} adjustment(s)`,
-                );
-                setBulkModalOpen(false);
-                setSelectedIds(new Set());
-                fetchAdjustments();
-            } else {
-                toastFetchError(response);
-            }
-        } catch (error) {
-            console.error(error);
-            toast.error('An error occurred while deactivating adjustments');
-        } finally {
-            setBulkLoading(false);
-        }
     };
 
     const canEdit = hasPerm('admin:edit_shift_plan', userPermissions);
@@ -324,32 +291,16 @@ const Table: React.FC = () => {
                 </div>
             </div>
 
-            {/* Bulk action toolbar — only shown when rows are selected */}
-            {selectedIds.size > 0 && canEdit && (
-                <div className="flex items-center gap-2 flex-wrap mb-4">
-                    <span className="text-sm font-semibold text-blue-800 bg-blue-50 border border-blue-200 px-3 py-2 rounded-md flex items-center shadow-sm">
-                        {selectedIds.size}{' '}
-                        {selectedIds.size === 1 ? 'Adjustment' : 'Adjustments'}{' '}
-                        Selected
-                    </span>
-                    <button
-                        type="button"
-                        onClick={() => setBulkModalOpen(true)}
-                        title="Deactivate Selected"
-                        className="flex items-center gap-2 rounded-md bg-red-600 hover:opacity-90 hover:ring-4 hover:ring-red-600 transition duration-200 delay-300 hover:text-opacity-100 text-white px-3 py-2"
-                    >
-                        <Ban size={19} />
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setSelectedIds(new Set())}
-                        title="Clear Selection"
-                        className="flex items-center gap-2 rounded-md bg-gray-500 hover:opacity-90 hover:ring-4 hover:ring-gray-500 transition duration-200 delay-300 hover:text-opacity-100 text-white px-3 py-2"
-                    >
-                        <X size={19} />
-                    </button>
-                </div>
-            )}
+            {/* Bulk action toolbar */}
+            <BulkDeactivate
+                selectedIds={selectedIds}
+                onSuccess={() => {
+                    setSelectedIds(new Set());
+                    fetchAdjustments();
+                }}
+                onClearSelection={() => setSelectedIds(new Set())}
+                canEdit={canEdit}
+            />
 
             {loading ? (
                 <p className="text-center text-gray-500">Loading...</p>
@@ -413,7 +364,7 @@ const Table: React.FC = () => {
                                                             disabled={
                                                                 !item.active
                                                             }
-                                                            className="w-5 h-5 text-blue-600 bg-gray-50 border-gray-300 rounded-md"
+                                                            className="w-5 h-5 text-blue-600 bg-gray-50 border-gray-300 rounded-md cursor-pointer disabled:cursor-default"
                                                         />
                                                     </div>
                                                 </td>
@@ -447,36 +398,28 @@ const Table: React.FC = () => {
                                                 {item.adjustment_type ===
                                                 'replace' ? (
                                                     <div>
-                                                        <span className="font-medium">
-                                                            {item.shift_type
-                                                                ? capitalize(
-                                                                      item.shift_type,
-                                                                  )
-                                                                : 'Custom'}
-                                                        </span>
-                                                        {item.shift_start &&
-                                                            item.shift_end && (
-                                                                <span>
-                                                                    :{' '}
-                                                                    {formatTime(
-                                                                        item.shift_start,
-                                                                    )}{' '}
-                                                                    -{' '}
-                                                                    {formatTime(
-                                                                        item.shift_end,
-                                                                    )}
-                                                                </span>
-                                                            )}
+                                                        {capitalize(
+                                                            item.shift_type ||
+                                                                'Custom',
+                                                        )}
+                                                        :{' '}
+                                                        {item.shift_start
+                                                            ? formatTime(
+                                                                  item.shift_start,
+                                                              )
+                                                            : '--:--'}{' '}
+                                                        -{' '}
+                                                        {item.shift_end
+                                                            ? formatTime(
+                                                                  item.shift_end,
+                                                              )
+                                                            : '--:--'}
                                                     </div>
-                                                ) : item.adjustment_type ===
-                                                  'off_day' ? (
-                                                    <span className="font-medium">
-                                                        Off Day (OT)
-                                                    </span>
                                                 ) : (
-                                                    <span>OFF DAY</span>
+                                                    '-'
                                                 )}
                                             </td>
+
                                             <td>{item.active ? 'Yes' : '-'}</td>
                                             <ExtendableTd
                                                 data={item.comment || '-'}
@@ -510,14 +453,6 @@ const Table: React.FC = () => {
                         />
                     ))}
             </div>
-
-            <BulkDeactivateModal
-                isOpen={bulkModalOpen}
-                isLoading={bulkLoading}
-                selectedCount={selectedIds.size}
-                onClose={() => setBulkModalOpen(false)}
-                onConfirm={handleBulkDeactivate}
-            />
 
             <style jsx>
                 {`

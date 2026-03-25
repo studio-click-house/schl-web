@@ -81,7 +81,16 @@ export class Attendance {
     shift_date: Date; // Business day this attendance belongs to (e.g., 2026-02-07 even if checkout is 2026-02-08 01:30)
 
     @Prop({ required: false, type: Number, default: 0 })
-    ot_minutes: number; // Calculated overtime in minutes (cached for performance)
+    ot_minutes: number; // Calculated rounded overtime in minutes (cached for performance)
+
+    @Prop({ required: false, type: Number, default: 0 })
+    extra_work_minutes: number; // Raw extra work duration before rounding
+
+    @Prop({ required: false, type: Number, default: 0 })
+    net_ot_minutes: number; // Proportional OT after applying the 0.8125 multiplier
+
+    @Prop({ required: false, type: Number, default: 0 })
+    ot_payout: number; // Calculated payout in BDT based on net OT and hourly rate
 
     @Prop({ type: Date })
     readonly createdAt: Date;

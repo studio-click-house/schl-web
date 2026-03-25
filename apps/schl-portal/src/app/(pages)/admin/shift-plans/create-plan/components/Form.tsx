@@ -315,6 +315,7 @@ const Form: React.FC = () => {
                             <input
                                 {...register('fromDate')}
                                 type="date"
+                                min={new Date().toISOString().split('T')[0]}
                                 className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
                             />
                         </div>
@@ -329,6 +330,7 @@ const Form: React.FC = () => {
                             <input
                                 {...register('toDate')}
                                 type="date"
+                                min={watch('fromDate')}
                                 className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
                             />
                         </div>

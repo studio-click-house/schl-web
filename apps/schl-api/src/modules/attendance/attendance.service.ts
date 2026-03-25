@@ -7,9 +7,8 @@ import {
     Logger,
     NotFoundException,
 } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose/dist/common/mongoose.decorators';
+import { InjectModel } from '@nestjs/mongoose';
 import {
-    ATTENDANCE_STATUSES,
     DEFAULT_DEVICE_ID,
     DEFAULT_SOURCE_IP,
 } from '@repo/common/constants/attendance.constant';
@@ -17,12 +16,18 @@ import {
     AttendanceFlag,
     AttendanceFlagDocument,
 } from '@repo/common/models/attendance-flag.schema';
-import { Attendance } from '@repo/common/models/attendance.schema';
+import {
+    Attendance,
+    AttendanceDocument,
+} from '@repo/common/models/attendance.schema';
 import {
     Department,
     DepartmentDocument,
 } from '@repo/common/models/department.schema';
-import { DeviceUser } from '@repo/common/models/device-user.schema';
+import {
+    DeviceUser,
+    DeviceUserDocument,
+} from '@repo/common/models/device-user.schema';
 import {
     Employee,
     EmployeeDocument,
@@ -32,22 +37,51 @@ import {
     LeaveRequest,
     LeaveRequestDocument,
 } from '@repo/common/models/leave-request.schema';
-import { ShiftAdjustment } from '@repo/common/models/shift-adjustment.schema';
-import { ShiftPlan } from '@repo/common/models/shift-plan.schema';
-import { ShiftResolved } from '@repo/common/models/shift-resolved.schema';
+import {
+    ShiftAdjustment,
+    ShiftAdjustmentDocument,
+} from '@repo/common/models/shift-adjustment.schema';
+import {
+    ShiftPlan,
+    ShiftPlanDocument,
+} from '@repo/common/models/shift-plan.schema';
+import {
+    ShiftResolved,
+    ShiftResolvedDocument,
+} from '@repo/common/models/shift-resolved.schema';
 import { UserSession } from '@repo/common/types/user-session.type';
 import {
     calculateOT,
     calculateOTFromMinutes,
     determineShiftDate,
+    OTResult,
 } from '@repo/common/utils/ot-calculation';
 import { hasPerm } from '@repo/common/utils/permission-check';
 import * as moment from 'moment-timezone';
-import { Model, Types } from 'mongoose';
+import { FilterQuery, Model, Types } from 'mongoose';
 import { CreateAttendanceBodyDto } from './dto/create-attendance.dto';
 import { MarkAttendanceDto } from './dto/mark-attendance.dto';
 import { SearchAttendanceBodyDto } from './dto/search-attendance.dto';
 import { AttendanceFactory } from './factories/attendance.factory';
+
+/** Typed definition for attendance records with populated flag code */
+type AttendancePopulated = Omit<Attendance, 'flag'> & {
+    _id: Types.ObjectId;
+    employee: Types.ObjectId;
+    flag?: AttendanceFlag | { code?: string } | null;
+};
+
+/** Lean type for ShiftPlan with ID */
+type ShiftPlanLean = ShiftPlan & {
+    _id: Types.ObjectId;
+    employee: Types.ObjectId;
+};
+
+/** Lean type for ShiftAdjustment with ID */
+type ShiftAdjustmentLean = ShiftAdjustment & {
+    _id: Types.ObjectId;
+    employee: Types.ObjectId;
+};
 
 @Injectable()
 export class AttendanceService {
@@ -55,41 +89,39 @@ export class AttendanceService {
 
     constructor(
         @InjectModel(Attendance.name)
-        private attendanceModel: Model<Attendance>,
+        private readonly attendanceModel: Model<AttendanceDocument>,
         @InjectModel(Employee.name)
-        private employeeModel: Model<EmployeeDocument>,
+        private readonly employeeModel: Model<EmployeeDocument>,
         @InjectModel(Department.name)
-        private departmentModel: Model<DepartmentDocument>,
+        private readonly departmentModel: Model<DepartmentDocument>,
         @InjectModel(DeviceUser.name)
-        private deviceUserModel: Model<DeviceUser>,
+        private readonly deviceUserModel: Model<DeviceUserDocument>,
         @InjectModel(ShiftPlan.name)
-        private shiftPlanModel: Model<ShiftPlan>,
+        private readonly shiftPlanModel: Model<ShiftPlanDocument>,
         @InjectModel(ShiftAdjustment.name)
-        private shiftAdjustmentModel: Model<ShiftAdjustment>,
+        private readonly shiftAdjustmentModel: Model<ShiftAdjustmentDocument>,
         @InjectModel(ShiftResolved.name)
-        private shiftResolvedModel: Model<ShiftResolved>,
+        private readonly shiftResolvedModel: Model<ShiftResolvedDocument>,
         @InjectModel(LeaveRequest.name)
-        private leaveRequestModel: Model<LeaveRequestDocument>,
+        private readonly leaveRequestModel: Model<LeaveRequestDocument>,
         @InjectModel(Holiday.name)
-        private holidayModel: Model<HolidayDocument>,
+        private readonly holidayModel: Model<HolidayDocument>,
         @InjectModel(AttendanceFlag.name)
-        private attendanceFlagModel: Model<AttendanceFlagDocument>,
+        private readonly attendanceFlagModel: Model<AttendanceFlagDocument>,
     ) {}
 
-    // Cache for frequently used attendance flags
-    private flagCache: Record<
-        string,
-        { _id: unknown; code: string } | null | undefined
-    > = {};
+    private flagCache: Record<string, { _id: unknown; code: string } | null> =
+        {};
 
     private async getFlagByCode(
         code: string,
-    ): Promise<{ _id: unknown; code: string } | null | undefined> {
+    ): Promise<{ _id: unknown; code: string } | null> {
         if (!this.flagCache[code]) {
-            this.flagCache[code] = (await this.attendanceFlagModel
+            const flag = await this.attendanceFlagModel
                 .findOne({ code })
-                .lean()
-                .exec()) as { _id: unknown; code: string } | null;
+                .lean<{ _id: Types.ObjectId; code: string } | null>()
+                .exec();
+            this.flagCache[code] = flag;
         }
         return this.flagCache[code];
     }
@@ -97,107 +129,120 @@ export class AttendanceService {
     public async resolveShiftForDate(
         employeeId: Types.ObjectId | string,
         date: Date,
-    ): Promise<ShiftResolved | null> {
+    ): Promise<ShiftResolvedDocument | null> {
         const shiftDate = moment.tz(date, 'Asia/Dhaka').startOf('day').toDate();
-
         const cached = await this.shiftResolvedModel.findOne({
             employee: employeeId,
             shift_date: shiftDate,
         });
         if (cached) return cached;
 
+        let shiftData: Partial<ShiftResolved> | null = null;
+
         const adjustment = await this.shiftAdjustmentModel.findOne({
             employee: employeeId,
             shift_date: shiftDate,
         });
-
         if (adjustment) {
-            if (adjustment.adjustment_type === 'cancel') {
-                return null;
+            if (adjustment.adjustment_type === 'cancel') return null;
+            shiftData = {
+                shift_type: adjustment.shift_type || 'custom',
+                shift_start: adjustment.shift_start || '09:00',
+                shift_end: adjustment.shift_end || '17:00',
+                crosses_midnight: adjustment.crosses_midnight,
+                source: 'adjustment',
+                adjustment_id: adjustment._id,
+                is_off_day_overtime: adjustment.adjustment_type === 'off_day',
+            };
+        }
+
+        if (!shiftData) {
+            const holiday = await this.holidayModel.findOne({
+                $or: [
+                    {
+                        dateFrom: { $lte: shiftDate },
+                        dateTo: { $gte: shiftDate },
+                    },
+                    { date: shiftDate },
+                ],
+            });
+            if (holiday) {
+                shiftData = {
+                    shift_type: 'morning',
+                    shift_start: '09:00',
+                    shift_end: '17:00',
+                    crosses_midnight: false,
+                    source: 'holiday',
+                    is_off_day_overtime: true,
+                };
             }
-
-            return await this.shiftResolvedModel.findOneAndUpdate(
-                { employee: employeeId, shift_date: shiftDate },
-                {
-                    $set: {
-                        employee: employeeId,
-                        shift_date: shiftDate,
-                        shift_type: adjustment.shift_type || 'custom',
-                        shift_start: adjustment.shift_start || '09:00',
-                        shift_end: adjustment.shift_end || '17:00',
-                        crosses_midnight: adjustment.crosses_midnight,
-                        source: 'adjustment',
-                        adjustment_id: adjustment._id,
-                        // New: mark off-day overtime preference
-                        is_off_day_overtime:
-                            adjustment.adjustment_type === 'off_day',
-                        resolved_at: new Date(),
-                    },
-                },
-                { new: true, upsert: true },
-            );
         }
 
-        // Check for Holidays (date range intersection)
-        const holiday = await this.holidayModel.findOne({
-            $or: [
-                { dateFrom: { $lte: shiftDate }, dateTo: { $gte: shiftDate } },
-                { date: shiftDate },
-            ],
-        });
-        if (holiday) {
-            return await this.shiftResolvedModel.findOneAndUpdate(
-                { employee: employeeId, shift_date: shiftDate },
-                {
-                    $set: {
-                        employee: employeeId,
-                        shift_date: shiftDate,
-                        shift_type: 'morning', // default
-                        shift_start: '09:00', // default
-                        shift_end: '17:00', // default
+        if (!shiftData) {
+            const leave = await this.leaveRequestModel.findOne({
+                employee: employeeId,
+                status: 'approved',
+                start_date: { $lte: shiftDate },
+                end_date: { $gte: shiftDate },
+            });
+            if (leave) {
+                shiftData = {
+                    shift_type: 'morning',
+                    shift_start: '09:00',
+                    shift_end: '17:00',
+                    crosses_midnight: false,
+                    source: 'leave',
+                };
+            }
+        }
+
+        if (!shiftData) {
+            const employee = await this.employeeModel
+                .findById(employeeId)
+                .lean();
+            if (employee?.department) {
+                const dept = await this.departmentModel
+                    .findOne({ name: employee.department })
+                    .lean();
+                const weekends = dept?.weekend_days || [0];
+                if (
+                    weekends.includes(moment.tz(shiftDate, 'Asia/Dhaka').day())
+                ) {
+                    shiftData = {
+                        shift_type: 'morning',
+                        shift_start: '09:00',
+                        shift_end: '17:00',
                         crosses_midnight: false,
-                        source: 'holiday',
-                        resolved_at: new Date(),
-                    },
-                },
-                { new: true, upsert: true },
-            );
+                        source: 'plan',
+                        is_off_day_overtime: true,
+                    };
+                }
+            }
         }
 
-        // Fetch Approved Leave Requests
-        const leave = await this.leaveRequestModel.findOne({
-            employee: employeeId,
-            status: 'approved',
-            start_date: { $lte: shiftDate },
-            end_date: { $gte: shiftDate },
-        });
-        if (leave) {
-            return await this.shiftResolvedModel.findOneAndUpdate(
-                { employee: employeeId, shift_date: shiftDate },
-                {
-                    $set: {
-                        employee: employeeId,
-                        shift_date: shiftDate,
-                        shift_type: 'morning', // default
-                        shift_start: '09:00', // default
-                        shift_end: '17:00', // default
-                        crosses_midnight: false,
-                        source: 'leave',
-                        resolved_at: new Date(),
-                    },
-                },
-                { new: true, upsert: true },
-            );
+        if (!shiftData) {
+            const plan = await this.shiftPlanModel.findOne({
+                employee: employeeId,
+                active: true,
+                effective_from: { $lte: shiftDate },
+                $or: [
+                    { effective_to: { $gte: shiftDate } },
+                    { effective_to: null },
+                ],
+            });
+            if (plan) {
+                shiftData = {
+                    shift_type: plan.shift_type,
+                    shift_start: plan.shift_start,
+                    shift_end: plan.shift_end,
+                    crosses_midnight: plan.crosses_midnight,
+                    source: 'plan',
+                    plan_id: plan._id,
+                };
+            }
         }
 
-        const plan = await this.shiftPlanModel.findOne({
-            employee: employeeId,
-            active: true,
-            effective_from: { $lte: shiftDate },
-            effective_to: { $gte: shiftDate },
-        });
-
-        if (!plan) return null;
+        if (!shiftData) return null;
 
         return await this.shiftResolvedModel.findOneAndUpdate(
             { employee: employeeId, shift_date: shiftDate },
@@ -205,12 +250,7 @@ export class AttendanceService {
                 $set: {
                     employee: employeeId,
                     shift_date: shiftDate,
-                    shift_type: plan.shift_type,
-                    shift_start: plan.shift_start,
-                    shift_end: plan.shift_end,
-                    crosses_midnight: plan.crosses_midnight,
-                    source: 'plan',
-                    plan_id: plan._id,
+                    ...shiftData,
                     resolved_at: new Date(),
                 },
             },
@@ -219,11 +259,10 @@ export class AttendanceService {
     }
 
     private async evaluateAttendance(
-        attendance: Partial<Attendance> | Attendance,
-        shift: ShiftResolved,
+        attendance: AttendanceDocument | Partial<Attendance>,
+        shift: ShiftResolvedDocument | ShiftResolved,
         employeeId: Types.ObjectId | string,
     ) {
-        // 1. Holiday Logic
         if (shift.source === 'holiday') {
             const holiday = await this.holidayModel
                 .findOne({
@@ -232,14 +271,12 @@ export class AttendanceService {
                 })
                 .lean();
             if (holiday) {
-                // We use the ID directly from the holiday record
-                (attendance as any).flag = holiday.flag;
-                (attendance as any).late_minutes = 0;
+                attendance.flag = holiday.flag;
+                attendance.late_minutes = 0;
             }
             return;
         }
 
-        // 2. Leave Logic
         if (shift.source === 'leave') {
             const leave = await this.leaveRequestModel
                 .findOne({
@@ -250,57 +287,43 @@ export class AttendanceService {
                 })
                 .lean();
             if (leave) {
-                (attendance as any).flag = leave.flag;
-                (attendance as any).late_minutes = 0;
+                attendance.flag = leave.flag;
+                attendance.late_minutes = 0;
             }
             return;
         }
 
-        // 3. Off-Day OT Logic — no delay concept; just mark Present
-        if ((shift as any).is_off_day_overtime) {
-            const present = await this.getFlagByCode('P');
-            if (present) {
-                (attendance as any).flag = present._id;
-            }
-            (attendance as any).late_minutes = 0;
+        if (shift.is_off_day_overtime) {
+            const flag = await this.getFlagByCode('P');
+            if (flag) attendance.flag = flag._id as Types.ObjectId;
+            attendance.late_minutes = 0;
             return;
         }
 
-        // 4. Regular Shift / Adjustment Logic
-        const shiftStartStr = `${moment
-            .tz(shift.shift_date, 'Asia/Dhaka')
-            .format('YYYY-MM-DD')} ${shift.shift_start}`;
+        if (!attendance.in_time) return;
+
+        const shiftStartStr = `${moment.tz(shift.shift_date, 'Asia/Dhaka').format('YYYY-MM-DD')} ${shift.shift_start}`;
         const shiftStart = moment.tz(
             shiftStartStr,
             'YYYY-MM-DD HH:mm',
             'Asia/Dhaka',
         );
+        const inTime = moment.tz(attendance.in_time, 'Asia/Dhaka');
+        const lateMinutes = Math.max(0, inTime.diff(shiftStart, 'minutes'));
+        attendance.late_minutes = lateMinutes;
 
-        if (!(attendance as any).in_time) return;
+        const [ext, del, pre] = await Promise.all([
+            this.getFlagByCode('E'),
+            this.getFlagByCode('D'),
+            this.getFlagByCode('P'),
+        ]);
+        const grace = Number(shift.grace_period_minutes ?? 10);
 
-        const inTimeRaw = (attendance as any).in_time as string | Date;
-        const inTime = moment.tz(inTimeRaw, 'Asia/Dhaka');
-        const diffMinutes = inTime.diff(shiftStart, 'minutes');
-        const lateMinutes = Math.max(0, diffMinutes);
-
-        (attendance as any).late_minutes = lateMinutes;
-
-        // Fetch flags (cached)
-        const extremeDelay = await this.getFlagByCode('E');
-        const delay = await this.getFlagByCode('D');
-        const present = await this.getFlagByCode('P');
-
-        // 4. Assign Flag
-        const grace = (shift as any).grace_period_minutes ?? 10; // default grace
-
-        // D: late when after grace and up to 30 minutes, E: after 30 minutes
-        if (lateMinutes > 30 && extremeDelay) {
-            (attendance as any).flag = extremeDelay._id;
-        } else if (lateMinutes > grace && delay) {
-            (attendance as any).flag = delay._id;
-        } else if (present) {
-            (attendance as any).flag = present._id;
-        }
+        if (lateMinutes > 30 && ext)
+            attendance.flag = ext._id as Types.ObjectId;
+        else if (lateMinutes > grace && del)
+            attendance.flag = del._id as Types.ObjectId;
+        else if (pre) attendance.flag = pre._id as Types.ObjectId;
     }
 
     private async resolveShiftForTimestamp(
@@ -334,454 +357,282 @@ export class AttendanceService {
             return { shift: shiftYesterday, shiftDate };
         }
 
-        return {
-            shift: null,
-            shiftDate: moment.tz(time, 'Asia/Dhaka').startOf('day').toDate(),
-        };
+        return { shift: null, shiftDate: today };
     }
 
     private validateTimestamp(timestamp: string): Date {
-        const parsedTime = moment.tz(timestamp, 'Asia/Dhaka');
-
-        // Explicitly check for invalid date
-        if (!parsedTime.isValid()) {
-            this.logger.warn(
-                `Invalid timestamp received: ${timestamp}. Using server time instead.`,
-            );
-            return moment.tz('Asia/Dhaka').toDate();
-        }
-
-        const serverTime = moment.tz('Asia/Dhaka');
-        const diffMinutes = Math.abs(serverTime.diff(parsedTime, 'minutes'));
-
-        // Allow ±5 minutes deviation from server time
-        if (diffMinutes > 5) {
-            this.logger.warn(
-                `Timestamp deviation detected: ${diffMinutes} minutes from server time. Using server time instead.`,
-            );
-            return serverTime.toDate();
-        }
-
-        return parsedTime.toDate();
+        const parsed = moment.tz(timestamp, 'Asia/Dhaka');
+        if (!parsed.isValid()) return moment.tz('Asia/Dhaka').toDate();
+        const now = moment.tz('Asia/Dhaka');
+        if (Math.abs(now.diff(parsed, 'minutes')) > 5) return now.toDate();
+        return parsed.toDate();
     }
 
-    /**
-     * Calculate OT for an attendance record
-     */
     private async calculateAttendanceOT(
-        attendance: Attendance,
+        attendance: AttendanceDocument | Attendance,
         shiftDate: Date,
         employeeId: Types.ObjectId | string,
-    ): Promise<number> {
+    ): Promise<Partial<Attendance>> {
         if (!attendance.in_time || !attendance.out_time) {
-            return 0;
+            return {
+                ot_minutes: 0,
+                extra_work_minutes: 0,
+                net_ot_minutes: 0,
+                ot_payout: 0,
+            };
         }
 
-        const inTime = attendance.in_time;
-        const outTime = attendance.out_time;
-
         try {
-            const resolved = await this.resolveShiftForDate(
-                employeeId,
-                shiftDate,
-            );
+            const [resolved, employee] = await Promise.all([
+                this.resolveShiftForDate(employeeId, shiftDate),
+                this.employeeModel
+                    .findById(employeeId)
+                    .select('gross_salary')
+                    .lean<{ gross_salary: number } | null>()
+                    .exec(),
+            ]);
 
-            if (!resolved) {
-                // No shift plan found, cannot calculate OT
-                return 0;
+            if (!resolved || !employee)
+                return {
+                    ot_minutes: 0,
+                    extra_work_minutes: 0,
+                    net_ot_minutes: 0,
+                    ot_payout: 0,
+                };
+
+            let result: OTResult;
+            if (resolved.is_off_day_overtime) {
+                const worked = moment
+                    .tz(attendance.out_time, 'Asia/Dhaka')
+                    .diff(
+                        moment.tz(attendance.in_time, 'Asia/Dhaka'),
+                        'minutes',
+                    );
+                result = calculateOTFromMinutes(worked);
+            } else {
+                result = calculateOT({
+                    in_time: attendance.in_time,
+                    out_time: attendance.out_time,
+                    shift_start: resolved.shift_start,
+                    shift_end: resolved.shift_end,
+                    shift_date: shiftDate,
+                    crosses_midnight: resolved.crosses_midnight,
+                });
             }
 
-            // If this shift is marked as an off-day OT (admin chose 'off_day'), treat full worked minutes as OT
-            if ((resolved as any).is_off_day_overtime) {
-                const actualIn = moment.tz(inTime, 'Asia/Dhaka');
-                const actualOut = moment.tz(outTime, 'Asia/Dhaka');
-                const workedMinutes = actualOut.diff(actualIn, 'minutes');
-                if (workedMinutes <= 0) return 0;
-                const otMinutes = calculateOTFromMinutes(workedMinutes);
-                return otMinutes;
-            }
+            const base = Math.trunc((employee.gross_salary * 68) / 100);
+            const payout =
+                (result.net_ot_minutes / 60) * ((base / 30 / 8) * 1.5);
 
-            const otMinutes = calculateOT({
-                in_time: inTime,
-                out_time: outTime,
-                shift_start: resolved.shift_start,
-                shift_end: resolved.shift_end,
-                shift_date: shiftDate,
-                crosses_midnight: resolved.crosses_midnight,
-            });
-
-            return otMinutes;
+            return {
+                ot_minutes: result.ot_minutes,
+                extra_work_minutes: result.extra_work_minutes,
+                net_ot_minutes: result.net_ot_minutes,
+                ot_payout: Math.round(payout * 100) / 100,
+            };
         } catch (err) {
-            this.logger.error('Error calculating OT', err as Error);
-            return 0;
+            this.logger.error('OT Calculation Error', err);
+            return {
+                ot_minutes: 0,
+                extra_work_minutes: 0,
+                net_ot_minutes: 0,
+                ot_payout: 0,
+            };
         }
     }
 
     async markAttendance(body: MarkAttendanceDto) {
-        const deviceId = body.deviceId?.trim() || DEFAULT_DEVICE_ID;
-        const sourceIp = body.sourceIp?.trim() || DEFAULT_SOURCE_IP;
-        const normalizedBody: MarkAttendanceDto = {
-            ...body,
-            deviceId,
-            sourceIp,
-        };
-
-        // lookup employee reference from device-user mapping
-        const deviceUserMapping = await this.deviceUserModel
-            .findOne({ user_id: normalizedBody.userId })
+        const deviceUser = await this.deviceUserModel
+            .findOne({ user_id: body.userId })
             .select('employee')
             .exec();
-
-        if (!deviceUserMapping || !deviceUserMapping.employee) {
+        if (!deviceUser?.employee)
             throw new InternalServerErrorException(
-                `User ID ${normalizedBody.userId} is not mapped to any employee in the system`,
+                `User ID ${body.userId} not mapped to employee`,
             );
-        }
 
-        // Validate and normalize timestamp
-        const currentTime = this.validateTimestamp(body.timestamp);
-
-        const resolved = await this.resolveShiftForTimestamp(
-            deviceUserMapping.employee,
-            currentTime,
+        const time = this.validateTimestamp(body.timestamp);
+        const { shift, shiftDate } = await this.resolveShiftForTimestamp(
+            deviceUser.employee,
+            time,
         );
-        const shiftDate = resolved.shiftDate;
 
         try {
-            // Find existing attendance for this user on this shift_date
-            const existingAttendance = await this.attendanceModel.findOne({
-                user_id: normalizedBody.userId,
+            const existing = await this.attendanceModel.findOne({
+                employee: deviceUser.employee,
                 shift_date: shiftDate,
             });
+            const devId = body.deviceId?.trim() || DEFAULT_DEVICE_ID;
+            const ip = body.sourceIp?.trim() || DEFAULT_SOURCE_IP;
 
-            if (!existingAttendance) {
-                // First check-in of the shift - create new attendance record
+            if (!existing) {
                 const payload = AttendanceFactory.fromMarkDto(
-                    normalizedBody,
-                    currentTime,
+                    { ...body, deviceId: devId, sourceIp: ip },
+                    time,
                 );
-                (payload as any).employee = deviceUserMapping.employee;
-                (payload as any).shift_date = shiftDate;
-
-                // Evaluate Lateness and Flags
-                if (resolved.shift) {
+                payload.employee = deviceUser.employee;
+                payload.shift_date = shiftDate;
+                if (shift)
                     await this.evaluateAttendance(
                         payload,
-                        resolved.shift,
-                        deviceUserMapping.employee,
+                        shift,
+                        deviceUser.employee,
                     );
-                }
-
-                const created = await this.attendanceModel.create(payload);
-                if (!created) {
-                    throw new InternalServerErrorException(
-                        'Failed to mark attendance',
-                    );
-                }
-                return created;
+                return await this.attendanceModel.create(payload);
             }
 
-            // If attendance exists and is an auto-generated Absent (prefill),
-            // treat this incoming mark as the *real* check-in and convert the record.
+            if (existing.status === 'system-generated') {
+                existing.in_time = time;
+                existing.verify_mode = body.verifyMode;
+                existing.status = body.status;
+                existing.device_id = devId;
+                existing.total_checkins = 1;
+                if (shift)
+                    await this.evaluateAttendance(
+                        existing,
+                        shift,
+                        deviceUser.employee,
+                    );
+                return await existing.save();
+            }
+
+            const last = existing.out_time || existing.in_time;
             if (
-                (existingAttendance as any).verify_mode === 'auto' &&
-                (existingAttendance as any).status === 'system-generated' &&
-                (existingAttendance as any).flag
-            ) {
-                try {
-                    const flagDoc = await this.attendanceFlagModel
-                        .findById((existingAttendance as any).flag)
-                        .lean()
-                        .exec();
+                moment
+                    .tz(time, 'Asia/Dhaka')
+                    .diff(moment.tz(last || time, 'Asia/Dhaka'), 'minutes') < 2
+            )
+                return existing;
 
-                    // Only convert when the existing system-generated flag is 'A' (Absent)
-                    if (flagDoc && flagDoc.code === 'A') {
-                        // Convert prefilled Absent into a real check-in
-                        existingAttendance.in_time = currentTime;
-                        existingAttendance.verify_mode =
-                            normalizedBody.verifyMode;
-                        existingAttendance.status = normalizedBody.status; // e.g. 'check-in'
-                        if (normalizedBody.deviceId) {
-                            existingAttendance.device_id =
-                                normalizedBody.deviceId;
-                        }
-                        existingAttendance.total_checkins = 1;
-                        existingAttendance.out_time = null;
-                        existingAttendance.ot_minutes = 0;
-
-                        // Re-evaluate lateness/flag based on actual shift (if available)
-                        if (resolved.shift) {
-                            await this.evaluateAttendance(
-                                existingAttendance as Partial<Attendance>,
-                                resolved.shift,
-                                deviceUserMapping.employee,
-                            );
-                        }
-
-                        // Persist and return
-                        await existingAttendance.save();
-                        return existingAttendance;
-                    }
-                } catch (err) {
-                    this.logger.error(
-                        'Failed converting prefilled absent:',
-                        err as Error,
-                    );
-                    // fall through to normal subsequent-check-in logic below
-                }
-            }
-
-            // Existing attendance found - this is a subsequent check-in (update out_time)
-            // Prevent accidental duplicate scans within 2 minutes
-            const lastScanTime =
-                existingAttendance.out_time || existingAttendance.in_time;
-            const diffMinutes = moment
-                .tz(currentTime, 'Asia/Dhaka')
-                .diff(moment.tz(lastScanTime, 'Asia/Dhaka'), 'minutes');
-
-            if (diffMinutes < 2) {
-                this.logger.warn(
-                    `Ignoring duplicate scan within 2 minutes for user ${normalizedBody.userId}`,
-                );
-                return existingAttendance;
-            }
-
-            // Update out_time (second, third, ... check-ins all update out_time)
-            existingAttendance.out_time = currentTime;
-            existingAttendance.total_checkins =
-                (existingAttendance.total_checkins || 1) + 1;
-
-            // Calculate and update OT
-            const otMinutes = await this.calculateAttendanceOT(
-                existingAttendance,
-                existingAttendance.shift_date,
-                deviceUserMapping.employee,
+            existing.out_time = time;
+            existing.total_checkins = (existing.total_checkins || 1) + 1;
+            const ot = await this.calculateAttendanceOT(
+                existing,
+                existing.shift_date,
+                deviceUser.employee,
             );
-            existingAttendance.ot_minutes = otMinutes;
-
-            return await existingAttendance.save();
+            Object.assign(existing, ot);
+            return await existing.save();
         } catch (err) {
             if (err instanceof HttpException) throw err;
-            this.logger.error('Failed to mark attendance', err as Error);
-            throw new InternalServerErrorException(
-                'Unable to mark attendance at this time',
-            );
+            throw new InternalServerErrorException('Attendance marking failed');
         }
     }
 
     async updateAttendance(
-        attendanceId: string,
-        attendanceData: Partial<CreateAttendanceBodyDto>,
-        userSession: UserSession,
+        id: string,
+        data: Partial<CreateAttendanceBodyDto>,
+        user: UserSession,
     ) {
-        const canManage = hasPerm(
-            'admin:edit_attendance',
-            userSession.permissions,
-        );
-
-        if (!canManage) {
-            throw new ForbiddenException(
-                "You don't have permission to update attendance records",
-            );
-        }
-
-        const existing = await this.attendanceModel
-            .findById(attendanceId)
-            .exec();
-        if (!existing) {
-            throw new NotFoundException('Attendance record not found');
-        }
-
-        const patch = AttendanceFactory.fromUpdateDto(attendanceData);
+        if (!hasPerm('admin:edit_attendance', user.permissions))
+            throw new ForbiddenException('No permission');
+        const existing = await this.attendanceModel.findById(id).exec();
+        if (!existing) throw new NotFoundException('Not found');
 
         try {
+            const patch = AttendanceFactory.fromUpdateDto(data);
             const updated = await this.attendanceModel
-                .findByIdAndUpdate(attendanceId, { $set: patch }, { new: true })
+                .findByIdAndUpdate(id, { $set: patch }, { new: true })
                 .exec();
-            if (!updated) {
-                throw new InternalServerErrorException(
-                    'Failed to update attendance record',
-                );
-            }
-
-            // Recalculate OT if times were updated
-            if (attendanceData.inTime || attendanceData.outTime) {
-                const otMinutes = await this.calculateAttendanceOT(
+            if (updated && (data.inTime || data.outTime)) {
+                const ot = await this.calculateAttendanceOT(
                     updated,
                     updated.shift_date,
                     updated.employee,
                 );
-                updated.ot_minutes = otMinutes;
+                Object.assign(updated, ot);
                 await updated.save();
             }
-
             return updated;
         } catch (err) {
             if (err instanceof HttpException) throw err;
-            this.logger.error('Failed to update attendance record', err);
-            throw new InternalServerErrorException(
-                'Unable to update attendance record at this time',
-            );
+            throw new InternalServerErrorException('Update failed');
         }
     }
 
-    async deleteAttendance(attendanceId: string, userSession: UserSession) {
-        const canDelete = hasPerm(
-            'admin:delete_attendance',
-            userSession.permissions,
-        );
-
-        if (!canDelete) {
-            throw new ForbiddenException(
-                "You don't have permission to delete attendance records",
-            );
-        }
-
-        const existing = await this.attendanceModel
-            .findById(attendanceId)
-            .populate('flag')
-            .exec();
-
-        if (!existing) {
-            throw new BadRequestException('Attendance record not found');
-        }
-
-        const currentFlag = existing.flag as any;
-        if (currentFlag && currentFlag.code === 'A') {
-            throw new BadRequestException(
-                'This attendance record is already marked as Absent',
-            );
-        }
+    async deleteAttendance(id: string, user: UserSession) {
+        if (!hasPerm('admin:delete_attendance', user.permissions))
+            throw new ForbiddenException('No permission');
+        const existing = await this.attendanceModel.findById(id).exec();
+        if (!existing) throw new BadRequestException('Not found');
 
         try {
-            // Revert to "Absent" Instead of Deleting
-            const absentFlag = await this.getFlagByCode('A');
-            const systemStatus =
-                ATTENDANCE_STATUSES.find(
-                    s => (s as string) === 'system-generated',
-                ) ?? ATTENDANCE_STATUSES[0];
-
-            let dummyInTime: Date | null = null;
-            let dummyOutTime: Date | null = null;
-
-            // Resolve shift to display dummy times mimicking a Leave record
-            const resolvedShift = await this.resolveShiftForDate(
+            const flag = await this.getFlagByCode('A');
+            const shift = await this.resolveShiftForDate(
                 existing.employee,
                 existing.shift_date,
             );
-            if (
-                resolvedShift &&
-                resolvedShift.shift_start &&
-                resolvedShift.shift_end
-            ) {
-                const shiftStartStr = `${moment.tz(existing.shift_date, 'Asia/Dhaka').format('YYYY-MM-DD')} ${resolvedShift.shift_start}`;
-                dummyInTime = moment
-                    .tz(shiftStartStr, 'YYYY-MM-DD HH:mm', 'Asia/Dhaka')
-                    .toDate();
-
-                const shiftEndStr = `${moment.tz(existing.shift_date, 'Asia/Dhaka').format('YYYY-MM-DD')} ${resolvedShift.shift_end}`;
-                let outTimeMoment = moment.tz(
-                    shiftEndStr,
+            const dateStr = moment
+                .tz(existing.shift_date, 'Asia/Dhaka')
+                .format('YYYY-MM-DD');
+            const inTime = moment
+                .tz(
+                    `${dateStr} ${shift?.shift_start || '09:00'}`,
                     'YYYY-MM-DD HH:mm',
                     'Asia/Dhaka',
-                );
-
-                if (resolvedShift.crosses_midnight) {
-                    outTimeMoment = outTimeMoment.add(1, 'day');
-                }
-                dummyOutTime = outTimeMoment.toDate();
-            } else {
-                // Fallback dummy times if no shift is resolved
-                const startOfDayStr = `${moment.tz(existing.shift_date, 'Asia/Dhaka').format('YYYY-MM-DD')}`;
-                dummyInTime = moment
-                    .tz(
-                        `${startOfDayStr} 09:00`,
-                        'YYYY-MM-DD HH:mm',
-                        'Asia/Dhaka',
-                    )
-                    .toDate();
-                dummyOutTime = moment
-                    .tz(
-                        `${startOfDayStr} 17:00`,
-                        'YYYY-MM-DD HH:mm',
-                        'Asia/Dhaka',
-                    )
-                    .toDate();
-            }
+                )
+                .toDate();
+            const outTime = moment
+                .tz(
+                    `${dateStr} ${shift?.shift_end || '17:00'}`,
+                    'YYYY-MM-DD HH:mm',
+                    'Asia/Dhaka',
+                )
+                .toDate();
 
             await existing.updateOne({
                 $set: {
-                    flag: absentFlag?._id,
-                    in_time: dummyInTime,
-                    out_time: dummyOutTime,
+                    flag: flag?._id,
+                    in_time: inTime,
+                    out_time: outTime,
                     ot_minutes: 0,
+                    extra_work_minutes: 0,
+                    net_ot_minutes: 0,
+                    ot_payout: 0,
                     late_minutes: 0,
-                    status: systemStatus,
-                    verify_mode: 'manual',
-                    in_remark: 'Absent (Record deleted)',
-                    out_remark: 'Absent (Record deleted)',
+                    status: 'system-generated',
+                    verify_mode: 'auto',
+                    total_checkins: 0,
                 },
             });
-
-            return {
-                message: 'Attendance record reverted to Absent successfully',
-            };
+            return { message: 'Reverted to Absent' };
         } catch (err) {
             if (err instanceof HttpException) throw err;
-            this.logger.error('Failed to delete attendance record', err);
-            throw new InternalServerErrorException(
-                'Unable to delete attendance record at this time',
-            );
+            throw new InternalServerErrorException('Delete failed');
         }
     }
 
     async searchAttendance(
         filters: SearchAttendanceBodyDto,
-        pagination: {
-            page: number;
-            itemsPerPage: number;
-            paginated: boolean;
-        },
-        userSession: UserSession,
+        pagination: { page: number; itemsPerPage: number; paginated: boolean },
+        user: UserSession,
     ) {
-        const canView = hasPerm(
-            'accountancy:manage_employee',
-            userSession.permissions,
-        );
+        const canView =
+            hasPerm('admin:view_page', user.permissions) ||
+            hasPerm('accountancy:manage_employee', user.permissions);
+        if (!canView) throw new ForbiddenException('No permission');
 
-        if (!canView) {
-            throw new ForbiddenException(
-                "You don't have permission to view attendance records",
-            );
-        }
+        const from = filters.fromDate
+            ? moment.tz(filters.fromDate, 'Asia/Dhaka').startOf('day')
+            : moment.tz('Asia/Dhaka').startOf('day');
+        const to = filters.toDate
+            ? moment.tz(filters.toDate, 'Asia/Dhaka').endOf('day')
+            : from.clone().endOf('day');
+        const itemsPerPage = pagination.paginated
+            ? pagination.itemsPerPage
+            : 1000;
+        const skip = pagination.paginated
+            ? (pagination.page - 1) * itemsPerPage
+            : 0;
+
+        const employeeId = filters.employeeId?.trim();
+        const employeeQuery: FilterQuery<Employee> = employeeId
+            ? { _id: new Types.ObjectId(employeeId) }
+            : { status: 'active' };
+        if (filters.department) employeeQuery.department = filters.department;
 
         try {
-            const today = moment.tz('Asia/Dhaka');
-            const from = filters.fromDate
-                ? moment.tz(filters.fromDate, 'Asia/Dhaka').startOf('day')
-                : today.clone().startOf('day');
-            const to = filters.toDate
-                ? moment.tz(filters.toDate, 'Asia/Dhaka').endOf('day')
-                : filters.fromDate
-                  ? moment.tz(filters.fromDate, 'Asia/Dhaka').endOf('day')
-                  : today.clone().endOf('day');
-            if (!from.isValid() || !to.isValid()) {
-                throw new BadRequestException('Invalid from/to date');
-            }
-
-            const page = pagination.paginated ? pagination.page : 1;
-            const limit = pagination.paginated ? pagination.itemsPerPage : 1000;
-            const skip = (page - 1) * limit;
-
-            const employeeQuery: Record<string, unknown> = filters.employeeId
-                ? { _id: filters.employeeId }
-                : { status: 'active' };
-
-            if (filters.department) {
-                employeeQuery.department = filters.department;
-            }
-
-            const [employees, employeeCount] = await Promise.all([
+            const [employees, count] = await Promise.all([
                 this.employeeModel
                     .find(employeeQuery)
                     .select(
@@ -789,263 +640,106 @@ export class AttendanceService {
                     )
                     .sort({ e_id: 1 })
                     .skip(skip)
-                    .limit(limit)
+                    .limit(itemsPerPage)
                     .lean()
                     .exec(),
                 this.employeeModel.countDocuments(employeeQuery),
             ]);
 
-            if (!employees.length) {
-                return {
-                    pagination: {
-                        count: employeeCount,
-                        pageCount: Math.ceil(employeeCount / limit),
-                    },
-                    items: [],
-                };
-            }
+            if (!employees.length)
+                return pagination.paginated
+                    ? {
+                          pagination: {
+                              count,
+                              pageCount: Math.ceil(
+                                  count / Math.max(1, itemsPerPage),
+                              ),
+                          },
+                          items: [],
+                      }
+                    : [];
 
-            const employeeIds = employees.map(e => e._id);
-            const fromDate = from.toDate();
-            const toDate = to.toDate();
+            const eids = employees.map(e => e._id);
+            const [attendance, leaves, holidays, depts, flags] =
+                await Promise.all([
+                    this.attendanceModel
+                        .find({
+                            employee: { $in: eids },
+                            shift_date: {
+                                $gte: from.toDate(),
+                                $lte: to.toDate(),
+                            },
+                        })
+                        .populate('flag')
+                        .sort({ createdAt: -1 })
+                        .lean<AttendancePopulated[]>()
+                        .exec(),
+                    this.leaveRequestModel
+                        .find({
+                            employee: { $in: eids },
+                            status: 'approved',
+                            start_date: { $lte: to.toDate() },
+                            end_date: { $gte: from.toDate() },
+                        })
+                        .lean<LeaveRequest[]>()
+                        .exec(),
+                    this.holidayModel
+                        .find({
+                            dateFrom: { $lte: to.toDate() },
+                            dateTo: { $gte: from.toDate() },
+                        })
+                        .lean<Holiday[]>()
+                        .exec(),
+                    this.departmentModel.find().lean<Department[]>().exec(),
+                    this.attendanceFlagModel
+                        .find()
+                        .lean<AttendanceFlag[]>()
+                        .exec(),
+                ]);
 
-            const [
-                attendanceRows,
-                leaveRows,
-                holidayRows,
-                departments,
-                allFlags,
-            ] = await Promise.all([
-                this.attendanceModel
+            const flagMap = new Map(flags.map(f => [f.code, f]));
+            const weekendMap = new Map(
+                depts.map(d => [
+                    d.name.trim().toLowerCase(),
+                    d.weekend_days || [0],
+                ]),
+            );
+            const plansMap = new Map<string, ShiftPlanLean[]>();
+            const adjMap = new Map<string, ShiftAdjustmentLean>();
+
+            const [allPlans, allAdjs] = await Promise.all([
+                this.shiftPlanModel
                     .find({
-                        employee: { $in: employeeIds },
-                        shift_date: { $gte: fromDate, $lte: toDate },
+                        employee: { $in: eids },
+                        $or: [
+                            { effective_to: { $gte: from.toDate() } },
+                            { effective_to: null },
+                        ],
                     })
-                    .populate('flag')
-                    .sort({ createdAt: -1 })
-                    .lean()
+                    .lean<ShiftPlanLean[]>()
                     .exec(),
-                this.leaveRequestModel
+                this.shiftAdjustmentModel
                     .find({
-                        employee: { $in: employeeIds },
-                        status: 'approved',
-                        start_date: { $lte: toDate },
-                        end_date: { $gte: fromDate },
+                        employee: { $in: eids },
+                        shift_date: { $gte: from.toDate(), $lte: to.toDate() },
                     })
-                    .lean()
+                    .lean<ShiftAdjustmentLean[]>()
                     .exec(),
-                this.holidayModel
-                    .find({
-                        dateFrom: { $lte: toDate },
-                        dateTo: { $gte: fromDate },
-                    })
-                    .lean()
-                    .exec(),
-                this.departmentModel.find().lean().exec(),
-                this.attendanceFlagModel.find().lean().exec(),
             ]);
 
-            // Build code -> flag document map for O(1) virtual-record lookup
-            const flagByCode = new Map<string, any>();
-            allFlags.forEach(f => flagByCode.set(f.code, f));
-
-            const departmentWeekendMap = new Map<string, number[]>();
-            departments.forEach(dept => {
-                departmentWeekendMap.set(
-                    dept.name.trim().toLowerCase(),
-                    dept.weekend_days || [0],
-                );
+            allPlans.forEach(p => {
+                const id = String(p.employee);
+                if (!plansMap.has(id)) plansMap.set(id, []);
+                plansMap.get(id)!.push(p);
             });
+            allAdjs.forEach(a =>
+                adjMap.set(
+                    `${String(a.employee)}_${moment.tz(a.shift_date, 'Asia/Dhaka').format('YYYY-MM-DD')}`,
+                    a,
+                ),
+            );
 
-            // --- Shift Memory Queries ---
-            // Bulk fetch active plans for all employees
-            const allPlans = await this.shiftPlanModel
-                .find({
-                    employee: { $in: employeeIds },
-                    $or: [
-                        { effective_to: { $gte: fromDate } },
-                        { effective_to: null },
-                    ],
-                })
-                .lean()
-                .exec();
-
-            const planMap = new Map<string, ShiftPlan[]>();
-            allPlans.forEach(t => {
-                const empId = String(t.employee);
-                if (!planMap.has(empId)) planMap.set(empId, []);
-                planMap.get(empId)!.push(t);
-            });
-
-            // Bulk fetch adjustments for all employees within queried dates
-            const allAdjustments = await this.shiftAdjustmentModel
-                .find({
-                    employee: { $in: employeeIds },
-                    shift_date: { $gte: fromDate, $lte: toDate },
-                })
-                .lean()
-                .exec();
-
-            const adjustmentMap = new Map<string, any>();
-            allAdjustments.forEach(o => {
-                const key = `${String(o.employee)}_${moment.tz(o.shift_date, 'Asia/Dhaka').format('YYYY-MM-DD')}`;
-                adjustmentMap.set(key, o);
-            });
-
-            // Helper to get raw shift memory times synchronously
-            const getDummyShiftTimes = (
-                employeeIdStr: string,
-                dateKey: string,
-            ) => {
-                const dateMom = moment.tz(dateKey, 'YYYY-MM-DD', 'Asia/Dhaka');
-                const adjustmentKey = `${employeeIdStr}_${dateKey}`;
-                const adjustment = adjustmentMap.get(adjustmentKey);
-
-                if (adjustment && adjustment.adjustment_type !== 'cancel') {
-                    return {
-                        start: adjustment.shift_start || '09:00',
-                        end: adjustment.shift_end || '17:00',
-                    };
-                }
-                if (adjustment && adjustment.adjustment_type === 'cancel') {
-                    // For cancellations, fallback to typical times
-                    return { start: '09:00', end: '17:00' };
-                }
-                const empsPlans = planMap.get(employeeIdStr) || [];
-                // find active plan
-                const plan = empsPlans.find(t => {
-                    const fromMom = moment
-                        .tz(t.effective_from, 'Asia/Dhaka')
-                        .startOf('day');
-                    const toMom = t.effective_to
-                        ? moment.tz(t.effective_to, 'Asia/Dhaka').endOf('day')
-                        : moment.tz('2099-12-31', 'Asia/Dhaka');
-                    return dateMom.isBetween(fromMom, toMom, 'day', '[]');
-                });
-                if (plan) {
-                    return {
-                        start: plan.shift_start || '09:00',
-                        end: plan.shift_end || '17:00',
-                    };
-                }
-
-                return { start: '09:00', end: '17:00' };
-            };
-            // ------------------
-
-            const employeeMap = new Map<string, any>();
-            employees.forEach(emp => {
-                employeeMap.set(emp._id.toString(), emp);
-            });
-
-            const attendanceByKey = new Map<string, any>();
-            const dateToKey = (date: Date) =>
-                moment.tz(date, 'Asia/Dhaka').format('YYYY-MM-DD');
-
-            const checkinPriority = (row: any): number => {
-                const code = row?.flag?.code || '';
-                if (row?.verify_mode !== 'auto') return 100;
-                if (code === 'P' || code === 'D' || code === 'E') return 90;
-                if (code === 'L') return 40;
-                if (code === 'H') return 30;
-                if (code === 'W') return 20;
-                if (code === 'A') return 10;
-                return 0;
-            };
-
-            for (const row of attendanceRows) {
-                const key = `${String(row.employee)}_${dateToKey(row.shift_date)}`;
-                const existing = attendanceByKey.get(key);
-                if (
-                    !existing ||
-                    checkinPriority(row) > checkinPriority(existing)
-                ) {
-                    attendanceByKey.set(key, row);
-                }
-            }
-
-            const leaveDateSetByEmployee = new Map<string, Set<string>>();
-
-            const dates: string[] = [];
-            for (
-                let cursor = from.clone().startOf('day');
-                cursor.isSameOrBefore(to, 'day');
-                cursor.add(1, 'day')
-            ) {
-                dates.push(cursor.format('YYYY-MM-DD'));
-            }
-            const dateSet = new Set(dates);
-
-            const holidayDateSet = new Set<string>();
-            holidayRows.forEach(holiday => {
-                const hStart = moment
-                    .tz(holiday.dateFrom, 'Asia/Dhaka')
-                    .startOf('day');
-                const hEnd = moment
-                    .tz(holiday.dateTo, 'Asia/Dhaka')
-                    .endOf('day');
-
-                for (
-                    const dayCursor = hStart.clone();
-                    dayCursor.isSameOrBefore(hEnd, 'day');
-                    dayCursor.add(1, 'day')
-                ) {
-                    const key = dayCursor.format('YYYY-MM-DD');
-                    if (dateSet.has(key)) {
-                        holidayDateSet.add(key);
-                    }
-                }
-            });
-
-            leaveRows.forEach(leave => {
-                const employeeId = String(leave.employee);
-                const set =
-                    leaveDateSetByEmployee.get(employeeId) || new Set<string>();
-
-                const lStart = moment
-                    .tz(leave.start_date, 'Asia/Dhaka')
-                    .startOf('day');
-                const lEnd = moment
-                    .tz(leave.end_date, 'Asia/Dhaka')
-                    .endOf('day');
-
-                for (
-                    const dayCursor = lStart.clone();
-                    dayCursor.isSameOrBefore(lEnd, 'day');
-                    dayCursor.add(1, 'day')
-                ) {
-                    const key = dayCursor.format('YYYY-MM-DD');
-                    if (dateSet.has(key)) {
-                        set.add(key);
-                    }
-                }
-
-                leaveDateSetByEmployee.set(employeeId, set);
-            });
-
-            const resolveVirtualCode = (
-                employee: { _id: Types.ObjectId; department?: string },
-                dateKey: string,
-            ): string => {
-                const employeeId = employee._id.toString();
-
-                const leaveDateSet = leaveDateSetByEmployee.get(employeeId);
-                if (leaveDateSet?.has(dateKey)) return 'L';
-
-                if (holidayDateSet.has(dateKey)) return 'H';
-
-                const weekendDays = departmentWeekendMap.get(
-                    (employee.department || '').trim().toLowerCase(),
-                ) || [0];
-                const dayOfWeek = moment
-                    .tz(dateKey, 'YYYY-MM-DD', 'Asia/Dhaka')
-                    .day();
-                if (weekendDays.includes(dayOfWeek)) return 'W';
-
-                return 'A';
-            };
-
-            const precedence = new Map<string, number>([
+            const precedence = new Map([
                 ['P', 100],
                 ['D', 95],
                 ['E', 90],
@@ -1054,141 +748,221 @@ export class AttendanceService {
                 ['W', 20],
                 ['A', 10],
             ]);
+            const getPriority = (row: AttendancePopulated) =>
+                row.verify_mode !== 'auto'
+                    ? 200
+                    : precedence.get(String(row.flag?.code || '')) || 0;
+            const recordsMap = new Map<string, AttendancePopulated>();
+            attendance.forEach(row => {
+                const key = `${String(row.employee)}_${moment.tz(row.shift_date, 'Asia/Dhaka').format('YYYY-MM-DD')}`;
+                if (
+                    !recordsMap.has(key) ||
+                    getPriority(row) > getPriority(recordsMap.get(key)!)
+                )
+                    recordsMap.set(key, row);
+            });
 
-            const groupedItems: {
-                employee: (typeof employees)[number];
-                records: Record<string, unknown>[];
-            }[] = [];
+            const dates: string[] = [];
+            for (
+                let c = from.clone();
+                c.isSameOrBefore(to, 'day');
+                c.add(1, 'day')
+            )
+                dates.push(c.format('YYYY-MM-DD'));
 
-            for (const employee of employees) {
-                const records: Record<string, unknown>[] = [];
-                for (const dateKey of dates) {
-                    const key = `${employee._id.toString()}_${dateKey}`;
-                    const existing = attendanceByKey.get(key);
-                    const existingCode = (existing?.flag?.code as string) || '';
-                    const virtualCode = resolveVirtualCode(employee, dateKey);
+            const grouped = employees.map(employee => {
+                const eid = employee._id.toString();
+                const records = dates.map(date => {
+                    const key = `${eid}_${date}`;
+                    const existing = recordsMap.get(key);
+                    let virtual = 'A';
+                    if (
+                        leaves.some(
+                            l =>
+                                l.employee.toString() === eid &&
+                                moment
+                                    .tz(l.start_date, 'Asia/Dhaka')
+                                    .startOf('day')
+                                    .isSameOrBefore(
+                                        moment.tz(
+                                            date,
+                                            'YYYY-MM-DD',
+                                            'Asia/Dhaka',
+                                        ),
+                                    ) &&
+                                moment
+                                    .tz(l.end_date, 'Asia/Dhaka')
+                                    .endOf('day')
+                                    .isSameOrAfter(
+                                        moment.tz(
+                                            date,
+                                            'YYYY-MM-DD',
+                                            'Asia/Dhaka',
+                                        ),
+                                    ),
+                        )
+                    )
+                        virtual = 'L';
+                    else if (
+                        holidays.some(
+                            h =>
+                                moment
+                                    .tz(h.dateFrom, 'Asia/Dhaka')
+                                    .startOf('day')
+                                    .isSameOrBefore(
+                                        moment.tz(
+                                            date,
+                                            'YYYY-MM-DD',
+                                            'Asia/Dhaka',
+                                        ),
+                                    ) &&
+                                moment
+                                    .tz(h.dateTo, 'Asia/Dhaka')
+                                    .endOf('day')
+                                    .isSameOrAfter(
+                                        moment.tz(
+                                            date,
+                                            'YYYY-MM-DD',
+                                            'Asia/Dhaka',
+                                        ),
+                                    ),
+                        )
+                    )
+                        virtual = 'H';
+                    else if (
+                        (
+                            weekendMap.get(
+                                (employee.department || '')
+                                    .trim()
+                                    .toLowerCase(),
+                            ) || [0]
+                        ).includes(
+                            moment.tz(date, 'YYYY-MM-DD', 'Asia/Dhaka').day(),
+                        )
+                    )
+                        virtual = 'W';
 
-                    const existingRank = precedence.get(existingCode) || 0;
-                    const virtualRank = precedence.get(virtualCode) || 0;
-
-                    if (existing && existingRank >= virtualRank) {
-                        // Apply dummy times to finalized auto-generated records that don't have time
-                        let inTime = existing.in_time;
-                        let outTime = existing.out_time;
-
+                    if (
+                        existing &&
+                        (precedence.get(String(existing.flag?.code || '')) ||
+                            0) >= (precedence.get(virtual) || 0)
+                    ) {
+                        let { in_time, out_time } = existing;
                         if (
                             existing.verify_mode === 'auto' &&
-                            (!inTime || !outTime)
+                            (!in_time || !out_time)
                         ) {
-                            const { start, end } = getDummyShiftTimes(
-                                employee._id.toString(),
-                                dateKey,
+                            const { start, end } = this.getDummyTimes(
+                                eid,
+                                date,
+                                plansMap,
+                                adjMap,
                             );
-                            if (!inTime) {
-                                inTime = moment
+                            in_time =
+                                in_time ||
+                                moment
                                     .tz(
-                                        `${dateKey} ${start}`,
+                                        `${date} ${start}`,
                                         'YYYY-MM-DD HH:mm',
                                         'Asia/Dhaka',
                                     )
                                     .toDate();
-                            }
-                            if (!outTime) {
-                                outTime = moment
+                            out_time =
+                                out_time ||
+                                moment
                                     .tz(
-                                        `${dateKey} ${end}`,
+                                        `${date} ${end}`,
                                         'YYYY-MM-DD HH:mm',
                                         'Asia/Dhaka',
                                     )
                                     .toDate();
-                            }
                         }
-
-                        records.push({
-                            ...(existing as Record<string, unknown>),
-                            in_time: inTime,
-                            out_time: outTime,
+                        return {
+                            ...existing,
+                            in_time,
+                            out_time,
                             is_virtual: false,
-                        });
-                    } else {
-                        const shiftDate = moment
-                            .tz(dateKey, 'YYYY-MM-DD', 'Asia/Dhaka')
-                            .startOf('day')
-                            .toDate();
-
-                        // Construct proper dummy times
-                        const { start, end } = getDummyShiftTimes(
-                            employee._id.toString(),
-                            dateKey,
-                        );
-                        const vInTime = moment
-                            .tz(
-                                `${dateKey} ${start}`,
-                                'YYYY-MM-DD HH:mm',
-                                'Asia/Dhaka',
-                            )
-                            .toDate();
-                        const vOutTime = moment
-                            .tz(
-                                `${dateKey} ${end}`,
-                                'YYYY-MM-DD HH:mm',
-                                'Asia/Dhaka',
-                            )
-                            .toDate();
-
-                        records.push({
-                            _id: `virtual_${employee._id.toString()}_${dateKey}`,
-                            shift_date: shiftDate,
-                            in_time: vInTime,
-                            out_time: vOutTime,
-                            in_remark: '',
-                            out_remark: '',
-                            ot_minutes: 0,
-                            verify_mode: 'auto',
-                            status: 'system-generated',
-                            flag: flagByCode.get(virtualCode) ?? {
-                                code: virtualCode,
-                            },
-                            is_virtual: true,
-                        });
+                        };
                     }
-                }
 
-                records.sort((a, b) => {
-                    const aDate = moment
-                        .tz((a.shift_date || a.in_time) as Date, 'Asia/Dhaka')
-                        .valueOf();
-                    const bDate = moment
-                        .tz((b.shift_date || b.in_time) as Date, 'Asia/Dhaka')
-                        .valueOf();
-                    return aDate - bDate; // Sort chronologically
+                    const { start, end } = this.getDummyTimes(
+                        eid,
+                        date,
+                        plansMap,
+                        adjMap,
+                    );
+                    return {
+                        _id: `v_${eid}_${date}`,
+                        shift_date: moment.tz(date, 'Asia/Dhaka').toDate(),
+                        in_time: moment
+                            .tz(
+                                `${date} ${start}`,
+                                'YYYY-MM-DD HH:mm',
+                                'Asia/Dhaka',
+                            )
+                            .toDate(),
+                        out_time: moment
+                            .tz(
+                                `${date} ${end}`,
+                                'YYYY-MM-DD HH:mm',
+                                'Asia/Dhaka',
+                            )
+                            .toDate(),
+                        verify_mode: 'auto',
+                        status: 'system-generated',
+                        flag: flagMap.get(virtual) || { code: virtual },
+                        is_virtual: true,
+                        ot_minutes: 0,
+                        extra_work_minutes: 0,
+                        net_ot_minutes: 0,
+                        ot_payout: 0,
+                    };
                 });
+                return { employee, records };
+            });
 
-                groupedItems.push({
-                    employee,
-                    records,
-                });
-            }
-
-            const response = {
+            const result = {
                 pagination: {
-                    count: employeeCount,
-                    pageCount: Math.ceil(employeeCount / limit),
+                    count,
+                    pageCount: Math.ceil(count / itemsPerPage),
                 },
-                items: groupedItems,
+                items: grouped,
             };
-
-            if (!pagination.paginated) {
-                return response.items;
-            }
-
-            return response;
+            return pagination.paginated ? result : result.items;
         } catch (err) {
             if (err instanceof HttpException) throw err;
-            this.logger.error('Failed to search attendance records', err);
             throw new InternalServerErrorException(
-                'Unable to search attendance records at this time',
+                'Unable to retrieve attendance',
             );
         }
+    }
+
+    private getDummyTimes(
+        eid: string,
+        date: string,
+        plans: Map<string, ShiftPlanLean[]>,
+        adjs: Map<string, ShiftAdjustmentLean>,
+    ) {
+        const adj = adjs.get(`${eid}_${date}`);
+        if (adj && adj.adjustment_type !== 'cancel')
+            return {
+                start: adj.shift_start || '09:00',
+                end: adj.shift_end || '17:00',
+            };
+        const p = (plans.get(eid) || []).find(p => {
+            const start = moment
+                .tz(p.effective_from, 'Asia/Dhaka')
+                .startOf('day');
+            const end = p.effective_to
+                ? moment.tz(p.effective_to, 'Asia/Dhaka').endOf('day')
+                : moment.tz('2099-12-31', 'Asia/Dhaka');
+            return moment
+                .tz(date, 'YYYY-MM-DD', 'Asia/Dhaka')
+                .isBetween(start, end, 'day', '[]');
+        });
+        return {
+            start: p?.shift_start || '09:00',
+            end: p?.shift_end || '17:00',
+        };
     }
 }
