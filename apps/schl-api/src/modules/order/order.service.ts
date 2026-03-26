@@ -355,6 +355,17 @@ export class OrderService {
         }
         try {
             const payload = OrderFactory.fromCreateDto(orderData);
+
+            // if production is already equal to quantity on creation, mark type as qc
+            if (
+                Number(payload.production) >= Number(payload.quantity) &&
+                Number(payload.quantity) > 0 &&
+                !['finished', 'correction'].includes(payload.status || '') &&
+                payload.type !== 'test'
+            ) {
+                payload.type = 'qc';
+            }
+
             const created = await this.orderModel.create(payload);
             if (!created) {
                 throw new InternalServerErrorException(
@@ -502,12 +513,24 @@ export class OrderService {
                 ? String(updateDoc.status).toLowerCase()
                 : String(existing.status || '').toLowerCase();
 
+        const isCompleted = nextProduction >= nextQuantity && nextQuantity > 0;
+        const isCorrectionOrFinished = ['finished', 'correction'].includes(
+            nextStatus,
+        );
+
         if (
-            nextProduction === nextQuantity &&
-            !['finished', 'correction'].includes(nextStatus) &&
-            !['test', 'qc'].includes(existing.type)
+            isCompleted &&
+            !isCorrectionOrFinished &&
+            existing.type !== 'test'
         ) {
             updateDoc.type = 'qc';
+        } else if (
+            !isCompleted &&
+            existing.type === 'qc' &&
+            !isCorrectionOrFinished
+        ) {
+            // If it was QC but now production < quantity (e.g. quantity increased), move it back to general
+            updateDoc.type = 'general';
         }
 
         // if status is updated to finish then change the type to general (only if previous type was QC)
