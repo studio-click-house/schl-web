@@ -10,15 +10,18 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
-type PauseReasonDto = {
-    reason: string;
-    duration: number;
-};
-
-class QcWorkLogFileDto {
+class WorkLogFileDto {
     @IsString()
     @IsNotEmpty()
     fileName: string;
+
+    @IsString()
+    @IsOptional()
+    filePath?: string;
+
+    @IsString()
+    @IsOptional()
+    fileStatus?: string;
 
     @IsNumber()
     @Min(0)
@@ -26,7 +29,7 @@ class QcWorkLogFileDto {
     timeSpent?: number;
 }
 
-export class SyncQcWorkLogDto {
+export class WorkLogDto {
     @IsString()
     @IsNotEmpty()
     employeeName: string;
@@ -65,19 +68,6 @@ export class SyncQcWorkLogDto {
     @IsOptional()
     totalTimes?: number;
 
-    @IsNumber()
-    @Min(0)
-    @IsOptional()
-    pauseCount?: number;
-
-    @IsNumber()
-    @Min(0)
-    @IsOptional()
-    pauseTime?: number;
-
-    @IsOptional()
-    pauseReasons?: PauseReasonDto[];
-
     @IsString()
     @IsOptional()
     syncId?: string;
@@ -85,6 +75,6 @@ export class SyncQcWorkLogDto {
     @IsArray()
     @ArrayMinSize(1)
     @ValidateNested({ each: true })
-    @Type(() => QcWorkLogFileDto)
-    files: QcWorkLogFileDto[];
+    @Type(() => WorkLogFileDto)
+    files: WorkLogFileDto[];
 }

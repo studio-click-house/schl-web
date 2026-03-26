@@ -205,7 +205,18 @@ export class DailyReportService {
                         rest.submitted_by = submitterId;
                         rest.verified_by = verifierId;
                         if (d.ticket_id) {
-                            rest.ticket_id = (d.ticket_id as any).toString();
+                            const ticketId = d.ticket_id as unknown;
+                            if (typeof ticketId === 'string') {
+                                rest.ticket_id = ticketId;
+                            } else if (
+                                typeof ticketId === 'object' &&
+                                ticketId !== null &&
+                                'toString' in ticketId
+                            ) {
+                                rest.ticket_id = (
+                                    ticketId as { toString(): string }
+                                ).toString();
+                            }
                         }
 
                         return {

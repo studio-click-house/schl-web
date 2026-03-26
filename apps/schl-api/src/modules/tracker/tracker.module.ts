@@ -4,26 +4,29 @@ import { AppUser, AppUserSchema } from '@repo/common/models/app-user.schema';
 import { Employee, EmployeeSchema } from '@repo/common/models/employee.schema';
 import { Order, OrderSchema } from '@repo/common/models/order.schema';
 import {
-    QcWorkLog,
-    QcWorkLogSchema,
-} from '@repo/common/models/qc-work-log.schema';
+    PauseSession,
+    PauseSessionSchema,
+} from '@repo/common/models/pause-session.schema';
+import { WorkLog, WorkLogSchema } from '@repo/common/models/work-log.schema';
 import {
     UserSession,
     UserSessionSchema,
 } from '@repo/common/models/user-session.schema';
-import { TrackerAuthService } from './tracker.auth.service';
 import { TrackerController } from './tracker.controller';
-import { TrackerGateway } from './tracker.gateway';
-import { TrackerQcWorkLogService } from './tracker.qc-work-log.service';
-import { TrackerQueryService } from './tracker.query.service';
-import { TrackerReportService } from './tracker.report.service';
+import { TrackerGateway } from './gateways/tracker.gateway';
+import { TrackerAuthService } from './services/auth.service';
+import { TrackerPauseService } from './services/pause.service';
+import { TrackerWorkLogService } from './services/work-log.service';
+import { TrackerQueryService } from './services/query.service';
+import { TrackerReportService } from './services/report.service';
 
 @Module({
     imports: [
         MongooseModule.forFeature([
             { name: AppUser.name, schema: AppUserSchema },
             { name: Employee.name, schema: EmployeeSchema },
-            { name: QcWorkLog.name, schema: QcWorkLogSchema },
+            { name: PauseSession.name, schema: PauseSessionSchema },
+            { name: WorkLog.name, schema: WorkLogSchema },
             { name: Order.name, schema: OrderSchema },
             { name: UserSession.name, schema: UserSessionSchema },
         ]),
@@ -31,7 +34,8 @@ import { TrackerReportService } from './tracker.report.service';
     controllers: [TrackerController],
     providers: [
         TrackerAuthService,
-        TrackerQcWorkLogService,
+        TrackerPauseService,
+        TrackerWorkLogService,
         TrackerReportService,
         TrackerQueryService,
         TrackerGateway,

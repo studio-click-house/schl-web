@@ -6,21 +6,28 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Order } from '@repo/common/models/order.schema';
-import { QcWorkLog } from '@repo/common/models/qc-work-log.schema';
+import { WorkLog } from '@repo/common/models/work-log.schema';
 import { UserSession } from '@repo/common/models/user-session.schema';
 import { FilterQuery, Model } from 'mongoose';
-import { DashboardTodayDto } from './dto/dashboard-today.dto';
-import { JobListDto } from './dto/job-list.dto';
-import { SearchFileDto } from './dto/search-file.dto';
-import { LiveTrackingDataDto } from './dto/live-tracking-data.dto';
+import { DashboardTodayDto } from '../dto/dashboard-today.dto';
+import { JobListDto } from '../dto/job-list.dto';
+import { SearchFileDto } from '../dto/search-file.dto';
+import { LiveTrackingDataDto } from '../dto/live-tracking-data.dto';
+import moment from 'moment-timezone';
+import {
+    buildLiveTrackingDataPipeline,
+    buildTrackerUserSessionsPipeline,
+} from '../aggregations/tracker.pipelines';
+
+const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 @Injectable()
 export class TrackerQueryService {
     constructor(
         @InjectModel(Order.name)
         private readonly orderModel: Model<Order>,
-        @InjectModel(QcWorkLog.name)
-        private readonly qcWorkLogModel: Model<QcWorkLog>,
+        @InjectModel(WorkLog.name)
+        private readonly workLogModel: Model<WorkLog>,
         @InjectModel(UserSession.name)
         private readonly userSessionModel: Model<UserSession>,
     ) {}
@@ -38,7 +45,7 @@ export class TrackerQueryService {
                               ...baseFilter,
                               client_code: {
                                   $regex: new RegExp(
-                                      `^${dto.clientCode.trim().replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}$`,
+                                      `^${escapeRegExp(dto.clientCode.trim())}$`,
                                       'i',
                                   ),
                               },
@@ -49,6 +56,7 @@ export class TrackerQueryService {
                 .select(
                     'client_code folder folder_path task et quantity status type',
                 )
+                .limit(500)
                 .lean()
                 .exec();
 
@@ -85,9 +93,6 @@ export class TrackerQueryService {
         }
 
         try {
-            const escapeRegExp = (value: string) =>
-                value.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&');
-
             const q = dto.query.trim();
             const fileRegex = new RegExp(escapeRegExp(q), 'i');
 
@@ -105,9 +110,20 @@ export class TrackerQueryService {
 
             const limit = 50;
 
-            const qcRows = await this.qcWorkLogModel
+            // Lookback window: default 7 days
+            const lookbackDays = Math.max(1, Math.floor(Number(dto.days) || 7));
+            const cutoff = new Date();
+            cutoff.setDate(cutoff.getDate() - lookbackDays);
+            const cutoffDate = cutoff.toISOString().split('T')[0] as string;
+
+            const workLogRows = await this.workLogModel
                 .aggregate([
-                    { $match: clientFilter },
+                    {
+                        $match: {
+                            ...clientFilter,
+                            date_today: { $gte: cutoffDate },
+                        },
+                    },
                     { $unwind: '$files' },
                     {
                         $match: {
@@ -127,6 +143,9 @@ export class TrackerQueryService {
                             folderPath: '$folder_path',
                             dateToday: '$date_today',
                             report: '$files.report',
+                            fileStatus: '$files.file_status',
+                            startedAt: '$files.started_at',
+                            completedAt: '$files.completed_at',
                             updatedAt: '$updatedAt',
                         },
                     },
@@ -194,7 +213,7 @@ export class TrackerQueryService {
                 }
             };
 
-            const all = [...(qcRows || [])]
+            const all = [...(workLogRows || [])]
                 .sort((a, b) => toTimeMs(b?.updatedAt) - toTimeMs(a?.updatedAt))
                 .slice(0, limit)
                 .map(r => ({
@@ -209,6 +228,15 @@ export class TrackerQueryService {
                     folderPath: asString(r?.folderPath),
                     dateToday: asString(r?.dateToday),
                     report: asString(r?.report),
+                    fileStatus: asString(r?.fileStatus),
+                    startedAt:
+                        r?.startedAt instanceof Date
+                            ? r.startedAt.toISOString()
+                            : asString(r?.startedAt),
+                    completedAt:
+                        r?.completedAt instanceof Date
+                            ? r.completedAt.toISOString()
+                            : asString(r?.completedAt),
                 }));
 
             return {
@@ -226,9 +254,6 @@ export class TrackerQueryService {
             const requestedUsername =
                 dto?.username && dto.username.trim() ? dto.username.trim() : '';
 
-            const escapeRegex = (value: string) =>
-                value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
             const normalizeUserKey = (value: string) => {
                 const trimmed = (value || '').trim();
                 if (!trimmed) return '';
@@ -241,136 +266,62 @@ export class TrackerQueryService {
 
             const userRegex = requestedUserKey
                 ? new RegExp(
-                      `^${escapeRegex(requestedUserKey)}(\\s*-.*)?$`,
+                      `^${escapeRegExp(requestedUserKey)}(\\s*-.*)?$`,
                       'i',
                   )
                 : null;
 
             const requestedDate =
                 dto.date && dto.date.trim() ? dto.date.trim() : '';
-            const today = new Date().toISOString().split('T')[0] as string;
+            const requestedFrom =
+                dto.dateFrom && dto.dateFrom.trim() ? dto.dateFrom.trim() : '';
+            const requestedTo =
+                dto.dateTo && dto.dateTo.trim() ? dto.dateTo.trim() : '';
+            const today = moment().tz('Asia/Dhaka').format('YYYY-MM-DD');
             const usedDate = requestedDate || today;
 
-            // Single query: fetch work logs for the date + user
+            const hasRange = requestedFrom && requestedTo;
+
+            const dateFilter = hasRange
+                ? {
+                      $gte: requestedFrom,
+                      $lte: requestedTo,
+                  }
+                : usedDate;
+
+            // Fetch work logs for the date (or range) + optional user
             const workLogFilter = userRegex
                 ? {
                       employee_name: { $regex: userRegex },
-                      date_today: usedDate,
+                      date_today: dateFilter,
                   }
-                : { date_today: usedDate };
+                : { date_today: dateFilter };
+
+            const pipelineFilter = workLogFilter as FilterQuery<WorkLog> & {
+                updatedAt?: { $gte: Date };
+            };
+            // Dashboard range: fetch the full date range (no hours cutoff)
+            if (hasRange) {
+                delete pipelineFilter.updatedAt;
+            }
+
+            const sessionFilter = hasRange
+                ? {
+                      session_date: dateFilter,
+                      ...(userRegex ? { username: { $regex: userRegex } } : {}),
+                  }
+                : {
+                      session_date: usedDate,
+                      ...(userRegex ? { username: { $regex: userRegex } } : {}),
+                  };
 
             const [workLogs, sessions] = await Promise.all([
-                this.qcWorkLogModel.find(workLogFilter).lean().exec(),
+                this.workLogModel
+                    .aggregate(buildLiveTrackingDataPipeline(pipelineFilter))
+                    .exec(),
 
                 this.userSessionModel
-                    .aggregate([
-                        {
-                            $match: {
-                                session_date: usedDate,
-                                ...(userRegex
-                                    ? { username: { $regex: userRegex } as any }
-                                    : {}),
-                            },
-                        },
-                        {
-                            $group: {
-                                _id: '$username',
-                                username: { $first: '$username' },
-                                user_type: { $first: '$user_type' },
-                                session_date: { $first: '$session_date' },
-                                first_login_at: { $min: '$login_at' },
-                                last_login_at: { $max: '$login_at' },
-                                last_logout_at: { $max: '$logout_at' },
-                                closed_duration_seconds: {
-                                    $sum: {
-                                        $ifNull: ['$duration_session', 0],
-                                    },
-                                },
-                                active_login_at: {
-                                    $max: {
-                                        $cond: [
-                                            { $eq: ['$logout_at', null] },
-                                            '$login_at',
-                                            null,
-                                        ],
-                                    },
-                                },
-                                is_active: {
-                                    $max: {
-                                        $cond: [
-                                            { $eq: ['$logout_at', null] },
-                                            1,
-                                            0,
-                                        ],
-                                    },
-                                },
-                            },
-                        },
-                        {
-                            $addFields: {
-                                is_active: { $eq: ['$is_active', 1] },
-                                active_elapsed_seconds: {
-                                    $cond: [
-                                        {
-                                            $and: [
-                                                { $eq: ['$is_active', 1] },
-                                                {
-                                                    $ne: [
-                                                        '$active_login_at',
-                                                        null,
-                                                    ],
-                                                },
-                                            ],
-                                        },
-                                        {
-                                            $max: [
-                                                0,
-                                                {
-                                                    $divide: [
-                                                        {
-                                                            $subtract: [
-                                                                '$$NOW',
-                                                                '$active_login_at',
-                                                            ],
-                                                        },
-                                                        1000,
-                                                    ],
-                                                },
-                                            ],
-                                        },
-                                        0,
-                                    ],
-                                },
-                            },
-                        },
-                        {
-                            $addFields: {
-                                total_duration_seconds: {
-                                    $add: [
-                                        {
-                                            $ifNull: [
-                                                '$closed_duration_seconds',
-                                                0,
-                                            ],
-                                        },
-                                        {
-                                            $ifNull: [
-                                                '$active_elapsed_seconds',
-                                                0,
-                                            ],
-                                        },
-                                    ],
-                                },
-                            },
-                        },
-                        {
-                            $sort: {
-                                is_active: -1,
-                                last_login_at: -1,
-                                last_logout_at: -1,
-                            },
-                        },
-                    ])
+                    .aggregate(buildTrackerUserSessionsPipeline(sessionFilter))
                     .exec(),
             ]);
 
@@ -395,12 +346,12 @@ export class TrackerQueryService {
                 dto.dateFrom && dto.dateFrom.trim() ? dto.dateFrom.trim() : '';
             const requestedTo =
                 dto.dateTo && dto.dateTo.trim() ? dto.dateTo.trim() : '';
-            const today = new Date().toISOString().split('T')[0] as string;
+            const today = moment().tz('Asia/Dhaka').format('YYYY-MM-DD');
             const usedDate = requestedDate || today;
 
             // Default behavior: return today's sessions.
             // If UI wants older data, it must pass an explicit dateToday.
-            const filter: FilterQuery<QcWorkLog> & {
+            const filter: FilterQuery<WorkLog> & {
                 updatedAt?: { $gte: Date };
             } = { date_today: usedDate };
 
@@ -424,11 +375,6 @@ export class TrackerQueryService {
                 }
             }
 
-            const sessions = await this.qcWorkLogModel
-                .find(filter)
-                .lean()
-                .exec();
-
             const sessionFilter: FilterQuery<UserSession> = {};
             if (requestedFrom && requestedTo) {
                 sessionFilter.session_date = {
@@ -439,105 +385,18 @@ export class TrackerQueryService {
                 sessionFilter.session_date = usedDate;
             }
 
-            const latestSessionsByUser = await this.userSessionModel
-                .aggregate([
-                    { $match: sessionFilter },
-                    {
-                        $group: {
-                            _id: '$username',
-                            username: { $first: '$username' },
-                            user_type: { $first: '$user_type' },
-                            session_date: { $first: '$session_date' },
-
-                            first_login_at: { $min: '$login_at' },
-                            last_login_at: { $max: '$login_at' },
-                            last_logout_at: { $max: '$logout_at' },
-                            closed_duration_seconds: {
-                                $sum: { $ifNull: ['$duration_session', 0] },
-                            },
-                            active_login_at: {
-                                $max: {
-                                    $cond: [
-                                        { $eq: ['$logout_at', null] },
-                                        '$login_at',
-                                        null,
-                                    ],
-                                },
-                            },
-
-                            // If any session has no logout, consider user active.
-                            is_active: {
-                                $max: {
-                                    $cond: [
-                                        { $eq: ['$logout_at', null] },
-                                        1,
-                                        0,
-                                    ],
-                                },
-                            },
-                        },
-                    },
-                    {
-                        $addFields: {
-                            is_active: { $eq: ['$is_active', 1] },
-                            active_elapsed_seconds: {
-                                $cond: [
-                                    {
-                                        $and: [
-                                            { $eq: ['$is_active', 1] },
-                                            { $ne: ['$active_login_at', null] },
-                                        ],
-                                    },
-                                    {
-                                        $max: [
-                                            0,
-                                            {
-                                                $divide: [
-                                                    {
-                                                        $subtract: [
-                                                            '$$NOW',
-                                                            '$active_login_at',
-                                                        ],
-                                                    },
-                                                    1000,
-                                                ],
-                                            },
-                                        ],
-                                    },
-                                    0,
-                                ],
-                            },
-                        },
-                    },
-                    {
-                        $addFields: {
-                            total_duration_seconds: {
-                                $add: [
-                                    {
-                                        $ifNull: [
-                                            '$closed_duration_seconds',
-                                            0,
-                                        ],
-                                    },
-                                    { $ifNull: ['$active_elapsed_seconds', 0] },
-                                ],
-                            },
-                        },
-                    },
-                    // Sort by newest (active users first, then most recent activity)
-                    {
-                        $sort: {
-                            is_active: -1,
-                            last_login_at: -1,
-                            last_logout_at: -1,
-                        },
-                    },
-                ])
-                .exec();
+            const [latestSessionsByUser, data] = await Promise.all([
+                this.userSessionModel
+                    .aggregate(buildTrackerUserSessionsPipeline(sessionFilter))
+                    .exec(),
+                this.workLogModel
+                    .aggregate(buildLiveTrackingDataPipeline(filter))
+                    .exec(),
+            ]);
 
             return {
                 success: true,
-                data: sessions,
+                data,
                 sessions: latestSessionsByUser,
             };
         } catch (e) {

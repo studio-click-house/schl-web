@@ -9,7 +9,9 @@ import {
 } from 'class-validator';
 
 @ValidatorConstraint({ name: 'multiEmailString', async: false })
-export class MultiEmailStringConstraint implements ValidatorConstraintInterface {
+export class MultiEmailStringConstraint
+    implements ValidatorConstraintInterface
+{
     validate(value: unknown): boolean {
         const normalized = normalizeEmailListInput(value);
         if (normalized === undefined) return true;
