@@ -14,6 +14,10 @@ import { hasPerm } from '@repo/common/utils/permission-check';
 import moment from 'moment-timezone';
 import { FilterQuery, Model } from 'mongoose';
 import { CreateHolidayDto, UpdateHolidayDto } from './dto/create-holiday.dto';
+import {
+    SearchHolidayBodyDto,
+    SearchHolidayQueryDto,
+} from './dto/search-holiday.dto';
 
 @Injectable()
 export class HolidayService {
@@ -51,15 +55,15 @@ export class HolidayService {
                 ] as any;
             } else if (start) {
                 // Holidays that end on/after start
-                query.dateTo = { $gte: start } as any;
+                query.dateTo = { $gte: start };
             } else if (end) {
                 // Holidays that start on/before end
-                query.dateFrom = { $lte: end } as any;
+                query.dateFrom = { $lte: end };
             }
         }
 
         if (name) {
-            query.name = { $regex: name, $options: 'i' } as any;
+            query.name = { $regex: name, $options: 'i' };
         }
 
         return await this.holidayModel
@@ -67,6 +71,103 @@ export class HolidayService {
             .populate('flag')
             .sort({ dateFrom: 1 })
             .exec();
+    }
+
+    async searchHolidays(
+        filters: SearchHolidayBodyDto,
+        pagination: SearchHolidayQueryDto,
+    ) {
+        const { page, itemsPerPage, paginated } = pagination;
+        const { fromDate, toDate, name, active } = filters;
+
+        const query: FilterQuery<HolidayDocument> = {};
+
+        if (fromDate || toDate) {
+            const start = fromDate
+                ? moment
+                      .tz(fromDate, 'YYYY-MM-DD', 'Asia/Dhaka')
+                      .startOf('day')
+                      .toDate()
+                : undefined;
+            const end = toDate
+                ? moment
+                      .tz(toDate, 'YYYY-MM-DD', 'Asia/Dhaka')
+                      .endOf('day')
+                      .toDate()
+                : undefined;
+
+            if (start && end) {
+                query.$or = [
+                    { dateFrom: { $gte: start, $lte: end } },
+                    { dateTo: { $gte: start, $lte: end } },
+                    { dateFrom: { $lte: start }, dateTo: { $gte: end } },
+                ] as any;
+            } else if (start) {
+                query.dateTo = { $gte: start };
+            } else if (end) {
+                query.dateFrom = { $lte: end };
+            }
+        }
+
+        if (name) {
+            query.name = { $regex: name, $options: 'i' };
+        }
+
+        if (active !== undefined && active !== '') {
+            query.active = active === 'true';
+        }
+
+        const sort: Record<string, 1 | -1> = { dateFrom: -1 };
+
+        if (!paginated) {
+            return await this.holidayModel
+                .find(query)
+                .populate('flag')
+                .sort(sort)
+                .exec();
+        }
+
+        const skip = (page - 1) * itemsPerPage;
+
+        const pipeline: any[] = [
+            { $match: query },
+            { $sort: sort },
+            {
+                $facet: {
+                    items: [
+                        { $skip: skip },
+                        { $limit: itemsPerPage },
+                        {
+                            $lookup: {
+                                from: 'attendance_flags',
+                                localField: 'flag',
+                                foreignField: '_id',
+                                as: 'flag',
+                            },
+                        },
+                        {
+                            $unwind: {
+                                path: '$flag',
+                                preserveNullAndEmptyArrays: true,
+                            },
+                        },
+                    ],
+                    count: [{ $count: 'total' }],
+                },
+            },
+        ];
+
+        const aggResult = await this.holidayModel.aggregate(pipeline).exec();
+        const items = aggResult?.[0]?.items || [];
+        const count = aggResult?.[0]?.count?.[0]?.total || 0;
+
+        return {
+            pagination: {
+                count,
+                pageCount: Math.ceil(count / itemsPerPage),
+            },
+            items,
+        };
     }
 
     async create(dto: CreateHolidayDto, userSession: UserSession) {
@@ -159,5 +260,30 @@ export class HolidayService {
             throw new ForbiddenException('Permission denied');
         }
         return await this.holidayModel.findByIdAndDelete(id);
+    }
+
+    async bulkDeactivate(
+        ids: string[],
+        comment: string | undefined,
+        userSession: UserSession,
+    ) {
+        if (!hasPerm('settings:the_super_admin', userSession.permissions)) {
+            throw new ForbiddenException('Permission denied');
+        }
+
+        const patch: any = { active: false };
+        if (comment) {
+            patch.comment = comment.trim();
+        }
+
+        const result = await this.holidayModel.updateMany(
+            { _id: { $in: ids } },
+            { $set: patch },
+        );
+
+        return {
+            deactivatedCount: result.modifiedCount,
+            message: `Deactivated ${result.modifiedCount} holiday(s)`,
+        };
     }
 }

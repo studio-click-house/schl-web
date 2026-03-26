@@ -10,7 +10,13 @@ import {
     Req,
 } from '@nestjs/common';
 import { UserSession } from '@repo/common/types/user-session.type';
+import { Request } from 'express';
+import { BulkDeactivateHolidayBodyDto } from './dto/bulk-deactivate-holiday.dto';
 import { CreateHolidayDto, UpdateHolidayDto } from './dto/create-holiday.dto';
+import {
+    SearchHolidayBodyDto,
+    SearchHolidayQueryDto,
+} from './dto/search-holiday.dto';
 import { HolidayService } from './holiday.service';
 
 @Controller('holidays')
@@ -24,6 +30,14 @@ export class HolidayController {
         @Query('name') name?: string,
     ) {
         return await this.service.findAll(fromDate, toDate, name);
+    }
+
+    @Post('search')
+    async searchHolidays(
+        @Query() query: SearchHolidayQueryDto,
+        @Body() body: SearchHolidayBodyDto,
+    ) {
+        return await this.service.searchHolidays(body, query);
     }
 
     @Post()
@@ -49,5 +63,17 @@ export class HolidayController {
         @Req() req: Request & { user: UserSession },
     ) {
         return await this.service.delete(id, req.user);
+    }
+
+    @Post('bulk-deactivate')
+    async bulkDeactivate(
+        @Body() body: BulkDeactivateHolidayBodyDto,
+        @Req() req: Request & { user: UserSession },
+    ) {
+        return await this.service.bulkDeactivate(
+            body.ids,
+            body.comment,
+            req.user,
+        );
     }
 }

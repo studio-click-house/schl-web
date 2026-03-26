@@ -431,20 +431,20 @@ const EditButton = ({ adjustment, submitHandler }: EditButtonProps) => {
 
                     <footer className="flex space-x-2 items-center px-4 py-2 border-t justify-end border-gray-200 rounded-b">
                         <button
-                            type="button"
                             onClick={() => setIsOpen(false)}
                             className="rounded-md bg-gray-600 text-white hover:opacity-90 hover:ring-2 hover:ring-gray-600 transition duration-200 delay-300 hover:text-opacity-100 px-4 py-1"
+                            type="button"
                             disabled={isSubmitting}
                         >
-                            Cancel
+                            Close
                         </button>
                         <button
-                            type="button"
-                            onClick={handleSubmit(onSubmit)}
-                            className="rounded-md bg-blue-600 text-white hover:opacity-90 hover:ring-2 hover:ring-blue-600 transition duration-200 delay-300 hover:text-opacity-100 px-4 py-1"
                             disabled={isSubmitting}
+                            onClick={handleSubmit(onSubmit)}
+                            className="rounded-md bg-blue-600 text-white  hover:opacity-90 hover:ring-2 hover:ring-blue-600 transition duration-200 delay-300 hover:text-opacity-100 px-4 py-1"
+                            type="button"
                         >
-                            {isSubmitting ? 'Saving...' : 'Save Changes'}
+                            {isSubmitting ? 'Submitting...' : 'Submit'}
                         </button>
                     </footer>
                 </article>

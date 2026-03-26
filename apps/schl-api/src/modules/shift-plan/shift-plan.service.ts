@@ -553,6 +553,33 @@ export class ShiftPlanService {
         }
     }
 
+    async deleteShiftPlan(id: string, userSession: UserSession) {
+        const canDelete = hasPerm(
+            'admin:edit_shift_plan',
+            userSession.permissions,
+        );
+        if (!canDelete) {
+            throw new ForbiddenException(
+                "You don't have permission to delete shift plans",
+            );
+        }
+
+        const existing = await this.shiftPlanModel.findById(id).exec();
+        if (!existing) throw new NotFoundException('Shift plan not found');
+
+        const result = await this.shiftPlanModel.findByIdAndDelete(id);
+
+        if (result) {
+            await this.clearResolvedCache(
+                existing.employee.toString(),
+                existing.effective_from,
+                existing.effective_to,
+            );
+        }
+
+        return result;
+    }
+
     /**
      * Clear resolved cache for an employee within a date range
      */

@@ -16,6 +16,7 @@ export const holidayBaseSchema = z.object({
         .optional()
         .or(z.literal('')),
     comment: z.string().max(500, 'Comment is too long').optional(),
+    active: z.boolean().optional(),
 });
 
 const validateDateRange = (data: { dateFrom: string; dateTo?: string }) => {

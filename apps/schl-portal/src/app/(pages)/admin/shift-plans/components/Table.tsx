@@ -10,13 +10,14 @@ import { formatDate, formatTime } from '@repo/common/utils/date-helpers';
 import { cn } from '@repo/common/utils/general-utils';
 import { hasPerm } from '@repo/common/utils/permission-check';
 import { capitalize } from 'lodash';
-import { CirclePlus, ClockCheck, X } from 'lucide-react';
+import { Ban, ClockCheck, CirclePlus } from 'lucide-react';
 import moment from 'moment-timezone';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import BulkDeactivate from './BulkDeactivate';
+import DeleteButton from './Delete';
 import EditButton from './Edit';
 import FilterButton from './Filter';
 
@@ -74,6 +75,7 @@ const Table: React.FC = () => {
 
     // Multi-select state
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [isDeactivateModalOpen, setIsDeactivateModalOpen] = useState(false);
 
     const [filters, setFilters] = useState(getDefaultFilters);
     const [appliedFilters, setAppliedFilters] = useState(getDefaultFilters);
@@ -182,10 +184,24 @@ const Table: React.FC = () => {
     );
 
     // --- Multi-select helpers ---
-    const currentPageActiveIds = useMemo(
-        () => shiftPlans.items.filter(t => t.active).map(t => t._id.toString()),
-        [shiftPlans.items],
-    );
+    const currentPageActiveIds = useMemo(() => {
+        const today = moment.tz('Asia/Dhaka').startOf('day');
+        return shiftPlans.items
+            .filter(t => {
+                if (!t.active) return false;
+                const dateFrom = moment
+                    .tz(t.effective_from, 'Asia/Dhaka')
+                    .startOf('day');
+                const dateTo = t.effective_to
+                    ? moment.tz(t.effective_to, 'Asia/Dhaka').startOf('day')
+                    : null;
+
+                const isFuture = dateFrom.isAfter(today);
+                const isOngoing = !isFuture && dateTo && dateTo.isAfter(today);
+                return isFuture || isOngoing;
+            })
+            .map(t => t._id.toString());
+    }, [shiftPlans.items]);
 
     const allCurrentPageSelected =
         currentPageActiveIds.length > 0 &&
@@ -307,11 +323,13 @@ const Table: React.FC = () => {
             <BulkDeactivate
                 selectedIds={selectedIds}
                 onSuccess={() => {
-                    setSelectedIds(new Set());
                     fetchShiftPlans();
+                    setSelectedIds(new Set());
                 }}
                 onClearSelection={() => setSelectedIds(new Set())}
                 canEdit={canEdit}
+                isOpen={isDeactivateModalOpen}
+                onOpenChange={setIsDeactivateModalOpen}
             />
 
             {loading ? (
@@ -378,9 +396,44 @@ const Table: React.FC = () => {
                                                                     )
                                                                 }
                                                                 disabled={
-                                                                    !shiftPlan.active
+                                                                    !shiftPlan.active ||
+                                                                    (!moment
+                                                                        .tz(
+                                                                            shiftPlan.effective_from,
+                                                                            'Asia/Dhaka',
+                                                                        )
+                                                                        .startOf(
+                                                                            'day',
+                                                                        )
+                                                                        .isAfter(
+                                                                            moment
+                                                                                .tz(
+                                                                                    'Asia/Dhaka',
+                                                                                )
+                                                                                .startOf(
+                                                                                    'day',
+                                                                                ),
+                                                                        ) &&
+                                                                        (!shiftPlan.effective_to ||
+                                                                            !moment
+                                                                                .tz(
+                                                                                    shiftPlan.effective_to,
+                                                                                    'Asia/Dhaka',
+                                                                                )
+                                                                                .startOf(
+                                                                                    'day',
+                                                                                )
+                                                                                .isAfter(
+                                                                                    moment
+                                                                                        .tz(
+                                                                                            'Asia/Dhaka',
+                                                                                        )
+                                                                                        .startOf(
+                                                                                            'day',
+                                                                                        ),
+                                                                                )))
                                                                 }
-                                                                className="w-5 h-5 text-blue-600 bg-gray-50 border-gray-300 rounded-md cursor-pointer disabled:cursor-default"
+                                                                className="w-5 h-5 text-blue-600 bg-gray-50 border-gray-300 rounded-md cursor-pointer disabled:cursor-not-allowed"
                                                             />
                                                         </div>
                                                     </td>
@@ -447,7 +500,7 @@ const Table: React.FC = () => {
                                                                 'middle',
                                                         }}
                                                     >
-                                                        <div className="inline-block">
+                                                        <div className="flex gap-2 justify-center">
                                                             <EditButton
                                                                 shiftPlan={
                                                                     shiftPlan
@@ -456,6 +509,77 @@ const Table: React.FC = () => {
                                                                     fetchShiftPlans
                                                                 }
                                                             />
+                                                            {shiftPlan.active && (
+                                                                <>
+                                                                    {' '}
+                                                                    {moment
+                                                                        .tz(
+                                                                            shiftPlan.effective_from,
+                                                                            'Asia/Dhaka',
+                                                                        )
+                                                                        .startOf(
+                                                                            'day',
+                                                                        )
+                                                                        .isAfter(
+                                                                            moment
+                                                                                .tz(
+                                                                                    'Asia/Dhaka',
+                                                                                )
+                                                                                .startOf(
+                                                                                    'day',
+                                                                                ),
+                                                                        ) ? (
+                                                                        <DeleteButton
+                                                                            planId={
+                                                                                shiftPlan._id
+                                                                            }
+                                                                            onSuccess={
+                                                                                fetchShiftPlans
+                                                                            }
+                                                                        />
+                                                                    ) : shiftPlan.effective_to &&
+                                                                      moment
+                                                                          .tz(
+                                                                              shiftPlan.effective_to,
+                                                                              'Asia/Dhaka',
+                                                                          )
+                                                                          .startOf(
+                                                                              'day',
+                                                                          )
+                                                                          .isAfter(
+                                                                              moment
+                                                                                  .tz(
+                                                                                      'Asia/Dhaka',
+                                                                                  )
+                                                                                  .startOf(
+                                                                                      'day',
+                                                                                  ),
+                                                                          ) ? (
+                                                                        <button
+                                                                            onClick={() => {
+                                                                                setSelectedIds(
+                                                                                    new Set(
+                                                                                        [
+                                                                                            shiftPlan._id,
+                                                                                        ],
+                                                                                    ),
+                                                                                );
+                                                                                setIsDeactivateModalOpen(
+                                                                                    true,
+                                                                                );
+                                                                            }}
+                                                                            title="Deactivate Plan"
+                                                                            className="rounded-md bg-red-600 hover:opacity-90 hover:ring-2 hover:ring-red-600 transition duration-200 delay-300 hover:text-opacity-100 text-white p-2"
+                                                                        >
+                                                                            <Ban
+                                                                                size={
+                                                                                    18
+                                                                                }
+                                                                            />
+                                                                        </button>
+                                                                    ) : null}
+                                                                </>
+                                                            )}
                                                         </div>
                                                     </td>
                                                 )}

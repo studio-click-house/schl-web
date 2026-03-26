@@ -1,6 +1,7 @@
 import {
     Body,
     Controller,
+    Delete,
     Get,
     Param,
     Post,
@@ -9,6 +10,7 @@ import {
     Req,
 } from '@nestjs/common';
 import { UserSession } from '@repo/common/types/user-session.type';
+import { Request } from 'express';
 import { IdParamDto } from '../../common/dto/id-param.dto';
 import { BulkDeactivateShiftPlansBodyDto } from './dto/bulk-deactivate-shift-plans.dto';
 import { CreateBulkShiftPlanBodyDto } from './dto/create-bulk-shift-plan.dto';
@@ -68,8 +70,8 @@ export class ShiftPlanController {
 
     @Post('search')
     async searchShiftPlans(
-        @Body() body: SearchShiftPlanBodyDto,
         @Query() query: SearchShiftPlanQueryDto,
+        @Body() body: SearchShiftPlanBodyDto,
         @Req() req: Request & { user: UserSession },
     ) {
         const page = parseInt(query.page || '1', 10);
@@ -81,5 +83,13 @@ export class ShiftPlanController {
             { page, itemsPerPage, paginated },
             req.user,
         );
+    }
+
+    @Delete(':id')
+    async deleteShiftPlan(
+        @Param() { id }: IdParamDto,
+        @Req() req: Request & { user: UserSession },
+    ) {
+        return await this.shiftPlanService.deleteShiftPlan(id, req.user);
     }
 }

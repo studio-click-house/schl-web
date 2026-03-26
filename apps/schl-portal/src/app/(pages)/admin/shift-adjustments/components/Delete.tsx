@@ -1,31 +1,40 @@
 'use client';
 
-import { Holiday } from '@repo/common/models/holiday.schema';
+import { toastFetchError, useAuthedFetchApi } from '@/lib/api-client';
 import { Trash2, X } from 'lucide-react';
 import React, { useState } from 'react';
-
-interface HolidayWithId extends Omit<Holiday, 'flag'> {
-    _id: string;
-}
+import { toast } from 'sonner';
 
 interface PropsType {
-    holiday: HolidayWithId;
-    submitHandler: (id: string) => Promise<boolean>;
+    adjustmentId: string;
+    onSuccess: () => void;
 }
 
 const baseZIndex = 50;
 
-const DeleteButton: React.FC<PropsType> = ({ holiday, submitHandler }) => {
+const DeleteButton: React.FC<PropsType> = ({ adjustmentId, onSuccess }) => {
     const [isOpen, setIsOpen] = useState<boolean>(false);
     const [isLoading, setIsLoading] = useState<boolean>(false);
+    const authedFetchApi = useAuthedFetchApi();
 
     const handleDelete = async () => {
-        setIsLoading(true);
         try {
-            const success = await submitHandler(holiday._id);
-            if (success) {
+            setIsLoading(true);
+            const response = await authedFetchApi(
+                { path: `/v1/shift-adjustment/${adjustmentId}` },
+                { method: 'DELETE' },
+            );
+
+            if (response.ok) {
+                toast.success('Shift adjustment deleted successfully');
                 setIsOpen(false);
+                onSuccess();
+            } else {
+                toastFetchError(response);
             }
+        } catch (error) {
+            console.error(error);
+            toast.error('An error occurred while deleting shift adjustment');
         } finally {
             setIsLoading(false);
         }
@@ -35,8 +44,8 @@ const DeleteButton: React.FC<PropsType> = ({ holiday, submitHandler }) => {
         <>
             <button
                 onClick={() => setIsOpen(true)}
-                className="rounded-md bg-red-600 hover:opacity-90 hover:ring-2 hover:ring-red-600 transition duration-200 delay-300 hover:text-opacity-100 text-white p-2 items-center"
-                title="Delete Holiday"
+                className="rounded-md bg-red-600 hover:opacity-90 hover:ring-2 hover:ring-red-600 transition duration-200 delay-300 hover:text-opacity-100 text-white p-2 flex items-center justify-center"
+                title="Delete Adjustment"
             >
                 <Trash2 size={18} />
             </button>
@@ -47,11 +56,11 @@ const DeleteButton: React.FC<PropsType> = ({ holiday, submitHandler }) => {
             >
                 <article
                     onClick={e => e.stopPropagation()}
-                    className={`${isOpen ? 'scale-100 opacity-100' : 'scale-125 opacity-0'} bg-white rounded-lg shadow relative`}
+                    className={`${isOpen ? 'scale-100 opacity-100' : 'scale-125 opacity-0'} bg-white rounded-lg shadow relative md:w-[350px] w-[90%]`}
                 >
                     <header className="flex items-center align-middle justify-between px-4 py-2 border-b rounded-t text-start">
                         <h3 className="text-gray-900 text-lg lg:text-xl font-semibold uppercase">
-                            Delete Holiday
+                            Delete Adjustment
                         </h3>
                         <button
                             onClick={() => setIsOpen(false)}
@@ -62,10 +71,10 @@ const DeleteButton: React.FC<PropsType> = ({ holiday, submitHandler }) => {
                             <X size={18} />
                         </button>
                     </header>
-                    <div className="overflow-hidden max-h-[70vh] p-4">
+                    <div className="overflow-hidden max-h-[70vh] p-4 text-start">
                         <p className="text-base text-gray-700">
-                            Are you sure you want to delete this holiday? This
-                            action cannot be undone.
+                            Are you sure you want to delete this shift
+                            adjustment? This action cannot be undone.
                         </p>
                     </div>
                     <footer className="flex space-x-2 items-center px-4 py-2 border-t justify-end border-gray-200 rounded-b">
@@ -80,7 +89,7 @@ const DeleteButton: React.FC<PropsType> = ({ holiday, submitHandler }) => {
                         <button
                             onClick={handleDelete}
                             disabled={isLoading}
-                            className="rounded-md bg-red-600 text-white hover:opacity-90 hover:ring-2 hover:ring-red-600 transition duration-200 delay-300 hover:text-opacity-100 px-4 py-1"
+                            className="rounded-md bg-red-600 text-white hover:opacity-90 hover:ring-2 hover:ring-red-600 transition duration-200 delay-300 hover:text-opacity-100 px-4 py-1 font-medium"
                             type="button"
                         >
                             {isLoading ? 'Deleting...' : 'Delete'}

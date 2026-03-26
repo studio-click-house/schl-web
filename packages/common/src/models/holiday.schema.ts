@@ -25,6 +25,9 @@ export class Holiday {
         type: mongoose.Schema.Types.ObjectId,
     })
     flag: mongoose.Types.ObjectId; // E.g., The 'H' flag
+
+    @Prop({ required: false, type: Boolean, default: true })
+    active: boolean;
 }
 
 export const HolidaySchema = SchemaFactory.createForClass(Holiday);

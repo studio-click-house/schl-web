@@ -25,7 +25,8 @@ export const shiftPlanValidationSchema = z
             ),
         shiftType: z.enum(SHIFT_TYPES, {
             errorMap: () => ({
-                message: 'Shift type must be morning, evening, night, or custom',
+                message:
+                    'Shift type must be morning, evening, night, or custom',
             }),
         }),
         shiftStart: z
@@ -61,7 +62,8 @@ export const shiftPlanEditSchema = z
             ),
         shiftType: z.enum(SHIFT_TYPES, {
             errorMap: () => ({
-                message: 'Shift type must be morning, evening, night, or custom',
+                message:
+                    'Shift type must be morning, evening, night, or custom',
             }),
         }),
         shiftStart: z
@@ -72,7 +74,10 @@ export const shiftPlanEditSchema = z
             ),
         shiftEnd: z
             .string()
-            .regex(/^(\d{2}):(\d{2})$/, 'Shift end time must be in HH:mm format'),
+            .regex(
+                /^(\d{2}):(\d{2})$/,
+                'Shift end time must be in HH:mm format',
+            ),
         active: z.boolean().optional(),
         gracePeriodMinutes: z.coerce.number().int().min(0).max(120).optional(),
         comment: z.string().optional(),

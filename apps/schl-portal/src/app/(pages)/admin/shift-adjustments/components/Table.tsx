@@ -10,13 +10,15 @@ import { formatDate, formatTime } from '@repo/common/utils/date-helpers';
 import { cn } from '@repo/common/utils/general-utils';
 import { hasPerm } from '@repo/common/utils/permission-check';
 import { capitalize } from 'lodash';
-import { CirclePlus, ClockCheck, X } from 'lucide-react';
+import { Ban, CirclePlus, ClockCheck, X } from 'lucide-react';
 import moment from 'moment-timezone';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { ShiftAdjustmentFormData } from '../schema';
 import BulkDeactivate from './BulkDeactivate';
+import DeleteButton from './Delete';
 import EditButton from './Edit';
 import FilterButton from './Filter';
 
@@ -182,11 +184,19 @@ const Table: React.FC = () => {
     );
 
     // --- Multi-select helpers ---
-    const currentPageActiveIds = useMemo(
-        () =>
-            adjustments.items.filter(t => t.active).map(t => t._id.toString()),
-        [adjustments.items],
-    );
+    const currentPageActiveIds = useMemo(() => {
+        const today = moment.tz('Asia/Dhaka').startOf('day');
+        return adjustments.items
+            .filter(
+                t =>
+                    t.active &&
+                    moment
+                        .tz(t.shift_date, 'Asia/Dhaka')
+                        .startOf('day')
+                        .isAfter(today),
+            )
+            .map(t => t._id.toString());
+    }, [adjustments.items]);
 
     const allCurrentPageSelected =
         currentPageActiveIds.length > 0 &&
@@ -362,9 +372,26 @@ const Table: React.FC = () => {
                                                                 )
                                                             }
                                                             disabled={
-                                                                !item.active
+                                                                !item.active ||
+                                                                !moment
+                                                                    .tz(
+                                                                        item.shift_date,
+                                                                        'Asia/Dhaka',
+                                                                    )
+                                                                    .startOf(
+                                                                        'day',
+                                                                    )
+                                                                    .isAfter(
+                                                                        moment
+                                                                            .tz(
+                                                                                'Asia/Dhaka',
+                                                                            )
+                                                                            .startOf(
+                                                                                'day',
+                                                                            ),
+                                                                    )
                                                             }
-                                                            className="w-5 h-5 text-blue-600 bg-gray-50 border-gray-300 rounded-md cursor-pointer disabled:cursor-default"
+                                                            className="w-5 h-5 text-blue-600 bg-gray-50 border-gray-300 rounded-md cursor-pointer disabled:cursor-not-allowed"
                                                         />
                                                     </div>
                                                 </td>
@@ -431,13 +458,43 @@ const Table: React.FC = () => {
                                                         verticalAlign: 'middle',
                                                     }}
                                                 >
-                                                    <div className="inline-block">
+                                                    <div className="flex gap-2 justify-center">
                                                         <EditButton
                                                             adjustment={item}
                                                             submitHandler={
                                                                 fetchAdjustments
                                                             }
                                                         />
+                                                        {item.active && (
+                                                            <>
+                                                                {moment
+                                                                    .tz(
+                                                                        item.shift_date,
+                                                                        'Asia/Dhaka',
+                                                                    )
+                                                                    .startOf(
+                                                                        'day',
+                                                                    )
+                                                                    .isAfter(
+                                                                        moment
+                                                                            .tz(
+                                                                                'Asia/Dhaka',
+                                                                            )
+                                                                            .startOf(
+                                                                                'day',
+                                                                            ),
+                                                                    ) ? (
+                                                                    <DeleteButton
+                                                                        adjustmentId={
+                                                                            item._id
+                                                                        }
+                                                                        onSuccess={
+                                                                            fetchAdjustments
+                                                                        }
+                                                                    />
+                                                                ) : null}
+                                                            </>
+                                                        )}
                                                     </div>
                                                 </td>
                                             )}

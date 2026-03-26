@@ -34,6 +34,7 @@ const CreateButton: React.FC<CreateButtonProps> = ({
             dateFrom: '',
             dateTo: '',
             comment: '',
+            active: true,
         },
     });
 
@@ -170,6 +171,21 @@ const CreateButton: React.FC<CreateButtonProps> = ({
                                         {errors.comment.message}
                                     </p>
                                 )}
+                            </div>
+
+                            <div className="md:col-span-2 flex items-center gap-2">
+                                <input
+                                    type="checkbox"
+                                    id="active-create"
+                                    {...register('active')}
+                                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                                />
+                                <label
+                                    htmlFor="active-create"
+                                    className="text-sm font-bold text-gray-700 uppercase"
+                                >
+                                    Active
+                                </label>
                             </div>
                         </div>
                     </form>

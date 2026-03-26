@@ -1,3 +1,5 @@
+import { emptyStringToUndefined } from '@repo/common/utils/transformers';
+import { Transform } from 'class-transformer';
 import {
     IsDateString,
     IsNotEmpty,
@@ -14,10 +16,12 @@ export class CreateHolidayDto {
     @IsNotEmpty()
     dateFrom: string;
 
+    @Transform(emptyStringToUndefined)
     @IsOptional()
     @IsDateString()
     dateTo?: string;
 
+    @Transform(emptyStringToUndefined)
     @IsOptional()
     @IsString()
     comment?: string;

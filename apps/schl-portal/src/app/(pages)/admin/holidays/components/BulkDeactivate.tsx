@@ -47,7 +47,7 @@ const BulkDeactivate = ({
         try {
             setIsLoading(true);
             const response = await authedFetchApi<any>(
-                { path: '/v1/shift-plan/bulk-deactivate' },
+                { path: '/v1/holidays/bulk-deactivate' },
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -60,7 +60,7 @@ const BulkDeactivate = ({
 
             if (response.ok) {
                 toast.success(
-                    `Deactivated ${response.data?.deactivated ?? selectedCount} shift plan(s)`,
+                    `Deactivated ${response.data?.deactivatedCount ?? selectedCount} holiday(s)`,
                 );
                 onOpenChange(false);
                 setComment('');
@@ -70,7 +70,7 @@ const BulkDeactivate = ({
             }
         } catch (error) {
             console.error(error);
-            toast.error('An error occurred while deactivating shift plans');
+            toast.error('An error occurred while deactivating holidays');
         } finally {
             setIsLoading(false);
         }
@@ -81,7 +81,7 @@ const BulkDeactivate = ({
     return (
         <div className="flex items-center gap-2 flex-wrap mb-4">
             <span className="text-sm font-semibold text-blue-800 bg-blue-50 border border-blue-200 px-3 py-2 rounded-md flex items-center shadow-sm">
-                {selectedCount} {selectedCount === 1 ? 'Plan' : 'Plans'}{' '}
+                {selectedCount} {selectedCount === 1 ? 'Holiday' : 'Holidays'}{' '}
                 Selected
             </span>
             <button
@@ -110,9 +110,9 @@ const BulkDeactivate = ({
                     onClick={e => e.stopPropagation()}
                     className={`${isOpen ? 'scale-100 opacity-100' : 'scale-125 opacity-0'} bg-white rounded-lg shadow relative lg:w-[35vw] md:w-[70vw] sm:w-[80vw]`}
                 >
-                    <header className="flex items-center align-middle justify-between px-4 py-2 border-b rounded-t">
+                    <header className="flex items-center align-middle justify-between px-4 py-2 border-b rounded-t text-start">
                         <h3 className="text-gray-900 text-lg lg:text-xl font-semibold uppercase">
-                            Deactivate Shift Plans
+                            Deactivate Holidays
                         </h3>
                         <button
                             onClick={() => onOpenChange(false)}
@@ -125,34 +125,34 @@ const BulkDeactivate = ({
                     </header>
 
                     <div className="p-4 text-start">
-                        <div className="bg-red-50 p-4 rounded-md border border-red-200 mb-4 flex items-start gap-3">
+                        <div className="bg-red-50 p-4 rounded-md border border-red-200 mb-4 flex items-start gap-3 text-start">
                             <AlertCircle
                                 className="text-red-500 mt-0.5 flex-shrink-0"
                                 size={20}
                             />
                             <div>
                                 <p className="text-red-800 text-sm font-semibold mb-1">
-                                    Warning: Deactivating {selectedCount} Shift
-                                    Plan
+                                    Warning: Deactivating {selectedCount}{' '}
+                                    Holiday
                                     {selectedCount !== 1 ? 's' : ''}
                                 </p>
                                 <p className="text-red-700 text-sm">
-                                    This will disable these plans for new
-                                    shifts. This action cannot be undone.
+                                    This will disable these holidays. This
+                                    action cannot be undone.
                                 </p>
                             </div>
                         </div>
 
                         <div>
                             <label className="tracking-wide text-gray-700 text-sm font-bold block mb-2">
-                                <span className="uppercase">
+                                <span className="uppercase text-start">
                                     Reason / Comment
                                 </span>
                             </label>
                             <textarea
                                 value={comment}
                                 onChange={e => setComment(e.target.value)}
-                                placeholder="e.g., Mistakenly created for wrong week"
+                                placeholder="e.g., Mistakenly created for wrong date"
                                 rows={3}
                                 disabled={isLoading}
                                 className="appearance-none block w-full bg-gray-50 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -173,9 +173,9 @@ const BulkDeactivate = ({
                             type="button"
                             onClick={handleConfirm}
                             disabled={isLoading}
-                            className="rounded-md bg-destructive text-destructive-foreground hover:opacity-90 hover:ring-2 hover:ring-destructive transition duration-200 delay-300 hover:text-opacity-100 px-4 py-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="rounded-md bg-red-600 text-white hover:opacity-90 hover:ring-2 hover:ring-red-600 transition duration-200 delay-300 hover:text-opacity-100 px-4 py-1 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
                         >
-                            {isLoading ? 'Deactivating...' : `Deactivate`}
+                            {isLoading ? 'Deactivating...' : 'Deactivate'}
                         </button>
                     </footer>
                 </article>

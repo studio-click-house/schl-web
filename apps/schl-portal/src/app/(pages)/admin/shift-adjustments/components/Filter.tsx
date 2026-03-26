@@ -177,7 +177,7 @@ const FilterButton = ({
 
                             <div className="md:col-span-1">
                                 <label className="uppercase tracking-wide text-gray-700 text-sm font-bold flex gap-2 mb-2">
-                                    Status
+                                    Active
                                 </label>
                                 <Select
                                     {...setClassNameAndIsDisabled(isOpen)}

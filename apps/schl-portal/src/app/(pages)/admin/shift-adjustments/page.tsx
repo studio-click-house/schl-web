@@ -1,10 +1,6 @@
 import { Metadata } from 'next';
 import Table from './components/Table';
 
-export const metadata: Metadata = {
-    title: 'Shift Adjustments | Admin',
-};
-
 export default function AdjustmentsPage() {
     return (
         <>

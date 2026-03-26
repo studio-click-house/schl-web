@@ -201,7 +201,7 @@ export class ShiftAdjustmentService {
                 query.adjustment_type = filters.adjustmentType;
             }
 
-            if (filters.active !== undefined) {
+            if (filters.active !== undefined && filters.active !== '') {
                 query.active = filters.active === 'true';
             }
 
@@ -483,5 +483,32 @@ export class ShiftAdjustmentService {
                 'Unable to bulk deactivate shift adjustments at this time',
             );
         }
+    }
+
+    async deleteAdjustment(id: string, userSession: UserSession) {
+        const canDelete = hasPerm(
+            'admin:edit_shift_plan',
+            userSession.permissions,
+        );
+        if (!canDelete) {
+            throw new ForbiddenException(
+                "You don't have permission to delete shift adjustments",
+            );
+        }
+
+        const existing = await this.shiftAdjustmentModel.findById(id).exec();
+        if (!existing) throw new NotFoundException('Adjustment not found');
+
+        const result = await this.shiftAdjustmentModel.findByIdAndDelete(id);
+
+        if (result) {
+            await this.clearResolvedCache(
+                existing.employee.toString(),
+                existing.shift_date,
+                existing.shift_date,
+            );
+        }
+
+        return result;
     }
 }
