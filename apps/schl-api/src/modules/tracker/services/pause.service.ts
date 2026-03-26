@@ -67,12 +67,6 @@ export class TrackerPauseService {
             }
 
             const setUpdate: Record<string, any> = {};
-            if (payload.totalTimes !== undefined) {
-                setUpdate.total_times = Math.max(
-                    0,
-                    Number(payload.totalTimes) || 0,
-                );
-            }
 
             if (hasJobContext) {
                 const workLog = await this.workLogModel
@@ -197,9 +191,7 @@ export class TrackerPauseService {
                     timestamp: now.toISOString(),
                     total_times: Math.max(
                         0,
-                        Number((workLogDoc as any)?.total_times) ||
-                            Number(updatedDoc?.total_times) ||
-                            0,
+                        Number((workLogDoc as any)?.total_times) || 0,
                     ),
                     estimate_time: workLogDoc?.estimate_time ?? 0,
                     categories: (workLogDoc as any)?.categories ?? '',

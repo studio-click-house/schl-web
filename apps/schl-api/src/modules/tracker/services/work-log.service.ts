@@ -133,6 +133,16 @@ export class TrackerWorkLogService {
             // ── Per-file updates (fast: push once, bulkWrite once) ──
             if (Array.isArray(payload.files) && payload.files.length > 0) {
                 const now = new Date();
+                const terminalStatuses = new Set(['done', 'skip', 'walkout']);
+
+                const normalizeStatus = (value: unknown): string =>
+                    String(value ?? '').toLowerCase().trim();
+
+                const statusForFile = (f: any): string => {
+                    const perFile = normalizeStatus(f?.fileStatus);
+                    if (perFile) return perFile;
+                    return normalizeStatus((payload as any)?.fileStatus);
+                };
 
                 // Existing file names from the findOneAndUpdate result — no extra query
                 const rawFiles: Array<{ file_name?: string } | null> =
@@ -153,21 +163,12 @@ export class TrackerWorkLogService {
                             fileName,
                             f,
                         );
-                        fileDoc.file_status = payload.fileStatus;
-                        if (
-                            String(payload.fileStatus || '')
-                                .toLowerCase()
-                                .trim() === 'working'
-                        ) {
+                        const statusLower = statusForFile(f);
+                        fileDoc.file_status = statusLower || payload.fileStatus;
+                        if (statusLower === 'working') {
                             fileDoc.started_at = now;
                         }
-                        if (
-                            ['done', 'skip'].includes(
-                                String(payload.fileStatus || '')
-                                    .toLowerCase()
-                                    .trim(),
-                            )
-                        ) {
+                        if (terminalStatuses.has(statusLower)) {
                             fileDoc.completed_at = now;
                         }
                         return fileDoc;
@@ -188,15 +189,14 @@ export class TrackerWorkLogService {
 
                     const $set: Record<string, any> =
                         TrackerFactory.qcFileSetFromSyncFileDto(f);
-                    const statusLowerForFile = String(payload.fileStatus || '')
-                        .toLowerCase()
-                        .trim();
+                    const statusLowerForFile = statusForFile(f);
                     // Important: do NOT overwrite every file's status to "paused".
                     // Pause is a session-level state; if we write paused into files.$.file_status,
                     // the DB loses the last known working file and the UI will drop the user
                     // from Production/QC/Client tabs.
                     if (statusLowerForFile !== 'paused') {
-                        $set['files.$.file_status'] = payload.fileStatus;
+                        $set['files.$.file_status'] =
+                            (f as any)?.fileStatus ?? payload.fileStatus;
                     }
 
                     const $inc = TrackerFactory.qcFileIncFromSyncFileDto(f);
@@ -220,16 +220,13 @@ export class TrackerWorkLogService {
 
                 // Step 3: set started_at / completed_at only if missing
                 // (use $elemMatch so positional operator targets the correct file array element)
-                const statusLower = String(payload.fileStatus || '')
-                    .toLowerCase()
-                    .trim();
-                const needsStartedAt = statusLower === 'working';
-                const needsCompletedAt = ['done', 'skip'].includes(statusLower);
+                for (const f of payload.files) {
+                    const fileName = f.fileName?.trim() || '';
+                    if (!fileName) continue;
 
-                if (needsStartedAt) {
-                    for (const f of payload.files) {
-                        const fileName = f.fileName?.trim() || '';
-                        if (!fileName) continue;
+                    const statusLowerForFile = statusForFile(f);
+
+                    if (statusLowerForFile === 'working') {
                         bulkOps.push({
                             updateOne: {
                                 filter: {
@@ -249,12 +246,8 @@ export class TrackerWorkLogService {
                             },
                         });
                     }
-                }
 
-                if (needsCompletedAt) {
-                    for (const f of payload.files) {
-                        const fileName = f.fileName?.trim() || '';
-                        if (!fileName) continue;
+                    if (terminalStatuses.has(statusLowerForFile)) {
                         bulkOps.push({
                             updateOne: {
                                 filter: {

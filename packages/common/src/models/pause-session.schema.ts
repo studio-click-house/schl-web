@@ -53,9 +53,6 @@ export class PauseSession {
 
     @Prop({ type: [String], default: [] })
     processed_sync_ids: string[];
-
-    @Prop({ type: Number, default: 0 })
-    total_times: number;
 }
 
 export const PauseSessionSchema = SchemaFactory.createForClass(PauseSession);

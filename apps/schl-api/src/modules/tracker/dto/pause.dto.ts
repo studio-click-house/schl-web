@@ -1,10 +1,4 @@
-import {
-    IsNotEmpty,
-    IsNumber,
-    IsOptional,
-    IsString,
-    Min,
-} from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class PauseDto {
     @IsString()
@@ -34,11 +28,6 @@ export class PauseDto {
     @IsString()
     @IsOptional()
     folderPath?: string;
-
-    @IsNumber()
-    @Min(0)
-    @IsOptional()
-    totalTimes?: number;
 
     @IsString()
     @IsOptional()

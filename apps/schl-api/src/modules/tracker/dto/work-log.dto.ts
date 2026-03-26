@@ -19,6 +19,10 @@ class WorkLogFileDto {
     @IsOptional()
     filePath?: string;
 
+    @IsString()
+    @IsOptional()
+    fileStatus?: string;
+
     @IsNumber()
     @Min(0)
     @IsOptional()
