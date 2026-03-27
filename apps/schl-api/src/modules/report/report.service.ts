@@ -5,6 +5,7 @@ import {
     HttpException,
     Injectable,
     InternalServerErrorException,
+    Logger,
     NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -38,6 +39,7 @@ type QueryShape = FilterQuery<Report>;
 
 @Injectable()
 export class ReportService {
+    private readonly logger = new Logger(ReportService.name);
     constructor(
         @InjectModel(Report.name) private readonly reportModel: Model<Report>,
         @InjectModel(User.name) private readonly userModel: Model<User>,
@@ -48,51 +50,29 @@ export class ReportService {
         @InjectModel(Order.name) private readonly orderModel: Model<Order>,
     ) {}
 
-    private async attachLastOrderDate<
-        T extends { client_code?: string | null },
-    >(items: T[]): Promise<Array<T & { last_order_date?: string | null }>> {
-        const clientCodes = Array.from(
-            new Set(
-                items
-                    .map(i => i?.client_code)
-                    .filter(
-                        (c): c is string =>
-                            typeof c === 'string' && c.length > 0,
-                    ),
-            ),
-        );
+    async syncLastOrderDate(clientCode: string) {
+        const lastOrder = await this.orderModel
+            .findOne({ client_code: clientCode })
+            .sort({ download_date: -1 })
+            .select('download_date')
+            .lean()
+            .exec();
 
-        if (clientCodes.length === 0) return items;
+        const lastOrderDate = lastOrder?.download_date || null;
 
-        const lastOrders = (await this.orderModel
-            .aggregate([
-                { $match: { client_code: { $in: clientCodes } } },
-                {
-                    $group: {
-                        _id: '$client_code',
-                        last_order_date: { $max: '$download_date' },
-                    },
-                },
-            ])
-            .exec()) as Array<{ _id: string; last_order_date?: string }>;
+        await this.reportModel
+            .updateMany(
+                { client_code: clientCode },
+                { last_order_date: lastOrderDate },
+            )
+            .exec();
 
-        const lastOrderByClientCode: Record<string, string> = {};
-        for (const row of lastOrders) {
-            if (row?._id && row.last_order_date) {
-                lastOrderByClientCode[row._id] = row.last_order_date;
-            }
-        }
-
-        for (const item of items as Array<
-            T & { last_order_date?: string | null }
-        >) {
-            const code = item?.client_code;
-            if (typeof code === 'string' && code) {
-                item.last_order_date = lastOrderByClientCode[code] ?? null;
-            }
-        }
-
-        return items;
+        await this.clientModel
+            .updateMany(
+                { client_code: clientCode },
+                { last_order_date: lastOrderDate },
+            )
+            .exec();
     }
 
     async callReportsTrend(userSession: UserSession, marketerName?: string) {
@@ -684,8 +664,6 @@ export class ReportService {
         addBooleanField(query, 'is_lead', onlyLead || false);
         addBooleanField(query, 'followup_done', followupDone);
 
-        console.log('QUERY => ', query, filters);
-
         if (regularClient === true && clientApprovalWaiting === true) {
             throw new BadRequestException(
                 'Cannot filter by both regularClient and clientApprovalWaiting',
@@ -779,10 +757,6 @@ export class ReportService {
                     }
                     break;
                 case 'mine':
-                    console.log(
-                        'Marketer name from session:',
-                        marketerNameFromSession,
-                    );
                     query.marketer_name = createRegexQuery(
                         marketerNameFromSession || '',
                         {
@@ -790,9 +764,6 @@ export class ReportService {
                             flexible: false,
                         },
                     );
-
-                    console.log('Applied query:', query.marketer_name);
-
                     break;
             }
         }
@@ -806,9 +777,38 @@ export class ReportService {
             }
         }
 
-        const searchQuery: QueryShape = { ...query };
+        if (orderFrequency) {
+            const now = moment().tz('Asia/Dhaka');
+            if (orderFrequency === 'consistent') {
+                const minDate = now
+                    .clone()
+                    .subtract(14, 'days')
+                    .format('YYYY-MM-DD');
+                query.last_order_date = { $gte: minDate };
+            } else if (orderFrequency === 'regular') {
+                const minDate = now
+                    .clone()
+                    .subtract(29, 'days')
+                    .format('YYYY-MM-DD');
+                const maxDate = now
+                    .clone()
+                    .subtract(15, 'days')
+                    .format('YYYY-MM-DD');
+                query.last_order_date = { $gte: minDate, $lte: maxDate };
+            } else if (orderFrequency === 'irregular') {
+                const maxDate = now
+                    .clone()
+                    .subtract(30, 'days')
+                    .format('YYYY-MM-DD');
+                query.$or = query.$or || [];
+                query.$or.push(
+                    { last_order_date: { $lte: maxDate } },
+                    { last_order_date: null },
+                );
+            }
+        }
 
-        console.log('Final search query:', searchQuery);
+        const searchQuery: QueryShape = { ...query };
 
         // Sorting defaults
         let sortQuery: Record<string, 1 | -1> = { createdAt: -1 };
@@ -818,31 +818,15 @@ export class ReportService {
             searchQuery.is_lead === false
         ) {
             sortQuery = {
-                hasFollowupDate: 1,
+                has_followup_date: -1,
                 followup_date: 1,
                 createdAt: -1,
             };
         }
 
-        // if (
-        //     filtered &&
-        //     !country &&
-        //     !companyName &&
-        //     !category &&
-        //     !marketerName &&
-        //     !prospectStatus &&
-        //     !generalSearchString &&
-        //     !fromDate &&
-        //     !toDate &&
-        //     !test &&
-        //     prospect !== true &&
-        //     followupDone === undefined &&
-        //     regularClient === undefined &&
-        //     staleClient !== true &&
-        //     onlyLead !== true
-        // ) {
-        //     throw new BadRequestException('No filter applied');
-        // }
+        this.logger.debug(
+            `Final search query: ${JSON.stringify(searchQuery)} sortQuery: ${JSON.stringify(sortQuery)}`,
+        );
 
         // General search
         if (generalSearchString) {
@@ -866,65 +850,44 @@ export class ReportService {
 
             const ors = buildOrRegex(generalSearchString, generalSearchFields);
 
-            if (ors.length > 0) searchQuery.$or = ors;
+            if (ors.length > 0) {
+                if (searchQuery.$or) {
+                    const existingOr = searchQuery.$or;
+                    delete searchQuery.$or;
+                    searchQuery.$and = [{ $or: existingOr }, { $or: ors }];
+                } else {
+                    searchQuery.$or = ors;
+                }
+            }
         }
 
         const skip = (page - 1) * itemsPerPage;
         if (paginated) {
             const pipeline: any[] = [
                 { $match: searchQuery },
-                {
-                    $lookup: {
-                        from: 'orders',
-                        localField: 'client_code',
-                        foreignField: 'client_code',
-                        as: 'orders',
-                    },
-                },
-                {
-                    $addFields: {
-                        last_order_date: { $max: '$orders.download_date' },
-                        hasFollowupDate: {
-                            $cond: {
-                                if: { $eq: ['$followup_date', ''] },
-                                then: 1,
-                                else: 0,
-                            },
-                        },
-                    },
-                },
-                { $project: { orders: 0 } },
                 { $sort: sortQuery },
+                {
+                    $facet: {
+                        items: [{ $skip: skip }, { $limit: itemsPerPage }],
+                        totalCount: [{ $count: 'count' }],
+                    },
+                },
             ];
-            const allItems = await this.reportModel.aggregate(pipeline).exec();
-            if (!allItems) {
+
+            const [result] = await this.reportModel
+                .aggregate(pipeline)
+                .allowDiskUse(true)
+                .exec();
+
+            if (!result) {
                 throw new InternalServerErrorException(
                     'Unable to retrieve reports',
                 );
             }
 
-            let filteredItems = allItems;
-            if (orderFrequency) {
-                const now = moment().tz('Asia/Dhaka');
-                filteredItems = allItems.filter((item: any) => {
-                    const lastOrderDateStr = item.last_order_date;
-                    if (!lastOrderDateStr) {
-                        return orderFrequency === 'irregular';
-                    }
-                    const lastOrderDate = moment(
-                        lastOrderDateStr as string | number | Date,
-                    );
-                    const daysSince = now.diff(lastOrderDate, 'days');
-                    if (orderFrequency === 'consistent') return daysSince <= 14;
-                    if (orderFrequency === 'regular')
-                        return daysSince >= 15 && daysSince <= 29;
-                    if (orderFrequency === 'irregular') return daysSince >= 30;
-                    return true;
-                });
-            }
+            const items = result.items || [];
+            const count = result.totalCount?.[0]?.count || 0;
 
-            const count = filteredItems.length;
-            const items = filteredItems.slice(skip, skip + itemsPerPage);
             return {
                 pagination: {
                     count,
@@ -935,35 +898,17 @@ export class ReportService {
         }
 
         // Unpaginated: simple find
-        let items = await this.reportModel
+        const items = await this.reportModel
             .find(searchQuery as Record<string, unknown>)
+            .sort(sortQuery)
+            .allowDiskUse(true)
             .lean()
             .exec();
+
         if (!items) {
             throw new InternalServerErrorException(
                 'Unable to retrieve reports',
             );
-        }
-
-        await this.attachLastOrderDate(items as any[]);
-
-        if (orderFrequency) {
-            const now = moment().tz('Asia/Dhaka');
-            items = items.filter((item: any) => {
-                const lastOrderDate = item.last_order_date;
-                if (!lastOrderDate) {
-                    return orderFrequency === 'irregular';
-                }
-                const daysSince = now.diff(
-                    moment(lastOrderDate as string | number | Date),
-                    'days',
-                );
-                if (orderFrequency === 'consistent') return daysSince <= 14;
-                if (orderFrequency === 'regular')
-                    return daysSince >= 15 && daysSince <= 29;
-                if (orderFrequency === 'irregular') return daysSince >= 30;
-                return true;
-            });
         }
 
         return items;
@@ -1051,7 +996,10 @@ export class ReportService {
         }
 
         try {
-            console.log('Update body:', body);
+            const current = await this.reportModel.findById(id).lean().exec();
+            if (!current) {
+                throw new NotFoundException('Report not found');
+            }
 
             const update = ReportFactory.fromUpdateDto(
                 body,
@@ -1059,7 +1007,20 @@ export class ReportService {
                 userSession,
             );
 
-            console.log('Update data:', update);
+            // Recalculate has_followup_date based on merged state
+            const finalFollowupDate =
+                body.followupDate !== undefined
+                    ? (body.followupDate ?? '')
+                    : current.followup_date;
+            const finalFollowupDone =
+                body.followupDone !== undefined
+                    ? body.followupDone
+                    : current.followup_done;
+
+            update.$set.has_followup_date =
+                !!(
+                    finalFollowupDate && (finalFollowupDate ?? '').trim() !== ''
+                ) && !finalFollowupDone;
 
             const updated = await this.reportModel
                 .findByIdAndUpdate(id, update, { new: true })
@@ -1542,6 +1503,7 @@ export class ReportService {
 
             // Mark the follow-up as done
             report.followup_done = true;
+            report.has_followup_date = false;
             report.updated_by = userSession.real_name;
             await this.reportModel.findByIdAndUpdate(reportId, report).exec();
 

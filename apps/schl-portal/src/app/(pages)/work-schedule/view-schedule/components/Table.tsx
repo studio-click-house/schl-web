@@ -255,13 +255,9 @@ const Table: React.FC<{ clientsData: OrderDocument[] }> = props => {
         pageCount,
         setPage,
         triggerFetch: fetchSchedules,
+        isFiltered,
+        searchVersion,
     });
-
-    useEffect(() => {
-        if (searchVersion > 0 && isFiltered && page === 1) {
-            fetchSchedules();
-        }
-    }, [fetchSchedules, isFiltered, page, searchVersion]);
 
     const handleSearch = useCallback(() => {
         setIsFiltered(true);

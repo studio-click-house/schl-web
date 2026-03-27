@@ -36,6 +36,78 @@ export class ClientService {
         @InjectModel(Report.name) private readonly reportModel: Model<Report>,
     ) {}
 
+    async syncLastOrderDate(clientCode: string) {
+        const lastOrder = await this.orderModel
+            .findOne({ client_code: clientCode })
+            .sort({ download_date: -1 })
+            .select('download_date')
+            .lean()
+            .exec();
+
+        const lastOrderDate = lastOrder?.download_date || null;
+
+        await this.clientModel
+            .updateMany(
+                { client_code: clientCode },
+                { last_order_date: lastOrderDate },
+            )
+            .exec();
+
+        await this.reportModel
+            .updateMany(
+                { client_code: clientCode },
+                { last_order_date: lastOrderDate },
+            )
+            .exec();
+    }
+
+    private async attachLastOrderDate<
+        T extends { client_code?: string | null },
+    >(items: T[]): Promise<Array<T & { last_order_date?: string | null }>> {
+        const clientCodes = Array.from(
+            new Set(
+                items
+                    .map(i => i?.client_code)
+                    .filter(
+                        (c): c is string =>
+                            typeof c === 'string' && c.length > 0,
+                    ),
+            ),
+        );
+
+        if (clientCodes.length === 0) return items;
+
+        const lastOrders = (await this.orderModel
+            .aggregate([
+                { $match: { client_code: { $in: clientCodes } } },
+                {
+                    $group: {
+                        _id: '$client_code',
+                        last_order_date: { $max: '$download_date' },
+                    },
+                },
+            ])
+            .exec()) as Array<{ _id: string; last_order_date?: string }>;
+
+        const lastOrderByClientCode: Record<string, string> = {};
+        for (const row of lastOrders) {
+            if (row?._id && row.last_order_date) {
+                lastOrderByClientCode[row._id] = row.last_order_date;
+            }
+        }
+
+        for (const item of items as Array<
+            T & { last_order_date?: string | null }
+        >) {
+            const code = item?.client_code;
+            if (typeof code === 'string' && code) {
+                item.last_order_date = lastOrderByClientCode[code] ?? null;
+            }
+        }
+
+        return items;
+    }
+
     private async attachOrderUpdate<T extends { client_code?: string | null }>(
         items: T[],
     ): Promise<Array<T & { order_update?: string | null }>> {
@@ -90,46 +162,40 @@ export class ClientService {
         return items;
     }
 
-    private getOrderFrequencyMatch(orderFrequency: string | undefined): any {
-        if (!orderFrequency) return null;
+    private addOrderFrequencyFilter(
+        query: QueryShape,
+        orderFrequency: string | undefined,
+    ): void {
+        if (!orderFrequency) return;
 
         const now = moment().tz('Asia/Dhaka');
-        const consistentMaxDays = 14;
-        const regularMinDays = 15;
-        const regularMaxDays = 29;
-        const irregularMinDays = 30;
-
         if (orderFrequency === 'consistent') {
             const minDate = now
                 .clone()
-                .subtract(consistentMaxDays, 'days')
-                .toISOString();
-            return { last_order_date: { $gte: minDate } };
+                .subtract(14, 'days')
+                .format('YYYY-MM-DD');
+            query.last_order_date = { $gte: minDate };
         } else if (orderFrequency === 'regular') {
             const minDate = now
                 .clone()
-                .subtract(regularMaxDays, 'days')
-                .toISOString();
+                .subtract(29, 'days')
+                .format('YYYY-MM-DD');
             const maxDate = now
                 .clone()
-                .subtract(regularMinDays, 'days')
-                .toISOString();
-            return {
-                last_order_date: { $gte: minDate, $lte: maxDate },
-            };
+                .subtract(15, 'days')
+                .format('YYYY-MM-DD');
+            query.last_order_date = { $gte: minDate, $lte: maxDate };
         } else if (orderFrequency === 'irregular') {
             const maxDate = now
                 .clone()
-                .subtract(irregularMinDays, 'days')
-                .toISOString();
-            return {
-                $or: [
-                    { last_order_date: { $lte: maxDate } },
-                    { last_order_date: null },
-                ],
-            };
+                .subtract(30, 'days')
+                .format('YYYY-MM-DD');
+            query.$or = query.$or || [];
+            query.$or.push(
+                { last_order_date: { $lte: maxDate } },
+                { last_order_date: null },
+            );
         }
-        return null;
     }
 
     async searchClients(
@@ -163,6 +229,7 @@ export class ClientService {
         addIfDefined(query, 'contact_person', createRegexQuery(contactPerson));
         addIfDefined(query, 'marketer', createRegexQuery(marketerName));
         addIfDefined(query, 'category', createRegexQuery(category));
+        this.addOrderFrequencyFilter(query, orderFrequency);
 
         const searchQuery: QueryShape = { ...query };
 
@@ -176,61 +243,23 @@ export class ClientService {
                 'contact_person',
                 'email',
             ]);
-            if (or.length > 0) searchQuery.$or = or;
+            if (or.length > 0) {
+                if (searchQuery.$or) {
+                    const existingOr = searchQuery.$or;
+                    delete searchQuery.$or;
+                    searchQuery.$and = [{ $or: existingOr }, { $or: or }];
+                } else {
+                    searchQuery.$or = or;
+                }
+            }
         }
 
         const skip = (page - 1) * itemsPerPage;
-        const matchCondition = this.getOrderFrequencyMatch(orderFrequency);
 
-        // Build count pipeline
-        const countPipeline: any[] = [
+        const pipeline: any[] = [
             { $match: searchQuery },
             {
-                $lookup: {
-                    from: 'orders',
-                    localField: 'client_code',
-                    foreignField: 'client_code',
-                    as: 'orders',
-                },
-            },
-            {
                 $addFields: {
-                    last_order_date: { $max: '$orders.download_date' },
-                },
-            },
-            { $project: { orders: 0 } },
-        ];
-
-        if (matchCondition) {
-            countPipeline.push({ $match: matchCondition });
-        }
-
-        let count = 0;
-        try {
-            const countResult = await this.clientModel.aggregate([
-                ...countPipeline,
-                { $count: 'total' },
-            ]);
-            count = countResult[0]?.total || 0;
-        } catch (e) {
-            if (e instanceof HttpException) throw e;
-            throw new InternalServerErrorException('Unable to count clients');
-        }
-
-        // Build retrieval pipeline
-        const retrievalPipeline: any[] = [
-            { $match: searchQuery },
-            {
-                $lookup: {
-                    from: 'orders',
-                    localField: 'client_code',
-                    foreignField: 'client_code',
-                    as: 'orders',
-                },
-            },
-            {
-                $addFields: {
-                    last_order_date: { $max: '$orders.download_date' },
                     clientNumber: {
                         $convert: {
                             input: {
@@ -246,23 +275,38 @@ export class ClientService {
                     },
                 },
             },
-            { $project: { orders: 0 } },
+            { $sort: { clientNumber: 1 } },
         ];
 
-        if (matchCondition) {
-            retrievalPipeline.push({ $match: matchCondition });
-        }
-
-        retrievalPipeline.push(
-            { $sort: { clientNumber: 1 } },
-            { $unset: 'clientNumber' },
-        );
-
         if (paginated) {
-            retrievalPipeline.push({ $skip: skip }, { $limit: itemsPerPage });
-            const items = await this.clientModel
-                .aggregate(retrievalPipeline)
+            pipeline.push({
+                $facet: {
+                    items: [
+                        { $skip: skip },
+                        { $limit: itemsPerPage },
+                        { $unset: 'clientNumber' },
+                    ],
+                    totalCount: [{ $count: 'count' }],
+                },
+            });
+
+            const [result] = await this.clientModel
+                .aggregate(pipeline)
+                .allowDiskUse(true)
                 .exec();
+
+            if (!result) {
+                throw new InternalServerErrorException(
+                    'Unable to retrieve clients',
+                );
+            }
+
+            const items = result.items || [];
+            const count = result.totalCount?.[0]?.count || 0;
+
+            await this.attachLastOrderDate(items);
+            await this.attachOrderUpdate(items);
+
             return {
                 pagination: {
                     count,
@@ -271,9 +315,12 @@ export class ClientService {
                 items,
             };
         } else {
+            pipeline.push({ $unset: 'clientNumber' });
             const items = await this.clientModel
-                .aggregate(retrievalPipeline)
+                .aggregate(pipeline)
+                .allowDiskUse(true)
                 .exec();
+            await this.attachLastOrderDate(items);
             await this.attachOrderUpdate(items);
             return items;
         }

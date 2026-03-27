@@ -7,6 +7,8 @@ export interface PaginationOpts {
     pageCount: number;
     setPage: (n: number) => void;
     triggerFetch: () => void;
+    isFiltered?: boolean;
+    searchVersion?: number;
 }
 
 export function usePaginationManager({
@@ -15,13 +17,15 @@ export function usePaginationManager({
     // pageCount,
     setPage,
     triggerFetch,
+    isFiltered,
+    searchVersion,
 }: PaginationOpts) {
     const didMountRef = useRef(false);
 
     // track previous values
     const prevPageRef = useRef(page);
     const prevIPPRef = useRef(itemPerPage);
-    // const prevPageCountRef = useRef(pageCount);
+    const prevSearchVersionRef = useRef(searchVersion);
 
     // flags to suppress duplicate fetches
     const ippChangedRef = useRef(false);
@@ -70,17 +74,15 @@ export function usePaginationManager({
         }
     }, [page, itemPerPage, triggerFetch]);
 
-    // 6) pageCount changes → fetch once (unless skipped)
-    // useEffect(() => {
-    //   if (!didMountRef.current) return;
+    // 7) searchVersion changes → fetch
+    useEffect(() => {
+        if (!didMountRef.current) return;
 
-    //   if (prevPageCountRef.current !== pageCount) {
-    //     if (skipNextPageCountFetchRef.current) {
-    //       skipNextPageCountFetchRef.current = false;
-    //     } else {
-    //       triggerFetch();
-    //     }
-    //     prevPageCountRef.current = pageCount;
-    //   }
-    // }, [pageCount, triggerFetch]);
+        const searchVersionChanged =
+            prevSearchVersionRef.current !== searchVersion;
+        if (searchVersionChanged && searchVersion && searchVersion > 0) {
+            triggerFetch();
+            prevSearchVersionRef.current = searchVersion;
+        }
+    }, [searchVersion, triggerFetch]);
 }
