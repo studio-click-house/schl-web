@@ -31,6 +31,10 @@ class WorkLogFileDto {
 
 export class WorkLogDto {
     @IsString()
+    @IsOptional()
+    workLogId?: string;
+
+    @IsString()
     @IsNotEmpty()
     employeeName: string;
 

@@ -2,6 +2,10 @@ import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class PauseDto {
     @IsString()
+    @IsOptional()
+    workLogId?: string;
+
+    @IsString()
     @IsNotEmpty()
     employeeName: string;
 

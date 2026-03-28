@@ -7,7 +7,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { PauseSession } from '@repo/common/models/pause-session.schema';
 import { WorkLog } from '@repo/common/models/work-log.schema';
-import { FilterQuery, Model } from 'mongoose';
+import { FilterQuery, Model, Types } from 'mongoose';
 import { PauseDto } from '../dto/pause.dto';
 import { TrackerGateway } from '../gateways/tracker.gateway';
 import { TrackerFactory } from '../factories/tracker.factory';
@@ -44,7 +44,7 @@ export class TrackerPauseService {
         try {
             const now = new Date();
             const dateString = moment().tz('Asia/Dhaka').format('YYYY-MM-DD');
-            const { filter, hasJobContext } = this.buildFilter(
+            const { filter, hasJobContext, workLogId } = await this.buildFilter(
                 payload,
                 dateString,
             );
@@ -68,7 +68,9 @@ export class TrackerPauseService {
 
             const setUpdate: Record<string, any> = {};
 
-            if (hasJobContext) {
+            if (workLogId) {
+                setUpdate.work_log_id = workLogId;
+            } else if (hasJobContext) {
                 const workLog = await this.workLogModel
                     .findOne(filter as FilterQuery<WorkLog>, { _id: 1 })
                     .lean();
@@ -136,7 +138,6 @@ export class TrackerPauseService {
                 type AccFile = {
                     fileName: string;
                     fileStatus: string;
-                    timeSpent: number;
                     startedAt: Date | null;
                     completedAt: Date | null;
                 };
@@ -145,7 +146,6 @@ export class TrackerPauseService {
                     (f: any) => ({
                         fileName: String(f?.file_name ?? ''),
                         fileStatus: String(f?.file_status ?? ''),
-                        timeSpent: Math.max(0, Number(f?.time_spent) || 0),
                         startedAt: f?.started_at ?? null,
                         completedAt: f?.completed_at ?? null,
                     }),
@@ -232,7 +232,45 @@ export class TrackerPauseService {
         return null;
     }
 
-    private buildFilter(payload: PauseDto, dateString: string) {
+    private async buildFilter(payload: PauseDto, dateString: string) {
+        const requestedWorkLogId =
+            typeof payload.workLogId === 'string'
+                ? payload.workLogId.trim()
+                : '';
+
+        if (requestedWorkLogId && Types.ObjectId.isValid(requestedWorkLogId)) {
+            const workLog = await this.workLogModel
+                .findById(requestedWorkLogId, {
+                    _id: 1,
+                    employee_name: 1,
+                    date_today: 1,
+                    client_code: 1,
+                    folder_path: 1,
+                    shift: 1,
+                    work_type: 1,
+                })
+                .lean();
+
+            if (workLog?._id) {
+                return {
+                    filter: {
+                        employee_name: String(workLog.employee_name || '').trim(),
+                        date_today: String(workLog.date_today || '').trim(),
+                        client_code: String(workLog.client_code || '')
+                            .trim()
+                            .toLowerCase(),
+                        folder_path: String(workLog.folder_path || '').trim(),
+                        shift: String(workLog.shift || '').trim().toLowerCase(),
+                        work_type: String(workLog.work_type || '')
+                            .trim()
+                            .toLowerCase(),
+                    },
+                    hasJobContext: true,
+                    workLogId: workLog._id,
+                };
+            }
+        }
+
         const hasJobContext = [payload.clientCode, payload.folderPath]
             .map(value => String(value || '').trim())
             .some(value => value.length > 0);
@@ -248,7 +286,7 @@ export class TrackerPauseService {
             work_type: (payload.workType || '').trim().toLowerCase(),
         };
 
-        return { filter, hasJobContext };
+        return { filter, hasJobContext, workLogId: null };
     }
 
     private async startPause(

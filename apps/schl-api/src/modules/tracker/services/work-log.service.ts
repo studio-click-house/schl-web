@@ -8,7 +8,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { PauseSession } from '@repo/common/models/pause-session.schema';
 import { WorkLog } from '@repo/common/models/work-log.schema';
-import { AnyBulkWriteOperation, FilterQuery, Model } from 'mongoose';
+import { AnyBulkWriteOperation, FilterQuery, Model, Types } from 'mongoose';
 import { WorkLogDto } from '../dto/work-log.dto';
 import { TrackerFactory } from '../factories/tracker.factory';
 import { TrackerGateway } from '../gateways/tracker.gateway';
@@ -71,12 +71,31 @@ export class TrackerWorkLogService {
 
         try {
             const dateString = moment().tz('Asia/Dhaka').format('YYYY-MM-DD');
+            const requestedWorkLogId =
+                typeof payload.workLogId === 'string'
+                    ? payload.workLogId.trim()
+                    : '';
 
-            const filter: FilterQuery<WorkLog> =
-                TrackerFactory.qcFilterFromSyncDto(
+            let filter: FilterQuery<WorkLog> | null = null;
+            let allowUpsert = true;
+
+            if (requestedWorkLogId && Types.ObjectId.isValid(requestedWorkLogId)) {
+                const existingById = await this.workLogModel
+                    .findById(requestedWorkLogId, { _id: 1 })
+                    .lean();
+
+                if (existingById?._id) {
+                    filter = { _id: existingById._id } as FilterQuery<WorkLog>;
+                    allowUpsert = false;
+                }
+            }
+
+            if (!filter) {
+                filter = TrackerFactory.qcFilterFromSyncDto(
                     payload,
                     dateString,
                 ) as FilterQuery<WorkLog>;
+            }
 
             // ── Idempotency check: skip $inc if syncId already processed ──
             const syncId =
@@ -106,9 +125,10 @@ export class TrackerWorkLogService {
             delete (bucketMax as any).pause_time;
             const bucketInc = TrackerFactory.qcBucketIncFromSyncDto(payload);
 
-            const bucketUpdate: Record<string, any> = {
-                $setOnInsert: filter,
-            };
+            const bucketUpdate: Record<string, any> = {};
+            if (allowUpsert) {
+                bucketUpdate.$setOnInsert = filter;
+            }
             if (Object.keys(bucketSet).length)
                 bucketUpdate.$set = {
                     ...(bucketSet || {}),
@@ -125,7 +145,7 @@ export class TrackerWorkLogService {
 
             const bucketDoc = await this.workLogModel
                 .findOneAndUpdate(filter, bucketUpdate, {
-                    upsert: true,
+                    upsert: allowUpsert,
                     new: true,
                 })
                 .lean();

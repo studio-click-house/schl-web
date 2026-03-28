@@ -9,6 +9,7 @@ import { randomUUID } from 'crypto';
 import { InjectModel } from '@nestjs/mongoose';
 import { AppUser } from '@repo/common/models/app-user.schema';
 import { Employee } from '@repo/common/models/employee.schema';
+import { PauseSession } from '@repo/common/models/pause-session.schema';
 import { WorkLog } from '@repo/common/models/work-log.schema';
 import { UserSession } from '@repo/common/models/user-session.schema';
 import { Model } from 'mongoose';
@@ -31,6 +32,9 @@ export class TrackerAuthService {
 
         @InjectModel(WorkLog.name)
         private readonly workLogModel: Model<WorkLog>,
+
+        @InjectModel(PauseSession.name)
+        private readonly pauseSessionModel: Model<PauseSession>,
 
         private readonly trackerGateway: TrackerGateway,
     ) {}
@@ -185,7 +189,77 @@ export class TrackerAuthService {
                                     0,
                                 );
 
+                            // Find earliest started_at among working files
+                            let earliestStart: Date | null = null;
+                            for (const f of workingFiles) {
+                                if (f.started_at) {
+                                    const d = new Date(String(f.started_at));
+                                    if (!earliestStart || d < earliestStart) {
+                                        earliestStart = d;
+                                    }
+                                }
+                            }
+
+                            // Query pause_sessions by work_log_id,
+                            // only sum pauses that started AFTER the
+                            // current working files' earliest start
+                            let totalPauseSeconds = 0;
+                            if (earliestStart) {
+                                try {
+                                    const pauseDoc =
+                                        await this.pauseSessionModel
+                                            .findOne(
+                                                {
+                                                    work_log_id: (
+                                                        workLog as any
+                                                    )._id,
+                                                },
+                                                { pause_reasons: 1 },
+                                            )
+                                            .lean();
+                                    const reasons = Array.isArray(
+                                        (pauseDoc as any)?.pause_reasons,
+                                    )
+                                        ? (pauseDoc as any).pause_reasons
+                                        : [];
+                                    for (const pr of reasons) {
+                                        const prStart = pr?.started_at
+                                            ? new Date(String(pr.started_at))
+                                            : null;
+                                        if (
+                                            prStart &&
+                                            prStart >= earliestStart
+                                        ) {
+                                            totalPauseSeconds += Math.max(
+                                                0,
+                                                Number(pr.duration) || 0,
+                                            );
+                                        }
+                                    }
+                                } catch {
+                                    /* best-effort */
+                                }
+                            }
+
+                            // Calculate actual elapsed work time (wall-clock minus pauses)
+                            let totalElapsedSeconds = 0;
+                            if (earliestStart) {
+                                const wallSeconds = Math.max(
+                                    0,
+                                    Math.floor(
+                                        (now.getTime() -
+                                            earliestStart.getTime()) /
+                                            1000,
+                                    ),
+                                );
+                                totalElapsedSeconds = Math.max(
+                                    0,
+                                    wallSeconds - totalPauseSeconds,
+                                );
+                            }
+
                             activeWork = {
+                                work_log_id: String((workLog as any)._id ?? ''),
                                 client_code: (workLog as any).client_code,
                                 folder_path: (workLog as any).folder_path,
                                 shift: (workLog as any).shift,
@@ -194,14 +268,11 @@ export class TrackerAuthService {
                                     (workLog as any).estimate_time ?? 0,
                                 categories: (workLog as any).categories ?? '',
                                 done_time_total: doneTimeTotal,
+                                total_elapsed_seconds: totalElapsedSeconds,
                                 files: workingFiles.map((f: any) => ({
                                     file_name: f.file_name,
                                     file_path: f.file_path ?? '',
                                     started_at: f.started_at ?? null,
-                                    time_spent: Math.max(
-                                        0,
-                                        Number(f.time_spent) || 0,
-                                    ),
                                 })),
                             };
                         }
