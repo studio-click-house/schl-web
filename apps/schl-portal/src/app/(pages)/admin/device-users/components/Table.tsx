@@ -237,13 +237,9 @@ const Table: React.FC<TableProps> = ({ employeesData }) => {
         pageCount,
         setPage,
         triggerFetch: fetchDeviceUsers,
+        isFiltered,
+        searchVersion,
     });
-
-    useEffect(() => {
-        if (searchVersion > 0 && page === 1) {
-            fetchDeviceUsers();
-        }
-    }, [searchVersion, page]);
 
     const handleSearch = useCallback(() => {
         const hasFilter = filters.searchString.trim().length > 0;

@@ -177,12 +177,6 @@ const Table = () => {
         searchVersion,
     });
 
-    useEffect(() => {
-        if (searchVersion > 0 && isFiltered && page === 1) {
-            fetchReports();
-        }
-    }, [searchVersion, isFiltered, page]);
-
     async function deleteReport(reportData: ReportDocument) {
         try {
             if (

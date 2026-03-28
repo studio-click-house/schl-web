@@ -230,8 +230,10 @@ const DailyReportsTable: React.FC<Props> = ({ selectedUser }) => {
     };
 
     useEffect(() => {
-        fetchUpdates();
-    }, [selectedUser, searchVersion, fetchUpdates]);
+        if (searchVersion > 0) {
+            fetchUpdates();
+        }
+    }, [searchVersion, fetchUpdates]);
 
     const handleSearch = useCallback(() => {
         setIsFiltered(true);

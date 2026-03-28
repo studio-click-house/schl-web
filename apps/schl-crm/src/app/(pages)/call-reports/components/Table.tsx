@@ -494,13 +494,9 @@ const Table = () => {
         pageCount,
         setPage,
         triggerFetch: fetchReports,
+        isFiltered,
+        searchVersion,
     });
-
-    useEffect(() => {
-        if (searchVersion > 0 && isFiltered && page === 1) {
-            fetchReports();
-        }
-    }, [searchVersion, isFiltered, page, fetchReports]);
 
     return (
         <>

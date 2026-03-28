@@ -4,6 +4,7 @@ import {
     HttpException,
     Injectable,
     InternalServerErrorException,
+    Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { CLIENT_COMMON_COUNTRY } from '@repo/common/constants/client.constant';
@@ -26,6 +27,7 @@ import { calculateTimeDifference } from '@repo/common/utils/general-utils';
 import { hasAnyPerm, hasPerm } from '@repo/common/utils/permission-check';
 import moment from 'moment-timezone';
 import { Model } from 'mongoose';
+import { ReportService } from '../report/report.service';
 import { CreateOrderBodyDto } from './dto/create-order.dto';
 import { OrdersByCountryQueryDto } from './dto/orders-by-country.dto';
 import { OrdersByMonthQueryDto } from './dto/orders-by-month.dto';
@@ -44,6 +46,7 @@ export interface OrdersByCountryResponse {
 
 @Injectable()
 export class OrderService {
+    private readonly logger = new Logger(OrderService.name);
     constructor(
         @InjectModel(Order.name)
         private readonly orderModel: Model<OrderDocument>,
@@ -52,6 +55,7 @@ export class OrderService {
         @InjectModel(Client.name) private readonly clientModel: Model<Client>,
         @InjectModel(Invoice.name)
         private readonly invoiceModel: Model<Invoice>,
+        private readonly reportService: ReportService,
     ) {}
 
     async searchOrders(
@@ -158,20 +162,6 @@ export class OrderService {
             download_date: -1,
         };
 
-        // if (
-        //     filtered &&
-        //     !clientCode &&
-        //     !task &&
-        //     !folder &&
-        //     !type &&
-        //     !status &&
-        //     !fromDate &&
-        //     !toDate &&
-        //     !generalSearchString
-        // ) {
-        //     throw new BadRequestException('No filter applied');
-        // }
-
         console.log('Search Query:', searchQuery);
 
         const skip = (page - 1) * itemsPerPage;
@@ -270,7 +260,10 @@ export class OrderService {
                 },
             ];
 
-            const aggResult = await this.orderModel.aggregate(pipeline).exec();
+            const aggResult = await this.orderModel
+                .aggregate(pipeline)
+                .allowDiskUse(true)
+                .exec();
             const items = aggResult?.[0]?.items || [];
             const count = aggResult?.[0]?.count?.[0]?.total || 0;
             if (!items) {
@@ -380,6 +373,18 @@ export class OrderService {
                 user: userSession.db_id,
             });
 
+            // Sync last_order_date in background
+            if (created.client_code) {
+                this.reportService
+                    .syncLastOrderDate(created.client_code)
+                    .catch(err => {
+                        this.logger.error(
+                            'Failed to sync last_order_date:',
+                            err,
+                        );
+                    });
+            }
+
             return created;
         } catch (e) {
             if (e instanceof HttpException) throw e;
@@ -401,6 +406,19 @@ export class OrderService {
 
         try {
             await existing.deleteOne();
+
+            // Sync last_order_date
+            if (existing.client_code) {
+                this.reportService
+                    .syncLastOrderDate(existing.client_code)
+                    .catch(err => {
+                        this.logger.error(
+                            'Failed to sync last_order_date:',
+                            err,
+                        );
+                    });
+            }
+
             return { message: 'Deleted the order successfully' };
         } catch (e) {
             if (e instanceof HttpException) throw e;
@@ -553,6 +571,32 @@ export class OrderService {
                 throw new InternalServerErrorException(
                     'Failed to update order',
                 );
+            }
+
+            // Sync last_order_date for current (and potentially old) client
+            if (updated.client_code) {
+                this.reportService
+                    .syncLastOrderDate(updated.client_code)
+                    .catch(err => {
+                        this.logger.error(
+                            'Failed to sync last_order_date:',
+                            err,
+                        );
+                    });
+            }
+
+            if (
+                existing.client_code &&
+                existing.client_code !== updated.client_code
+            ) {
+                this.reportService
+                    .syncLastOrderDate(existing.client_code)
+                    .catch(err => {
+                        this.logger.error(
+                            'Failed to sync old last_order_date:',
+                            err,
+                        );
+                    });
             }
 
             // Log the transition-aware action

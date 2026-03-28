@@ -264,13 +264,9 @@ const Table: React.FC = () => {
         pageCount,
         setPage,
         triggerFetch: fetchRoles,
+        isFiltered,
+        searchVersion,
     });
-
-    useEffect(() => {
-        if (searchVersion > 0 && isFiltered && page === 1) {
-            fetchRoles();
-        }
-    }, [searchVersion, isFiltered, page]);
 
     const handleSearch = useCallback(() => {
         setIsFiltered(true);

@@ -278,13 +278,9 @@ const Table: React.FC<{
         pageCount,
         setPage,
         triggerFetch: fetchUsers,
+        isFiltered,
+        searchVersion,
     });
-
-    useEffect(() => {
-        if (searchVersion > 0 && page === 1) {
-            fetchUsers();
-        }
-    }, [searchVersion, page]);
 
     const handleSearch = useCallback(() => {
         const hasFilter = filters.generalSearchString.trim().length > 0;

@@ -429,13 +429,9 @@ const Table: React.FC = props => {
         pageCount,
         setPage,
         triggerFetch: fetchReports,
+        isFiltered,
+        searchVersion,
     });
-
-    useEffect(() => {
-        if (searchVersion > 0 && isFiltered && page === 1) {
-            fetchReports();
-        }
-    }, [searchVersion, isFiltered, page]);
 
     useEffect(() => {
         void getAllMarketers();

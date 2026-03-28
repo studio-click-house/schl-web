@@ -65,11 +65,16 @@ export class Client {
     @Prop({ type: String, default: null })
     updated_by: string | null;
 
-    @Prop({ type: Date })
+    @Prop({ default: null, type: String })
+    last_order_date: string | null;
+
     readonly createdAt: Date;
 
-    @Prop({ type: Date })
     readonly updatedAt: Date;
 }
 
 export const ClientSchema = SchemaFactory.createForClass(Client);
+
+ClientSchema.index({ marketer: 1 });
+ClientSchema.index({ last_order_date: 1 });
+ClientSchema.index({ client_code: 1 }, { unique: true });

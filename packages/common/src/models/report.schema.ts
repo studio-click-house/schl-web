@@ -99,6 +99,12 @@ export class Report {
     @Prop({ default: '', type: String })
     order_update: string; // order update notes for regular clients
 
+    @Prop({ default: null, type: String })
+    last_order_date: string | null;
+
+    @Prop({ default: false })
+    has_followup_date: boolean;
+
     @Prop({ type: Date })
     readonly createdAt: Date;
 
@@ -117,5 +123,10 @@ ReportSchema.index({ marketer_name: 1 });
 // Array dates (multikey)
 ReportSchema.index({ calling_date_history: 1 });
 ReportSchema.index({ test_given_date_history: 1 });
-// Follow-up sorting
+// Follow-up sorting (Denormalized for performance)
+ReportSchema.index({ has_followup_date: -1, followup_date: 1, createdAt: -1 });
 ReportSchema.index({ followup_done: 1, followup_date: 1, is_lead: 1 });
+// For last order date sorting and filtering
+ReportSchema.index({ last_order_date: 1 });
+// For quick lookup by client code (used in sync and search)
+ReportSchema.index({ client_code: 1 });
