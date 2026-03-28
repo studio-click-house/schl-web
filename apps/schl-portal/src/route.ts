@@ -224,6 +224,13 @@ export const authorizedRoutes: AuthorizedRoute[] = [
         permissions: ['fileflow:view_page'],
     },
 
+    {
+        href: '/live-tracking',
+        label: 'Live Tracking',
+        permissions: [],
+        notes: 'Temporarily open during UI-only live tracking work.',
+    },
+
     // Work Schedule
     {
         href: '/work-schedule',

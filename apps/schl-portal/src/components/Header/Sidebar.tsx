@@ -484,6 +484,19 @@ const Sidebar: React.FC<PropsType> = props => {
                         </Link>
                     )}
 
+                    <Link
+                        href="/live-tracking"
+                        className={cn(
+                            'p-4 flex items-center',
+                            pathname == '/live-tracking'
+                                ? 'bg-primary text-white'
+                                : 'hover:bg-gray-100',
+                        )}
+                    >
+                        <ChartNoAxesCombined className="w-6 h-6 mr-2" />
+                        Live Tracking
+                    </Link>
+
                     {hasAny([
                         'schedule:view_page',
                         'schedule:create_schedule',

@@ -46,6 +46,16 @@ export const USER_PERMISSIONS = [
     },
 
     {
+        label: 'Live Tracking',
+        options: [
+            {
+                value: 'live_tracking:view_page',
+                label: 'View live tracking page',
+            },
+        ],
+    },
+
+    {
         label: 'Notice',
         options: [
             { value: 'notice:view_notice', label: 'View notice page' },

@@ -511,6 +511,19 @@ const Nav: React.FC<PropsType> = props => {
                     File Flow
                 </Link>
 
+                <Link
+                    className={cn(
+                        'py-3 px-5',
+                        pathname === '/live-tracking' ||
+                            pathname.startsWith('/live-tracking/')
+                            ? 'bg-primary'
+                            : 'hover:opacity-90',
+                    )}
+                    href={'/live-tracking'}
+                >
+                    Live Tracking
+                </Link>
+
                 <span
                     role="button"
                     id="scheduleDropdownButton"
