@@ -213,17 +213,6 @@ const Table = () => {
         searchVersion,
     });
 
-    // NOTE: Intentionally exclude `fetchNotices` from the dependency array below.
-    // Including it may cause the effect to re-run when `filters` changes (because
-    // `getAllNoticesFiltered` depends on `filters`), which would trigger a fetch
-    // on every filter change. We want fetching to happen only when the user
-    // explicitly clicks the Search button (which updates `searchVersion`/`isFiltered`).
-    useEffect(() => {
-        if (searchVersion > 0 && isFiltered && page === 1) {
-            fetchNotices();
-        }
-    }, [searchVersion, isFiltered, page]);
-
     return (
         <>
             <div className="flex flex-col justify-center sm:flex-row sm:justify-end mb-4 gap-2">

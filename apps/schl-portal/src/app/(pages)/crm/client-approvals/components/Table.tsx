@@ -327,13 +327,9 @@ const Table = () => {
         pageCount,
         setPage,
         triggerFetch: fetchClientApprovals,
+        isFiltered,
+        searchVersion,
     });
-
-    useEffect(() => {
-        if (searchVersion > 0 && isFiltered && page === 1) {
-            fetchClientApprovals();
-        }
-    }, [searchVersion, isFiltered, page]);
 
     const handleSearch = useCallback(() => {
         setIsFiltered(true);

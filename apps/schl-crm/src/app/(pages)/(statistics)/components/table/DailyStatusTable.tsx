@@ -108,7 +108,7 @@ const DailyStatusTable = () => {
 
     useEffect(() => {
         void getReportsStatus();
-    }, [getReportsStatus]);
+    }, []);
 
     return (
         <div className="mt-6">

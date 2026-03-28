@@ -156,7 +156,9 @@ export class TrackerWorkLogService {
                 const terminalStatuses = new Set(['done', 'skip', 'walkout']);
 
                 const normalizeStatus = (value: unknown): string =>
-                    String(value ?? '').toLowerCase().trim();
+                    String(value ?? '')
+                        .toLowerCase()
+                        .trim();
 
                 const statusForFile = (f: any): string => {
                     const perFile = normalizeStatus(f?.fileStatus);

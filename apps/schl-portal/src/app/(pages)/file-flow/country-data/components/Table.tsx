@@ -41,6 +41,8 @@ const Table: React.FC<{ country: string; date: string }> = props => {
 
     const authedFetchApi = useAuthedFetchApi();
 
+    const [searchVersion, setSearchVersion] = useState<number>(0);
+
     const getOrderDetails = useCallback(async () => {
         try {
             // setLoading(true);
@@ -74,8 +76,14 @@ const Table: React.FC<{ country: string; date: string }> = props => {
     }, [authedFetchApi, filters]);
 
     useEffect(() => {
-        getOrderDetails();
-    }, [getOrderDetails]);
+        if (searchVersion > 0) {
+            getOrderDetails();
+        }
+    }, [searchVersion]);
+
+    const handleSearch = useCallback(() => {
+        setSearchVersion(v => v + 1);
+    }, []);
 
     return (
         <>
@@ -92,7 +100,7 @@ const Table: React.FC<{ country: string; date: string }> = props => {
 
                     <FilterButton
                         loading={loading}
-                        submitHandler={getOrderDetails}
+                        submitHandler={handleSearch}
                         setFilters={setFilters}
                         filters={filters}
                         className="w-full justify-between sm:w-auto"

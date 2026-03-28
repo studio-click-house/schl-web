@@ -25,7 +25,7 @@ export function usePaginationManager({
     // track previous values
     const prevPageRef = useRef(page);
     const prevIPPRef = useRef(itemPerPage);
-    // const prevPageCountRef = useRef(pageCount);
+    const prevSearchVersionRef = useRef(searchVersion);
 
     // flags to suppress duplicate fetches
     const ippChangedRef = useRef(false);
@@ -76,8 +76,13 @@ export function usePaginationManager({
 
     // 7) searchVersion changes → fetch
     useEffect(() => {
-        if (searchVersion && searchVersion > 0) {
+        if (!didMountRef.current) return;
+
+        const searchVersionChanged =
+            prevSearchVersionRef.current !== searchVersion;
+        if (searchVersionChanged && searchVersion && searchVersion > 0) {
             triggerFetch();
+            prevSearchVersionRef.current = searchVersion;
         }
     }, [searchVersion, triggerFetch]);
 }

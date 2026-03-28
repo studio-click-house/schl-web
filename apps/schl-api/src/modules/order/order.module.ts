@@ -7,6 +7,7 @@ import { Order, OrderSchema } from '@repo/common/models/order.schema';
 import { OrderController } from './order.controller';
 
 import { OrderService } from './order.service';
+import { ReportModule } from '../report/report.module';
 
 @Module({
     imports: [
@@ -16,6 +17,7 @@ import { OrderService } from './order.service';
             { name: Client.name, schema: ClientSchema },
             { name: Invoice.name, schema: InvoiceSchema },
         ]),
+        ReportModule,
     ],
     controllers: [OrderController],
     providers: [OrderService],

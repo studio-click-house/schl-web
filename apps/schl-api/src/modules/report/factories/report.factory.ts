@@ -38,6 +38,9 @@ export class ReportFactory {
             onboard_date: '',
             order_update: (dto.orderUpdate ?? '').trim(),
             client_code: null,
+            has_followup_date:
+                !!(dto.followupDate && dto.followupDate.trim() !== '') &&
+                !(dto.followupDone ?? false),
         };
     }
 
@@ -60,8 +63,12 @@ export class ReportFactory {
         if (dto.recall) {
             $addToSet.calling_date_history = today;
         }
-        if (dto.followupDate !== undefined)
+        if (dto.followupDate !== undefined) {
             $set.followup_date = dto.followupDate ?? '';
+        }
+        if (dto.followupDone !== undefined) {
+            $set.followup_done = dto.followupDone;
+        }
         if (dto.country !== undefined && dto.country !== null)
             $set.country = dto.country.trim();
         if (dto.designation !== undefined && dto.designation !== null)
@@ -84,10 +91,6 @@ export class ReportFactory {
             $set.calling_status = (dto.callingStatus ?? '').trim();
         if (dto.linkedin !== undefined)
             $set.linkedin = (dto.linkedin ?? '').trim();
-        if (dto.followupDone !== undefined)
-            $set.followup_done = dto.followupDone;
-        if (dto.isProspected !== undefined)
-            $set.is_prospected = dto.isProspected;
         if (dto.prospectStatus !== undefined)
             $set.prospect_status = (dto.prospectStatus ?? '').trim();
         if (dto.isLead !== undefined) $set.is_lead = dto.isLead;
@@ -146,6 +149,9 @@ export class ReportFactory {
             client_code: null,
             order_update: lead.order_update || '',
             updated_by: updatedBy,
+            has_followup_date: !!(
+                lead.followup_date && lead.followup_date.trim() !== ''
+            ),
         };
     }
 }
